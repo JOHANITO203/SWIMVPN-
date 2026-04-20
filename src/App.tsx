@@ -114,9 +114,9 @@ const translations: any = {
 const Button = ({ children, onClick, variant = 'primary', className = '' }: any) => {
   const baseClass = "px-6 py-4 rounded-[2rem] transition-all active:scale-95 flex items-center justify-center gap-3";
   const variants = {
-    primary: "app-btn-primary shadow-xl shadow-minimal-primary/20 dark:shadow-white/5",
+    primary: "app-btn-primary",
     secondary: "app-btn-secondary",
-    outline: "border-2 border-minimal-border dark:border-dark-border app-text font-black uppercase tracking-widest text-[10px]",
+    outline: "border-2 app-border app-text font-black uppercase tracking-widest text-[10px] hover:app-bg",
     ghost: "app-text-secondary hover:app-text-bold font-black uppercase tracking-widest text-[10px]",
     dark: "app-btn-primary shadow-2xl"
   };
@@ -265,7 +265,7 @@ const HomeScreen = ({ user, servers, onNavigate, config }: any) => {
   return (
     <div className="h-full flex flex-col p-6 app-surface relative overflow-hidden transition-colors font-sans">
       {/* Background Decor */}
-      <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-minimal-primary/5 dark:bg-white/5 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-minimal-accent/10 dark:bg-dark-accent/5 rounded-full blur-[100px] pointer-events-none" />
       
       {/* Header */}
       <header className="flex justify-between items-center mb-10 z-20">
@@ -287,7 +287,7 @@ const HomeScreen = ({ user, servers, onNavigate, config }: any) => {
       <div className="flex-1 flex flex-col items-center justify-center relative">
         {/* Absolute Background Elements */}
         {isConnected && (
-           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full aspect-square bg-minimal-primary/5 dark:bg-minimal-primary/10 rounded-full blur-3xl z-0 pointer-events-none" />
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full aspect-square bg-minimal-accent/5 dark:bg-dark-accent/10 rounded-full blur-3xl z-0 pointer-events-none" />
         )}
 
         {/* Trial Badge */}
@@ -295,7 +295,7 @@ const HomeScreen = ({ user, servers, onNavigate, config }: any) => {
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="z-10 trial-badge bg-minimal-trial-bg dark:bg-dark-trial-bg text-minimal-trial-text dark:text-dark-trial-text px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-12 shadow-lg border border-minimal-trial-text/10"
+            className="z-10 trial-badge bg-minimal-trial-bg dark:bg-dark-trial-bg text-minimal-trial-text dark:text-dark-trial-text px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] mb-12 shadow-lg border-2 app-border"
           >
             {t.trial}: 6 {t.daysLeft}
           </motion.div>
@@ -322,7 +322,7 @@ const HomeScreen = ({ user, servers, onNavigate, config }: any) => {
             <button 
               onClick={toggleConnection}
               disabled={isConnecting}
-              className={`relative z-10 w-56 h-56 rounded-full border-[12px] flex flex-col items-center justify-center transition-all duration-700 app-surface shadow-2xl ${isConnected ? 'border-minimal-success shadow-minimal-success/10' : isTrialExpired || !hasAccess ? 'border-red-500 shadow-red-500/10' : 'app-border shadow-black/5'}`}
+              className={`relative z-10 w-56 h-56 rounded-full border-[12px] flex flex-col items-center justify-center transition-all duration-700 app-surface shadow-2xl ${isConnected ? 'border-minimal-success shadow-minimal-success/10' : isTrialExpired || !hasAccess ? 'border-red-500 shadow-red-500/10' : 'app-border dark:shadow-none'}`}
             >
               <Power className={`w-20 h-20 transition-colors duration-500 ${isConnected ? 'text-minimal-success' : isTrialExpired || !hasAccess ? 'text-red-500' : 'app-text-muted'}`} />
               <div className="absolute bottom-10 font-black text-xs tracking-widest app-text-muted">
@@ -693,7 +693,7 @@ const SupportScreen = ({ onBack }: any) => {
           <p className="text-[10px] font-black app-text-muted uppercase tracking-[0.3em] ml-4 mb-3">Direct Channels</p>
           <div className="grid grid-cols-1 gap-4">
              <button className="flex items-center gap-6 p-6 app-card rounded-[3rem] border-2 shadow-sm hover:shadow-lg transition-all group">
-               <div className="w-14 h-14 app-bg rounded-2xl flex items-center justify-center text-[#2E90FA] dark:text-[#38BDF8] group-hover:scale-110 transition-transform">
+               <div className="w-14 h-14 app-bg rounded-2xl flex items-center justify-center text-minimal-accent dark:text-dark-accent group-hover:scale-110 transition-transform">
                  <MessageSquare className="w-7 h-7" />
                </div>
                <div className="text-left flex-1">
@@ -875,9 +875,9 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
   const Toggle = ({ active, onToggle }: any) => (
     <button 
       onClick={onToggle}
-      className={`w-14 h-8 rounded-full relative transition-all duration-500 shadow-inner ${active ? 'bg-minimal-text-bold dark:bg-white' : 'bg-minimal-border dark:bg-dark-border'}`}
+      className={`w-14 h-8 rounded-full relative transition-all duration-500 shadow-inner ${active ? 'app-toggle-bg-active' : 'app-toggle-bg'}`}
     >
-      <div className={`absolute top-1 w-6 h-6 rounded-full transition-all duration-500 shadow-md ${active ? 'left-7 bg-white dark:bg-black' : 'left-1 bg-white dark:bg-minimal-text-secondary'}`} />
+      <div className={`absolute top-1 w-6 h-6 rounded-full transition-all duration-500 ${active ? 'left-7 app-toggle-knob' : 'left-1 app-toggle-knob'}`} />
     </button>
   );
 
@@ -886,15 +886,15 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
       <select 
         value={value} 
         onChange={(e) => onChange(e.target.value)}
-        className="appearance-none bg-minimal-bg dark:bg-dark-bg px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-minimal-text-bold dark:text-white outline-none cursor-pointer pr-10 border-2 border-transparent focus:border-minimal-text-bold/30 dark:focus:border-white/30 transition-all min-w-[100px] text-right shadow-sm"
+        className="app-select pr-10 min-w-[100px] text-right"
       >
         {options.map((opt: any) => (
-          <option key={typeof opt === 'string' ? opt : opt.value} value={typeof opt === 'string' ? opt : opt.value}>
+          <option key={typeof opt === 'string' ? opt : opt.value} value={typeof opt === 'string' ? opt : opt.value} className="app-text">
             {typeof opt === 'string' ? opt : opt.label}
           </option>
         ))}
       </select>
-      <ChevronRight className="w-3 h-3 absolute right-4 rotate-90 text-minimal-text-bold dark:text-white pointer-events-none opacity-50" />
+      <ChevronRight className="w-3 h-3 absolute right-4 rotate-90 app-text-bold pointer-events-none opacity-50" />
     </div>
   );
 
@@ -912,7 +912,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
         </div>
         <button 
           onClick={resetSettings} 
-          className="px-5 py-2.5 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 active:scale-95 transition-all"
+          className="px-5 py-2.5 bg-red-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
         >
           Reset
         </button>
@@ -923,7 +923,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
           <SettingRow 
             label="Language" 
             desc="Interface translation"
-            icon={<Languages className="w-5 h-5 text-minimal-text-bold dark:text-white" />}
+            icon={<Languages className="w-5 h-5 app-text-bold" />}
           >
             <Select 
               value={config.language} 
@@ -935,7 +935,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
             label="Visual Theme" 
             desc="Appearance mode"
             noBorder
-            icon={<Shield className="w-5 h-5 text-minimal-text-bold dark:text-white" />}
+            icon={<Shield className="w-5 h-5 app-text-bold" />}
           >
             <Select 
               value={config.themeMode} 
@@ -949,7 +949,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
           <SettingRow 
             label="Routing" 
             desc="Tunneling logic"
-            icon={<Network className="w-5 h-5 text-minimal-text-bold dark:text-white" />}
+            icon={<Network className="w-5 h-5 app-text-bold" />}
           >
              <Select 
               value={config.vpnMode} 
@@ -960,7 +960,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
           <SettingRow 
             label="Auto Start" 
             desc="Boot connection"
-            icon={<Power className="w-5 h-5 text-minimal-text-bold dark:text-white" />}
+            icon={<Power className="w-5 h-5 app-text-bold" />}
           >
             <Toggle active={config.autoConnect} onToggle={() => onUpdateConfig({...config, autoConnect: !config.autoConnect})} />
           </SettingRow>
@@ -968,7 +968,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
             label="Secured Kill" 
             desc="Drop all traffic" 
             noBorder
-            icon={<Shield className="w-5 h-5 text-minimal-text-bold dark:text-white" />}
+            icon={<Shield className="w-5 h-5 app-text-bold" />}
           >
             <Toggle active={config.killSwitch} onToggle={() => onUpdateConfig({...config, killSwitch: !config.killSwitch})} />
           </SettingRow>
@@ -978,7 +978,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
           <SettingRow 
             label="Expert Mode" 
             desc="System fine-tuning" 
-            icon={<Settings className="w-5 h-5 text-minimal-text-bold dark:text-white" />}
+            icon={<Settings className="w-5 h-5 app-text-bold" />}
           >
             <Toggle active={advancedMode} onToggle={() => setAdvancedMode(!advancedMode)} />
           </SettingRow>
@@ -994,7 +994,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
                 <SettingRow 
                   label="Protocol" 
                   desc="Engine selection"
-                  icon={<Globe className="w-5 h-5 text-minimal-text-bold dark:text-white" />}
+                  icon={<Globe className="w-5 h-5 app-text-bold" />}
                 >
                   <Select 
                     value={config.protocol} 
@@ -1006,7 +1006,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
                   label="DNS" 
                   desc="Address resolution" 
                   noBorder
-                  icon={<Shield className="w-5 h-5 text-minimal-text-bold dark:text-white" />}
+                  icon={<Shield className="w-5 h-5 app-text-bold" />}
                 >
                    <Select 
                     value={config.dnsMode} 
@@ -1020,7 +1020,7 @@ const SettingsScreen = ({ config, onUpdateConfig, onBack }: any) => {
         </Section>
       </div>
 
-      <div className="p-6 pb-12 bg-white dark:bg-black border-t-2 app-border z-30 shadow-2xl">
+      <div className="p-6 pb-12 app-surface border-t-2 app-border z-30 shadow-2xl dark:shadow-none">
         <Button onClick={saveSettings} className="w-full">SAVE ALL PREFERENCES</Button>
       </div>
     </div>
@@ -1168,25 +1168,25 @@ const LoadingScreen = () => (
 
       {/* Desktop Info */}
       <div className="hidden xl:flex flex-col gap-6 p-12 max-w-sm ml-8">
-        <div className="p-8 bg-white rounded-3xl border border-minimal-border shadow-sm">
-          <h2 className="text-2xl font-bold mb-2 text-minimal-text-bold tracking-tight">SWIMVPN+</h2>
-          <p className="text-minimal-text-secondary text-sm mb-8 leading-relaxed">
-            Clean Minimalist Architecture. 
-            Optimized for V1 deployment and developer focus.
+        <div className="p-8 app-card rounded-[2.5rem] shadow-xl">
+          <h2 className="text-2xl font-black mb-2 app-text-bold tracking-tighter uppercase leading-tight">SWIMVPN+<br />DEVELOPER INFO</h2>
+          <p className="app-text-secondary text-sm mb-10 leading-relaxed font-medium">
+            Midnight Blue & Electric Blue Architecture. 
+            Deeply themed minimalism optimized for high-performance VPN clients.
           </p>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-minimal-primary/10 rounded-xl flex items-center justify-center text-minimal-primary"><Globe className="w-5 h-5"/></div>
+          <div className="space-y-6">
+            <div className="flex items-center gap-5">
+              <div className="w-12 h-12 app-bg rounded-2xl flex items-center justify-center text-minimal-accent dark:text-dark-accent border-2 app-border shadow-sm"><Globe className="w-6 h-6"/></div>
               <div>
-                <p className="font-bold text-sm text-minimal-text">Backend Integrated</p>
-                <p className="text-xs text-minimal-text-muted">Real-time API simulation</p>
+                <p className="font-black text-sm app-text-bold uppercase tracking-tight">Unified Engine</p>
+                <p className="text-[10px] app-text-muted font-black uppercase tracking-widest mt-0.5">Real-time adaptive logic</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-minimal-trial-bg rounded-xl flex items-center justify-center text-minimal-trial-text"><Shield className="w-5 h-5"/></div>
+            <div className="flex items-center gap-5">
+              <div className="w-12 h-12 app-bg rounded-2xl flex items-center justify-center text-minimal-accent dark:text-dark-accent border-2 app-border shadow-sm"><Shield className="w-6 h-6"/></div>
               <div>
-                <p className="font-bold text-sm text-minimal-text">Secure & Fast</p>
-                <p className="text-xs text-minimal-text-muted">Encrypted traffic by default</p>
+                <p className="font-black text-sm app-text-bold uppercase tracking-tight">Stealth Mode</p>
+                <p className="text-[10px] app-text-muted font-black uppercase tracking-widest mt-0.5">Traffic obsfuscation v2</p>
               </div>
             </div>
           </div>
