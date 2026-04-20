@@ -1,7 +1,32 @@
+# Android
+android/.gradle/
+android/build/
+android/local.properties
+android/Generated/
+android/app/build/
+android/app/java_pid*.hprof
+*.hprof
+
+# IDE
+.idea/
+.idea/caches/
+.idea/modules.xml
+.idea/workspace.xml
+android/.idea/
+android/.idea/caches/
+android/.idea/workspace.xml
+*.iml
+
+# Gradle Distribution (ne pas versionner le dossier dists téléchargé)
+android/wrapper/dists/
+
+# Node / JS
 node_modules/
 build/
 dist/
 coverage/
+
+# Misc
 .DS_Store
 *.log
 .env*
