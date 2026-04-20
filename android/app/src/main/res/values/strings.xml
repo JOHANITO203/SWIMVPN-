@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">SWIMVPN+</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="trial_active">7 Days Free Trial Active</string>
+</resources>

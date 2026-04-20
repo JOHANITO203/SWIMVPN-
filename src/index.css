@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
+
+  /* Clean Minimalism Theme Colors */
+  --color-minimal-bg: #F0F2F5;
+  --color-minimal-surface: #F8FAFC;
+  --color-minimal-sidebar: #FFFFFF;
+  --color-minimal-primary: #3B82F6;
+  --color-minimal-success: #10B981;
+  --color-minimal-text: #1F2937;
+  --color-minimal-text-secondary: #6B7280;
+  --color-minimal-text-muted: #9CA3AF;
+  --color-minimal-text-bold: #111827;
+  --color-minimal-border: #E5E7EB;
+  --color-minimal-trial-bg: #FEF3C7;
+  --color-minimal-trial-text: #92400E;
+
+  /* Dark Theme Overrides - applied via .dark class */
+  --color-dark-bg: #0F172A;
+  --color-dark-surface: #1E293B;
+  --color-dark-text: #F8FAFC;
+  --color-dark-text-secondary: #94A3B8;
+  --color-dark-text-muted: #64748B;
+  --color-dark-text-bold: #FFFFFF;
+  --color-dark-border: #334155;
+  --color-dark-trial-bg: #451a03;
+  --color-dark-trial-text: #fed7aa;
+}
+
+@layer base {
+  body {
+    @apply bg-minimal-bg text-minimal-text font-sans antialiased transition-colors duration-300;
+  }
+}
+
+.dark body {
+  @apply bg-dark-bg text-dark-text;
+}
+
+/* Theme Utilities */
+.app-bg { @apply bg-minimal-bg dark:bg-dark-bg; }
+.app-surface { @apply bg-minimal-surface dark:bg-dark-surface; }
+.app-card { @apply bg-white dark:bg-dark-surface border border-minimal-border dark:border-dark-border shadow-sm; }
+.app-text { @apply text-minimal-text dark:text-dark-text; }
+.app-text-secondary { @apply text-minimal-text-secondary dark:text-dark-text-secondary; }
+.app-text-bold { @apply text-minimal-text-bold dark:text-dark-text-bold; }
+.app-border { @apply border-minimal-border dark:border-dark-border; }
+.app-heading { @apply text-minimal-text-bold dark:text-dark-text-bold font-bold; }

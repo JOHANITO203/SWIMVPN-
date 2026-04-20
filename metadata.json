@@ -1,0 +1,9 @@
+{
+  "name": "SWIMVPN+",
+  "description": "Premium Android VPN client for Russia. 7-day free trial, simplified access management.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ],
+  "majorCapabilities": []
+}
