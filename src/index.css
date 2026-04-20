@@ -5,35 +5,37 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, monospace;
 
-  /* Clean Minimalism Theme Colors */
-  --color-minimal-bg: #F0F2F5;
-  --color-minimal-surface: #F8FAFC;
-  --color-minimal-sidebar: #FFFFFF;
-  --color-minimal-primary: #3B82F6;
-  --color-minimal-success: #10B981;
-  --color-minimal-text: #1F2937;
-  --color-minimal-text-secondary: #6B7280;
-  --color-minimal-text-muted: #9CA3AF;
-  --color-minimal-text-bold: #111827;
-  --color-minimal-border: #E5E7EB;
-  --color-minimal-trial-bg: #FEF3C7;
-  --color-minimal-trial-text: #92400E;
+  /* Refined Light Theme - Midnight Blue base */
+  --color-minimal-bg: #F2F4F7;
+  --color-minimal-surface: #FFFFFF;
+  --color-minimal-primary: #101828;
+  --color-minimal-accent: #2E90FA;
+  --color-minimal-success: #15B097;
+  --color-minimal-text: #101828;
+  --color-minimal-text-secondary: #475467;
+  --color-minimal-text-muted: #98A2B3;
+  --color-minimal-text-bold: #101828;
+  --color-minimal-border: #EAECF0;
+  --color-minimal-trial-bg: #FFFAEB;
+  --color-minimal-trial-text: #B54708;
 
-  /* Dark Theme Overrides - applied via .dark class */
+  /* Refined Dark Theme - Graphite/Midnight base */
   --color-dark-bg: #0F172A;
   --color-dark-surface: #1E293B;
+  --color-dark-primary: #38BDF8;
+  --color-dark-accent: #38BDF8;
   --color-dark-text: #F8FAFC;
   --color-dark-text-secondary: #94A3B8;
-  --color-dark-text-muted: #64748B;
-  --color-dark-text-bold: #FFFFFF;
+  --color-dark-text-muted: #475569;
+  --color-dark-text-bold: #F8FAFC;
   --color-dark-border: #334155;
-  --color-dark-trial-bg: #451a03;
-  --color-dark-trial-text: #fed7aa;
+  --color-dark-trial-bg: #1e1b4b;
+  --color-dark-trial-text: #70e2ff;
 }
 
 @layer base {
   body {
-    @apply bg-minimal-bg text-minimal-text font-sans antialiased transition-colors duration-300;
+    @apply bg-minimal-bg text-minimal-text font-sans antialiased transition-colors duration-500;
   }
 }
 
@@ -42,11 +44,14 @@
 }
 
 /* Theme Utilities */
-.app-bg { @apply bg-minimal-bg dark:bg-dark-bg; }
-.app-surface { @apply bg-minimal-surface dark:bg-dark-surface; }
-.app-card { @apply bg-white dark:bg-dark-surface border border-minimal-border dark:border-dark-border shadow-sm; }
-.app-text { @apply text-minimal-text dark:text-dark-text; }
-.app-text-secondary { @apply text-minimal-text-secondary dark:text-dark-text-secondary; }
-.app-text-bold { @apply text-minimal-text-bold dark:text-dark-text-bold; }
-.app-border { @apply border-minimal-border dark:border-dark-border; }
-.app-heading { @apply text-minimal-text-bold dark:text-dark-text-bold font-bold; }
+.app-bg { @apply bg-minimal-bg dark:bg-dark-bg transition-colors duration-500; }
+.app-surface { @apply bg-minimal-surface dark:bg-dark-surface transition-colors duration-500; }
+.app-card { @apply bg-minimal-surface dark:bg-dark-surface border border-minimal-border dark:border-dark-border shadow-sm dark:shadow-none transition-all duration-500; }
+.app-text { @apply text-minimal-text dark:text-dark-text transition-colors duration-500; }
+.app-text-secondary { @apply text-minimal-text-secondary dark:text-dark-text-secondary transition-colors duration-500; }
+.app-text-muted { @apply text-minimal-text-muted dark:text-dark-text-muted transition-colors duration-500; }
+.app-text-bold { @apply text-minimal-text-bold dark:text-dark-text-bold transition-colors duration-500; }
+.app-border { @apply border-minimal-border dark:border-dark-border transition-colors duration-500; }
+.app-heading { @apply text-minimal-text-bold dark:text-dark-text-bold font-black tracking-tight; }
+.app-btn-primary { @apply bg-minimal-accent dark:bg-dark-accent text-white dark:text-dark-bg font-black uppercase tracking-widest text-[10px] transition-all active:scale-95; }
+.app-btn-secondary { @apply bg-minimal-bg dark:bg-dark-surface text-minimal-text dark:text-dark-text font-black uppercase tracking-widest text-[10px] transition-all border border-minimal-border dark:border-dark-border active:scale-95; }
