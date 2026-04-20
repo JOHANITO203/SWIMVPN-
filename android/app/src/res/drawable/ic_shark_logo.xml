@@ -1,0 +1,63 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Circle background segment -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.5"
+        android:pathData="M15,75 A40,40 0 1,1 85,75" />
+
+    <!-- Fins (Side) -->
+    <path
+        android:fillColor="#1D4E89"
+        android:pathData="M30,60 L10,65 L25,50 Z" />
+    <path
+        android:fillColor="#1D4E89"
+        android:pathData="M70,60 L90,65 L75,50 Z" />
+
+    <!-- Dorsal Fin (Top) -->
+    <path
+        android:fillColor="#1D4E89"
+        android:pathData="M50,10 L44,35 L56,35 Z" />
+
+    <!-- Shark Head Body (Front View) -->
+    <path
+        android:fillColor="#1D4E89"
+        android:pathData="M50,25 C30,25 20,45 20,65 C20,85 35,95 50,95 C65,95 80,85 80,65 C80,45 70,25 50,25 Z" />
+
+    <!-- Light Blue Face Area -->
+    <path
+        android:fillColor="#8ECAE6"
+        android:pathData="M50,40 C35,40 28,55 28,65 C28,75 35,85 50,85 C65,85 72,75 72,65 C72,55 65,40 50,40 Z" />
+
+    <!-- Open Mouth (Dark Blue/Navy) -->
+    <path
+        android:fillColor="#023047"
+        android:pathData="M50,50 A15,15 0 1,0 50,80 A15,15 0 1,0 50,50 Z" />
+
+    <!-- Teeth (Triangles) -->
+    <!-- Top Row -->
+    <path android:fillColor="#FFFFFF" android:pathData="M42,53 L44,53 L43,56 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M45,51 L47,51 L46,54 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M49,50 L51,50 L50,53 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M53,51 L55,51 L54,54 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M56,53 L58,53 L57,56 Z" />
+    <!-- Bottom Row -->
+    <path android:fillColor="#FFFFFF" android:pathData="M42,77 L44,77 L43,74 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M45,79 L47,79 L46,76 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M49,80 L51,80 L50,77 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M53,79 L55,79 L54,76 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M56,77 L58,77 L57,74 Z" />
+
+    <!-- Eyes -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,48 A2,2 0 1,0 38,52 A2,2 0 1,0 38,48 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M62,48 A2,2 0 1,0 62,52 A2,2 0 1,0 62,48 Z" />
+
+</vector>

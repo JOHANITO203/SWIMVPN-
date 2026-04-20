@@ -1,0 +1,187 @@
+package com.swimvpn.app
+
+import android.app.Application
+import android.provider.Settings
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.swimvpn.app.data.local.PreferencesManager
+import com.swimvpn.app.data.network.AccessProfileResponse
+import com.swimvpn.app.data.network.ActivateCodeRequest
+import com.swimvpn.app.data.network.ImportSubscriptionRequest
+import com.swimvpn.app.data.network.RetrofitClient
+import com.swimvpn.app.data.network.ServerNode
+import com.swimvpn.app.data.network.StartTrialRequest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+
+sealed class AppState {
+    object Loading : AppState()
+    data class Success(
+        val profile: AccessProfileResponse,
+        val servers: List<ServerNode>,
+        val isOnboardingDone: Boolean,
+        val routingMode: String,
+        val autoConnect: Boolean,
+        val language: String
+    ) : AppState()
+    data class Error(val message: String) : AppState()
+}
+
+class MainViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val prefs = PreferencesManager(application)
+    private val api = RetrofitClient.apiService
+
+    private val _state = MutableStateFlow<AppState>(AppState.Loading)
+    val state: StateFlow<AppState> = _state.asStateFlow()
+
+    init {
+        initApp()
+    }
+
+    private fun initApp() {
+        viewModelScope.launch {
+            try {
+                _state.value = AppState.Loading
+                
+                val deviceId = getDeviceId()
+                
+                // 1. Essayer de récupérer le profil via l'API
+                val profile = try {
+                    api.getAccessProfile(deviceId)
+                } catch (e: Exception) {
+                    // Si l'utilisateur n'existe pas encore, on lance le Trial automatiquement
+                    api.startTrial(StartTrialRequest(deviceId))
+                }
+
+                // 2. Récupérer la liste des serveurs
+                val servers = api.getServers(deviceId)
+
+                val isOnboardingDone = prefs.onboardingDoneFlow.first()
+                val routingMode = prefs.routingModeFlow.first()
+                val autoConnect = prefs.autoConnectFlow.first()
+                val language = prefs.languageFlow.first()
+
+                _state.value = AppState.Success(profile, servers, isOnboardingDone, routingMode, autoConnect, language)
+
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error initApp", e)
+                _state.value = AppState.Error("Backend Offline or Connection Error: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun setRoutingMode(mode: String) {
+        viewModelScope.launch {
+            prefs.setRoutingMode(mode)
+            val currentState = _state.value as? AppState.Success ?: return@launch
+            _state.value = currentState.copy(routingMode = mode)
+        }
+    }
+
+    fun setAutoConnect(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setAutoConnect(enabled)
+            val currentState = _state.value as? AppState.Success ?: return@launch
+            _state.value = currentState.copy(autoConnect = enabled)
+        }
+    }
+
+    fun setLanguage(lang: String) {
+        viewModelScope.launch {
+            prefs.setLanguage(lang)
+            val currentState = _state.value as? AppState.Success ?: return@launch
+            _state.value = currentState.copy(language = lang)
+        }
+    }
+
+    fun completeOnboarding() {
+        viewModelScope.launch {
+            prefs.setOnboardingDone()
+            val currentState = _state.value as? AppState.Success ?: return@launch
+            _state.value = currentState.copy(isOnboardingDone = true)
+        }
+    }
+
+    fun importUrl(url: String) {
+        viewModelScope.launch {
+            try {
+                _state.value = AppState.Loading
+                val updatedProfile = api.importSubscription(ImportSubscriptionRequest(getDeviceId(), url))
+                val currentState = _state.value as? AppState.Success ?: return@launch
+                _state.value = currentState.copy(profile = updatedProfile)
+            } catch (e: Exception) {
+                _state.value = AppState.Error("Import failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun activateCode(code: String) {
+        viewModelScope.launch {
+            try {
+                _state.value = AppState.Loading
+                val updatedProfile = api.activateCode(ActivateCodeRequest(getDeviceId(), code))
+                val currentState = _state.value as? AppState.Success ?: return@launch
+                _state.value = currentState.copy(profile = updatedProfile)
+            } catch (e: Exception) {
+                _state.value = AppState.Error("Activation failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun retry() {
+        initApp()
+    }
+
+    fun toggleVpn(context: android.content.Context, server: ServerNode?, profile: AccessProfileResponse?) {
+        val currentState = com.swimvpn.app.vpn.VpnManager.state.value
+
+        if (currentState == com.swimvpn.app.vpn.VpnState.CONNECTED || currentState == com.swimvpn.app.vpn.VpnState.CONNECTING) {
+            // STOP VPN
+            val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
+                action = SwimVpnService.ACTION_STOP
+            }
+            context.startService(intent)
+        } else {
+            // START VPN
+            if (server == null || profile == null) {
+                _state.value = AppState.Error("No server or profile available.")
+                return
+            }
+
+            // Check if plan is expired before starting
+            if (profile.status == "EXPIRED") {
+                _state.value = AppState.Error("Your subscription has expired. Please upgrade.")
+                return
+            }
+            
+            val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
+                action = SwimVpnService.ACTION_START
+                putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
+                putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
+                putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
+                putExtra(SwimVpnService.EXTRA_URL, profile.subscriptionUrl)
+                
+                // Pass data limits
+                val limitBytes = if (profile.planType == "TRIAL") -1L else profile.dataLimitGB.toLong() * 1024 * 1024 * 1024
+                val usedBytes = profile.dataUsedBytes.toLongOrNull() ?: 0L
+                
+                putExtra("DATA_LIMIT_BYTES", limitBytes)
+                putExtra("DATA_USED_BYTES", usedBytes)
+            }
+            context.startService(intent)
+        }
+    }
+
+    private fun getDeviceId(): String {
+        return Settings.Secure.getString(
+            getApplication<Application>().contentResolver,
+            Settings.Secure.ANDROID_ID
+        ) ?: "unknown_device_id"
+    }
+}

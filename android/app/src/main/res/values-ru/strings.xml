@@ -1,0 +1,118 @@
+<resources>
+    <string name="app_name">SWIMVPN+</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_next">ДАЛЕЕ</string>
+    <string name="onboarding_start">НАЧАТЬ</string>
+    <string name="ob_step1_title">SWIMVPN+</string>
+    <string name="ob_step1_desc">Быстрый и безопасный доступ, созданный для полной анонимности.</string>
+    <string name="ob_step2_title">ЭЛЕКТРИЧЕСКАЯ СКОРОСТЬ</string>
+    <string name="ob_step2_desc">Оптимизированные серверы для стриминга и игр без задержек.</string>
+    <string name="ob_step3_title">ВОЕННАЯ БЕЗОПАСНОСТЬ</string>
+    <string name="ob_step3_desc">Протоколы VLESS и SSH для обхода любой цензуры.</string>
+
+    <!-- Home -->
+    <string name="status_expired">ИСТЕКЛО</string>
+    <string name="status_trial">ПРОБНЫЙ ПЕРИОД</string>
+    <string name="status_pro">ПРО АКЦИЯ</string>
+    <string name="btn_connect">ПОДКЛЮЧИТЬ</string>
+    <string name="btn_connect_on">ВКЛ</string>
+    <string name="status_connected">Подключено</string>
+    <string name="status_disconnected">Отключено</string>
+    <string name="msg_secure_connection">Безопасное соединение установлено</string>
+    <string name="msg_tap_to_connect">Нажмите для подключения</string>
+    <string name="no_server">НЕТ СЕРВЕРА</string>
+    <string name="upgrade_needed">Требуется обновление</string>
+
+    <!-- Import Modal -->
+    <string name="import_title">АКТИВИРОВАТЬ ДОСТУП</string>
+    <string name="btn_scan_qr">СКАН QR</string>
+    <string name="btn_paste">ВСТАВИТЬ</string>
+    <string name="btn_coupon">КУПОН</string>
+    <string name="btn_manual">ВРУЧНУЮ</string>
+    <string name="label_quick_actions">БЫСТРЫЕ ДЕЙСТВИЯ</string>
+    <string name="label_direct_input">ПРЯМОЙ ВВОД</string>
+    <string name="label_selected_server">ВЫБРАННЫЙ СЕРВЕР</string>
+    <string name="label_stable">СТАБИЛЬНО</string>
+    <string name="input_placeholder">vless://... или SWIM-CODE</string>
+    <string name="btn_activate">АКТИВИРОВАТЬ</string>
+
+    <!-- Servers -->
+    <string name="title_locations">ЛОКАЦИИ</string>
+    <string name="search_hint">Поиск</string>
+
+    <!-- Profile -->
+    <string name="title_account">АККАУНТ</string>
+    <string name="label_user_id">ИДЕНТИФИКАЦИЯ ПОЛЬЗОВАТЕЛЯ</string>
+    <string name="label_analytics">АНАЛИТИКА ПОДПИСКИ</string>
+    <string name="label_data_traffic">ТРАФИК ДАННЫХ</string>
+    <string name="label_unlimited">БЕЗЛИМИТНО</string>
+    <string name="label_left">ОСТАЛОСЬ</string>
+    <string name="label_expires_at">СРОК ПОДПИСКИ</string>
+    <string name="status_active">АКТИВЕН</string>
+    <string name="label_management">УПРАВЛЕНИЕ</string>
+    <string name="label_plan">Тариф</string>
+    <string name="label_expires">Истекает</string>
+    <string name="menu_subscription">Подписка</string>
+    <string name="menu_security">Безопасность</string>
+    <string name="menu_technical">Технические настройки</string>
+    <string name="menu_support">Поддержка и помощь</string>
+    <string name="btn_activate_coupon">АКТИВИРОВАТЬ КУПОН</string>
+    <string name="btn_retry">ПОВТОРИТЬ</string>
+    <string name="menu_signout">Выйти</string>
+
+    <!-- Support -->
+    <string name="support_title">ПОДДЕРЖКА И ПОМОЩЬ</string>
+    <string name="support_faq_title">FAQ</string>
+    <string name="faq_connect_title">Как подключиться?</string>
+    <string name="faq_connect_desc">Нажмите центральную кнопку «ВКЛ», чтобы установить безопасное соединение.</string>
+    <string name="faq_import_title">Как импортировать ссылку?</string>
+    <string name="faq_import_desc">Скопируйте ссылку vless://, затем нажмите кнопку «Импорт» на главном экране.</string>
+    <string name="support_contact_title">СВЯЗАТЬСЯ С НАМИ</string>
+    <string name="support_email">Email поддержки</string>
+    <string name="support_telegram">Telegram канал</string>
+    <string name="btn_renew">ОБНОВИТЬ ПОДПИСКУ</string>
+
+    <!-- Subscription -->
+    <string name="sub_title">БЕЗЛИМИТНЫЙ\nVPN ДОСТУП</string>
+    <string name="sub_desc">Выберите тариф, который подходит вашему стилю.</string>
+    <string name="title_pricing">ЦЕНЫ</string>
+    <string name="plan_weekly">BRONZE</string>
+    <string name="plan_weekly_desc">50 ГБ • 299 ₽ / неделя</string>
+    <string name="plan_monthly">SILVER</string>
+    <string name="plan_monthly_desc">150 ГБ • 699 ₽ / месяц</string>
+    <string name="plan_annual">GOLD</string>
+    <string name="plan_annual_desc">500 ГБ • 1899 ₽ / квартал</string>
+    <string name="label_traffic">ТРАФИК</string>
+    <string name="label_period"> / период</string>
+    <string name="feature_1">Высокоскоростные серверы</string>
+    <string name="feature_2">Военное шифрование (VLESS)</string>
+    <string name="feature_3">До 5 устройств одновременно</string>
+    <string name="feature_4">Строгая политика отсутствия логов</string>
+    <string name="btn_upgrade">ПОДПИСАТЬСЯ СЕЙЧАС</string>
+
+    <!-- Technical -->
+    <string name="title_technical">ТЕХНИЧЕСКИЕ</string>
+    <string name="btn_reset">СБРОСИТЬ</string>
+    <string name="section_app">ПРИЛОЖЕНИЕ</string>
+    <string name="label_language">ЯЗЫК</string>
+    <string name="desc_language">ПЕРЕВОД ИНТЕРФЕЙСА</string>
+    <string name="lang_en">ENGLISH</string>
+    <string name="lang_fr">FRANÇAIS</string>
+    <string name="lang_ru">РУССКИЙ</string>
+    <string name="label_theme">ВИЗУАЛЬНАЯ ТЕМА</string>
+    <string name="desc_theme">РЕЖИМ ОФОРМЛЕНИЯ</string>
+    <string name="theme_light">СВЕТЛАЯ</string>
+    <string name="section_routing">РЕЖИМ МАРШРУТИЗАЦИИ</string>
+    <string name="label_routing">МАРШРУТИЗАЦИЯ</string>
+    <string name="tunnel_title">VPN Туннель (Рекомендуется)</string>
+    <string name="tunnel_desc">Маршрутизирует весь трафик устройства.</string>
+    <string name="proxy_title">Только локальный прокси</string>
+    <string name="proxy_desc">Только для конкретных приложений.</string>
+    <string name="section_connectivity">СВЯЗЬ</string>
+    <string name="auto_connect">Автоподключение</string>
+    <string name="desc_boot">ПОДКЛЮЧЕНИЕ ПРИ ЗАГРУЗКЕ</string>
+    <string name="kill_switch">Kill Switch</string>
+    <string name="kill_switch_desc">Управляется системой Android.</string>
+    <string name="btn_save">СОХРАНИТЬ ВСЕ НАСТРОЙКИ</string>
+</resources>

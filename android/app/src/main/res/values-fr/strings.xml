@@ -1,0 +1,118 @@
+<resources>
+    <string name="app_name">SWIMVPN+</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_next">SUIVANT</string>
+    <string name="onboarding_start">COMMENCER</string>
+    <string name="ob_step1_title">SWIMVPN+</string>
+    <string name="ob_step1_desc">L\'accès rapide et sécurisé, conçu pour l\'anonymat total.</string>
+    <string name="ob_step2_title">VITESSE ÉLECTRIQUE</string>
+    <string name="ob_step2_desc">Des serveurs optimisés pour le streaming et le gaming sans latence.</string>
+    <string name="ob_step3_title">SÉCURITÉ MILITAIRE</string>
+    <string name="ob_step3_desc">Protocoles VLESS et SSH pour contourner toute censure.</string>
+
+    <!-- Home -->
+    <string name="status_expired">EXPIRÉ</string>
+    <string name="status_trial">ESSAI ACTIF</string>
+    <string name="status_pro">PRO ACTIF</string>
+    <string name="btn_connect">CONNECTER</string>
+    <string name="btn_connect_on">ON</string>
+    <string name="status_connected">Connecté</string>
+    <string name="status_disconnected">Déconnecté</string>
+    <string name="msg_secure_connection">Connexion sécurisée établie</string>
+    <string name="msg_tap_to_connect">Appuyer pour connecter</string>
+    <string name="no_server">AUCUN SERVEUR</string>
+    <string name="upgrade_needed">Mise à niveau requise</string>
+
+    <!-- Import Modal -->
+    <string name="import_title">ACTIVER L\'ACCÈS</string>
+    <string name="btn_scan_qr">SCANNER QR</string>
+    <string name="btn_paste">COLLER</string>
+    <string name="btn_coupon">COUPON</string>
+    <string name="btn_manual">MANUEL</string>
+    <string name="label_quick_actions">ACTIONS RAPIDES</string>
+    <string name="label_direct_input">ENTRÉE DIRECTE</string>
+    <string name="label_selected_server">SERVEUR SÉLECTIONNÉ</string>
+    <string name="label_stable">STABLE</string>
+    <string name="input_placeholder">vless://... ou SWIM-CODE</string>
+    <string name="btn_activate">ACTIVER</string>
+
+    <!-- Servers -->
+    <string name="title_locations">LOCALISATIONS</string>
+    <string name="search_hint">Rechercher</string>
+
+    <!-- Profile -->
+    <string name="title_account">COMPTE</string>
+    <string name="label_user_id">IDENTIFICATION UTILISATEUR</string>
+    <string name="label_analytics">ANALYSE DE L\'ABONNEMENT</string>
+    <string name="label_data_traffic">TRAFIC DE DONNÉES</string>
+    <string name="label_unlimited">ILLIMITÉ</string>
+    <string name="label_left">RESTANT</string>
+    <string name="label_expires_at">L\'ABONNEMENT EXPIRE LE</string>
+    <string name="status_active">ACTIF</string>
+    <string name="label_management">GESTION</string>
+    <string name="label_plan">Forfait</string>
+    <string name="label_expires">Expire le</string>
+    <string name="menu_subscription">Abonnement</string>
+    <string name="menu_security">Sécurité du compte</string>
+    <string name="menu_technical">Paramètres Techniques</string>
+    <string name="menu_support">Support &amp; Aide</string>
+    <string name="btn_activate_coupon">ACTIVER UN COUPON</string>
+    <string name="btn_retry">RÉESSAYER</string>
+    <string name="menu_signout">Déconnexion</string>
+
+    <!-- Support -->
+    <string name="support_title">SUPPORT &amp; AIDE</string>
+    <string name="support_faq_title">FAQ</string>
+    <string name="faq_connect_title">Comment se connecter ?</string>
+    <string name="faq_connect_desc">Appuyez sur le bouton central "ON" pour démarrer la connexion sécurisée.</string>
+    <string name="faq_import_title">Comment importer un lien ?</string>
+    <string name="faq_import_desc">Copiez votre lien vless://, puis utilisez le bouton "Import" sur l\'écran d\'accueil.</string>
+    <string name="support_contact_title">NOUS CONTACTER</string>
+    <string name="support_email">Email du Support</string>
+    <string name="support_telegram">Canal Telegram</string>
+    <string name="btn_renew">RENOUVELER L\'ABONNEMENT</string>
+
+    <!-- Subscription -->
+    <string name="sub_title">ACCÈS VPN\nILLIMITÉ</string>
+    <string name="sub_desc">Choisissez le forfait qui correspond à votre style.</string>
+    <string name="title_pricing">TARIFS</string>
+    <string name="plan_weekly">BRONZE</string>
+    <string name="plan_weekly_desc">50 Go • 299 ₽ / semaine</string>
+    <string name="plan_monthly">SILVER</string>
+    <string name="plan_monthly_desc">150 Go • 699 ₽ / mois</string>
+    <string name="plan_annual">GOLD</string>
+    <string name="plan_annual_desc">500 Go • 1899 ₽ / trimestre</string>
+    <string name="label_traffic">TRAFIC</string>
+    <string name="label_period"> / période</string>
+    <string name="feature_1">Serveurs Mondiaux Haute Vitesse</string>
+    <string name="feature_2">Chiffrement Militaire (VLESS)</string>
+    <string name="feature_3">Jusqu\'à 5 appareils simultanés</string>
+    <string name="feature_4">Politique stricte de non-conservation</string>
+    <string name="btn_upgrade">S\'ABONNER MAINTENANT</string>
+
+    <!-- Technical -->
+    <string name="title_technical">TECHNIQUE</string>
+    <string name="btn_reset">RÉINITIALISER</string>
+    <string name="section_app">APPLICATION</string>
+    <string name="label_language">LANGUE</string>
+    <string name="desc_language">TRADUCTION DE L\'INTERFACE</string>
+    <string name="lang_en">ENGLISH</string>
+    <string name="lang_fr">FRANÇAIS</string>
+    <string name="lang_ru">РУССКИЙ</string>
+    <string name="label_theme">THÈME VISUEL</string>
+    <string name="desc_theme">MODE D\'APPARENCE</string>
+    <string name="theme_light">CLAIR</string>
+    <string name="section_routing">MODE DE ROUTAGE</string>
+    <string name="label_routing">ROUTAGE</string>
+    <string name="tunnel_title">Tunnel VPN (Recommandé)</string>
+    <string name="tunnel_desc">Route tout le trafic de l\'appareil.</string>
+    <string name="proxy_title">Proxy Local uniquement</string>
+    <string name="proxy_desc">Route uniquement les apps spécifiques.</string>
+    <string name="section_connectivity">CONNECTIVITÉ</string>
+    <string name="auto_connect">Connexion Auto</string>
+    <string name="desc_boot">CONNEXION AU DÉMARRAGE</string>
+    <string name="kill_switch">Kill Switch</string>
+    <string name="kill_switch_desc">Géré par le système Android.</string>
+    <string name="btn_save">ENREGISTRER LES PRÉFÉRENCES</string>
+</resources>

@@ -1,0 +1,94 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum PlanType {
+  TRIAL
+  PREMIUM
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+model UserAccess {
+  id                    String         @id @default(uuid())
+  email                 String?
+  userNumber            String         @unique
+  deviceId              String         @unique
+  planType              PlanType       @default(TRIAL)
+  trialStartedAt        DateTime       @default(now())
+  trialExpiresAt        DateTime
+  subscriptionExpiresAt DateTime?
+  devicesAllowed        Int            @default(1)
+  dataLimitGB           Int            @default(0)
+  dataUsedBytes         BigInt         @default(0)
+  subscriptionUrl       String?
+  orders                PaymentOrder[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+}
+
+model Plan {
+  id             String         @id @default(uuid())
+  name           String
+  durationDays   Int
+  devicesAllowed Int
+  features       String[]
+  isTrial        Boolean        @default(false)
+  isActive       Boolean        @default(true)
+  orders         PaymentOrder[]
+}
+
+model ServerNode {
+  id        String   @id @default(uuid())
+  country   String
+  city      String
+  host      String
+  port      Int
+  protocol  String
+  tags      String[]
+  isActive  Boolean  @default(true)
+  planScope PlanType @default(PREMIUM)
+}
+
+model PaymentOrder {
+  id           String      @id @default(uuid())
+  userAccessId String
+  user         UserAccess  @relation(fields: [userAccessId], references: [id])
+  planId       String
+  plan         Plan        @relation(fields: [planId], references: [id])
+  amount       Float
+  currency     String      @default("RUB")
+  status       OrderStatus @default(PENDING)
+  provider     String
+  paymentUrl   String?
+  createdAt    DateTime    @default(now())
+  paidAt       DateTime?
+}
+
+model ActivationCode {
+  id                     String    @id @default(uuid())
+  code                   String    @unique
+  planId                 String
+  isUsed                 Boolean   @default(false)
+  usedAt                 DateTime?
+  assignedToUserAccessId String?
+  expiresAt              DateTime?
+}
+
+model AppContent {
+  id       String  @id @default(uuid())
+  type     String
+  locale   String
+  key      String
+  value    String  @db.Text
+  isActive Boolean @default(true)
+}

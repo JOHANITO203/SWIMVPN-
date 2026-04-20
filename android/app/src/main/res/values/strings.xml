@@ -1,6 +1,118 @@
 <resources>
     <string name="app_name">SWIMVPN+</string>
-    <string name="connect">Connect</string>
-    <string name="disconnect">Disconnect</string>
-    <string name="trial_active">7 Days Free Trial Active</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_next">NEXT</string>
+    <string name="onboarding_start">GET STARTED</string>
+    <string name="ob_step1_title">SWIMVPN+</string>
+    <string name="ob_step1_desc">Fast and secure access, designed for total anonymity.</string>
+    <string name="ob_step2_title">ELECTRIC SPEED</string>
+    <string name="ob_step2_desc">Optimized servers for streaming and gaming without latency.</string>
+    <string name="ob_step3_title">MILITARY SECURITY</string>
+    <string name="ob_step3_desc">VLESS and SSH protocols to bypass any censorship.</string>
+
+    <!-- Home -->
+    <string name="status_expired">EXPIRED</string>
+    <string name="status_trial">TRIAL ACTIVE</string>
+    <string name="status_pro">PRO ACTIVE</string>
+    <string name="btn_connect">CONNECT</string>
+    <string name="btn_connect_on">ON</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="msg_secure_connection">Secure connection established</string>
+    <string name="msg_tap_to_connect">Tap to connect</string>
+    <string name="no_server">NO SERVER</string>
+    <string name="upgrade_needed">Upgrade needed</string>
+
+    <!-- Import Modal -->
+    <string name="import_title">ACTIVATE ACCESS</string>
+    <string name="btn_scan_qr">SCAN QR</string>
+    <string name="btn_paste">PASTE</string>
+    <string name="btn_coupon">COUPON</string>
+    <string name="btn_manual">MANUAL</string>
+    <string name="label_quick_actions">QUICK ACTIONS</string>
+    <string name="label_direct_input">DIRECT INPUT</string>
+    <string name="label_selected_server">SELECTED SERVER</string>
+    <string name="label_stable">STABLE</string>
+    <string name="input_placeholder">vless://... or SWIM-CODE</string>
+    <string name="btn_activate">ACTIVATE</string>
+
+    <!-- Servers -->
+    <string name="title_locations">LOCATIONS</string>
+    <string name="search_hint">Search location</string>
+
+    <!-- Profile -->
+    <string name="title_account">ACCOUNT</string>
+    <string name="label_user_id">USER IDENTIFICATION</string>
+    <string name="label_analytics">SUBSCRIPTION ANALYTICS</string>
+    <string name="label_data_traffic">DATA TRAFFIC</string>
+    <string name="label_unlimited">UNLIMITED</string>
+    <string name="label_left">LEFT</string>
+    <string name="label_expires_at">PLAN EXPIRES</string>
+    <string name="status_active">ACTIVE</string>
+    <string name="label_management">MANAGEMENT</string>
+    <string name="label_plan">Plan</string>
+    <string name="label_expires">Expires</string>
+    <string name="menu_subscription">Subscription</string>
+    <string name="menu_security">Account Security</string>
+    <string name="menu_technical">Technical Settings</string>
+    <string name="menu_support">Help &amp; Support</string>
+    <string name="btn_activate_coupon">ACTIVATE COUPON</string>
+    <string name="btn_retry">RETRY</string>
+    <string name="menu_signout">Sign Out</string>
+
+    <!-- Support -->
+    <string name="support_title">HELP &amp; SUPPORT</string>
+    <string name="support_faq_title">FAQ</string>
+    <string name="faq_connect_title">How to connect?</string>
+    <string name="faq_connect_desc">Press the central \"ON\" button to start the secure connection.</string>
+    <string name="faq_import_title">How to import a link?</string>
+    <string name="faq_import_desc">Copy your vless:// link, then use the \"Import\" button on the home screen.</string>
+    <string name="support_contact_title">CONTACT US</string>
+    <string name="support_email">Support Email</string>
+    <string name="support_telegram">Telegram Channel</string>
+    <string name="btn_renew">RENEW SUBSCRIPTION</string>
+
+    <!-- Subscription -->
+    <string name="sub_title">UNLIMITED\nVPN ACCESS</string>
+    <string name="sub_desc">Choose the plan that fits your swimming style.</string>
+    <string name="title_pricing">PRICING</string>
+    <string name="plan_weekly">BRONZE</string>
+    <string name="plan_weekly_desc">50 GB • 299 ₽ / week</string>
+    <string name="plan_monthly">SILVER</string>
+    <string name="plan_monthly_desc">150 GB • 699 ₽ / month</string>
+    <string name="plan_annual">GOLD</string>
+    <string name="plan_annual_desc">500 GB • 1899 ₽ / quarter</string>
+    <string name="label_traffic">TRAFFIC</string>
+    <string name="label_period"> / period</string>
+    <string name="feature_1">High-Speed Global Servers</string>
+    <string name="feature_2">Military-grade Encryption (VLESS)</string>
+    <string name="feature_3">Up to 5 Devices Simultaneous</string>
+    <string name="feature_4">Strict No-Logs Policy</string>
+    <string name="btn_upgrade">UPGRADE NOW</string>
+
+    <!-- Technical -->
+    <string name="title_technical">TECHNICAL</string>
+    <string name="btn_reset">RESET</string>
+    <string name="section_app">APPLICATION</string>
+    <string name="label_language">LANGUAGE</string>
+    <string name="desc_language">INTERFACE TRANSLATION</string>
+    <string name="lang_en">ENGLISH</string>
+    <string name="lang_fr">FRANÇAIS</string>
+    <string name="lang_ru">РУССКИЙ</string>
+    <string name="label_theme">VISUAL THEME</string>
+    <string name="desc_theme">APPEARANCE MODE</string>
+    <string name="theme_light">LIGHT</string>
+    <string name="section_routing">ROUTING MODE</string>
+    <string name="label_routing">ROUTING</string>
+    <string name="tunnel_title">VPN Tunnel (Recommended)</string>
+    <string name="tunnel_desc">Routes all device traffic securely.</string>
+    <string name="proxy_title">Local Proxy Only</string>
+    <string name="proxy_desc">Only routes specific apps or browser plugins.</string>
+    <string name="section_connectivity">CONNECTIVITY</string>
+    <string name="auto_connect">Auto-Connect</string>
+    <string name="desc_boot">BOOT CONNECTION</string>
+    <string name="kill_switch">Kill Switch</string>
+    <string name="kill_switch_desc">Managed by Android System.</string>
+    <string name="btn_save">SAVE ALL PREFERENCES</string>
 </resources>
