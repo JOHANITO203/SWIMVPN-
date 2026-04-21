@@ -125,6 +125,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
       VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
       ADMIN_SERVICE_HOST: admin-control-service
+      NOTIFICATION_SERVICE_HOST: notification-bot-service
     depends_on:
       db:
         condition: service_healthy
@@ -141,6 +142,39 @@ services:
     restart: unless-stopped
     mem_limit: 192m
     cpus: "0.25"
+    networks:
+      - private
+
+  notification-bot-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["node", "dist/apps/notification-bot-service/main"]
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      NOTIFICATION_BOT_TOKEN: ${NOTIFICATION_BOT_TOKEN:-}
+      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:?ADMIN_CHAT_ID is required}
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:?SMTP_USER is required}
+      SMTP_PASS: ${SMTP_PASS:?SMTP_PASS is required}
+    depends_on:
+      db:
+        condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "const n=require('net');const t=[[3006,'127.0.0.1'],[5432,'db']];let i=0;const c=()=>{if(i===t.length)process.exit(0);const [p,h]=t[i++];const s=n.createConnection(p,h);const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();c()});s.on('timeout',f);s.on('error',f)};c();"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 192m
+    cpus: "0.20"
     networks:
       - private
 

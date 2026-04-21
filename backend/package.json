@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/apps/gateway-service/main",
-    "start:all": "concurrently \"npm run start:dev gateway-service\" \"npm run start:dev customer-order-service\" \"npm run start:dev inventory-delivery-service\" \"npm run start:dev admin-control-service\" \"npm run start:dev vpn-config-engine-service\" \"npm run start:dev store-engine-service\"",
+    "start:all": "concurrently \"npm run start:dev gateway-service\" \"npm run start:dev customer-order-service\" \"npm run start:dev inventory-delivery-service\" \"npm run start:dev admin-control-service\" \"npm run start:dev vpn-config-engine-service\" \"npm run start:dev store-engine-service\" \"npm run start:dev notification-bot-service\"",
     "lint": "tsc --noEmit"
   },
   "prisma": {
@@ -26,6 +26,7 @@
     "@nestjs/swagger": "^7.1.17",
     "@nestjs/jwt": "^10.1.0",
     "bcryptjs": "^2.4.3",
+    "nodemailer": "^6.9.16",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",
     "@prisma/client": "^5.8.1",
@@ -41,6 +42,7 @@
     "@nestjs/schematics": "^10.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.17",
+    "@types/nodemailer": "^6.4.17",
     "@types/node": "^20.3.1",
     "eslint": "^8.57.1",
     "prisma": "^5.8.1",

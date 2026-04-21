@@ -26,3 +26,10 @@
 - Add deeper admin session hardening (token rotation / refresh flow) when moving beyond minimal MVP compliance.
 - Add integration tests for order paid->fulfilled path and session-bound admin auth flow.
 
+
+## Notification Bot Next Steps
+- Add pre-expiry reminder workflow (quota/offer reminder) in a separate scheduler-safe batch.
+- Add explicit delivery history endpoint contract for admin panel consumption.
+- Add integration tests for inventory-delivery-service -> 
+otification-bot-service event handoff.
+

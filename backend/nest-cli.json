@@ -64,6 +64,15 @@
         "tsConfigPath": "apps/admin-control-service/tsconfig.app.json"
       }
     },
+    "notification-bot-service": {
+      "type": "application",
+      "root": "apps/notification-bot-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/notification-bot-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/notification-bot-service/tsconfig.app.json"
+      }
+    },
     "contracts": {
       "type": "library",
       "root": "libs/contracts",

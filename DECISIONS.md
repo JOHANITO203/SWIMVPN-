@@ -46,3 +46,15 @@
 - **Why**: Prevents race conditions and avoids migration logic duplication across runtime services.
 - **Impact**: App services are gated by migration completion using depends_on: service_completed_successfully.
 
+
+## [2026-04-22] [Add notification-bot-service as Controlled Utility Service]
+- **Decision**: Implement post-purchase delivery as a new isolated microservice (
+otification-bot-service) instead of extending dmin-control-service.
+- **Why**: Keeps responsibilities narrow (Telegram + email delivery only), avoids coupling admin auth/control concerns with delivery operations, and remains easy to plug into current flow.
+- **Impact**: Backend keeps core 6 services plus one utility service justified by explicit MVP delivery requirements.
+
+## [2026-04-22] [Dedicated Notification Bot Token Optionality]
+- **Decision**: Use NOTIFICATION_BOT_TOKEN (optional) for command polling to avoid collision with existing admin bot polling token; fallback sender can still use TELEGRAM_BOT_TOKEN for outbound notifications.
+- **Why**: Running two pollers on the same Telegram token is unstable.
+- **Impact**: Reliable command mode when dedicated token is provided; deterministic notification sending remains available without it.
+
