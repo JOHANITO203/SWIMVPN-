@@ -41,7 +41,11 @@ import com.swimvpn.app.ui.screens.*
 import com.swimvpn.app.ui.theme.*
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.Locale
 
@@ -51,6 +55,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        lifecycleScope.launch {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.effect.collect { effect ->
+                    when (effect) {
+                        is AppSideEffect.OpenUrl -> {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(effect.url))
+                            startActivity(intent)
+                        }
+                        is AppSideEffect.ShowToast -> {
+                            android.widget.Toast.makeText(this@MainActivity, effect.message, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
+
         // Persist language on startup
         val prefs = PreferencesManager(this)
         val lang = runBlocking { prefs.languageFlow.first() }
@@ -144,9 +164,11 @@ fun AppNavigation(viewModel: MainViewModel) {
             val data = state as? AppState.Success ?: return@composable
             SubscriptionScreen(
                 plans = data.plans,
-                onUpgradeClick = { planId -> 
-                    // Logique de paiement à implémenter plus tard
-                    android.util.Log.d("PAYMENT", "Plan selected: $planId")
+                onUpgradeClick = { planId ->
+                    val plan = (state as? AppState.Success)?.plans?.find { it.id == planId }
+                    plan?.let {
+                        viewModel.createOrder(it.id, it.priceRub.toDoubleOrNull() ?: 0.0)
+                    }
                 },
                 onBack = { navController.popBackStack() }
             )

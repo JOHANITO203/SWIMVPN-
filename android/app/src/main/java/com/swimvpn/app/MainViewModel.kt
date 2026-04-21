@@ -17,6 +17,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 sealed class AppState {
@@ -33,6 +36,11 @@ sealed class AppState {
     data class Error(val message: String) : AppState()
 }
 
+sealed class AppSideEffect {
+    data class OpenUrl(val url: String) : AppSideEffect()
+    data class ShowToast(val message: String) : AppSideEffect()
+}
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = PreferencesManager(application)
@@ -40,6 +48,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow<AppState>(AppState.Loading)
     val state: StateFlow<AppState> = _state.asStateFlow()
+
+    private val _effect = MutableSharedFlow<AppSideEffect>()
+    val effect: SharedFlow<AppSideEffect> = _effect.asSharedFlow()
 
     init {
         initApp()
@@ -165,6 +176,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _state.value = currentState.copy(profile = updatedProfile)
             } catch (e: Exception) {
                 _state.value = AppState.Error("Activation failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun createOrder(planId: String, amount: Double) {
+        viewModelScope.launch {
+            try {
+                _state.value = AppState.Loading
+                val request = com.swimvpn.app.data.model.CreateOrderRequest(
+                    email = null,
+                    phone = null,
+                    planId = planId,
+                    amountRub = amount
+                )
+                val response = api.createOrder(request)
+                
+                // If the response has a payment URL (simulated here for Stripe/YooKassa)
+                // For now, we construct a mock URL or use one from the backend if available
+                val paymentUrl = "https://checkout.stripe.com/pay/${response.orderRef}"
+                _effect.emit(AppSideEffect.OpenUrl(paymentUrl))
+                
+                // After emission, we can revert to Success state but maybe show "Pending Payment"
+                initApp() 
+            } catch (e: Exception) {
+                _state.value = AppState.Error("Order creation failed: ${e.localizedMessage}")
             }
         }
     }
