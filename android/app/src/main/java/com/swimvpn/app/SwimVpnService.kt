@@ -1,9 +1,19 @@
 package com.swimvpn.app
 
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.net.VpnService
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.*
@@ -13,6 +23,9 @@ class SwimVpnService : VpnService() {
     private var vpnInterface: ParcelFileDescriptor? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+
+    private val CHANNEL_ID = "swim_vpn_status"
+    private val NOTIFICATION_ID = 1
 
     companion object {
         const val ACTION_START = "com.swimvpn.app.START_VPN"
@@ -29,12 +42,28 @@ class SwimVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action
 
+        createNotificationChannel()
+
         when (action) {
             ACTION_START -> {
                 val host = intent.getStringExtra(EXTRA_SERVER_HOST) ?: "unknown"
                 val port = intent.getIntExtra(EXTRA_SERVER_PORT, 443)
                 val limit = intent.getLongExtra(EXTRA_DATA_LIMIT, -1L)
                 val used = intent.getLongExtra(EXTRA_DATA_USED, 0L)
+                
+                // Start as Foreground Service
+                val notification = createNotification("Connecting to $host...")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    // Android 14+ requires FOREGROUND_SERVICE_TYPE_SPECIAL_USE for VPN
+                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Android 10-13: startForeground with just notification
+                    startForeground(NOTIFICATION_ID, notification)
+                } else {
+                    // Pre-Android 10
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+
                 startVpn(host, port, limit, used)
             }
             ACTION_STOP -> {
@@ -43,6 +72,42 @@ class SwimVpnService : VpnService() {
         }
 
         return START_NOT_STICKY
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "VPN Status"
+            val descriptionText = "Shows when VPN is active"
+            val importance = NotificationManager.IMPORTANCE_LOW
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createNotification(content: String): Notification {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("SWIMVPN+")
+            .setContentText(content)
+            .setSmallIcon(R.drawable.swimvpn_logo) // Assuming this exists from previous steps
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .build()
+    }
+
+    private fun updateNotification(content: String) {
+        // Check notification permission for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                Log.w("SwimVpnService", "Notification permission not granted, skipping notification update")
+                return
+            }
+        }
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(NOTIFICATION_ID, createNotification(content))
     }
 
     private fun startVpn(host: String, port: Int, limit: Long, initialUsed: Long) {
@@ -86,6 +151,7 @@ class SwimVpnService : VpnService() {
 
                 Log.i("SwimVpnService", "VPN Tunnel established to $host:$port")
                 VpnManager.updateState(VpnState.CONNECTED)
+                updateNotification("Connected to $host")
 
                 // Start simulating data consumption
                 simulateTraffic(limit, initialUsed)
@@ -110,6 +176,7 @@ class SwimVpnService : VpnService() {
         } finally {
             vpnInterface = null
             VpnManager.updateState(VpnState.DISCONNECTED)
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }

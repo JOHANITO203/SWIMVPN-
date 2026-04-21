@@ -4,7 +4,9 @@ package com.swimvpn.app
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -283,6 +285,7 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
     val vpnState by VpnManager.state.collectAsState()
     val bytesIn by VpnManager.bytesIn.collectAsState()
     val bytesOut by VpnManager.bytesOut.collectAsState()
+    val errorMessage by VpnManager.errorMessage.collectAsState()
 
     // Animation pour le bouton Power
     val infiniteTransition = rememberInfiniteTransition(label = "powerPulse")
@@ -297,6 +300,21 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
     )
 
     val context = LocalContext.current
+
+    // Notification Permission Request (Android 13+)
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            Log.w("MainActivity", "Notification permission denied. VPN status won't be shown.")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     // Launcher pour demander la permission VPN système
     val vpnPermissionLauncher = rememberLauncherForActivityResult(
@@ -492,7 +510,7 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                         VpnState.CONNECTED -> stringResource(R.string.status_connected)
                         VpnState.CONNECTING -> stringResource(R.string.status_connecting)
                         VpnState.DISCONNECTING -> stringResource(R.string.status_disconnecting)
-                        VpnState.ERROR -> stringResource(R.string.status_error)
+                        VpnState.ERROR -> errorMessage ?: stringResource(R.string.status_error)
                         else -> stringResource(R.string.status_disconnected)
                     },
                     style = MaterialTheme.typography.headlineSmall.copy(

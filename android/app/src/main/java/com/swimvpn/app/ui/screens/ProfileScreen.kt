@@ -34,7 +34,9 @@ import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.theme.SwimBlueMain
 import com.swimvpn.app.ui.theme.SwimNavyMouth
-import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun ProfileScreen(
@@ -192,8 +194,17 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    val expiryString = if (profile.planType == "TRIAL") profile.trialExpiresAt else profile.subscriptionExpiresAt
+                    val remainingText = calculateRemainingTime(expiryString)
+
                     Text(stringResource(R.string.label_expires_at), fontWeight = FontWeight.Bold, color = Color(0xFF475569), fontSize = 12.sp, letterSpacing = 0.5.sp)
-                    Text(stringResource(R.string.status_active), fontWeight = FontWeight.Bold, color = Color(0xFF22C55E), fontSize = 12.sp, letterSpacing = 0.5.sp)
+                    Text(
+                        text = remainingText,
+                        fontWeight = FontWeight.Bold, 
+                        color = if (remainingText.contains("ago")) Color(0xFFEF4444) else Color(0xFF22C55E), 
+                        fontSize = 12.sp, 
+                        letterSpacing = 0.5.sp
+                    )
                 }
             }
         }
@@ -236,6 +247,31 @@ fun ProfileScreen(
         }
         
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+private fun calculateRemainingTime(expiryDateStr: String?): String {
+    if (expiryDateStr.isNullOrEmpty()) return "Unknown"
+    
+    return try {
+        // Parse ISO 8601 date string
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US)
+        val expiryDate = dateFormat.parse(expiryDateStr)
+        val now = Date()
+        
+        val diffMillis = (expiryDate?.time ?: 0L) - now.time
+        val days = TimeUnit.MILLISECONDS.toDays(diffMillis)
+        val hours = TimeUnit.MILLISECONDS.toHours(diffMillis) % 24
+        
+        when {
+            diffMillis < 0 -> "Expired ${-days}d ago"
+            days > 0 -> "${days} days left"
+            hours > 0 -> "${hours} hours left"
+            else -> "Expiring soon"
+        }
+    } catch (e: Exception) {
+        // Fallback: just show the date part
+        expiryDateStr.take(10)
     }
 }
 
