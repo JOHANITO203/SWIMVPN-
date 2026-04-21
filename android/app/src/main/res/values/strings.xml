@@ -19,13 +19,22 @@
     <string name="btn_connect_on">ON</string>
     <string name="status_connected">Connected</string>
     <string name="status_disconnected">Disconnected</string>
+    <string name="status_connecting">Connecting...</string>
+    <string name="status_disconnecting">Disconnecting...</string>
+    <string name="status_error">Connection Error</string>
     <string name="msg_secure_connection">Secure connection established</string>
     <string name="msg_tap_to_connect">Tap to connect</string>
     <string name="no_server">NO SERVER</string>
     <string name="upgrade_needed">Upgrade needed</string>
+    <string name="label_download">DOWNLOAD</string>
+    <string name="label_upload">UPLOAD</string>
 
     <!-- Import Modal -->
     <string name="import_title">ACTIVATE ACCESS</string>
+    <string name="title_import_method">CHOOSE METHOD</string>
+    <string name="method_qr">SCAN QR CODE</string>
+    <string name="method_url">PASTE LINK</string>
+    <string name="method_code">REDEEM COUPON</string>
     <string name="btn_scan_qr">SCAN QR</string>
     <string name="btn_paste">PASTE</string>
     <string name="btn_coupon">COUPON</string>

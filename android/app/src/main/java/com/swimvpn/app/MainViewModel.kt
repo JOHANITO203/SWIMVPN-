@@ -31,7 +31,8 @@ sealed class AppState {
         val isOnboardingDone: Boolean,
         val routingMode: String,
         val autoConnect: Boolean,
-        val language: String
+        val language: String,
+        val activeServer: ServerNode? = null
     ) : AppState()
     data class Error(val message: String) : AppState()
 }
@@ -154,6 +155,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun signOut() {
+        viewModelScope.launch {
+            prefs.saveUserNumber("NEW_USER")
+            prefs.setOnboardingDone(false)
+            initApp()
+        }
+    }
+
     fun importUrl(url: String) {
         viewModelScope.launch {
             try {
@@ -202,6 +211,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _state.value = AppState.Error("Order creation failed: ${e.localizedMessage}")
             }
+        }
+    }
+
+    fun selectServer(server: ServerNode) {
+        val current = _state.value
+        if (current is AppState.Success) {
+            _state.value = current.copy(activeServer = server)
         }
     }
 

@@ -1,8 +1,11 @@
 @file:Suppress("SpellCheckingInspection")
 package com.swimvpn.app
 
+import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.animation.core.*
@@ -15,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,30 +28,29 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.swimvpn.app.data.local.PreferencesManager
+import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.screens.*
 import com.swimvpn.app.ui.theme.*
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import java.util.Locale
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,7 +61,7 @@ class MainActivity : ComponentActivity() {
                 viewModel.effect.collect { effect ->
                     when (effect) {
                         is AppSideEffect.OpenUrl -> {
-                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(effect.url))
+                            val intent = Intent(Intent.ACTION_VIEW, effect.url.toUri())
                             startActivity(intent)
                         }
                         is AppSideEffect.ShowToast -> {
@@ -71,10 +72,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Persist language on startup
+        // Apply language on startup
         val prefs = PreferencesManager(this)
-        val lang = runBlocking { prefs.languageFlow.first() }
-        applyLocale(lang)
+        lifecycleScope.launch { 
+            val lang = prefs.languageFlow.first()
+            applyLocale(lang)
+        }
 
         setContent {
             SwimVpnTheme {
@@ -89,11 +92,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyLocale(langCode: String) {
-        val locale = Locale(langCode)
-        Locale.setDefault(locale)
-        val config = resources.configuration
-        config.setLocale(locale)
-        resources.updateConfiguration(config, resources.displayMetrics)
+        val appLocale: LocaleListCompat = LocaleListCompat.forLanguageTags(langCode)
+        AppCompatDelegate.setApplicationLocales(appLocale)
     }
 }
 
@@ -133,7 +133,10 @@ fun AppNavigation(viewModel: MainViewModel) {
         }
         composable("servers") { 
             val data = state as? AppState.Success ?: return@composable
-            ServersScreen(servers = data.servers, onBack = { navController.popBackStack() }) 
+            ServersScreen(servers = data.servers, onBack = { navController.popBackStack() }, onSelectServer = { server ->
+                viewModel.selectServer(server)
+                navController.popBackStack()
+            }) 
         }
         composable("profile") { 
             val data = state as? AppState.Success ?: return@composable
@@ -148,6 +151,10 @@ fun AppNavigation(viewModel: MainViewModel) {
                 onNavigateToTechnical = { navController.navigate("technical") },
                 onNavigateToImport = { navController.navigate("import") },
                 onNavigateToSupport = { navController.navigate("support") },
+                onSignOut = { 
+                    viewModel.signOut()
+                    navController.navigate("loading") { popUpTo(0) }
+                },
                 onBack = { navController.popBackStack() }
             ) 
         }
@@ -249,15 +256,12 @@ fun SplashScreen() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfile: () -> Unit, onNavigateServers: () -> Unit = {}) {
-    val (showImportSheet, setShowImportSheet) = remember { mutableStateOf(false) }
-
+fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfile: () -> Unit, onNavigateServers: () -> Unit) {
     val profile = data.profile
-    val activeServer = data.servers.firstOrNull()
+    val activeServer = data.activeServer
 
     // Lier l'UI au VRAI statut du service VPN Android
     val vpnState by VpnManager.state.collectAsState()
-    val vpnError by VpnManager.errorMessage.collectAsState()
     val bytesIn by VpnManager.bytesIn.collectAsState()
     val bytesOut by VpnManager.bytesOut.collectAsState()
 
@@ -408,331 +412,193 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Rounded.PowerSettingsNew,
-                            contentDescription = "Power",
-                            modifier = Modifier.size(72.dp),
-                            tint = if (vpnState == VpnState.CONNECTED) SwimBlueMain else Color(0xFF94A3B8)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (vpnState == VpnState.CONNECTED) stringResource(R.string.btn_connect_on) else stringResource(R.string.btn_connect),
-                            color = if (vpnState == VpnState.CONNECTED) SwimBlueMain else Color(0xFF94A3B8),
-                            fontWeight = FontWeight.Black,
-                            fontSize = 14.sp,
-                            letterSpacing = 1.sp
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(
-                text = if (vpnState == VpnState.CONNECTED) stringResource(R.string.status_connected) else stringResource(R.string.status_disconnected),
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A))
-            )
-            
-            if (vpnState == VpnState.CONNECTED) {
-                Row(
-                    modifier = Modifier.padding(top = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.ArrowDownward, contentDescription = "Down", tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
-                    Text(formatBytes(bytesIn), color = Color(0xFF64748B), fontSize = 14.sp)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Icon(Icons.Default.ArrowUpward, contentDescription = "Up", tint = Color(0xFF3B82F6), modifier = Modifier.size(16.dp))
-                    Text(formatBytes(bytesOut), color = Color(0xFF64748B), fontSize = 14.sp)
-                }
-            } else {
-                Text(
-                    text = stringResource(R.string.msg_tap_to_connect),
-                    color = Color(0xFF64748B),
-                    fontSize = 16.sp
-                )
-            }
-
-            if (vpnError != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = vpnError!!, color = RedAlert, fontSize = 12.sp)
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Server Selector Card
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(88.dp)
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
-                    .clickable { onNavigateServers() }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Country Code Box
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .background(Color(0xFFF1F5F9), RoundedCornerShape(16.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("GE", fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                    }
-                    
-                    Spacer(modifier = Modifier.width(16.dp))
-                    
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.label_selected_server),
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF94A3B8),
-                            fontSize = 10.sp,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = activeServer?.city?.let { "${activeServer.country}, $it" } ?: "Germany, Frankfurt",
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
-                            fontSize = 16.sp
-                        )
-                    }
-                    
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(stringResource(R.string.label_stable), color = Color(0xFF10B981), fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        Text("24ms", color = Color(0xFF64748B), fontSize = 12.sp)
-                    }
-                    
-                    Spacer(modifier = Modifier.width(12.dp))
-                    
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Change Server",
-                        tint = Color(0xFF0F172A)
+                        imageVector = Icons.Rounded.PowerSettingsNew,
+                        contentDescription = "Connect",
+                        modifier = Modifier.size(80.dp),
+                        tint = if (vpnState == VpnState.CONNECTED) SwimBlueMain else Color(0xFFCBD5E1)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
-        }
+            Spacer(modifier = Modifier.height(32.dp))
 
-        // Action Flottante (Bouton + Massif)
-        FloatingActionButton(
-            onClick = { setShowImportSheet(true) },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
-                .size(72.dp),
-            shape = RoundedCornerShape(24.dp),
-            containerColor = ElectricBlue,
-            contentColor = Color.White
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Import", modifier = Modifier.size(32.dp))
-        }
-    }
+            // Status Text
+            Text(
+                text = when (vpnState) {
+                    VpnState.CONNECTED -> stringResource(R.string.status_connected)
+                    VpnState.CONNECTING -> stringResource(R.string.status_connecting)
+                    VpnState.DISCONNECTING -> stringResource(R.string.status_disconnecting)
+                    VpnState.ERROR -> stringResource(R.string.status_error)
+                    else -> stringResource(R.string.status_disconnected)
+                },
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A))
+            )
+            
+            if (activeServer != null) {
+                Text(
+                    text = "${activeServer.country}, ${activeServer.city} (${activeServer.host})",
+                    color = Color(0xFF64748B),
+                    fontSize = 14.sp,
+                    modifier = Modifier.clickable { onNavigateServers() }
+                )
+            }
 
-    if (showImportSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { setShowImportSheet(false) },
-            containerColor = Color.White,
-            shape = RoundedCornerShape(topStart = 48.dp, topEnd = 48.dp)
-        ) {
-            ImportMenuSheet(viewModel) { setShowImportSheet(false) }
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Stats Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(Color(0xFFF8FAFC))
+                    .padding(24.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(
+                    label = stringResource(R.string.label_download), 
+                    value = formatBytes(bytesIn), 
+                    icon = Icons.Default.ArrowDownward, 
+                    color = Color(0xFF22C55E)
+                )
+                Box(modifier = Modifier.width(1.dp).height(40.dp).background(Color(0xFFE2E8F0)))
+                StatItem(
+                    label = stringResource(R.string.label_upload), 
+                    value = formatBytes(bytesOut),
+                    icon = Icons.Default.ArrowUpward, 
+                    color = SwimBlueMain
+                )
+            }
         }
     }
 }
 
 @Composable
-fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
-    var inputText by remember { mutableStateOf("") }
-    val context = LocalContext.current
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
-            .padding(24.dp)
-    ) {
-        // Top Bar
+fun StatItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
-                    .clickable { onDismiss() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF0F172A))
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(label, color = Color(0xFF64748B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+        Text(value, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A)))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
+    var showActivateCode by remember { mutableStateOf(false) }
+
+    if (showActivateCode) {
+        ActivateCodeDialog(
+            onDismiss = { showActivateCode = false },
+            onActivate = { code ->
+                viewModel.activateCode(code)
+                showActivateCode = false
+                onDismiss()
             }
-            Spacer(modifier = Modifier.width(16.dp))
+        )
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 48.dp, start = 24.dp, end = 24.dp, top = 8.dp)
+        ) {
             Text(
-                text = stringResource(R.string.import_title),
+                stringResource(R.string.title_import_method),
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A))
             )
-            Spacer(modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFF94A3B8))
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text(
-            text = stringResource(R.string.label_quick_actions),
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF94A3B8),
-            fontSize = 10.sp,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Grid of 4
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            ImportMethodCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.ContentPaste,
-                title = stringResource(R.string.btn_paste),
-                onClick = {
-                    val clipboardManager = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    if (clipboardManager.hasPrimaryClip() && (clipboardManager.primaryClip?.itemCount ?: 0) > 0) {
-                        val pasteData = clipboardManager.primaryClip?.getItemAt(0)?.text?.toString()
-                        if (!pasteData.isNullOrEmpty()) {
-                            inputText = pasteData
-                        }
-                    }
-                }
-            )
-            ImportMethodCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.QrCode,
-                title = stringResource(R.string.btn_scan_qr),
-                onClick = {
-                    android.widget.Toast.makeText(context, "QR Scanner coming soon", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            )
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            ImportMethodCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.ConfirmationNumber,
-                title = stringResource(R.string.btn_coupon),
-                onClick = {
-                    inputText = "SWIM-"
-                }
-            )
-            ImportMethodCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Add,
-                title = stringResource(R.string.btn_manual),
-                onClick = {
-                    inputText = ""
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Text(
-            text = stringResource(R.string.label_direct_input),
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF94A3B8),
-            fontSize = 10.sp,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
-        ) {
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                placeholder = { Text(stringResource(R.string.input_placeholder), color = Color(0xFF94A3B8)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    cursorColor = ElectricBlue,
-                    focusedTextColor = Color(0xFF0F172A),
-                    unfocusedTextColor = Color(0xFF0F172A)
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth()) {
+                ImportMethodCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.QrCodeScanner,
+                    title = stringResource(R.string.method_qr),
+                    onClick = { /* OCR/QR later */ }
                 )
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = {
-                if (inputText.isNotBlank()) {
-                    if (inputText.startsWith("SWIM-", ignoreCase = true)) {
-                        viewModel.activateCode(inputText.uppercase())
-                    } else {
-                        viewModel.importUrl(inputText)
-                    }
-                    onDismiss()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
-            enabled = inputText.isNotBlank()
-        ) {
-            Text(
-                text = stringResource(R.string.btn_activate),
-                color = Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = 14.sp,
-                letterSpacing = 1.sp
+                Spacer(modifier = Modifier.width(16.dp))
+                ImportMethodCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Link,
+                    title = stringResource(R.string.method_url),
+                    onClick = { /* Clipboard later */ }
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            ImportMethodCard(
+                modifier = Modifier.fillMaxWidth(),
+                icon = Icons.Default.ConfirmationNumber,
+                title = stringResource(R.string.method_code),
+                onClick = { showActivateCode = true }
             )
         }
     }
 }
 
+@Composable
+fun ActivateCodeDialog(onDismiss: () -> Unit, onActivate: (String) -> Unit) {
+    var inputText by remember { mutableStateOf("") }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { onDismiss() } // Dim background
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = false) { } // Prevent click through
+                .background(Color.White, RoundedCornerShape(32.dp))
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(stringResource(R.string.btn_activate_coupon), fontWeight = FontWeight.Black, fontSize = 20.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                placeholder = { Text("XXXX-XXXX-XXXX") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { onActivate(inputText) },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain),
+                enabled = inputText.isNotBlank()
+            ) {
+                Text(stringResource(R.string.btn_activate), color = Color.White, fontWeight = FontWeight.Black)
+            }
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color.Gray)
+            }
+        }
+    }
+}
 
 @Composable
 fun ImportMethodCard(modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        modifier = modifier.height(120.dp).border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp)).clickable { onClick() }
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+        modifier = modifier.height(100.dp).clickable { onClick() }
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                modifier = Modifier.size(48.dp).background(Color(0xFFF1F5F9), RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = ElectricBlue)
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A), fontSize = 12.sp, letterSpacing = 0.5.sp)
+            Icon(icon, contentDescription = null, tint = SwimBlueMain)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF475569), fontSize = 12.sp)
         }
     }
 }
@@ -741,18 +607,11 @@ fun ImportMethodCard(modifier: Modifier = Modifier, icon: androidx.compose.ui.gr
 fun ErrorScreen(message: String, onRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Warning, contentDescription = "Error", tint = RedAlert, modifier = Modifier.size(64.dp))
+            Icon(Icons.Default.Warning, contentDescription = "Error", tint = Color.Red, modifier = Modifier.size(64.dp))
             Spacer(modifier = Modifier.height(16.dp))
             Text(text = message, color = MaterialTheme.colorScheme.onBackground)
             Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = onRetry) { Text(stringResource(R.string.btn_retry)) }
         }
     }
-}
-
-fun formatBytes(bytes: Long): String {
-    if (bytes < 1024) return "$bytes B"
-    val exp = (Math.log(bytes.toDouble()) / Math.log(1024.0)).toInt()
-    val pre = "KMGTPE"[exp - 1]
-    return String.format("%.1f %sB", bytes / Math.pow(1024.0, exp.toDouble()), pre)
 }

@@ -2,6 +2,7 @@ package com.swimvpn.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +26,7 @@ import com.swimvpn.app.ui.theme.ElectricBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ServersScreen(servers: List<ServerNode>, onBack: () -> Unit) {
+fun ServersScreen(servers: List<ServerNode>, onBack: () -> Unit, onSelectServer: (ServerNode) -> Unit) {
     var searchQuery by remember { mutableStateOf("") }
 
     val filteredServers = servers.filter {
@@ -66,14 +67,14 @@ fun ServersScreen(servers: List<ServerNode>, onBack: () -> Unit) {
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(filteredServers) { server ->
-                ServerItem(server)
+                ServerItem(server, onClick = { onSelectServer(server) })
             }
         }
     }
 }
 
 @Composable
-fun ServerItem(server: ServerNode) {
+fun ServerItem(server: ServerNode, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -81,6 +82,7 @@ fun ServerItem(server: ServerNode) {
             .fillMaxWidth()
             .height(80.dp)
             .border(1.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier

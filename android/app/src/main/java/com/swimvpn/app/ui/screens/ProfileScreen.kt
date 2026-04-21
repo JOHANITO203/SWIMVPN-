@@ -32,8 +32,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
 import com.swimvpn.app.data.network.AccessProfileResponse
+import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.theme.SwimBlueMain
 import com.swimvpn.app.ui.theme.SwimNavyMouth
+import java.util.Locale
 
 @Composable
 fun ProfileScreen(
@@ -44,6 +46,7 @@ fun ProfileScreen(
     onNavigateToTechnical: () -> Unit,
     onNavigateToImport: () -> Unit = {},
     onNavigateToSupport: () -> Unit = {},
+    onSignOut: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
@@ -141,9 +144,9 @@ fun ProfileScreen(
                 val limitGB = profile.dataLimitGB.toDouble()
                 val sessionBytes = bytesIn + bytesOut
                 val totalUsedBytes = (profile.dataUsedBytes.toLongOrNull() ?: 0L) + sessionBytes
-                val usedGB = totalUsedBytes / (1024.0 * 1024.0 * 1024.0)
-                val remainingGB = if (isTrial) 0.0 else (limitGB - usedGB).coerceAtLeast(0.0)
-                val progress = if (isTrial || limitGB <= 0) 0f else (usedGB / limitGB).toFloat().coerceIn(0f, 1f)
+                val limitBytes = (limitGB * 1024.0 * 1024.0 * 1024.0).toLong()
+                val remainingBytes = (limitBytes - totalUsedBytes).coerceAtLeast(0L)
+                val progress = if (isTrial || limitBytes <= 0) 0f else (totalUsedBytes.toFloat() / limitBytes.toFloat()).coerceIn(0f, 1f)
                 
                 val statusColor = when {
                     isTrial -> SwimBlueMain
@@ -159,7 +162,7 @@ fun ProfileScreen(
                             Icon(Icons.Rounded.Bolt, contentDescription = null, tint = SwimBlueMain, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                if (isTrial) stringResource(R.string.label_unlimited) else "${String.format("%.1f", remainingGB)} ${stringResource(R.string.label_left)}",
+                                if (isTrial) stringResource(R.string.label_unlimited) else "${formatBytes(remainingBytes)} ${stringResource(R.string.label_left)}",
                                 fontWeight = FontWeight.Black,
                                 color = SwimNavyMouth,
                                 fontSize = 18.sp
@@ -168,7 +171,7 @@ fun ProfileScreen(
                     }
                     if (!isTrial) {
                         Text(
-                            "${String.format("%.0f", progress * 100)}%",
+                            String.format(Locale.US, "%.0f%%", progress * 100),
                             fontWeight = FontWeight.Black,
                             color = statusColor,
                             fontSize = 18.sp
@@ -224,7 +227,7 @@ fun ProfileScreen(
 
         // Sign Out Button
         OutlinedButton(
-            onClick = { /* Sign Out */ },
+            onClick = onSignOut,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = SwimNavyMouth),

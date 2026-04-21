@@ -41,8 +41,8 @@ class PreferencesManager(private val context: Context) {
         context.dataStore.edit { preferences -> preferences[USER_NUMBER_KEY] = userNumber }
     }
     
-    suspend fun setOnboardingDone() {
-        context.dataStore.edit { preferences -> preferences[ONBOARDING_DONE_KEY] = true }
+    suspend fun setOnboardingDone(done: Boolean = true) {
+        context.dataStore.edit { preferences -> preferences[ONBOARDING_DONE_KEY] = done }
     }
 
     suspend fun setRoutingMode(mode: String) {
