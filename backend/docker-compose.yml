@@ -12,21 +12,83 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swim_user -d swimvpn_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: swimvpn_api
-    environment:
-      DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
-      PORT: 3000
+  # Base Environment for all microservices
+  x-common-env: &common-env
+    DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
+    CUSTOMER_SERVICE_HOST: customer-order-service
+    INVENTORY_SERVICE_HOST: inventory-delivery-service
+    ADMIN_SERVICE_HOST: admin-control-service
+    VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
+    STORE_SERVICE_HOST: store-engine-service
+
+  gateway-service:
+    build: .
+    container_name: swimvpn_gateway
+    command: node dist/apps/gateway-service/main
     ports:
       - "3000:3000"
+    environment:
+      <<: *common-env
+      PORT: 3000
     depends_on:
-      - db
-    restart: unless-stopped
+      db:
+        condition: service_healthy
+
+  customer-order-service:
+    build: .
+    container_name: swimvpn_customer_order
+    command: node dist/apps/customer-order-service/main
+    environment:
+      <<: *common-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  inventory-delivery-service:
+    build: .
+    container_name: swimvpn_inventory_delivery
+    command: node dist/apps/inventory-delivery-service/main
+    environment:
+      <<: *common-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  admin-control-service:
+    build: .
+    container_name: swimvpn_admin_control
+    command: node dist/apps/admin-control-service/main
+    environment:
+      <<: *common-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  vpn-config-engine-service:
+    build: .
+    container_name: swimvpn_vpn_engine
+    command: node dist/apps/vpn-config-engine-service/main
+    environment:
+      <<: *common-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  store-engine-service:
+    build: .
+    container_name: swimvpn_store_engine
+    command: node dist/apps/store-engine-service/main
+    environment:
+      <<: *common-env
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:

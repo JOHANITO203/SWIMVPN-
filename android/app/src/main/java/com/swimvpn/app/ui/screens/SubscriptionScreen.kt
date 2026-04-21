@@ -26,12 +26,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.swimvpn.app.R
+import com.swimvpn.app.data.model.Plan
 import com.swimvpn.app.ui.theme.SwimBlueMain
 import com.swimvpn.app.ui.theme.SwimNavyMouth
 
 @Composable
-fun SubscriptionScreen(onUpgradeClick: (planId: String) -> Unit, onBack: () -> Unit = {}) {
-    var selectedPlan by remember { mutableStateOf("monthly") }
+fun SubscriptionScreen(
+    plans: List<Plan>,
+    onUpgradeClick: (planId: String) -> Unit,
+    onBack: () -> Unit = {}
+) {
+    var selectedPlanId by remember { mutableStateOf(plans.firstOrNull()?.id ?: "") }
     val scrollState = rememberScrollState()
 
     Column(
@@ -75,38 +80,37 @@ fun SubscriptionScreen(onUpgradeClick: (planId: String) -> Unit, onBack: () -> U
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Plans
-        PlanCard(
-            title = stringResource(R.string.plan_weekly),
-            price = "299 ₽",
-            data = "50 GB",
-            isSelected = selectedPlan == "weekly",
-            badge = "BRONZE",
-            badgeColor = Color(0xFFCD7F32),
-            onClick = { selectedPlan = "weekly" }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        PlanCard(
-            title = stringResource(R.string.plan_monthly),
-            price = "699 ₽",
-            data = "150 GB",
-            isSelected = selectedPlan == "monthly",
-            badge = "SILVER",
-            badgeColor = Color(0xFF94A3B8),
-            onClick = { selectedPlan = "monthly" }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        PlanCard(
-            title = stringResource(R.string.plan_annual),
-            price = "1899 ₽",
-            data = "500 GB",
-            isSelected = selectedPlan == "quarterly",
-            badge = "GOLD",
-            badgeColor = Color(0xFFFFD700),
-            onClick = { selectedPlan = "quarterly" }
-        )
+        // Dynamic Plans
+        plans.forEach { plan ->
+            val badgeColor = when (plan.code) {
+                "WEEK" -> Color(0xFFCD7F32) // Bronze
+                "MONTH" -> Color(0xFF94A3B8) // Silver
+                "QUARTER" -> Color(0xFFFFD700) // Gold
+                else -> Color.Gray
+            }
 
-        Spacer(modifier = Modifier.height(32.dp))
+            PlanCard(
+                title = plan.name,
+                price = "${plan.priceRub.split(".")[0]} ₽",
+                data = plan.quotaLabel,
+                isSelected = selectedPlanId == plan.id,
+                badge = plan.code,
+                badgeColor = badgeColor,
+                onClick = { selectedPlanId = plan.id }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (plans.isEmpty()) {
+            Text(
+                text = "No plans available at the moment.",
+                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                textAlign = TextAlign.Center,
+                color = Color.Gray
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Features
         FeatureItem(stringResource(R.string.feature_1))
@@ -117,12 +121,13 @@ fun SubscriptionScreen(onUpgradeClick: (planId: String) -> Unit, onBack: () -> U
         Spacer(modifier = Modifier.height(48.dp))
 
         Button(
-            onClick = { onUpgradeClick(selectedPlan) },
+            onClick = { if (selectedPlanId.isNotEmpty()) onUpgradeClick(selectedPlanId) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain)
+            colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain),
+            enabled = selectedPlanId.isNotEmpty()
         ) {
             Text(stringResource(R.string.btn_upgrade), color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 1.sp)
         }

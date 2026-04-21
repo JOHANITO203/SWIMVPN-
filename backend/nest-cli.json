@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/gateway-service/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "tsConfigPath": "tsconfig.build.json"
+  },
+  "monorepo": true,
+  "root": "apps/gateway-service",
+  "projects": {
+    "gateway-service": {
+      "type": "application",
+      "root": "apps/gateway-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/gateway-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/gateway-service/tsconfig.app.json"
+      }
+    },
+    "customer-order-service": {
+      "type": "application",
+      "root": "apps/customer-order-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/customer-order-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/customer-order-service/tsconfig.app.json"
+      }
+    },
+    "inventory-delivery-service": {
+      "type": "application",
+      "root": "apps/inventory-delivery-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/inventory-delivery-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/inventory-delivery-service/tsconfig.app.json"
+      }
+    },
+    "store-engine-service": {
+      "type": "application",
+      "root": "apps/store-engine-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/store-engine-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/store-engine-service/tsconfig.app.json"
+      }
+    },
+    "vpn-config-engine-service": {
+      "type": "application",
+      "root": "apps/vpn-config-engine-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/vpn-config-engine-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/vpn-config-engine-service/tsconfig.app.json"
+      }
+    },
+    "admin-control-service": {
+      "type": "application",
+      "root": "apps/admin-control-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/admin-control-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/admin-control-service/tsconfig.app.json"
+      }
+    },
+    "contracts": {
+      "type": "library",
+      "root": "libs/contracts",
+      "entryFile": "index",
+      "sourceRoot": "libs/contracts/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/contracts/tsconfig.lib.json"
+      }
+    }
+  }
+}

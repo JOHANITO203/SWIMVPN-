@@ -1,53 +1,82 @@
-import { PrismaClient } from '@prisma/client'
-const prisma = new PrismaClient()
+import { PrismaClient, PlanCategory } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 async function main() {
+  // 1. Seed Plans
   const plans = [
     {
-      name: 'WEEKLY',
-      durationDays: 7,
-      devicesAllowed: 3,
-      dataLimitGB: 50,
-      features: ['50 GB Traffic', 'Bronze Badge', 'Shark Protocol'],
-      isTrial: false
+      code: PlanCategory.WEEK,
+      name: '7 Days Trial',
+      duration_label: '7 Days',
+      quota_label: '5 GB',
+      price_rub: 0,
+      display_order: 1,
+      active: true,
     },
     {
-      name: 'MONTHLY',
-      durationDays: 30,
-      devicesAllowed: 3,
-      dataLimitGB: 150,
-      features: ['150 GB Traffic', 'Silver Badge', 'Shark Protocol'],
-      isTrial: false
+      code: PlanCategory.MONTH,
+      name: 'Standard Monthly',
+      duration_label: '30 Days',
+      quota_label: '100 GB',
+      price_rub: 490,
+      display_order: 2,
+      active: true,
     },
     {
-      name: 'QUARTERLY',
-      durationDays: 90,
-      devicesAllowed: 5,
-      dataLimitGB: 500,
-      features: ['500 GB Traffic', 'Gold Badge', 'Shark Protocol'],
-      isTrial: false
-    }
-  ]
+      code: PlanCategory.YEAR,
+      name: 'Annual Premium',
+      duration_label: '365 Days',
+      quota_label: 'Unlimited',
+      price_rub: 2900,
+      display_order: 3,
+      active: true,
+    },
+  ];
 
   for (const plan of plans) {
     await prisma.plan.upsert({
-      where: { id: plan.name }, // On utilise le nom comme ID pour le seed simple
+      where: { code: plan.code },
       update: plan,
-      create: {
-        id: plan.name,
-        ...plan
-      }
-    })
+      create: plan,
+    });
   }
 
-  console.log('Pricing plans seeded successfully')
+  // 2. Seed some Servers
+  const servers = [
+    { country_code: 'DE', name: 'Frankfurt-1', host: 'de1.swimvpn.net' },
+    { country_code: 'US', name: 'New York-1', host: 'us1.swimvpn.net' },
+    { country_code: 'NL', name: 'Amsterdam-1', host: 'nl1.swimvpn.net' },
+  ];
+
+  for (const server of servers) {
+    await prisma.server.upsert({
+      where: { id: server.name }, // Hack for seeding: using name as ID check
+      update: server,
+      create: server,
+    });
+  }
+
+  // 3. Seed some Inventory (Dummy VLESS for Trial)
+  await prisma.inventoryItem.create({
+    data: {
+      category: PlanCategory.WEEK,
+      raw_config: 'vless://8e966870-7389-4e58-958b-083656c07525@de1.swimvpn.net:443?encryption=none&security=tls&type=grpc&serviceName=swimvpn-grpc#SwimVPN-Trial',
+      config_type: 'VLESS',
+      display_protocol: 'VLESS',
+      batch_name: 'SEED-BATCH',
+      status: 'AVAILABLE',
+    },
+  });
+
+  console.log('Seed completed: Plans, Servers, and 1 Trial Config created.');
 }
 
 main()
   .catch((e) => {
-    console.error(e)
-    process.exit(1)
+    console.error(e);
+    process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect()
-  })
+    await prisma.$disconnect();
+  });

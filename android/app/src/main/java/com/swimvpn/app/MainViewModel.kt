@@ -24,6 +24,7 @@ sealed class AppState {
     data class Success(
         val profile: AccessProfileResponse,
         val servers: List<ServerNode>,
+        val plans: List<com.swimvpn.app.data.model.Plan>,
         val isOnboardingDone: Boolean,
         val routingMode: String,
         val autoConnect: Boolean,
@@ -49,29 +50,63 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 _state.value = AppState.Loading
                 
-                val deviceId = getDeviceId()
-                
-                // 1. Essayer de récupérer le profil via l'API
-                val profile = try {
-                    api.getAccessProfile(deviceId)
-                } catch (e: Exception) {
-                    // Si l'utilisateur n'existe pas encore, on lance le Trial automatiquement
-                    api.startTrial(StartTrialRequest(deviceId))
-                }
-
-                // 2. Récupérer la liste des serveurs
-                val servers = api.getServers(deviceId)
-
                 val isOnboardingDone = prefs.onboardingDoneFlow.first()
                 val routingMode = prefs.routingModeFlow.first()
                 val autoConnect = prefs.autoConnectFlow.first()
                 val language = prefs.languageFlow.first()
 
-                _state.value = AppState.Success(profile, servers, isOnboardingDone, routingMode, autoConnect, language)
+                // Try to get profile from server
+                val userNumber = prefs.userNumberFlow.first() ?: "NEW_USER"
+                
+                var profile: AccessProfileResponse
+                try {
+                    profile = if (userNumber == "NEW_USER") {
+                        // For a real app, we might wait for the user to click "Start Trial"
+                        // But for this init, let's assume we need to fetch or start trial
+                        api.startTrial(StartTrialRequest(getDeviceId()))
+                    } else {
+                        api.getAccessProfile(userNumber)
+                    }
+                    // Save user number if it was new
+                    if (userNumber == "NEW_USER") {
+                        prefs.saveUserNumber(profile.userNumber)
+                    }
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "API Error, using mock profile", e)
+                    profile = AccessProfileResponse(
+                        userNumber = "MOCK_USER",
+                        email = "mock@swimvpn.com",
+                        planType = "FREE",
+                        status = "ACTIVE",
+                        trialStartedAt = "",
+                        trialExpiresAt = "",
+                        subscriptionExpiresAt = "",
+                        subscriptionUrl = null,
+                        devicesAllowed = 1,
+                        dataLimitGB = 1,
+                        dataUsedBytes = "0"
+                    )
+                }
+
+                val servers = try {
+                    api.getServers(profile.userNumber)
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "API Error fetching servers", e)
+                    emptyList()
+                }
+
+                val plans = try {
+                    api.getPlans()
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "API Error fetching plans", e)
+                    emptyList()
+                }
+
+                _state.value = AppState.Success(profile, servers, plans, isOnboardingDone, routingMode, autoConnect, language)
 
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error initApp", e)
-                _state.value = AppState.Error("Backend Offline or Connection Error: ${e.localizedMessage}")
+                _state.value = AppState.Error("Error: ${e.localizedMessage}")
             }
         }
     }

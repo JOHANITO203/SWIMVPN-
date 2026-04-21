@@ -1,94 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-enum PlanType {
-  TRIAL
-  PREMIUM
+enum PlanCategory {
+  WEEK
+  MONTH
+  QUARTER
 }
 
 enum OrderStatus {
   PENDING
   PAID
+  FULFILLED
   FAILED
+  CANCELLED
 }
 
-model UserAccess {
-  id                    String         @id @default(uuid())
-  email                 String?
-  userNumber            String         @unique
-  deviceId              String         @unique
-  planType              PlanType       @default(TRIAL)
-  trialStartedAt        DateTime       @default(now())
-  trialExpiresAt        DateTime
-  subscriptionExpiresAt DateTime?
-  devicesAllowed        Int            @default(1)
-  dataLimitGB           Int            @default(0)
-  dataUsedBytes         BigInt         @default(0)
-  subscriptionUrl       String?
-  orders                PaymentOrder[]
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+enum InventoryStatus {
+  AVAILABLE
+  RESERVED
+  ASSIGNED
+  DEAD
+}
+
+model Customer {
+  id         String   @id @default(uuid())
+  public_id  String   @unique @default(dbgenerated("nanoid(12)"))
+  device_id  String?  @unique
+  email      String?
+  phone      String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  orders          Order[]
+  inventory_items InventoryItem[]
 }
 
 model Plan {
-  id             String         @id @default(uuid())
+  id             String       @id @default(uuid())
+  code           PlanCategory @unique
   name           String
-  durationDays   Int
-  devicesAllowed Int
-  features       String[]
-  isTrial        Boolean        @default(false)
-  isActive       Boolean        @default(true)
-  orders         PaymentOrder[]
+  duration_label String
+  quota_label    String
+  price_rub      Decimal      @db.Decimal(10, 2)
+  active         Boolean      @default(true)
+  display_order  Int          @default(0)
+
+  orders Order[]
 }
 
-model ServerNode {
-  id        String   @id @default(uuid())
-  country   String
-  city      String
-  host      String
-  port      Int
-  protocol  String
-  tags      String[]
-  isActive  Boolean  @default(true)
-  planScope PlanType @default(PREMIUM)
+model Server {
+  id           String   @id @default(uuid())
+  country_code String   // e.g., "US", "DE"
+  name         String   // e.g., "Frankfurt 1"
+  host         String
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
 }
 
-model PaymentOrder {
+model Order {
   id           String      @id @default(uuid())
-  userAccessId String
-  user         UserAccess  @relation(fields: [userAccessId], references: [id])
-  planId       String
-  plan         Plan        @relation(fields: [planId], references: [id])
-  amount       Float
-  currency     String      @default("RUB")
+  order_ref    String      @unique
+  customer_id  String
+  plan_id      String
   status       OrderStatus @default(PENDING)
-  provider     String
-  paymentUrl   String?
-  createdAt    DateTime    @default(now())
-  paidAt       DateTime?
+  amount_rub   Decimal     @db.Decimal(10, 2)
+  payment_ref  String?
+  created_at   DateTime    @default(now())
+  paid_at      DateTime?
+  fulfilled_at DateTime?
+
+  customer    Customer          @relation(fields: [customer_id], references: [id])
+  plan        Plan              @relation(fields: [plan_id], references: [id])
+  assignments OrderAssignment[]
+  deliveries  Delivery[]
 }
 
-model ActivationCode {
-  id                     String    @id @default(uuid())
-  code                   String    @unique
-  planId                 String
-  isUsed                 Boolean   @default(false)
-  usedAt                 DateTime?
-  assignedToUserAccessId String?
-  expiresAt              DateTime?
+model InventoryItem {
+  id                   String          @id @default(uuid())
+  category             PlanCategory
+  raw_config           String          @db.Text
+  config_type          String          // "VLESS", "VMESS", etc.
+  display_protocol     String
+  batch_name           String?
+  status               InventoryStatus @default(AVAILABLE)
+  assigned_order_id    String?         @unique
+  assigned_customer_id String?
+  imported_at          DateTime        @default(now())
+  assigned_at          DateTime?
+
+  customer    Customer?        @relation(fields: [assigned_customer_id], references: [id])
+  assignments OrderAssignment?
 }
 
-model AppContent {
-  id       String  @id @default(uuid())
-  type     String
-  locale   String
-  key      String
-  value    String  @db.Text
-  isActive Boolean @default(true)
+model OrderAssignment {
+  id                      String   @id @default(uuid())
+  order_id                String
+  inventory_item_id       String   @unique
+  fallback_offer_title    String
+  fallback_duration_label String
+  fallback_quota_label    String
+  assigned_at             DateTime @default(now())
+
+  order          Order         @relation(fields: [order_id], references: [id])
+  inventory_item InventoryItem @relation(fields: [inventory_item_id], references: [id])
+}
+
+model Delivery {
+  id                String    @id @default(uuid())
+  order_id          String
+  customer_email    String?
+  telegram_notified Boolean   @default(false)
+  email_sent        Boolean   @default(false)
+  delivery_mode     String    // "APP_ONLY", "EMAIL", "TELEGRAM"
+  sent_at           DateTime?
+  notes             String?   @db.Text
+
+  order Order @relation(fields: [order_id], references: [id])
+}
+
+model Admin {
+  id            String   @id @default(uuid())
+  username      String   @unique
+  password_hash String
+  role          String   @default("SUPER_ADMIN")
+  active        Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  sessions AdminSession[]
+  events   AdminEvent[]
+}
+
+model AdminSession {
+  id                 String    @id @default(uuid())
+  admin_id           String
+  refresh_token_hash String
+  created_at         DateTime  @default(now())
+  expires_at         DateTime
+  revoked_at         DateTime?
+
+  admin Admin @relation(fields: [admin_id], references: [id])
+}
+
+model AdminEvent {
+  id           String   @id @default(uuid())
+  admin_id     String?
+  event_type   String   // "CONFIG_IMPORTED", "ORDER_MANUALLY_FULFILLED"
+  entity_type  String   // "ORDER", "INVENTORY"
+  entity_id    String
+  payload_json Json
+  created_at   DateTime @default(now())
+
+  admin Admin? @relation(fields: [admin_id], references: [id])
 }

@@ -7,11 +7,12 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/apps/gateway-service/main",
+    "start:all": "concurrently \"npm run start:dev gateway-service\" \"npm run start:dev customer-order-service\" \"npm run start:dev inventory-delivery-service\" \"npm run start:dev admin-control-service\" \"npm run start:dev vpn-config-engine-service\" \"npm run start:dev store-engine-service\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
   },
   "prisma": {

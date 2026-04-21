@@ -1,5 +1,8 @@
 package com.swimvpn.app.data.network
 
+import com.swimvpn.app.data.model.CreateOrderRequest
+import com.swimvpn.app.data.model.OrderResponse
+import com.swimvpn.app.data.model.Plan
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
@@ -21,4 +24,10 @@ interface ApiService {
 
     @GET("api/v1/servers")
     suspend fun getServers(@Header("x-user-number") userNumber: String): List<ServerNode>
+
+    @GET("store/plans")
+    suspend fun getPlans(): List<Plan>
+
+    @POST("orders")
+    suspend fun createOrder(@Body request: CreateOrderRequest): OrderResponse
 }

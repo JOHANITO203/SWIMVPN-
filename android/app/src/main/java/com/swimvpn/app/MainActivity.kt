@@ -141,7 +141,9 @@ fun AppNavigation(viewModel: MainViewModel) {
             ImportMenuSheet(viewModel = viewModel, onDismiss = { navController.popBackStack() })
         }
         composable("subscription") { 
+            val data = state as? AppState.Success ?: return@composable
             SubscriptionScreen(
+                plans = data.plans,
                 onUpgradeClick = { planId -> 
                     // Logique de paiement à implémenter plus tard
                     android.util.Log.d("PAYMENT", "Plan selected: $planId")
