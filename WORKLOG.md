@@ -108,3 +108,13 @@ pm run lint PASSED (	sc --noEmit).
     - Root compose: docker compose config PASSED.
     - Backend compose: docker compose config PASSED.
 
+
+## [2026-04-21] [Docker Port Exposure Hardening]
+- **Status**: DONE
+- **Changes**:
+    - Removed public PostgreSQL port mapping from root compose (db no longer publishes 5432).
+    - Kept only gateway public mapping (3000) and left all internal services network-only.
+- **Verification**:
+    - docker compose config PASSED for root stack.
+    - Confirmed no published ports for 5432, 3001-3005, 6379, or 8081.
+
