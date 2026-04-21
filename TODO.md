@@ -33,3 +33,9 @@
 - Add integration tests for inventory-delivery-service -> 
 otification-bot-service event handoff.
 
+
+## Admin Support Bot Next Steps
+- Persist support escalation tickets in PostgreSQL (support_cases) when this scope is approved.
+- Add admin command handlers for /order, /resend, /status, /help in support-bot context (currently only guided customer escalation flow is implemented).
+- Add optional callback actions in admin group (mark delivered, copy VPN link) when linked to finalized support-case storage.
+- Add integration tests covering Telegram callback flow and support-group relay failure paths.

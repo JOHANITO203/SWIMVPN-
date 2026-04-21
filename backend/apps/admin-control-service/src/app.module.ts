@@ -6,6 +6,7 @@ import { DatabaseModule } from '@app/database';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AdminBotService } from './admin-bot.service';
+import { AdminSupportBotService } from './admin-support-bot.service';
 
 @Module({
   imports: [
@@ -50,6 +51,6 @@ import { AdminBotService } from './admin-bot.service';
     ]),
   ],
   controllers: [AdminController],
-  providers: [AdminService, AdminBotService],
+  providers: [AdminService, AdminBotService, AdminSupportBotService],
 })
 export class AppModule {}

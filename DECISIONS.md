@@ -58,3 +58,8 @@ otification-bot-service) instead of extending dmin-control-service.
 - **Why**: Running two pollers on the same Telegram token is unstable.
 - **Impact**: Reliable command mode when dedicated token is provided; deterministic notification sending remains available without it.
 
+
+## [2026-04-22] [Admin Support Bot Embedded in admin-control-service]
+- **Decision**: Implement the admin support bot as a focused deterministic module/service inside dmin-control-service for MVP.
+- **Why**: Smallest viable change with least operational overhead; reuses existing admin Telegram context while keeping strict non-LLM menu-based behavior.
+- **Impact**: No additional standalone support microservice needed now; escalation handling is operational with static RU/EN templates and support-group relay.

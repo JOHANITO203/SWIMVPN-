@@ -162,3 +162,24 @@ pm run build PASSED.
 px ts-node apps/notification-bot-service/src/__tests__/template.spec.ts PASSED.
     - Root compose render: docker compose config PASSED with required env values.
 
+
+## [2026-04-22] [Admin Support Bot (Deterministic Telegram) MVP Batch]
+- **Status**: DONE
+- **Changes**:
+    - Added deterministic admin support bot inside dmin-control-service (no LLM, no freeform AI chat).
+    - Implemented RU default + EN fallback topic menu with static guided replies for 7 required support topics.
+    - Implemented escalation flow: unresolved/support buttons -> one short user message -> relay to support group ADMIN_SUPPORT_CHAT_ID.
+    - Added escalation ticket id generation and clear admin relay formatter (topic, message, timestamp, language, optional email/phone/orderRef, Telegram identifiers).
+    - Added in-memory anti-spam guard for escalation submissions.
+    - Added minimal tests for formatter, language resolution, optional field extraction, and ticket id format.
+    - Updated root and backend env examples with ADMIN_SUPPORT_* variables.
+    - Corrected backend compose local wiring so ADMIN_SUPPORT_* variables are bound to dmin-control-service (not gateway).
+- **Verification**:
+    - ackend: 
+pm run lint PASSED.
+    - ackend: 
+pm run build PASSED.
+    - ackend: 
+px ts-node apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts PASSED.
+    - Root compose render: docker compose config PASSED with required env variables set.
+    - Backend compose render: docker compose config PASSED.
