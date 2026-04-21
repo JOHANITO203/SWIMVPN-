@@ -22,4 +22,4 @@ COPY --from=builder /app/prisma ./prisma
 EXPOSE 3000
 
 # Default command is overridden by docker-compose service-specific commands.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/apps/gateway-service/main"]
+CMD ["node", "dist/apps/gateway-service/main"]

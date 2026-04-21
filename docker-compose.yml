@@ -1,172 +1,295 @@
 networks:
-  swimvpn-network:
+  public:
     driver: bridge
+    name: swimvpn-public
+  private:
+    driver: bridge
+    name: swimvpn-private
 
 volumes:
   swimvpn-pgdata:
+  traefik-letsencrypt:
 
 services:
+  traefik:
+    image: traefik:v3.0
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL:?TRAEFIK_ACME_EMAIL is required}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --api.dashboard=true
+      - --ping=true
+      - --log.level=INFO
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefik-dashboard.rule=Host(`traefik.swimvpn.pro`)
+      - traefik.http.routers.traefik-dashboard.entrypoints=websecure
+      - traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt
+      - traefik.http.routers.traefik-dashboard.service=api@internal
+      - traefik.http.routers.traefik-dashboard.middlewares=traefik-auth
+      - traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:?TRAEFIK_DASHBOARD_AUTH is required}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: "0.20"
+    networks:
+      - public
+      - private
+
   db:
     image: postgres:15-alpine
-    container_name: swimvpn-db
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-swim_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-swim_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-swimvpn_db}
     volumes:
       - swimvpn-pgdata:/var/lib/postgresql/data
-    networks:
-      - swimvpn-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-swim_user} -d ${POSTGRES_DB:-swimvpn_db}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 384m
+    cpus: "0.35"
+    networks:
+      - private
 
-  gateway-service:
+  prisma-migrate:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: runtime
-    container_name: swimvpn-gateway
-    command: node dist/apps/gateway-service/main
-    ports:
-      - "${GATEWAY_PORT:-3000}:3000"
+    command: ["npx", "prisma", "migrate", "deploy"]
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:-swim_password}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
-      CUSTOMER_SERVICE_HOST: customer-order-service
-      INVENTORY_SERVICE_HOST: inventory-delivery-service
-      ADMIN_SERVICE_HOST: admin-control-service
-      VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
-      STORE_SERVICE_HOST: store-engine-service
-      JWT_SECRET: ${JWT_SECRET:-SWIM_VPN_SUPER_SECRET}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:-0}
-      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-RUB}
-    networks:
-      - swimvpn-network
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/v1/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  customer-order-service:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: runtime
-    container_name: swimvpn-customer-order
-    command: node dist/apps/customer-order-service/main
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:-swim_password}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
-      INVENTORY_SERVICE_HOST: inventory-delivery-service
-      JWT_SECRET: ${JWT_SECRET:-SWIM_VPN_SUPER_SECRET}
+    restart: "no"
+    mem_limit: 128m
+    cpus: "0.20"
     networks:
-      - swimvpn-network
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "const net=require('net');const s=net.createConnection(3001,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),2000);"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  inventory-delivery-service:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: runtime
-    container_name: swimvpn-inventory-delivery
-    command: node dist/apps/inventory-delivery-service/main
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:-swim_password}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
-      VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
-      ADMIN_SERVICE_HOST: admin-control-service
-    networks:
-      - swimvpn-network
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "const net=require('net');const s=net.createConnection(3002,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),2000);"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  admin-control-service:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: runtime
-    container_name: swimvpn-admin-control
-    command: node dist/apps/admin-control-service/main
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:-swim_password}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
-      INVENTORY_SERVICE_HOST: inventory-delivery-service
-      CUSTOMER_SERVICE_HOST: customer-order-service
-      JWT_SECRET: ${JWT_SECRET:-SWIM_VPN_SUPER_SECRET}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:-0}
-    networks:
-      - swimvpn-network
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "const net=require('net');const s=net.createConnection(3003,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),2000);"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - private
 
   vpn-config-engine-service:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: runtime
-    container_name: swimvpn-vpn-engine
-    command: node dist/apps/vpn-config-engine-service/main
+    command: ["node", "dist/apps/vpn-config-engine-service/main"]
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:-swim_password}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
-    networks:
-      - swimvpn-network
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
     depends_on:
       db:
         condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "node", "-e", "const net=require('net');const s=net.createConnection(3004,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),2000);"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "node", "-e", "const n=require('net');const s=n.createConnection(3004,'127.0.0.1');const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();process.exit(0)});s.on('timeout',f);s.on('error',f);"]
+      interval: 20s
+      timeout: 6s
+      retries: 5
+      start_period: 25s
+    restart: unless-stopped
+    mem_limit: 160m
+    cpus: "0.20"
+    networks:
+      - private
+
+  inventory-delivery-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["node", "dist/apps/inventory-delivery-service/main"]
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
+      VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
+      ADMIN_SERVICE_HOST: admin-control-service
+    depends_on:
+      db:
+        condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
+      vpn-config-engine-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "const n=require('net');const t=[[3002,'127.0.0.1'],[5432,'db'],[3004,'vpn-config-engine-service']];let i=0;const c=()=>{if(i===t.length)process.exit(0);const [p,h]=t[i++];const s=n.createConnection(p,h);const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();c()});s.on('timeout',f);s.on('error',f)};c();"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 192m
+    cpus: "0.25"
+    networks:
+      - private
+
+  customer-order-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["node", "dist/apps/customer-order-service/main"]
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
+      INVENTORY_SERVICE_HOST: inventory-delivery-service
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+    depends_on:
+      db:
+        condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
+      inventory-delivery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "const n=require('net');const t=[[3001,'127.0.0.1'],[5432,'db'],[3002,'inventory-delivery-service']];let i=0;const c=()=>{if(i===t.length)process.exit(0);const [p,h]=t[i++];const s=n.createConnection(p,h);const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();c()});s.on('timeout',f);s.on('error',f)};c();"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 192m
+    cpus: "0.25"
+    networks:
+      - private
 
   store-engine-service:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: runtime
-    container_name: swimvpn-store-engine
-    command: node dist/apps/store-engine-service/main
+    command: ["node", "dist/apps/store-engine-service/main"]
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:-swim_password}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
       DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-RUB}
-    networks:
-      - swimvpn-network
     depends_on:
       db:
         condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "node", "-e", "const net=require('net');const s=net.createConnection(3005,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),2000);"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "node", "-e", "const n=require('net');const t=[[3005,'127.0.0.1'],[5432,'db']];let i=0;const c=()=>{if(i===t.length)process.exit(0);const [p,h]=t[i++];const s=n.createConnection(p,h);const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();c()});s.on('timeout',f);s.on('error',f)};c();"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 160m
+    cpus: "0.20"
+    networks:
+      - private
+
+  admin-control-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["node", "dist/apps/admin-control-service/main"]
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
+      INVENTORY_SERVICE_HOST: inventory-delivery-service
+      CUSTOMER_SERVICE_HOST: customer-order-service
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:?ADMIN_CHAT_ID is required}
+    depends_on:
+      db:
+        condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
+      customer-order-service:
+        condition: service_healthy
+      inventory-delivery-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "const n=require('net');const t=[[3003,'127.0.0.1'],[5432,'db'],[3001,'customer-order-service'],[3002,'inventory-delivery-service']];let i=0;const c=()=>{if(i===t.length)process.exit(0);const [p,h]=t[i++];const s=n.createConnection(p,h);const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();c()});s.on('timeout',f);s.on('error',f)};c();"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 35s
+    restart: unless-stopped
+    mem_limit: 224m
+    cpus: "0.25"
+    networks:
+      - private
+
+  gateway-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["node", "dist/apps/gateway-service/main"]
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-swim_user}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:-swimvpn_db}?schema=public
+      CUSTOMER_SERVICE_HOST: customer-order-service
+      INVENTORY_SERVICE_HOST: inventory-delivery-service
+      ADMIN_SERVICE_HOST: admin-control-service
+      VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
+      STORE_SERVICE_HOST: store-engine-service
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:?ADMIN_CHAT_ID is required}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-RUB}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=swimvpn-private
+      - traefik.http.services.swimvpn-gateway.loadbalancer.server.port=3000
+      - traefik.http.routers.swimvpn-api.rule=Host(`api.swimvpn.pro`)
+      - traefik.http.routers.swimvpn-api.entrypoints=websecure
+      - traefik.http.routers.swimvpn-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.swimvpn-admin.rule=Host(`admin.swimvpn.pro`)
+      - traefik.http.routers.swimvpn-admin.entrypoints=websecure
+      - traefik.http.routers.swimvpn-admin.tls.certresolver=letsencrypt
+    depends_on:
+      db:
+        condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
+      customer-order-service:
+        condition: service_healthy
+      inventory-delivery-service:
+        condition: service_healthy
+      admin-control-service:
+        condition: service_healthy
+      vpn-config-engine-service:
+        condition: service_healthy
+      store-engine-service:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/v1/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1));"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: "0.30"
+    networks:
+      - private

@@ -35,3 +35,14 @@
 - **Why**: Source-of-truth requires admin sessions, but full refresh-token architecture is intentionally deferred.
 - **Impact**: Admin auth now uses persisted session checks without broad auth rewrite.
 
+
+## [2026-04-22] [Traefik-Only Public Exposure in Production]
+- **Decision**: Publish only 80/443 via Traefik; keep backend and database services private on Docker networks.
+- **Why**: Matches MVP security posture and VPS deployment constraints while preserving domain-based TLS routing.
+- **Impact**: Internal services are reachable only by Docker service name; no direct public exposure of service ports.
+
+## [2026-04-22] [Dedicated Prisma Migration Job]
+- **Decision**: Run prisma migrate deploy through a dedicated one-shot compose service (prisma-migrate) before app startup.
+- **Why**: Prevents race conditions and avoids migration logic duplication across runtime services.
+- **Impact**: App services are gated by migration completion using depends_on: service_completed_successfully.
+

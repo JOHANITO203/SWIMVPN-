@@ -118,3 +118,22 @@ pm run lint PASSED (	sc --noEmit).
     - docker compose config PASSED for root stack.
     - Confirmed no published ports for 5432, 3001-3005, 6379, or 8081.
 
+
+## [2026-04-22] [Final Deployment Hardening for VPS + Dockploy]
+- **Status**: DONE
+- **Changes**:
+    - Rebuilt root production docker-compose.yml around implemented services only + Traefik (no WireGuard/OpenVPN, no internal public ports).
+    - Enforced private-only networking for internal services; only Traefik publishes 80/443 externally.
+    - Added dedicated prisma-migrate one-shot service gated by healthy PostgreSQL and required before app services.
+    - Added production-safe health checks for each service using real dependency reachability checks.
+    - Added 2GB-friendly memory/CPU limits for all services.
+    - Hardened Traefik dashboard routing with mandatory basic auth and TLS.
+    - Updated root .env.example to match required production variables and removed secret fallback behavior.
+    - Updated backend Dockerfile default command to runtime only; migrations are now handled by prisma-migrate.
+    - Upgraded gateway health endpoint to verify downstream service reachability before returning healthy.
+- **Verification**:
+    - ackend: 
+pm run build PASSED.
+    - Root compose syntax: docker compose config PASSED with required env variables set.
+    - Port exposure check: only 80/443 are published in compose.
+
