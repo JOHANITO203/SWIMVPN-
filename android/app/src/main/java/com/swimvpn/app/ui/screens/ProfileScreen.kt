@@ -143,15 +143,15 @@ fun ProfileScreen(
                 val isTrial = profile.planType == "TRIAL"
                 val limitGB = profile.dataLimitGB.toDouble()
                 val sessionBytes = bytesIn + bytesOut
-                val totalUsedBytes = (profile.dataUsedBytes.toLongOrNull() ?: 0L) + sessionBytes
+                val totalUsedBytes = (profile.dataUsedBytes.filter { it.isDigit() }.toLongOrNull() ?: 0L) + sessionBytes
                 val limitBytes = (limitGB * 1024.0 * 1024.0 * 1024.0).toLong()
                 val remainingBytes = (limitBytes - totalUsedBytes).coerceAtLeast(0L)
-                val progress = if (isTrial || limitBytes <= 0) 0f else (totalUsedBytes.toFloat() / limitBytes.toFloat()).coerceIn(0f, 1f)
+                val progress = if (isTrial || limitBytes <= 0L) 0f else (totalUsedBytes.toFloat() / limitBytes.toFloat()).coerceIn(0f, 1f)
                 
                 val statusColor = when {
                     isTrial -> SwimBlueMain
-                    progress > 0.9 -> Color(0xFFEF4444) // Red
-                    progress > 0.7 -> Color(0xFFF59E0B) // Orange
+                    progress > 0.9f -> Color(0xFFEF4444) // Red
+                    progress > 0.7f -> Color(0xFFF59E0B) // Orange
                     else -> Color(0xFF22C55E) // Green
                 }
 

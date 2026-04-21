@@ -99,7 +99,9 @@ class SwimVpnService : VpnService() {
     }
 
     private fun stopVpn() {
-        // ICI : Arrêter le moteur natif (ex: nativeStopEngine())
+        if (VpnManager.state.value == VpnState.DISCONNECTED || VpnManager.state.value == VpnState.DISCONNECTING) return
+        
+        VpnManager.updateState(VpnState.DISCONNECTING)
         
         try {
             vpnInterface?.close()

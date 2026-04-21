@@ -114,7 +114,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     emptyList()
                 }
 
-                _state.value = AppState.Success(profile, servers, plans, isOnboardingDone, routingMode, autoConnect, language)
+                val savedServerId = prefs.selectedServerIdFlow.first()
+                val activeServer = servers.find { it.id == savedServerId } ?: servers.firstOrNull()
+
+                _state.value = AppState.Success(profile, servers, plans, isOnboardingDone, routingMode, autoConnect, language, activeServer)
 
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error initApp", e)
@@ -157,8 +160,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun signOut() {
         viewModelScope.launch {
+            _state.value = AppState.Loading
             prefs.saveUserNumber("NEW_USER")
             prefs.setOnboardingDone(false)
+            // We could also clear technical settings here if required
             initApp()
         }
     }
@@ -215,9 +220,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectServer(server: ServerNode) {
-        val current = _state.value
-        if (current is AppState.Success) {
-            _state.value = current.copy(activeServer = server)
+        viewModelScope.launch {
+            prefs.setSelectedServerId(server.id)
+            val current = _state.value
+            if (current is AppState.Success) {
+                _state.value = current.copy(activeServer = server)
+            }
         }
     }
 

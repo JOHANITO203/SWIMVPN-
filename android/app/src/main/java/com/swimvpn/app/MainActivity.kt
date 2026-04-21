@@ -269,7 +269,7 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
     val infiniteTransition = rememberInfiniteTransition(label = "powerPulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = if (vpnState == VpnState.CONNECTED) 1.05f else 1.0f,
+        targetValue = if (vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING) 1.05f else 1.0f,
         animationSpec = infiniteRepeatable(
             animation = tween(2000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -299,12 +299,12 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(64.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -313,77 +313,87 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                     Image(
                         painter = painterResource(id = R.drawable.swimvpn_logo),
                         contentDescription = "Logo",
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(40.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "SWIMVPN+",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A))
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Black, 
+                            color = Color(0xFF0F172A),
+                            letterSpacing = 0.5.sp
+                        )
                     )
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(Color(0xFFF8FAFC))
                         .border(1.dp, Color(0xFFE2E8F0), CircleShape)
                         .clickable { onNavigateProfile() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Person, contentDescription = "Profile", tint = Color(0xFF0F172A))
+                    Icon(
+                        imageVector = Icons.Default.Person, 
+                        contentDescription = "Profile", 
+                        tint = Color(0xFF475569),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Trial Banner (Orange)
-            if (profile.planType == "TRIAL" || profile.status == "EXPIRED") {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color(0xFFFFF7ED)
-                ) {
-                    Text(
-                        text = badgeText,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                        color = Color(0xFFC2410C),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
-            } else {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color(0xFFF0FDF4)
-                ) {
-                    Text(
-                        text = badgeText,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                        color = Color(0xFF15803D),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
+            // Status Badge
+            val badgeColor = when {
+                profile.status == "EXPIRED" -> Color(0xFFFFF1F2) // Red-ish
+                profile.planType == "TRIAL" -> Color(0xFFFFF7ED) // Orange
+                else -> Color(0xFFF0FDF4) // Green
+            }
+            val badgeTextColor = when {
+                profile.status == "EXPIRED" -> Color(0xFFE11D48)
+                profile.planType == "TRIAL" -> Color(0xFFC2410C)
+                else -> Color(0xFF15803D)
+            }
+
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = badgeColor
+            ) {
+                Text(
+                    text = badgeText,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    color = badgeTextColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    letterSpacing = 1.sp
+                )
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
             // Big Power Circle
-            val circleOuterColor = if (vpnState == VpnState.CONNECTED) 
-                SwimBlueMain.copy(alpha = 0.1f) else Color(0xFFF1F5F9)
+            val isActive = vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING
+            val circleOuterColor = if (isActive) SwimBlueMain.copy(alpha = 0.1f) else Color(0xFFF1F5F9)
             
             Box(
                 modifier = Modifier
-                    .size(240.dp)
+                    .size(260.dp)
                     .scale(pulseScale)
                     .shadow(
-                        elevation = if (vpnState == VpnState.CONNECTED) 30.dp else 0.dp,
+                        elevation = if (isActive) 32.dp else 0.dp,
                         shape = CircleShape,
-                        spotColor = SwimBlueMain.copy(alpha = 0.5f)
+                        spotColor = SwimBlueMain.copy(alpha = 0.4f)
                     )
                     .clip(CircleShape)
                     .background(circleOuterColor)
-                    .clickable(enabled = profile.status != "EXPIRED") {
+                    .clickable(
+                        enabled = profile.status != "EXPIRED" && vpnState != VpnState.DISCONNECTING,
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) {
                         if (vpnState == VpnState.DISCONNECTED || vpnState == VpnState.ERROR) {
                             val intent = android.net.VpnService.prepare(context)
                             if (intent != null) {
@@ -399,13 +409,13 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
             ) {
                 Box(
                     modifier = Modifier
-                        .size(200.dp)
+                        .size(210.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                         .border(
                             width = 1.dp,
                             brush = Brush.linearGradient(
-                                colors = if (vpnState == VpnState.CONNECTED) 
+                                colors = if (isActive) 
                                     listOf(SwimBlueMain, SwimBlueFace) else listOf(Color(0xFFE2E8F0), Color(0xFFF1F5F9))
                             ),
                             shape = CircleShape
@@ -415,32 +425,46 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                     Icon(
                         imageVector = Icons.Rounded.PowerSettingsNew,
                         contentDescription = "Connect",
-                        modifier = Modifier.size(80.dp),
-                        tint = if (vpnState == VpnState.CONNECTED) SwimBlueMain else Color(0xFFCBD5E1)
+                        modifier = Modifier.size(88.dp),
+                        tint = if (isActive) SwimBlueMain else Color(0xFFCBD5E1)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             // Status Text
-            Text(
-                text = when (vpnState) {
-                    VpnState.CONNECTED -> stringResource(R.string.status_connected)
-                    VpnState.CONNECTING -> stringResource(R.string.status_connecting)
-                    VpnState.DISCONNECTING -> stringResource(R.string.status_disconnecting)
-                    VpnState.ERROR -> stringResource(R.string.status_error)
-                    else -> stringResource(R.string.status_disconnected)
-                },
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A))
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (vpnState == VpnState.CONNECTING || vpnState == VpnState.DISCONNECTING) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = SwimBlueMain
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                Text(
+                    text = when (vpnState) {
+                        VpnState.CONNECTED -> stringResource(R.string.status_connected)
+                        VpnState.CONNECTING -> stringResource(R.string.status_connecting)
+                        VpnState.DISCONNECTING -> stringResource(R.string.status_disconnecting)
+                        VpnState.ERROR -> stringResource(R.string.status_error)
+                        else -> stringResource(R.string.status_disconnected)
+                    },
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Black, 
+                        color = Color(0xFF0F172A),
+                        letterSpacing = (-0.5).sp
+                    )
+                )
+            }
             
             if (activeServer != null) {
                 Text(
                     text = "${activeServer.country}, ${activeServer.city} (${activeServer.host})",
                     color = Color(0xFF64748B),
                     fontSize = 14.sp,
-                    modifier = Modifier.clickable { onNavigateServers() }
+                    modifier = Modifier.padding(top = 6.dp).clickable { onNavigateServers() }
                 )
             }
 
@@ -452,7 +476,8 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(32.dp))
                     .background(Color(0xFFF8FAFC))
-                    .padding(24.dp),
+                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(32.dp))
+                    .padding(vertical = 24.dp, horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(
@@ -490,51 +515,54 @@ fun StatItem(label: String, value: String, icon: androidx.compose.ui.graphics.ve
 fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
     var showActivateCode by remember { mutableStateOf(false) }
 
-    if (showActivateCode) {
-        ActivateCodeDialog(
-            onDismiss = { showActivateCode = false },
-            onActivate = { code ->
-                viewModel.activateCode(code)
-                showActivateCode = false
-                onDismiss()
-            }
-        )
-    }
-
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 48.dp, start = 24.dp, end = 24.dp, top = 8.dp)
-        ) {
-            Text(
-                stringResource(R.string.title_import_method),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A))
+        if (showActivateCode) {
+            ActivateCodeDialog(
+                onDismiss = { showActivateCode = false },
+                onActivate = { code ->
+                    viewModel.activateCode(code)
+                    showActivateCode = false
+                    onDismiss()
+                }
             )
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Row(modifier = Modifier.fillMaxWidth()) {
-                ImportMethodCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.QrCodeScanner,
-                    title = stringResource(R.string.method_qr),
-                    onClick = { /* OCR/QR later */ }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 48.dp, start = 24.dp, end = 24.dp, top = 8.dp)
+            ) {
+                Text(
+                    stringResource(R.string.title_import_method),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF0F172A)
+                    )
                 )
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    ImportMethodCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.QrCodeScanner,
+                        title = stringResource(R.string.method_qr),
+                        onClick = { /* OCR/QR later */ }
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    ImportMethodCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Default.Link,
+                        title = stringResource(R.string.method_url),
+                        onClick = { /* Clipboard later */ }
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
                 ImportMethodCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.Link,
-                    title = stringResource(R.string.method_url),
-                    onClick = { /* Clipboard later */ }
+                    modifier = Modifier.fillMaxWidth(),
+                    icon = Icons.Default.ConfirmationNumber,
+                    title = stringResource(R.string.method_code),
+                    onClick = { showActivateCode = true }
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            ImportMethodCard(
-                modifier = Modifier.fillMaxWidth(),
-                icon = Icons.Default.ConfirmationNumber,
-                title = stringResource(R.string.method_code),
-                onClick = { showActivateCode = true }
-            )
         }
     }
 }
@@ -546,14 +574,15 @@ fun ActivateCodeDialog(onDismiss: () -> Unit, onActivate: (String) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clickable { onDismiss() } // Dim background
+            .background(Color.Black.copy(alpha = 0.5f))
+            .clickable { onDismiss() }
             .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = false) { } // Prevent click through
+                .clickable(enabled = false) { }
                 .background(Color.White, RoundedCornerShape(32.dp))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally

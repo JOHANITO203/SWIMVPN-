@@ -20,6 +20,7 @@ class PreferencesManager(private val context: Context) {
         val ROUTING_MODE_KEY = stringPreferencesKey("routing_mode") // "TUNNEL" or "PROXY"
         val AUTO_CONNECT_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("auto_connect")
         val LANGUAGE_KEY = stringPreferencesKey("language") // "en", "fr", "ru"
+        val SELECTED_SERVER_ID_KEY = stringPreferencesKey("selected_server_id")
     }
 
     val userNumberFlow: Flow<String?> = context.dataStore.data
@@ -36,6 +37,9 @@ class PreferencesManager(private val context: Context) {
 
     val languageFlow: Flow<String> = context.dataStore.data
         .map { preferences -> preferences[LANGUAGE_KEY] ?: "en" }
+
+    val selectedServerIdFlow: Flow<String?> = context.dataStore.data
+        .map { preferences -> preferences[SELECTED_SERVER_ID_KEY] }
 
     suspend fun saveUserNumber(userNumber: String) {
         context.dataStore.edit { preferences -> preferences[USER_NUMBER_KEY] = userNumber }
@@ -55,6 +59,16 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setLanguage(lang: String) {
         context.dataStore.edit { preferences -> preferences[LANGUAGE_KEY] = lang }
+    }
+
+    suspend fun setSelectedServerId(serverId: String?) {
+        context.dataStore.edit { preferences ->
+            if (serverId == null) {
+                preferences.remove(SELECTED_SERVER_ID_KEY)
+            } else {
+                preferences[SELECTED_SERVER_ID_KEY] = serverId
+            }
+        }
     }
 
     suspend fun clearUserNumber() {
