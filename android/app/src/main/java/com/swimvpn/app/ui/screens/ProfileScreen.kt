@@ -269,7 +269,7 @@ private fun calculateRemainingTime(expiryDateStr: String?): String {
             hours > 0 -> "${hours} hours left"
             else -> "Expiring soon"
         }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         // Fallback: just show the date part
         expiryDateStr.take(10)
     }
