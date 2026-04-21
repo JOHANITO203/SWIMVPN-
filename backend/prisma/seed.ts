@@ -24,11 +24,11 @@ async function main() {
       active: true,
     },
     {
-      code: PlanCategory.YEAR,
-      name: 'Annual Premium',
-      duration_label: '365 Days',
-      quota_label: 'Unlimited',
-      price_rub: 2900,
+      code: PlanCategory.QUARTER,
+      name: 'Quarterly Premium',
+      duration_label: '90 Days',
+      quota_label: '300 GB',
+      price_rub: 1290,
       display_order: 3,
       active: true,
     },
@@ -49,25 +49,29 @@ async function main() {
     { country_code: 'NL', name: 'Amsterdam-1', host: 'nl1.swimvpn.net' },
   ];
 
-  for (const server of servers) {
-    await prisma.server.upsert({
-      where: { id: server.name }, // Hack for seeding: using name as ID check
-      update: server,
-      create: server,
+  const existingServers = await prisma.server.count();
+  if (existingServers === 0) {
+    await prisma.server.createMany({
+      data: servers,
     });
   }
 
   // 3. Seed some Inventory (Dummy VLESS for Trial)
-  await prisma.inventoryItem.create({
-    data: {
-      category: PlanCategory.WEEK,
-      raw_config: 'vless://8e966870-7389-4e58-958b-083656c07525@de1.swimvpn.net:443?encryption=none&security=tls&type=grpc&serviceName=swimvpn-grpc#SwimVPN-Trial',
-      config_type: 'VLESS',
-      display_protocol: 'VLESS',
-      batch_name: 'SEED-BATCH',
-      status: 'AVAILABLE',
-    },
+  const seededConfig = await prisma.inventoryItem.findFirst({
+    where: { batch_name: 'SEED-BATCH' },
   });
+  if (!seededConfig) {
+    await prisma.inventoryItem.create({
+      data: {
+        category: PlanCategory.WEEK,
+        raw_config: 'vless://8e966870-7389-4e58-958b-083656c07525@de1.swimvpn.net:443?encryption=none&security=tls&type=grpc&serviceName=swimvpn-grpc#SwimVPN-Trial',
+        config_type: 'VLESS',
+        display_protocol: 'VLESS',
+        batch_name: 'SEED-BATCH',
+        status: 'AVAILABLE',
+      },
+    });
+  }
 
   console.log('Seed completed: Plans, Servers, and 1 Trial Config created.');
 }

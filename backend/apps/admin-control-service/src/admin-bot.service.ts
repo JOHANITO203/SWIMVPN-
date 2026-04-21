@@ -82,12 +82,12 @@ export class AdminBotService implements OnModuleInit {
       ctx.reply('⏳ Fetching user stats...');
       try {
         const totalUsers = await this.prisma.customer.count();
-        const activeUsers = await this.prisma.order.count({
+        const activeUsers = await this.prisma.order.groupBy({
+          by: ['customer_id'],
           where: { status: 'FULFILLED' },
-          distinct: ['customer_id']
         });
 
-        ctx.reply(`👥 *User Statistics*:\n\nTotal Registered: ${totalUsers}\nActive Subscriptions: ${activeUsers}`, { parse_mode: 'Markdown' });
+        ctx.reply(`👥 *User Statistics*:\n\nTotal Registered: ${totalUsers}\nActive Subscriptions: ${activeUsers.length}`, { parse_mode: 'Markdown' });
       } catch (e) {
         ctx.reply('❌ Error fetching user stats.');
       }

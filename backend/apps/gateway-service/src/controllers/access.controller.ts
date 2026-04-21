@@ -1,23 +1,25 @@
 import { Controller, Post, Get, Body, Param, Inject, Headers } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 
-@Controller('api/v1')
+@Controller()
 export class AccessController {
   constructor(
     @Inject('CUSTOMER_SERVICE') private readonly customerClient: ClientProxy,
-    @Inject('VPN_CONFIG_SERVICE') private readonly vpnClient: ClientProxy,
     @Inject('STORE_SERVICE') private readonly storeClient: ClientProxy,
   ) {}
 
+  @Get('health')
+  health() {
+    return { status: 'ok', service: 'gateway-service' };
+  }
+
   @Post('access/trial')
   async startTrial(@Body() data: any) {
-    // In a real scenario, this would check if deviceId already had a trial
-    // For now, redirect to customer service or a specialized trial service
     return this.customerClient.send({ cmd: 'start_trial' }, data);
   }
 
   @Get('access/:userNumber')
-  async getAccessProfile(@Param('userNumber') userNumber: String) {
+  async getAccessProfile(@Param('userNumber') userNumber: string) {
     return this.customerClient.send({ cmd: 'get_profile' }, { userNumber });
   }
 

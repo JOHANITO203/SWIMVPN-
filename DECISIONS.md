@@ -24,3 +24,14 @@
 - **Decision**: Persist `selectedServerId` in `DataStore` and show active progress in the "Big Power Button".
 - **Why**: Enhances UX by remembering user preference across app restarts and providing clear feedback during slow VPN handshakes.
 - **Impact**: Reliable state management and professional feel.
+
+## [2026-04-21] [MVP Deployment Stack Truth Alignment]
+- **Decision**: Align deployment stack to PostgreSQL + 6 backend services only; remove WireGuard/OpenVPN runtime infrastructure from compose.
+- **Why**: Source-of-truth defines SWIMVPN+ MVP as supplier-config resale/management, not VPN server provisioning.
+- **Impact**: Docker stack now represents implemented MVP reality and is compose-valid.
+
+## [2026-04-21] [Admin Session Minimum Compliance]
+- **Decision**: Implement minimal dmin_sessions lifecycle now (create on login, validate token against active session, revoke on logout).
+- **Why**: Source-of-truth requires admin sessions, but full refresh-token architecture is intentionally deferred.
+- **Impact**: Admin auth now uses persisted session checks without broad auth rewrite.
+

@@ -20,3 +20,9 @@
 - Refactor Android backend integration and polish UI (VpnState handling, persistent selection).
 - Implement OCR and QR code scanning for the "Import via QR" feature in Android.
 - Implement Admin authentication and Telegram admin control layer.
+
+## Alignment Follow-ups
+- Expand vpn-config-engine protocol coverage beyond current parser support to match full priority ecosystem (VMess, Trojan, JSON Xray, JSON V2Ray).
+- Add deeper admin session hardening (token rotation / refresh flow) when moving beyond minimal MVP compliance.
+- Add integration tests for order paid->fulfilled path and session-bound admin auth flow.
+

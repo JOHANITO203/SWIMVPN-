@@ -23,7 +23,7 @@ export class CustomerController {
   }
 
   @MessagePattern({ cmd: 'import_subscription' })
-  async importSubscription(@Payload() data: { userNumber: string }) {
+  async importSubscription(@Payload() data: { userNumber: string; subscriptionUrl: string }) {
     return this.customerService.importSubscription(data);
   }
 

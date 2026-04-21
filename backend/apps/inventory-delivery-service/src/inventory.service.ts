@@ -52,8 +52,8 @@ export class InventoryService {
         include: { plan: true },
       });
 
-      if (!order || order.status !== OrderStatus.PENDING) {
-        throw new Error('Order not found or not in pending state');
+      if (!order || (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAID)) {
+        throw new Error('Order not found or not in fulfillable state');
       }
 
       // 2. Find an available config matching the plan category
@@ -93,6 +93,7 @@ export class InventoryService {
         where: { id: order.id },
         data: {
           status: OrderStatus.FULFILLED,
+          paid_at: order.paid_at ?? new Date(),
           fulfilled_at: new Date(),
         },
       });

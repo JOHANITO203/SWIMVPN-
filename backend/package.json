@@ -13,17 +13,19 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/apps/gateway-service/main",
     "start:all": "concurrently \"npm run start:dev gateway-service\" \"npm run start:dev customer-order-service\" \"npm run start:dev inventory-delivery-service\" \"npm run start:dev admin-control-service\" \"npm run start:dev vpn-config-engine-service\" \"npm run start:dev store-engine-service\"",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
+    "lint": "tsc --noEmit"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@nestjs/config": "^3.2.3",
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.1.17",
     "@nestjs/jwt": "^10.1.0",
+    "bcryptjs": "^2.4.3",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",
     "@prisma/client": "^5.8.1",
@@ -31,14 +33,19 @@
     "class-validator": "^0.14.1",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.0"
+    "swagger-ui-express": "^5.0.0",
+    "telegraf": "^4.16.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.17",
     "@types/node": "^20.3.1",
+    "eslint": "^8.57.1",
     "prisma": "^5.8.1",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.1.3"
   }
 }

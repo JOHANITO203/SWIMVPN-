@@ -77,3 +77,34 @@
     - Implement `/health` endpoints in all microservices.
     - Test Docker build and deployment locally.
     - Verify inter-service communication in Docker network.
+
+## [2026-04-21] [Materialize Source-of-Truth Documentation]
+- **Status**: DONE
+- **Changes**:
+    - Created docs/SOURCE_OF_TRUTH.md with canonical project constraints and truth statements.
+    - Created docs/ARCHITECTURE.md with target microservice boundaries and MVP non-goals.
+    - Created docs/DOMAIN_MODEL.md with core entities and required order traceability model.
+    - Created docs/IMPLEMENTATION_RULES.md with execution discipline and guardrails.
+- **Verification**:
+    - Confirmed all four files exist under docs/.
+    - Reviewed file contents against provided project truth list.
+
+
+## [2026-04-21] [Backend Truth Alignment Batch - Compile/Contract/Deploy Realism]
+- **Status**: DONE
+- **Changes**:
+    - Fixed backend compile drift (dependencies, Prisma-aligned seed, type contract mismatches).
+    - Normalized Gateway route surface to a single /api/v1 prefix and removed public PSP webhook exposure.
+    - Added minimal admin session persistence/validation/logout tied to dmin_sessions.
+    - Removed fake store server fallback and kept DB-truth-backed server responses only.
+    - Added explicit VPN config pipeline processing (ingest -> parse -> validate -> normalize -> classify -> preview -> prepare runtime payload) while preserving existing parser base.
+    - Replaced invalid/fantasy Docker compose files with source-of-truth-aligned stack (PostgreSQL + 6 services, no WireGuard).
+    - Updated env templates and deployment docs to match real runtime contracts (*_SERVICE_HOST, deferred PSP).
+- **Verification**:
+    - ackend: 
+pm run build PASSED.
+    - ackend: 
+pm run lint PASSED (	sc --noEmit).
+    - Root compose: docker compose config PASSED.
+    - Backend compose: docker compose config PASSED.
+

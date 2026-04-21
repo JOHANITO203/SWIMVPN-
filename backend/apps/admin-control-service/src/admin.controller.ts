@@ -35,6 +35,11 @@ export class AdminController {
     return this.adminService.validateToken(data.token);
   }
 
+  @MessagePattern({ cmd: 'admin_logout' })
+  async logout(@Payload() data: { token: string }) {
+    return this.adminService.logout(data.token);
+  }
+
   @MessagePattern({ cmd: 'create_plan' })
   async createPlan(@Payload() data: CreatePlanDto) {
     return this.adminService.createPlan(data);

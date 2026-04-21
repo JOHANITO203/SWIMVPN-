@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { VpnConfigService } from './vpn-config.service';
+import { ConfigPipelineResult, VpnConfigService } from './vpn-config.service';
 import { ParseConfigDto, SwimVpnProfile } from '@app/contracts';
 
 @Controller()
@@ -10,6 +10,11 @@ export class VpnConfigController {
   @MessagePattern({ cmd: 'parse_config' })
   async parseConfig(@Payload() data: ParseConfigDto): Promise<SwimVpnProfile> {
     return this.vpnConfigService.parse(data.rawConfig);
+  }
+
+  @MessagePattern({ cmd: 'process_config_pipeline' })
+  async processConfigPipeline(@Payload() data: ParseConfigDto): Promise<ConfigPipelineResult> {
+    return this.vpnConfigService.processPipeline(data.rawConfig);
   }
 
   @MessagePattern({ cmd: 'check_health' })

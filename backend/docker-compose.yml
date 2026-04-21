@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
@@ -14,81 +12,104 @@ services:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U swim_user -d swimvpn_db"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
-  # Base Environment for all microservices
-  x-common-env: &common-env
-    DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
-    CUSTOMER_SERVICE_HOST: customer-order-service
-    INVENTORY_SERVICE_HOST: inventory-delivery-service
-    ADMIN_SERVICE_HOST: admin-control-service
-    VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
-    STORE_SERVICE_HOST: store-engine-service
-    JWT_SECRET: SWIM_VPN_SUPER_SECRET
-    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-TO_BE_REPLACED}
-    ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:-0}
-
   gateway-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
     container_name: swimvpn_gateway
     command: node dist/apps/gateway-service/main
     ports:
       - "3000:3000"
     environment:
-      <<: *common-env
-      PORT: 3000
+      DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
+      CUSTOMER_SERVICE_HOST: customer-order-service
+      INVENTORY_SERVICE_HOST: inventory-delivery-service
+      ADMIN_SERVICE_HOST: admin-control-service
+      VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
+      STORE_SERVICE_HOST: store-engine-service
+      JWT_SECRET: SWIM_VPN_SUPER_SECRET
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:-0}
     depends_on:
       db:
         condition: service_healthy
 
   customer-order-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
     container_name: swimvpn_customer_order
     command: node dist/apps/customer-order-service/main
     environment:
-      <<: *common-env
+      DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
+      INVENTORY_SERVICE_HOST: inventory-delivery-service
+      JWT_SECRET: SWIM_VPN_SUPER_SECRET
     depends_on:
       db:
         condition: service_healthy
 
   inventory-delivery-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
     container_name: swimvpn_inventory_delivery
     command: node dist/apps/inventory-delivery-service/main
     environment:
-      <<: *common-env
+      DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
+      VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
+      ADMIN_SERVICE_HOST: admin-control-service
     depends_on:
       db:
         condition: service_healthy
 
   admin-control-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
     container_name: swimvpn_admin_control
     command: node dist/apps/admin-control-service/main
     environment:
-      <<: *common-env
+      DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
+      INVENTORY_SERVICE_HOST: inventory-delivery-service
+      CUSTOMER_SERVICE_HOST: customer-order-service
+      JWT_SECRET: SWIM_VPN_SUPER_SECRET
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:-0}
     depends_on:
       db:
         condition: service_healthy
 
   vpn-config-engine-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
     container_name: swimvpn_vpn_engine
     command: node dist/apps/vpn-config-engine-service/main
     environment:
-      <<: *common-env
+      DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
     depends_on:
       db:
         condition: service_healthy
 
   store-engine-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
     container_name: swimvpn_store_engine
     command: node dist/apps/store-engine-service/main
     environment:
-      <<: *common-env
+      DATABASE_URL: postgresql://swim_user:swim_password@db:5432/swimvpn_db?schema=public
+      DEFAULT_CURRENCY: RUB
     depends_on:
       db:
         condition: service_healthy

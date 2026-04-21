@@ -1,7 +1,7 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 
-@Controller('api/v1/store')
+@Controller('store')
 export class StoreController {
   constructor(@Inject('STORE_SERVICE') private readonly storeClient: ClientProxy) {}
 

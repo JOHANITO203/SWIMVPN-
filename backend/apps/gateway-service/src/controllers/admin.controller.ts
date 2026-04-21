@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Inject, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Inject, UseGuards, Req, Headers } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { AdminGuard } from '../admin.guard';
 
@@ -27,5 +27,12 @@ export class AdminController {
   @Post('import')
   importConfigs(@Body() data: any, @Req() req: any) {
     return this.adminClient.send({ cmd: 'trigger_import' }, { ...data, adminId: req.admin.id });
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('logout')
+  logout(@Headers('authorization') authorization: string) {
+    const token = authorization?.startsWith('Bearer ') ? authorization.split(' ')[1] : '';
+    return this.adminClient.send({ cmd: 'admin_logout' }, { token });
   }
 }

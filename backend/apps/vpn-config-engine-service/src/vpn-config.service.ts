@@ -2,12 +2,71 @@ import { Injectable } from '@nestjs/common';
 import { SwimVpnProfile, VpnProtocol } from '@app/contracts';
 import * as net from 'net';
 
+export interface ConfigPipelineResult {
+  rawConfig: string;
+  parsedProfile: SwimVpnProfile;
+  normalizedProfile: SwimVpnProfile;
+  classification: {
+    protocol: VpnProtocol;
+    transport: string;
+    security: string;
+  };
+  preview: {
+    title: string;
+    address: string;
+    port: number;
+    protocol: VpnProtocol;
+  };
+  runtimePayload: {
+    protocol: VpnProtocol;
+    address: string;
+    port: number;
+    uuid: string;
+    security: string;
+    transport: string;
+    sni?: string;
+    path?: string;
+    serviceName?: string;
+  };
+}
+
 @Injectable()
 export class VpnConfigService {
   parse(raw: string): SwimVpnProfile {
-    // ... (existing code)
     try {
-      const trimmed = raw.trim();
+      const pipeline = this.processPipeline(raw);
+      return pipeline.normalizedProfile;
+    } catch (error) {
+      const ingested = this.ingest(raw);
+      return this.invalid(ingested, error instanceof Error ? error.message : 'Failed to process config');
+    }
+  }
+
+  processPipeline(raw: string): ConfigPipelineResult {
+    const ingested = this.ingest(raw);
+    const parsed = this.parseStage(ingested);
+    this.validate(parsed);
+    const normalized = this.normalize(parsed);
+    const classification = this.classify(normalized);
+    const preview = this.preview(normalized);
+    const runtimePayload = this.prepareRuntimePayload(normalized);
+
+    return {
+      rawConfig: ingested,
+      parsedProfile: parsed,
+      normalizedProfile: normalized,
+      classification,
+      preview,
+      runtimePayload,
+    };
+  }
+
+  private ingest(raw: string): string {
+    return raw.trim();
+  }
+
+  private parseStage(trimmed: string): SwimVpnProfile {
+    try {
       if (trimmed.startsWith('vless://')) {
         return this.parseVless(trimmed);
       }
@@ -17,8 +76,57 @@ export class VpnConfigService {
 
       return this.invalid(trimmed, 'Unsupported protocol');
     } catch (e) {
-      return this.invalid(raw, e.message);
+      return this.invalid(trimmed, e instanceof Error ? e.message : 'Failed to parse config');
     }
+  }
+
+  private validate(profile: SwimVpnProfile): void {
+    if (profile.validationState === 'INVALID') {
+      throw new Error(profile.errorMessage || 'Invalid profile');
+    }
+    if (!profile.address || !profile.port) {
+      throw new Error('Missing address or port');
+    }
+  }
+
+  private normalize(profile: SwimVpnProfile): SwimVpnProfile {
+    return {
+      ...profile,
+      address: profile.address.toLowerCase(),
+      transport: profile.transport.toLowerCase(),
+      security: profile.security.toLowerCase(),
+    };
+  }
+
+  private classify(profile: SwimVpnProfile): ConfigPipelineResult['classification'] {
+    return {
+      protocol: profile.protocol,
+      transport: profile.transport,
+      security: profile.security,
+    };
+  }
+
+  private preview(profile: SwimVpnProfile): ConfigPipelineResult['preview'] {
+    return {
+      title: profile.displayTitle,
+      address: profile.address,
+      port: profile.port,
+      protocol: profile.protocol,
+    };
+  }
+
+  private prepareRuntimePayload(profile: SwimVpnProfile): ConfigPipelineResult['runtimePayload'] {
+    return {
+      protocol: profile.protocol,
+      address: profile.address,
+      port: profile.port,
+      uuid: profile.uuid,
+      security: profile.security,
+      transport: profile.transport,
+      sni: profile.sni,
+      path: profile.path,
+      serviceName: profile.serviceName,
+    };
   }
 
   private parseVless(raw: string): SwimVpnProfile {
