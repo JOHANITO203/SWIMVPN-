@@ -16,15 +16,18 @@
 - **Admin Control (Telegram)**:
     - Created `AdminBotService` using `Telegraf`.
     - Implemented secure middleware based on `ADMIN_CHAT_ID`.
-    - Commands added: `/start`, `/status`, `/import`, `/add`.
+    - Commands added: `/start`, `/status`, `/import`, `/add`, `/users`, `/manual_fulfill`.
+    - Integrated real-time push notifications for **New Sales** and **Low Stock Alerts**.
 - **Android Integration**:
     - Connected `MainActivity` to real trial logic.
     - Verified `MainViewModel` uses `subscriptionUrl` for VPN tunneling.
+    - Added random error simulation in `SwimVpnService` to test UX robustness and "Red Tint" error state.
 
 ### 🛠 Technical Choices
 - **Telegraf**: Chosen for its lightweight footprint and ease of integration with NestJS.
 - **TCP Transport**: Selected for low-latency internal communication between microservices.
 - **Nanoid**: Used for `public_id` to provide secure, non-sequential user identifiers.
+- **Event-Driven Alerts**: Used NestJS `@EventPattern` to decouple fulfillment from notification logic.
 
 ### ⚠️ Issues Faced
 - Git sync issues due to missing remote configuration in the local environment. (Resolved by manual identification of file paths).

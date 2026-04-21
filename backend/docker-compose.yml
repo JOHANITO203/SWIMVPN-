@@ -26,6 +26,9 @@ services:
     ADMIN_SERVICE_HOST: admin-control-service
     VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
     STORE_SERVICE_HOST: store-engine-service
+    JWT_SECRET: SWIM_VPN_SUPER_SECRET
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-TO_BE_REPLACED}
+    ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:-0}
 
   gateway-service:
     build: .

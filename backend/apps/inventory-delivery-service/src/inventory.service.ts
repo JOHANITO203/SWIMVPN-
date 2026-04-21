@@ -105,7 +105,14 @@ export class InventoryService {
         },
       });
 
-      // 5. Notify Admin of low stock
+      // 5. Notify Admin of fulfillment and low stock
+      this.adminClient.emit('order_fulfilled', {
+        orderId: updatedOrder.id,
+        orderRef: updatedOrder.order_ref,
+        amount: updatedOrder.amount_rub,
+        planCode: order.plan.code,
+      });
+
       this.checkStockAndNotify(tx, order.plan.code);
 
       return { success: true, orderId: updatedOrder.id, itemProtocol: inventoryItem.display_protocol };

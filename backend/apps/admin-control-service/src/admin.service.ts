@@ -1,5 +1,6 @@
 import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@app/database';
 import { AdminLoginDto, CreatePlanDto, TriggerImportDto } from '@app/contracts';
 import * as bcrypt from 'bcryptjs';
@@ -9,6 +10,7 @@ import { firstValueFrom } from 'rxjs';
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
     @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientProxy,
   ) {}
 
@@ -26,11 +28,37 @@ export class AdminService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return {
-      id: admin.id,
+    const token = this.jwtService.sign({
+      sub: admin.id,
       username: admin.username,
       role: admin.role,
+    });
+
+    return {
+      adminId: admin.id,
+      username: admin.username,
+      role: admin.role,
+      token,
     };
+  }
+
+  async validateToken(token: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: payload.sub },
+      });
+
+      if (!admin || !admin.active) return null;
+
+      return {
+        id: admin.id,
+        username: admin.username,
+        role: admin.role,
+      };
+    } catch (e) {
+      return null;
+    }
   }
 
   async createPlan(data: CreatePlanDto) {

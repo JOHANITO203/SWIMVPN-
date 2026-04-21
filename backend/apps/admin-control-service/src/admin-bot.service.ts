@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
+import { PrismaService } from '@app/database';
 import { Telegraf, Context } from 'telegraf';
 
 @Injectable()
@@ -10,7 +11,9 @@ export class AdminBotService implements OnModuleInit {
 
   constructor(
     private configService: ConfigService,
+    private prisma: PrismaService,
     @Inject('INVENTORY_SERVICE') private inventoryClient: ClientProxy,
+    @Inject('CUSTOMER_SERVICE') private customerClient: ClientProxy,
   ) {
     const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
     if (!token || token === 'TO_BE_REPLACED_BY_USER') {
@@ -45,11 +48,62 @@ export class AdminBotService implements OnModuleInit {
 
   private setupCommands() {
     this.bot.start((ctx) => {
-      ctx.reply('👋 Welcome Admin! I am your SWIMVPN+ Control Bot.\n\nCommands:\n/status - System status\n/import - Import VPN configs');
+      ctx.reply('👋 Welcome Admin! I am your SWIMVPN+ Control Bot.\n\nCommands:\n/status - System status\n/orders - Recent orders\n/users - User statistics\n/import - Import VPN configs\n/manual_fulfill [UserNumber] - Manually give access');
     });
 
     this.bot.command('status', async (ctx) => {
       await ctx.reply('📊 System Status: ONLINE\n- Gateway: OK\n- Inventory: OK\n- DB: Connected');
+    });
+
+    this.bot.command('orders', async (ctx) => {
+      ctx.reply('⏳ Fetching recent orders...');
+      try {
+        const recentOrders = await this.prisma.order.findMany({
+          take: 5,
+          orderBy: { created_at: 'desc' },
+          include: { customer: true, plan: true }
+        });
+
+        if (recentOrders.length === 0) {
+          return ctx.reply('📭 No orders found.');
+        }
+
+        const msg = recentOrders.map(o =>
+          `🔹 *${o.order_ref}*\n👤 ${o.customer.public_id}\n📦 ${o.plan.code}\n💰 ${o.amount_rub} RUB\n📅 ${o.created_at.toLocaleString()}\n✅ Status: ${o.status}`
+        ).join('\n\n');
+
+        ctx.reply(`📑 *Recent 5 Orders*:\n\n${msg}`, { parse_mode: 'Markdown' });
+      } catch (e) {
+        ctx.reply('❌ Error fetching orders.');
+      }
+    });
+
+    this.bot.command('users', async (ctx) => {
+      ctx.reply('⏳ Fetching user stats...');
+      try {
+        const totalUsers = await this.prisma.customer.count();
+        const activeUsers = await this.prisma.order.count({
+          where: { status: 'FULFILLED' },
+          distinct: ['customer_id']
+        });
+
+        ctx.reply(`👥 *User Statistics*:\n\nTotal Registered: ${totalUsers}\nActive Subscriptions: ${activeUsers}`, { parse_mode: 'Markdown' });
+      } catch (e) {
+        ctx.reply('❌ Error fetching user stats.');
+      }
+    });
+
+    this.bot.command('manual_fulfill', async (ctx) => {
+      const parts = ctx.message.text.split(' ');
+      if (parts.length < 2) return ctx.reply('❌ Usage: /manual_fulfill [UserNumber]');
+
+      const userNumber = parts[1];
+      ctx.reply(`⏳ Attempting manual fulfillment for ${userNumber}...`);
+
+      this.customerClient.send({ cmd: 'start_trial' }, { deviceId: `MANUAL-${userNumber}` }).subscribe({
+        next: (res) => ctx.reply(`✅ Manual fulfillment (Trial/Free) successful for ${userNumber}`),
+        error: (err) => ctx.reply(`❌ Failed: ${err.message}`)
+      });
     });
 
     this.bot.command('healthcheck', async (ctx) => {
@@ -109,7 +163,7 @@ export class AdminBotService implements OnModuleInit {
 
   async sendAdminAlert(message: string) {
     const adminId = this.configService.get<string>('ADMIN_CHAT_ID');
-    if (!adminId || !this.bot) return;
+    if (!adminId || adminId === '0' || !this.bot) return;
     try {
       await this.bot.telegram.sendMessage(adminId, message, { parse_mode: 'Markdown' });
     } catch (e) {

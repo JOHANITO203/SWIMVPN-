@@ -73,7 +73,12 @@ class SwimVpnService : VpnService() {
                 }
 
                 // 3. Simuler le temps de connexion au serveur distant
-                delay(1500)
+                delay(2500) // Un peu plus long pour faire réaliste
+
+                // RANDOM ERROR SIMULATION (10% of the time for testing UX)
+                if (System.currentTimeMillis() % 10 == 0L) {
+                    throw Exception("Remote server refused connection (Handshake timeout)")
+                }
 
                 // ICI, DANS LA VRAIE IMPLÉMENTATION (HORS SCOPE LLM) :
                 // On passe le file descriptor (vpnInterface?.fd) au moteur natif (ex: tun2socks / xray-core JNI)

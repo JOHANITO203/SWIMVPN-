@@ -48,3 +48,12 @@
     - Wired `MainViewModel.importVless` to `ApiService.importSubscription`.
     - Implemented `importSubscription` and `activateCode` logic in backend `CustomerService`.
     - Added camera permissions handling and UI overlays for scanning.
+
+## [2026-04-22] [Admin Auth & Telegram Control Layer]
+- **Status**: DONE
+- **Changes**:
+    - Implemented JWT-based authentication for Admin in `admin-control-service`.
+    - Created `AdminGuard` in `gateway-service` to secure admin endpoints via TCP verification.
+    - Enhanced Telegram Admin Bot with `/orders` command for real-time monitoring.
+    - Standardized environment variables in `docker-compose.yml`.
+    - Verified inter-service token validation flow.

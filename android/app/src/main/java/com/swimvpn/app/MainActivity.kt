@@ -299,8 +299,8 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
     val context = LocalContext.current
 
     // Launcher pour demander la permission VPN système
-    val vpnPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    val vpnPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             // Permission accordée, on démarre le tunnel
@@ -396,7 +396,13 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
             // Big Power Circle
             val isActive = vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING
             val isTransitioning = vpnState == VpnState.CONNECTING || vpnState == VpnState.DISCONNECTING
-            val circleOuterColor = if (isActive) SwimBlueMain.copy(alpha = 0.1f) else Color(0xFFF1F5F9)
+            val isError = vpnState == VpnState.ERROR
+            
+            val circleOuterColor = when {
+                isActive -> SwimBlueMain.copy(alpha = 0.1f)
+                isError -> Color(0xFFFFE4E6)
+                else -> Color(0xFFF1F5F9)
+            }
             
             Box(
                 modifier = Modifier
@@ -434,10 +440,13 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                         .clip(CircleShape)
                         .background(Color.White)
                         .border(
-                            width = 1.dp,
+                            width = 2.dp,
                             brush = Brush.linearGradient(
-                                colors = if (isActive) 
-                                    listOf(SwimBlueMain, SwimBlueFace) else listOf(Color(0xFFE2E8F0), Color(0xFFF1F5F9))
+                                colors = when {
+                                    isActive -> listOf(SwimBlueMain, SwimBlueFace)
+                                    isError -> listOf(Color(0xFFFB7185), Color(0xFFE11D48))
+                                    else -> listOf(Color(0xFFE2E8F0), Color(0xFFF1F5F9))
+                                }
                             ),
                             shape = CircleShape
                         ),
@@ -459,6 +468,7 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                         tint = when {
                             vpnState == VpnState.CONNECTED -> SwimBlueMain
                             isTransitioning -> SwimBlueMain.copy(alpha = 0.5f)
+                            isError -> Color(0xFFE11D48)
                             else -> Color(0xFFCBD5E1)
                         }
                     )
@@ -624,13 +634,24 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
         hasCameraPermission = it
     }
 
+    val infiniteTransition = rememberInfiniteTransition(label = "scanner")
+    val scanLineY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scanLine"
+    )
+
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
             launcher.launch(Manifest.permission.CAMERA)
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         if (hasCameraPermission) {
             AndroidView(
                 factory = { context ->
@@ -666,19 +687,74 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Overlay for QR scanner
+            // UI Overlay for QR scanner
             Canvas(modifier = Modifier.fillMaxSize()) {
-                // Could draw a scanning rectangle here
+                val width = size.width
+                val height = size.height
+                val rectSize = width * 0.7f
+                val left = (width - rectSize) / 2
+                val top = (height - rectSize) / 2
+                val right = left + rectSize
+                val bottom = top + rectSize
+
+                // 1. Semi-transparent background
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(0f, 0f)
+                    lineTo(width, 0f)
+                    lineTo(width, height)
+                    lineTo(0f, height)
+                    close()
+                    
+                    // Punch a hole
+                    moveTo(left, top)
+                    lineTo(right, top)
+                    lineTo(right, bottom)
+                    lineTo(left, bottom)
+                    close()
+                }
+                drawPath(path, color = Color.Black.copy(alpha = 0.6f), style = androidx.compose.ui.graphics.drawscope.Fill)
+
+                // 2. Corner markers
+                val lineLength = 40.dp.toPx()
+                val strokeWidth = 4.dp.toPx()
+                val cornerColor = SwimBlueMain
+
+                // Top Left
+                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Offset(left + lineLength, top), strokeWidth)
+                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Offset(left, top + lineLength), strokeWidth)
+
+                // Top Right
+                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(right, top), androidx.compose.ui.geometry.Offset(right - lineLength, top), strokeWidth)
+                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(right, top), androidx.compose.ui.geometry.Offset(right, top + lineLength), strokeWidth)
+
+                // Bottom Left
+                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(left, bottom), androidx.compose.ui.geometry.Offset(left + lineLength, bottom), strokeWidth)
+                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(left, bottom), androidx.compose.ui.geometry.Offset(left, bottom - lineLength), strokeWidth)
+
+                // Bottom Right
+                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(right, bottom), androidx.compose.ui.geometry.Offset(right - lineLength, bottom), strokeWidth)
+                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(right, bottom), androidx.compose.ui.geometry.Offset(right, bottom - lineLength), strokeWidth)
+
+                // 3. Animated Scan Line
+                val lineY = top + (rectSize * scanLineY)
+                drawLine(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, SwimBlueMain, Color.Transparent)
+                    ),
+                    start = androidx.compose.ui.geometry.Offset(left, lineY),
+                    end = androidx.compose.ui.geometry.Offset(right, lineY),
+                    strokeWidth = 2.dp.toPx()
+                )
             }
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Camera permission required")
+                Text("Camera permission required", color = Color.White)
             }
         }
 
         IconButton(
             onClick = onClose,
-            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).background(Color.Black.copy(alpha = 0.3f), CircleShape)
         ) {
             Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
         }

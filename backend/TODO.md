@@ -13,9 +13,12 @@
 - [ ] Add basic Sentry or Winston logging for production monitoring.
 
 ### 3. Telegram Admin Bot Enhancements
+- [x] Add automated "Low Stock" alerts to the admin.
+- [x] Add automated "New Sale" notifications to the admin.
+- [x] Add `/users` command for quick statistics.
+- [x] Add `/manual_fulfill` for emergency access granting.
 - [ ] Add `/list_stock` command to see available configs per category.
 - [ ] Add `/revoke [orderId]` command for manual intervention.
-- [ ] Implement automated "Low Stock" alerts to the admin.
 
 ### 4. Android UX
 - [ ] Implement "Subscription Expiry" countdown in `ProfileScreen`.

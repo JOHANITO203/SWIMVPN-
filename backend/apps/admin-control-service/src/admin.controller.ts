@@ -18,9 +18,21 @@ export class AdminController {
     );
   }
 
+  @EventPattern('order_fulfilled')
+  async handleOrderFulfilled(@Payload() data: { orderId: string; orderRef: string; amount: number; planCode: string }) {
+    await this.adminBotService.sendAdminAlert(
+      `✅ *NEW SALE*\nRef: \`${data.orderRef}\`\nPlan: ${data.planCode}\nAmount: ${data.amount} RUB`
+    );
+  }
+
   @MessagePattern({ cmd: 'admin_login' })
   async login(@Payload() data: AdminLoginDto) {
     return this.adminService.login(data);
+  }
+
+  @MessagePattern({ cmd: 'validate_admin_token' })
+  async validateToken(@Payload() data: { token: string }) {
+    return this.adminService.validateToken(data.token);
   }
 
   @MessagePattern({ cmd: 'create_plan' })
