@@ -18,6 +18,8 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import com.swimvpn.app.config.ConfigRepository
+import com.swimvpn.app.ui.screens.ConfigImportScreen
 import androidx.core.os.LocaleListCompat
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -186,6 +188,19 @@ fun AppNavigation(viewModel: MainViewModel) {
             )
         }
         composable("import") {
+            val context = LocalContext.current
+            ConfigImportScreen(
+                configRepository = ConfigRepository(context),
+                onBack = { navController.popBackStack() },
+                onProfileSelected = { profile ->
+                    // TODO: Implement profile selection for VPN connection
+                },
+                showToast = { message ->
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+        composable("importOld") {
             ImportMenuSheet(viewModel = viewModel, onDismiss = { navController.popBackStack() })
         }
         composable("subscription") { 

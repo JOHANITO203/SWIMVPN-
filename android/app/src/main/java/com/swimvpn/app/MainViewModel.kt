@@ -69,48 +69,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Try to get profile from server
                 val userNumber = prefs.userNumberFlow.first() ?: "NEW_USER"
                 
-                var profile: AccessProfileResponse
-                try {
-                    profile = if (userNumber == "NEW_USER") {
+                val profile = try {
+                    if (userNumber == "NEW_USER") {
                         // For a real app, we might wait for the user to click "Start Trial"
                         // But for this init, let's assume we need to fetch or start trial
                         api.startTrial(StartTrialRequest(getDeviceId()))
                     } else {
                         api.getAccessProfile(userNumber)
                     }
-                    // Save user number if it was new
-                    if (userNumber == "NEW_USER") {
-                        prefs.saveUserNumber(profile.userNumber)
-                    }
                 } catch (e: Exception) {
-                    Log.e("MainViewModel", "API Error, using mock profile", e)
-                    profile = AccessProfileResponse(
-                        userNumber = "MOCK_USER",
-                        email = "mock@swimvpn.com",
-                        planType = "FREE",
-                        status = "ACTIVE",
-                        trialStartedAt = "",
-                        trialExpiresAt = "",
-                        subscriptionExpiresAt = "",
-                        subscriptionUrl = null,
-                        devicesAllowed = 1,
-                        dataLimitGB = 1,
-                        dataUsedBytes = "0"
-                    )
+                    Log.e("MainViewModel", "API Error fetching profile", e)
+                    _state.value = AppState.Error("Impossible de charger votre profil. Vérifiez votre connexion et réessayez.")
+                    return@launch
+                }
+                
+                // Save user number if it was new
+                if (userNumber == "NEW_USER") {
+                    prefs.saveUserNumber(profile.userNumber)
                 }
 
                 val servers = try {
                     api.getServers(profile.userNumber)
                 } catch (e: Exception) {
                     Log.e("MainViewModel", "API Error fetching servers", e)
-                    emptyList()
+                    _state.value = AppState.Error("Impossible de charger la liste des serveurs. Vérifiez votre connexion et réessayez.")
+                    return@launch
                 }
 
                 val plans = try {
                     api.getPlans()
                 } catch (e: Exception) {
                     Log.e("MainViewModel", "API Error fetching plans", e)
-                    emptyList()
+                    _state.value = AppState.Error("Impossible de charger les offres d'abonnement. Vérifiez votre connexion et réessayez.")
+                    return@launch
                 }
 
                 val savedServerId = prefs.selectedServerIdFlow.first()
