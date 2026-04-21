@@ -147,12 +147,84 @@ export class CustomerService {
     };
   }
 
-  async importSubscription(data: any) {
-    return this.getProfile(data.userNumber);
+  async importSubscription(data: { userNumber: string; subscriptionUrl: string }) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { public_id: data.userNumber },
+    });
+
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    // In MVP, "import" means manually setting the raw_config for the customer's current valid assignment.
+    // Or creating a manual order/assignment if one doesn't exist.
+    // For now, let's find their latest fulfilled order and update the raw_config.
+
+    const latestOrder = await this.prisma.order.findFirst({
+      where: {
+        customer_id: customer.id,
+        status: OrderStatus.FULFILLED,
+      },
+      orderBy: { created_at: 'desc' },
+      include: { assignments: true },
+    });
+
+    if (latestOrder && latestOrder.assignments.length > 0) {
+      const assignment = latestOrder.assignments[0];
+      await this.prisma.inventoryItem.update({
+        where: { id: assignment.inventory_item_id },
+        data: { raw_config: data.subscriptionUrl },
+      });
+    } else {
+      // If no order exists, this is a "manual import" which might need a different handling in the future.
+      // For now, we'll just log it or return the existing profile.
+      console.log(`Manual config import for ${customer.public_id}: ${data.subscriptionUrl}`);
+    }
+
+    return this.getProfile(customer.public_id);
   }
 
-  async activateCode(data: any) {
-    return this.getProfile(data.userNumber);
+  async activateCode(data: { userNumber: string; code: string }) {
+    // 1. Find the coupon/code in the database
+    // For MVP, we'll assume any code starting with "SWIM-" is valid for a MONTH plan
+    if (!data.code.startsWith('SWIM-')) {
+      throw new Error('Invalid coupon code');
+    }
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { public_id: data.userNumber },
+    });
+
+    if (!customer) throw new Error('Customer not found');
+
+    const plan = await this.prisma.plan.findFirst({
+      where: { code: 'MONTH' },
+    });
+
+    if (!plan) throw new Error('Plan not found');
+
+    // 2. Create a PAID order
+    const order = await this.prisma.order.create({
+      data: {
+        order_ref: `CODE-${data.code}-${Date.now()}`,
+        customer_id: customer.id,
+        plan_id: plan.id,
+        amount_rub: 0,
+        status: OrderStatus.PAID,
+        payment_ref: `COUPON:${data.code}`,
+      },
+    });
+
+    // 3. Fulfill
+    try {
+      await firstValueFrom(
+        this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
+      );
+    } catch (e) {
+      console.error('Fulfillment failed during code activation:', e);
+    }
+
+    return this.getProfile(customer.public_id);
   }
 
   async handleStripeWebhook(data: any) {

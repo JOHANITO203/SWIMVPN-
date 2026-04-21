@@ -19,3 +19,8 @@
 - **Decision**: Use `process.env.*_SERVICE_HOST` for TCP client hostnames with a fallback to `127.0.0.1`.
 - **Why**: Allows the same code to run natively (localhost) and inside Docker containers (service names).
 - **Impact**: Flexible deployment and easy local debugging.
+
+## [2026-04-22] [Persistent UI State & Visual Feedback]
+- **Decision**: Persist `selectedServerId` in `DataStore` and show active progress in the "Big Power Button".
+- **Why**: Enhances UX by remembering user preference across app restarts and providing clear feedback during slow VPN handshakes.
+- **Impact**: Reliable state management and professional feel.

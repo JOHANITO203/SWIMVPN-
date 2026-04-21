@@ -30,3 +30,21 @@
     - Added low-stock alerts and healthcheck commands to the Telegram Admin Bot.
     - Fixed Git remote configuration and pushed to origin.
     - Verified Android connection to Gateway via `10.0.2.2`.
+
+## [2026-04-22] [Android Frontend Refactor & UI Polish]
+- **Status**: DONE
+- **Changes**:
+    - Refactored `MainViewModel` to include persistent server selection using `PreferencesManager`.
+    - Enhanced `HomeScreen` with visual state feedback (Progress Indicator during transitions).
+    - Fixed `MainActivity` syntax errors and improved `ImportMenuSheet` state handling.
+    - Cleaned up unused code and suppressed `@SuppressLint("HardwareIds")` for trial identification.
+    - Verified build stability with `:app:assembleDebug`.
+
+## [2026-04-22] [QR Code Scanning & Backend Integration]
+- **Status**: DONE
+- **Changes**:
+    - Integrated ML Kit Barcode Scanning and CameraX for "Import via QR" feature.
+    - Implemented `QrScannerView` and `processImageProxy` in `MainActivity`.
+    - Wired `MainViewModel.importVless` to `ApiService.importSubscription`.
+    - Implemented `importSubscription` and `activateCode` logic in backend `CustomerService`.
+    - Added camera permissions handling and UI overlays for scanning.

@@ -1,14 +1,9 @@
 package com.swimvpn.app
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
 import android.content.Intent
 import android.net.VpnService
-import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.*

@@ -1,12 +1,12 @@
 # TODO
 
 ## Now
-- Set up Docker Compose networking logic to replace `0.0.0.0` with proper service names.
-- Implement Telegram Admin webhook integration for order notifications and fulfillment alerts.
+- Initialize the NestJS Gateway and Customer-Order services (Backend Monorepo focus).
 
 ## Next
-- Implement PSP (Payment Service Provider) webhook seam (Stripe/ЮKassa).
-- Add `Config Checker` logic to `vpn-config-engine` (background check of server availability).
+- Implement Admin authentication and Telegram admin control layer as defined in `AGENTS.md`.
+- Set up Docker Compose networking logic to replace `0.0.0.0` with proper service names.
+- Implement Telegram Admin webhook integration for order notifications and fulfillment alerts.
 
 ## Done
 - Scaffold and implement 6 backend microservices and shared libraries.
@@ -17,3 +17,5 @@
 - Implement robust `vpn-config-engine-service` logic for VLESS (Reality/GRPC) and Shadowsocks.
 - Add DTO validation using `class-validator` to all TCP/HTTP endpoints.
 - Replace mock logic in services with real Prisma DB operations.
+- Refactor Android backend integration and polish UI (VpnState handling, persistent selection).
+- Implement OCR and QR code scanning for the "Import via QR" feature in Android.

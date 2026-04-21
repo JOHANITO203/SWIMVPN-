@@ -12,7 +12,6 @@ import com.swimvpn.app.data.network.ImportSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.data.network.StartTrialRequest
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -168,19 +167,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun importUrl(url: String) {
-        viewModelScope.launch {
-            try {
-                _state.value = AppState.Loading
-                val updatedProfile = api.importSubscription(ImportSubscriptionRequest(getDeviceId(), url))
-                val currentState = _state.value as? AppState.Success ?: return@launch
-                _state.value = currentState.copy(profile = updatedProfile)
-            } catch (e: Exception) {
-                _state.value = AppState.Error("Import failed: ${e.localizedMessage}")
-            }
-        }
-    }
-
     fun activateCode(code: String) {
         viewModelScope.launch {
             try {
@@ -193,6 +179,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    fun importVless(url: String) {
+        viewModelScope.launch {
+            try {
+                val currentState = _state.value as? AppState.Success ?: return@launch
+                _state.value = AppState.Loading
+                
+                val updatedProfile = api.importSubscription(
+                    ImportSubscriptionRequest(
+                        userNumber = currentState.profile.userNumber,
+                        subscriptionUrl = url
+                    )
+                )
+                
+                _state.value = currentState.copy(profile = updatedProfile)
+                _effect.emit(AppSideEffect.ShowToast("Configuration imported successfully"))
+            } catch (e: Exception) {
+                _state.value = AppState.Error("Import failed: ${e.localizedMessage}")
+                _effect.emit(AppSideEffect.ShowToast("Import failed"))
+            }
+        }
+    }
+
 
     fun createOrder(planId: String, amount: Double) {
         viewModelScope.launch {
@@ -273,6 +282,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    @android.annotation.SuppressLint("HardwareIds")
     private fun getDeviceId(): String {
         return Settings.Secure.getString(
             getApplication<Application>().contentResolver,

@@ -70,8 +70,4 @@ class PreferencesManager(private val context: Context) {
             }
         }
     }
-
-    suspend fun clearUserNumber() {
-        context.dataStore.edit { preferences -> preferences.remove(USER_NUMBER_KEY) }
-    }
 }

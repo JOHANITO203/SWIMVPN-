@@ -1,14 +1,26 @@
 @file:Suppress("SpellCheckingInspection")
 package com.swimvpn.app
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,11 +41,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -41,6 +55,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.screens.*
@@ -48,6 +66,7 @@ import com.swimvpn.app.ui.theme.*
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.flow.first
+import java.util.concurrent.Executors
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -376,6 +395,7 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
 
             // Big Power Circle
             val isActive = vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING
+            val isTransitioning = vpnState == VpnState.CONNECTING || vpnState == VpnState.DISCONNECTING
             val circleOuterColor = if (isActive) SwimBlueMain.copy(alpha = 0.1f) else Color(0xFFF1F5F9)
             
             Box(
@@ -407,6 +427,7 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                     },
                 contentAlignment = Alignment.Center
             ) {
+                // Background Circle with Gradient Border
                 Box(
                     modifier = Modifier
                         .size(210.dp)
@@ -422,11 +443,24 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                         ),
                     contentAlignment = Alignment.Center
                 ) {
+                    if (isTransitioning) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(120.dp),
+                            color = SwimBlueMain.copy(alpha = 0.2f),
+                            strokeWidth = 2.dp,
+                            trackColor = Color.Transparent
+                        )
+                    }
+                    
                     Icon(
                         imageVector = Icons.Rounded.PowerSettingsNew,
                         contentDescription = "Connect",
                         modifier = Modifier.size(88.dp),
-                        tint = if (isActive) SwimBlueMain else Color(0xFFCBD5E1)
+                        tint = when {
+                            vpnState == VpnState.CONNECTED -> SwimBlueMain
+                            isTransitioning -> SwimBlueMain.copy(alpha = 0.5f)
+                            else -> Color(0xFFCBD5E1)
+                        }
                     )
                 }
             }
@@ -514,6 +548,7 @@ fun StatItem(label: String, value: String, icon: androidx.compose.ui.graphics.ve
 @Composable
 fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
     var showActivateCode by remember { mutableStateOf(false) }
+    var showQrScanner by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
         if (showActivateCode) {
@@ -524,6 +559,15 @@ fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
                     showActivateCode = false
                     onDismiss()
                 }
+            )
+        } else if (showQrScanner) {
+            QrScannerView(
+                onCodeScanned = { code ->
+                    viewModel.importVless(code)
+                    showQrScanner = false
+                    onDismiss()
+                },
+                onClose = { showQrScanner = false }
             )
         } else {
             Column(
@@ -545,14 +589,14 @@ fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
                         modifier = Modifier.weight(1f),
                         icon = Icons.Default.QrCodeScanner,
                         title = stringResource(R.string.method_qr),
-                        onClick = { /* OCR/QR later */ }
+                        onClick = { showQrScanner = true }
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     ImportMethodCard(
                         modifier = Modifier.weight(1f),
                         icon = Icons.Default.Link,
                         title = stringResource(R.string.method_url),
-                        onClick = { /* Clipboard later */ }
+                        onClick = { /* TODO: Implement clipboard auto-paste or dialog */ }
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -566,6 +610,109 @@ fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
         }
     }
 }
+
+@Composable
+fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        hasCameraPermission = it
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            launcher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (hasCameraPermission) {
+            AndroidView(
+                factory = { context ->
+                    val previewView = PreviewView(context)
+                    val preview = Preview.Builder().build()
+                    val selector = CameraSelector.Builder()
+                        .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+                        .build()
+                    preview.setSurfaceProvider(previewView.surfaceProvider)
+
+                    val imageAnalysis = ImageAnalysis.Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
+
+                    val options = BarcodeScannerOptions.Builder()
+                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                        .build()
+                    val scanner = BarcodeScanning.getClient(options)
+
+                    imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                        processImageProxy(scanner, imageProxy, onCodeScanned)
+                    }
+
+                    try {
+                        ProcessCameraProvider.getInstance(context).get().bindToLifecycle(
+                            lifecycleOwner, selector, preview, imageAnalysis
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Overlay for QR scanner
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // Could draw a scanning rectangle here
+            }
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Camera permission required")
+            }
+        }
+
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+        }
+    }
+}
+
+@androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
+private fun processImageProxy(
+    scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
+    imageProxy: ImageProxy,
+    onCodeScanned: (String) -> Unit
+) {
+    val mediaImage = imageProxy.image
+    if (mediaImage != null) {
+        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+        scanner.process(image)
+            .addOnSuccessListener { barcodes ->
+                for (barcode in barcodes) {
+                    barcode.rawValue?.let {
+                        onCodeScanned(it)
+                    }
+                }
+            }
+            .addOnFailureListener {
+                it.printStackTrace()
+            }
+            .addOnCompleteListener {
+                imageProxy.close()
+            }
+    } else {
+        imageProxy.close()
+    }
+}
+
 
 @Composable
 fun ActivateCodeDialog(onDismiss: () -> Unit, onActivate: (String) -> Unit) {
