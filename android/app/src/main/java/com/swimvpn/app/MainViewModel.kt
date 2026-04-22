@@ -8,21 +8,33 @@ import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ActivateCodeRequest
+import com.swimvpn.app.data.network.ActivateTrialRequest
+import com.swimvpn.app.data.network.BootstrapAccessRequest
 import com.swimvpn.app.data.network.ImportSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerNode
-import com.swimvpn.app.data.network.StartTrialRequest
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 sealed class AppState {
     object Loading : AppState()
+    data class TrialSetup(
+        val userNumber: String,
+        val email: String?,
+        val phone: String?,
+        val trialEligible: Boolean,
+        val isOnboardingDone: Boolean,
+        val routingMode: String,
+        val autoConnect: Boolean,
+        val language: String,
+    ) : AppState()
+
     data class Success(
         val profile: AccessProfileResponse,
         val servers: List<ServerNode>,
@@ -33,6 +45,7 @@ sealed class AppState {
         val language: String,
         val activeServer: ServerNode? = null
     ) : AppState()
+
     data class Error(val message: String) : AppState()
 }
 
@@ -60,55 +73,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 _state.value = AppState.Loading
-                
+
                 val isOnboardingDone = prefs.onboardingDoneFlow.first()
                 val routingMode = prefs.routingModeFlow.first()
                 val autoConnect = prefs.autoConnectFlow.first()
                 val language = prefs.languageFlow.first()
 
-                // Try to get profile from server
-                val userNumber = prefs.userNumberFlow.first() ?: "NEW_USER"
-                
-                val profile = try {
-                    if (userNumber == "NEW_USER") {
-                        // For a real app, we might wait for the user to click "Start Trial"
-                        // But for this init, let's assume we need to fetch or start trial
-                        api.startTrial(StartTrialRequest(getDeviceId()))
-                    } else {
-                        api.getAccessProfile(userNumber)
+                val bootstrap = try {
+                    api.bootstrapAccess(
+                        BootstrapAccessRequest(
+                            deviceId = getDeviceId(),
+                            locale = language,
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "API Error bootstrapping access", e)
+                    _state.value = AppState.Error("Impossible de charger votre profil. Verifiez votre connexion et reessayez.")
+                    return@launch
+                }
+
+                prefs.saveUserNumber(bootstrap.userNumber)
+
+                if (bootstrap.hasActiveAccess && bootstrap.profile != null) {
+                    val successState = buildSuccessState(
+                        profile = bootstrap.profile,
+                        isOnboardingDone = isOnboardingDone,
+                        routingMode = routingMode,
+                        autoConnect = autoConnect,
+                        language = language,
+                    )
+
+                    if (successState == null) {
+                        return@launch
                     }
-                } catch (e: Exception) {
-                    Log.e("MainViewModel", "API Error fetching profile", e)
-                    _state.value = AppState.Error("Impossible de charger votre profil. Vérifiez votre connexion et réessayez.")
-                    return@launch
+
+                    _state.value = successState
+                } else {
+                    _state.value = AppState.TrialSetup(
+                        userNumber = bootstrap.userNumber,
+                        email = bootstrap.email,
+                        phone = bootstrap.phone,
+                        trialEligible = bootstrap.trialEligible,
+                        isOnboardingDone = isOnboardingDone,
+                        routingMode = routingMode,
+                        autoConnect = autoConnect,
+                        language = language,
+                    )
                 }
-                
-                // Save user number if it was new
-                if (userNumber == "NEW_USER") {
-                    prefs.saveUserNumber(profile.userNumber)
-                }
-
-                val servers = try {
-                    api.getServers(profile.userNumber)
-                } catch (e: Exception) {
-                    Log.e("MainViewModel", "API Error fetching servers", e)
-                    _state.value = AppState.Error("Impossible de charger la liste des serveurs. Vérifiez votre connexion et réessayez.")
-                    return@launch
-                }
-
-                val plans = try {
-                    api.getPlans()
-                } catch (e: Exception) {
-                    Log.e("MainViewModel", "API Error fetching plans", e)
-                    _state.value = AppState.Error("Impossible de charger les offres d'abonnement. Vérifiez votre connexion et réessayez.")
-                    return@launch
-                }
-
-                val savedServerId = prefs.selectedServerIdFlow.first()
-                val activeServer = servers.find { it.id == savedServerId } ?: servers.firstOrNull()
-
-                _state.value = AppState.Success(profile, servers, plans, isOnboardingDone, routingMode, autoConnect, language, activeServer)
-
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error initApp", e)
                 _state.value = AppState.Error("Error: ${e.localizedMessage}")
@@ -119,32 +130,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setRoutingMode(mode: String) {
         viewModelScope.launch {
             prefs.setRoutingMode(mode)
-            val currentState = _state.value as? AppState.Success ?: return@launch
-            _state.value = currentState.copy(routingMode = mode)
+            when (val currentState = _state.value) {
+                is AppState.Success -> _state.value = currentState.copy(routingMode = mode)
+                is AppState.TrialSetup -> _state.value = currentState.copy(routingMode = mode)
+                else -> {}
+            }
         }
     }
 
     fun setAutoConnect(enabled: Boolean) {
         viewModelScope.launch {
             prefs.setAutoConnect(enabled)
-            val currentState = _state.value as? AppState.Success ?: return@launch
-            _state.value = currentState.copy(autoConnect = enabled)
+            when (val currentState = _state.value) {
+                is AppState.Success -> _state.value = currentState.copy(autoConnect = enabled)
+                is AppState.TrialSetup -> _state.value = currentState.copy(autoConnect = enabled)
+                else -> {}
+            }
         }
     }
 
     fun setLanguage(lang: String) {
         viewModelScope.launch {
             prefs.setLanguage(lang)
-            val currentState = _state.value as? AppState.Success ?: return@launch
-            _state.value = currentState.copy(language = lang)
+            when (val currentState = _state.value) {
+                is AppState.Success -> _state.value = currentState.copy(language = lang)
+                is AppState.TrialSetup -> _state.value = currentState.copy(language = lang)
+                else -> {}
+            }
         }
     }
 
     fun completeOnboarding() {
         viewModelScope.launch {
             prefs.setOnboardingDone()
-            val currentState = _state.value as? AppState.Success ?: return@launch
-            _state.value = currentState.copy(isOnboardingDone = true)
+            when (val currentState = _state.value) {
+                is AppState.Success -> _state.value = currentState.copy(isOnboardingDone = true)
+                is AppState.TrialSetup -> _state.value = currentState.copy(isOnboardingDone = true)
+                else -> {}
+            }
         }
     }
 
@@ -153,17 +176,51 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _state.value = AppState.Loading
             prefs.saveUserNumber("NEW_USER")
             prefs.setOnboardingDone(false)
-            // We could also clear technical settings here if required
             initApp()
+        }
+    }
+
+    fun activateTrial(email: String, phone: String) {
+        viewModelScope.launch {
+            val currentState = _state.value as? AppState.TrialSetup ?: return@launch
+
+            try {
+                _state.value = AppState.Loading
+                val profile = api.activateTrial(
+                    ActivateTrialRequest(
+                        userNumber = currentState.userNumber,
+                        email = email,
+                        phone = phone,
+                    )
+                )
+
+                val successState = buildSuccessState(
+                    profile = profile,
+                    isOnboardingDone = currentState.isOnboardingDone,
+                    routingMode = currentState.routingMode,
+                    autoConnect = currentState.autoConnect,
+                    language = currentState.language,
+                )
+
+                if (successState == null) {
+                    return@launch
+                }
+
+                _state.value = successState
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Trial activation failed", e)
+                _state.value = currentState
+                _effect.emit(AppSideEffect.ShowToast("Impossible d'activer l'essai pour le moment"))
+            }
         }
     }
 
     fun activateCode(code: String) {
         viewModelScope.launch {
+            val currentState = _state.value as? AppState.Success ?: return@launch
             try {
                 _state.value = AppState.Loading
-                val updatedProfile = api.activateCode(ActivateCodeRequest(getDeviceId(), code))
-                val currentState = _state.value as? AppState.Success ?: return@launch
+                val updatedProfile = api.activateCode(ActivateCodeRequest(currentState.profile.userNumber, code))
                 _state.value = currentState.copy(profile = updatedProfile)
             } catch (e: Exception) {
                 _state.value = AppState.Error("Activation failed: ${e.localizedMessage}")
@@ -176,14 +233,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val currentState = _state.value as? AppState.Success ?: return@launch
                 _state.value = AppState.Loading
-                
+
                 val updatedProfile = api.importSubscription(
                     ImportSubscriptionRequest(
                         userNumber = currentState.profile.userNumber,
                         subscriptionUrl = url
                     )
                 )
-                
+
                 _state.value = currentState.copy(profile = updatedProfile)
                 _effect.emit(AppSideEffect.ShowToast("Configuration imported successfully"))
             } catch (e: Exception) {
@@ -192,7 +249,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-
 
     fun createOrder(planId: String, amount: Double) {
         viewModelScope.launch {
@@ -205,14 +261,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     amountRub = amount
                 )
                 val response = api.createOrder(request)
-                
-                // If the response has a payment URL (simulated here for Stripe/YooKassa)
-                // For now, we construct a mock URL or use one from the backend if available
                 val paymentUrl = "https://checkout.stripe.com/pay/${response.orderRef}"
                 _effect.emit(AppSideEffect.OpenUrl(paymentUrl))
-                
-                // After emission, we can revert to Success state but maybe show "Pending Payment"
-                initApp() 
+                initApp()
             } catch (e: Exception) {
                 _state.value = AppState.Error("Order creation failed: ${e.localizedMessage}")
             }
@@ -237,35 +288,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val currentState = com.swimvpn.app.vpn.VpnManager.state.value
 
         if (currentState == com.swimvpn.app.vpn.VpnState.CONNECTED || currentState == com.swimvpn.app.vpn.VpnState.CONNECTING) {
-            // STOP VPN
             val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
                 action = SwimVpnService.ACTION_STOP
             }
             context.startService(intent)
         } else {
-            // START VPN
             if (server == null || profile == null) {
                 _state.value = AppState.Error("No server or profile available.")
                 return
             }
 
-            // Check if plan is expired before starting
             if (profile.status == "EXPIRED") {
                 _state.value = AppState.Error("Your subscription has expired. Please upgrade.")
                 return
             }
-            
+
             val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
                 action = SwimVpnService.ACTION_START
                 putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
                 putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
                 putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
                 putExtra(SwimVpnService.EXTRA_URL, profile.subscriptionUrl)
-                
-                // Pass data limits
-                val limitBytes = if (profile.planType == "TRIAL") -1L else profile.dataLimitGB.toLong() * 1024 * 1024 * 1024
+
+                val limitBytes = if (profile.dataLimitGB > 0) {
+                    profile.dataLimitGB.toLong() * 1024 * 1024 * 1024
+                } else {
+                    -1L
+                }
                 val usedBytes = profile.dataUsedBytes.toLongOrNull() ?: 0L
-                
+
                 putExtra("DATA_LIMIT_BYTES", limitBytes)
                 putExtra("DATA_USED_BYTES", usedBytes)
             }
@@ -279,5 +330,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             getApplication<Application>().contentResolver,
             Settings.Secure.ANDROID_ID
         ) ?: "unknown_device_id"
+    }
+
+    private suspend fun buildSuccessState(
+        profile: AccessProfileResponse,
+        isOnboardingDone: Boolean,
+        routingMode: String,
+        autoConnect: Boolean,
+        language: String,
+    ): AppState.Success? {
+        val servers = try {
+            api.getServers(profile.userNumber)
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "API Error fetching servers", e)
+            _state.value = AppState.Error("Impossible de charger la liste des serveurs. Verifiez votre connexion et reessayez.")
+            return null
+        }
+
+        val plans = try {
+            api.getPlans()
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "API Error fetching plans", e)
+            _state.value = AppState.Error("Impossible de charger les offres d'abonnement. Verifiez votre connexion et reessayez.")
+            return null
+        }
+
+        val savedServerId = prefs.selectedServerIdFlow.first()
+        val activeServer = servers.find { it.id == savedServerId } ?: servers.firstOrNull()
+
+        return AppState.Success(
+            profile = profile,
+            servers = servers,
+            plans = plans,
+            isOnboardingDone = isOnboardingDone,
+            routingMode = routingMode,
+            autoConnect = autoConnect,
+            language = language,
+            activeServer = activeServer,
+        )
     }
 }

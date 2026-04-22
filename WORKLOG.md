@@ -324,3 +324,38 @@ pm run build PASSED.
 - **Verification**:
     - Rebuilt Android debug APK successfully after the theme change.
     - This removes the classic `Theme.AppCompat` launch crash path for `AppCompatActivity`.
+
+## [2026-04-22] [Trial Contract Batch - Backend Truth + Android Bootstrap Alignment]
+- **Status**: DONE
+- **Changes**:
+    - Added explicit trial contract notes to `docs/SOURCE_OF_TRUTH.md`:
+      - 3-day trial
+      - onboarding-linked activation
+      - backend-generated public user number `SW-XXXXXX`
+      - anti-abuse verification by device, email, and phone
+    - Added backend access bootstrap endpoint and explicit trial activation endpoint.
+    - Updated customer service to create/recover prospect profiles by device id and generate `SW-` public ids on creation.
+    - Reworked backend trial activation to require email + phone and to enforce one-time trial eligibility.
+    - Enriched profile payload with `phone`, `accessType`, `offerCode`, `profileCompletionRequired`, and `trialEligible`.
+    - Aligned Android API client to `https://api.swimvpn.pro/`.
+    - Replaced Android auto-trial startup with backend bootstrap flow.
+    - Added `AppState.TrialSetup` and wired onboarding -> profile completion -> trial activation flow without changing premium screen grammar.
+    - Added trial activation form inside the profile route for new users.
+    - Corrected Android coupon activation to send the real `userNumber` instead of the device id.
+- **Verification**:
+    - `backend`: `npm run build` PASSED.
+    - `android`: `assembleDebug` PASSED.
+
+## [2026-04-22] [Android Home Alignment Batch]
+- **Status**: DONE
+- **Changes**:
+    - Re-audited the Android home screen against the approved product direction.
+    - Confirmed and preserved the profile route entry on the home header.
+    - Replaced the simple active-server text line with a premium server selection card that reflects only available backend truth.
+    - Reintroduced the floating `+` quick-action button on the home screen.
+    - Wired the `+` button to the existing import/action sheet so config import, QR scan, and code activation remain reachable from the main usage screen.
+    - Updated home badge/status copy to reflect backend-driven access truth more honestly (`TRIAL`, `EXPIRED`, active offer codes).
+    - Added a clearer connection subtitle under the main power button to reflect VPN runtime state and selected server context.
+- **Verification**:
+    - `android`: `assembleDebug` PASSED.
+    - `backend`: `npm run build` PASSED.

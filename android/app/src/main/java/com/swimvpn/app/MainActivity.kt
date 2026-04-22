@@ -52,6 +52,7 @@ import androidx.navigation.compose.rememberNavController
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.swimvpn.app.data.local.PreferencesManager
+import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.screens.*
 import com.swimvpn.app.ui.theme.*
@@ -112,15 +113,23 @@ fun AppNavigation(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsState()
     val navController = rememberNavController()
 
-    // Navigation trigger based on State
     LaunchedEffect(state) {
-        if (state is AppState.Success) {
-            val successState = state as AppState.Success
-            if (!successState.isOnboardingDone) {
-                navController.navigate("onboarding") { popUpTo(0) }
-            } else if (navController.currentDestination?.route == "loading") {
-                navController.navigate("home") { popUpTo(0) }
+        when (val currentState = state) {
+            is AppState.Success -> {
+                if (!currentState.isOnboardingDone) {
+                    navController.navigate("onboarding") { popUpTo(0) }
+                } else {
+                    navController.navigate("home") { popUpTo(0) }
+                }
             }
+            is AppState.TrialSetup -> {
+                if (!currentState.isOnboardingDone) {
+                    navController.navigate("onboarding") { popUpTo(0) }
+                } else {
+                    navController.navigate("profile") { popUpTo(0) }
+                }
+            }
+            else -> {}
         }
     }
 
@@ -129,7 +138,6 @@ fun AppNavigation(viewModel: MainViewModel) {
         composable("onboarding") { 
             OnboardingScreen(onFinish = { 
                 viewModel.completeOnboarding()
-                navController.navigate("home") { popUpTo(0) }
             }) 
         }
         composable("home") { 
@@ -149,24 +157,38 @@ fun AppNavigation(viewModel: MainViewModel) {
             }) 
         }
         composable("profile") { 
-            val data = state as? AppState.Success ?: return@composable
-            val bytesIn by VpnManager.bytesIn.collectAsState()
-            val bytesOut by VpnManager.bytesOut.collectAsState()
-            
-            ProfileScreen(
-                profile = data.profile,
-                bytesIn = bytesIn,
-                bytesOut = bytesOut,
-                onNavigateToSubscription = { navController.navigate("subscription") },
-                onNavigateToTechnical = { navController.navigate("technical") },
-                onNavigateToImport = { navController.navigate("import") },
-                onNavigateToSupport = { navController.navigate("support") },
-                onSignOut = { 
-                    viewModel.signOut()
-                    navController.navigate("loading") { popUpTo(0) }
-                },
-                onBack = { navController.popBackStack() }
-            ) 
+            when (val currentState = state) {
+                is AppState.Success -> {
+                    val bytesIn by VpnManager.bytesIn.collectAsState()
+                    val bytesOut by VpnManager.bytesOut.collectAsState()
+
+                    ProfileScreen(
+                        profile = currentState.profile,
+                        bytesIn = bytesIn,
+                        bytesOut = bytesOut,
+                        onNavigateToSubscription = { navController.navigate("subscription") },
+                        onNavigateToTechnical = { navController.navigate("technical") },
+                        onNavigateToImport = { navController.navigate("import") },
+                        onNavigateToSupport = { navController.navigate("support") },
+                        onSignOut = {
+                            viewModel.signOut()
+                            navController.navigate("loading") { popUpTo(0) }
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                is AppState.TrialSetup -> {
+                    TrialActivationProfileScreen(
+                        userNumber = currentState.userNumber,
+                        email = currentState.email,
+                        phone = currentState.phone,
+                        trialEligible = currentState.trialEligible,
+                        onActivateTrial = { email, phone -> viewModel.activateTrial(email, phone) },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                else -> return@composable
+            }
         }
         composable("support") {
             SupportScreen(
@@ -204,11 +226,25 @@ fun AppNavigation(viewModel: MainViewModel) {
             )
         }
         composable("technical") {
-            val data = state as? AppState.Success ?: return@composable
+            val routingMode = when (val currentState = state) {
+                is AppState.Success -> currentState.routingMode
+                is AppState.TrialSetup -> currentState.routingMode
+                else -> return@composable
+            }
+            val autoConnect = when (val currentState = state) {
+                is AppState.Success -> currentState.autoConnect
+                is AppState.TrialSetup -> currentState.autoConnect
+                else -> return@composable
+            }
+            val language = when (val currentState = state) {
+                is AppState.Success -> currentState.language
+                is AppState.TrialSetup -> currentState.language
+                else -> return@composable
+            }
             TechnicalSettingsScreen(
-                routingMode = data.routingMode,
-                autoConnect = data.autoConnect,
-                language = data.language,
+                routingMode = routingMode,
+                autoConnect = autoConnect,
+                language = language,
                 onRoutingModeChange = { viewModel.setRoutingMode(it) },
                 onAutoConnectChange = { viewModel.setAutoConnect(it) },
                 onLanguageChange = { viewModel.setLanguage(it) },
@@ -282,6 +318,7 @@ fun SplashScreen() {
 fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfile: () -> Unit, onNavigateServers: () -> Unit) {
     val profile = data.profile
     val activeServer = data.activeServer
+    var showQuickActions by remember { mutableStateOf(false) }
 
     // Lier l'UI au VRAI statut du service VPN Android
     val vpnState by VpnManager.state.collectAsState()
@@ -329,9 +366,19 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
     }
 
     val badgeText = when {
-        profile.status == "EXPIRED" -> stringResource(R.string.status_expired)
-        profile.planType == "TRIAL" -> stringResource(R.string.status_trial)
-        else -> stringResource(R.string.status_pro)
+        profile.status == "EXPIRED" -> "EXPIRED"
+        profile.accessType == "TRIAL" -> "TRIAL 3 DAYS"
+        profile.offerCode == "MONTH" -> "MONTH ACTIVE"
+        profile.offerCode == "QUARTER" -> "QUARTER ACTIVE"
+        profile.offerCode == "WEEK" -> "WEEK ACTIVE"
+        else -> "ACCESS ACTIVE"
+    }
+    val connectionSubtitle = when (vpnState) {
+        VpnState.CONNECTED -> activeServer?.let { "Connected via ${it.country}, ${it.city}" } ?: "Connected"
+        VpnState.CONNECTING -> "Establishing secure tunnel..."
+        VpnState.DISCONNECTING -> "Stopping secure tunnel..."
+        VpnState.ERROR -> errorMessage ?: "Check your server or imported config."
+        else -> if (activeServer != null) "Tap to connect using the selected server" else "Select a server or import a config first"
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
@@ -388,12 +435,12 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
             // Status Badge
             val badgeColor = when {
                 profile.status == "EXPIRED" -> Color(0xFFFFF1F2) // Red-ish
-                profile.planType == "TRIAL" -> Color(0xFFFFF7ED) // Orange
+                profile.accessType == "TRIAL" -> Color(0xFFFFF7ED) // Orange
                 else -> Color(0xFFF0FDF4) // Green
             }
             val badgeTextColor = when {
                 profile.status == "EXPIRED" -> Color(0xFFE11D48)
-                profile.planType == "TRIAL" -> Color(0xFFC2410C)
+                profile.accessType == "TRIAL" -> Color(0xFFC2410C)
                 else -> Color(0xFF15803D)
             }
 
@@ -522,17 +569,22 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                     )
                 )
             }
-            
-            if (activeServer != null) {
-                Text(
-                    text = "${activeServer.country}, ${activeServer.city} (${activeServer.host})",
-                    color = Color(0xFF64748B),
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(top = 6.dp).clickable { onNavigateServers() }
-                )
-            }
+
+            Text(
+                text = connectionSubtitle,
+                color = Color(0xFF64748B),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
 
             Spacer(modifier = Modifier.weight(1f))
+
+            ServerSelectionCard(
+                server = activeServer,
+                onClick = onNavigateServers,
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Stats Row
             Row(
@@ -558,6 +610,106 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
                     color = SwimBlueMain
                 )
             }
+
+            Spacer(modifier = Modifier.height(96.dp))
+        }
+
+        FloatingActionButton(
+            onClick = { showQuickActions = true },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp),
+            containerColor = SwimBlueMain,
+            contentColor = Color.White,
+            shape = RoundedCornerShape(28.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Quick actions", modifier = Modifier.size(30.dp))
+        }
+
+        if (showQuickActions) {
+            ImportMenuSheet(
+                viewModel = viewModel,
+                onDismiss = { showQuickActions = false }
+            )
+        }
+    }
+}
+
+@Composable
+fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(28.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xFFF1F5F9)),
+                contentAlignment = Alignment.Center
+            ) {
+                val serverLabel = server?.countryCode ?: "--"
+                Text(
+                    text = serverLabel.uppercase(),
+                    color = Color(0xFF0F172A),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 22.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "SELECTED SERVER",
+                    color = Color(0xFF94A3B8),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (server != null) "${server.country}, ${server.city}" else "No server selected",
+                    color = Color(0xFF0F172A),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 17.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (server != null) {
+                        buildString {
+                            append(server.protocol)
+                            append(" - ")
+                            append(server.host)
+                            if (server.ping > 0) {
+                                append(" - ")
+                                append("${server.ping}ms")
+                            }
+                        }
+                    } else {
+                        "Choose an active route before connecting"
+                    },
+                    color = Color(0xFF64748B),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = "Open server list",
+                tint = Color(0xFF0F172A)
+            )
         }
     }
 }

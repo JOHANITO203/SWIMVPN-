@@ -8,18 +8,45 @@ data class StartTrialRequest(
     val locale: String = "ru"
 )
 
+data class BootstrapAccessRequest(
+    val deviceId: String,
+    val platform: String = "android",
+    val locale: String = "ru"
+)
+
+data class BootstrapAccessResponse(
+    val userNumber: String,
+    val email: String?,
+    val phone: String?,
+    val trialEligible: Boolean,
+    val profileCompletionRequired: Boolean,
+    val hasActiveAccess: Boolean,
+    val profile: AccessProfileResponse?
+)
+
 data class AccessProfileResponse(
     val userNumber: String,
     val email: String?,
-    val planType: String, // "TRIAL", "PREMIUM", "EXPIRED"
-    val status: String,   // "ACTIVE", "EXPIRED"
-    val trialStartedAt: String,
-    val trialExpiresAt: String,
+    val phone: String?,
+    val accessType: String,
+    val offerCode: String?,
+    val planType: String,
+    val status: String,
+    val trialStartedAt: String?,
+    val trialExpiresAt: String?,
     val subscriptionExpiresAt: String?,
     val subscriptionUrl: String?,
     val devicesAllowed: Int,
     val dataLimitGB: Int,
-    val dataUsedBytes: String
+    val dataUsedBytes: String,
+    val profileCompletionRequired: Boolean,
+    val trialEligible: Boolean
+)
+
+data class ActivateTrialRequest(
+    val userNumber: String,
+    val email: String,
+    val phone: String
 )
 
 data class ImportSubscriptionRequest(

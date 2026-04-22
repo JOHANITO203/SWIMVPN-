@@ -124,3 +124,22 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Keep `MainActivity` on `AppCompatActivity` and align `Theme.SwimVpn` to an AppCompat parent theme.
 - **Why**: `AppCompatActivity` with a framework `android:Theme.Material...` parent can crash on launch before Compose UI is shown.
 - **Impact**: No UI redesign and no backend impact. This is a strict startup-stability fix.
+
+## [2026-04-22] [Trial Contract Uses Bootstrap + Explicit Activation]
+- **Decision**: Replace Android auto-trial startup with a backend-controlled bootstrap + explicit trial activation contract.
+- **Why**: The product now requires onboarding-linked trial activation, prospect capture, anti-abuse checks, and a public user number that is safe to display without exposing raw device identifiers.
+- **Impact**:
+  - Backend creates or recovers a prospect profile by device id.
+  - Backend generates a public user number in `SW-XXXXXX` format.
+  - Trial activates only after onboarding completion and after the user provides email + phone.
+  - Trial eligibility is enforced by backend checks on device id, email, and phone.
+  - Android keeps its premium UI but now reflects real backend truth instead of auto-granting trial locally.
+
+## [2026-04-22] [Home Screen Keeps Premium Grammar But Only Surfaces Honest Access and Server State]
+- **Decision**: Realign the Android home screen by keeping its premium visual language while making status, selected server, and quick actions reflect backend/runtime truth.
+- **Why**: The home screen is the daily usage hub. It must stay visually strong, but it cannot continue to hide server actions or present inferred states that the backend/runtime do not actually support.
+- **Impact**:
+  - Profile entry remains on the home header.
+  - Selected server is now represented as a premium card instead of a low-information text line.
+  - The floating `+` action returns on the home screen as the quick access point for config import / QR / code actions.
+  - Status badge and subtitle now reflect access truth and VPN runtime state more honestly.

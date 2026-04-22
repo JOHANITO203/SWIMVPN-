@@ -10,8 +10,14 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface ApiService {
+    @POST("api/v1/access/bootstrap")
+    suspend fun bootstrapAccess(@Body request: BootstrapAccessRequest): BootstrapAccessResponse
+
     @POST("api/v1/access/trial")
     suspend fun startTrial(@Body request: StartTrialRequest): AccessProfileResponse
+
+    @POST("api/v1/access/trial/activate")
+    suspend fun activateTrial(@Body request: ActivateTrialRequest): AccessProfileResponse
 
     @GET("api/v1/access/{userNumber}")
     suspend fun getAccessProfile(@Path("userNumber") userNumber: String): AccessProfileResponse

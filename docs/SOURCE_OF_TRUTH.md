@@ -30,6 +30,23 @@
 - Admin authentication is required.
 - Customer authentication is not required for MVP.
 
+## Trial Contract
+- Trial offer: `3 days`
+- Trial is linked to onboarding and is available only to new users.
+- On first app open, backend must capture the installing device identifier and create or recover a prospect customer profile.
+- Backend must assign a public user number automatically in the format `SW-XXXXXX`.
+- The public user number is shown to the user in the profile screen and is never treated as the anti-abuse proof by itself.
+- Trial activation happens only after onboarding completion and after the user provides:
+  - phone number
+  - email
+- Trial activation must complete backend profile data first, then activate the trial.
+- Trial must be granted at most once according to backend verification based on:
+  - device identifier
+  - phone number
+  - email
+- Trial activation and eligibility are backend-controlled rules.
+- Frontend must not auto-grant trial access by itself.
+
 ## Backend Service Target
 - `gateway-service`
 - `customer-order-service`

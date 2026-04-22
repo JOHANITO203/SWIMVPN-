@@ -74,3 +74,21 @@ otification-bot-service event handoff.
 - Re-run Android Studio's 16 KB APK compatibility check and confirm the old `libimage_processing_util_jni.so` warning is gone.
 - If startup still crashes, collect `adb logcat` for the first fatal exception before making any broader Android changes.
 - If production must support non-GMS devices later, evaluate a separate fallback scanner path as an explicit future task.
+
+## Trial Contract Follow-up
+- Re-test on a real Android device with a fresh install:
+  - first open -> onboarding
+  - onboarding complete -> profile completion
+  - email + phone submission -> trial activation
+  - trial profile -> home
+- Validate one-time trial protection by retrying activation with the same device, email, and phone.
+- Decide whether the frontend should show `offerCode` (`WEEK` / `MONTH` / `QUARTER`) more explicitly in premium badges or keep the current `accessType` labeling.
+- Replace the placeholder Android payment URL flow once the client-side checkout contract is approved.
+
+## Home Screen Follow-up
+- Re-test the rebuilt Android home screen on device:
+  - selected server card click -> servers page
+  - profile icon -> profile page
+  - floating `+` -> import/action sheet
+- Decide whether the home server card should eventually display real backend latency/load once the backend exposes those metrics explicitly.
+- Decide whether the home quick-action `+` should remain a sheet or evolve into a dedicated premium quick-actions surface later.

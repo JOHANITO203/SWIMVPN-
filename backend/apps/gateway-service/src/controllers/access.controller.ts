@@ -38,9 +38,19 @@ export class AccessController {
     };
   }
 
+  @Post('access/bootstrap')
+  async bootstrapAccess(@Body() data: any) {
+    return this.customerClient.send({ cmd: 'bootstrap_access' }, data);
+  }
+
   @Post('access/trial')
   async startTrial(@Body() data: any) {
     return this.customerClient.send({ cmd: 'start_trial' }, data);
+  }
+
+  @Post('access/trial/activate')
+  async activateTrial(@Body() data: any) {
+    return this.customerClient.send({ cmd: 'activate_trial' }, data);
   }
 
   @Get('access/:userNumber')

@@ -3,7 +3,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom } from 'rxjs';
 import { OrderStatus } from '@prisma/client';
-import { StartTrialDto, CreateOrderDto } from '@app/contracts';
+import { StartTrialDto, CreateOrderDto, BootstrapAccessDto, ActivateTrialDto } from '@app/contracts';
 
 @Injectable()
 export class CustomerService {
@@ -11,6 +11,22 @@ export class CustomerService {
     private readonly prisma: PrismaService,
     @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientProxy,
   ) {}
+
+  async bootstrapAccess(data: BootstrapAccessDto) {
+    const customer = await this.findOrCreateCustomerByDevice(data.deviceId);
+    const profile = await this.getProfile(customer.public_id);
+    const hasActiveAccess = profile.status === 'ACTIVE' && !!profile.subscriptionUrl;
+
+    return {
+      userNumber: customer.public_id,
+      email: customer.email,
+      phone: customer.phone,
+      trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
+      profileCompletionRequired: !customer.email || !customer.phone,
+      hasActiveAccess,
+      profile: hasActiveAccess ? profile : null,
+    };
+  }
 
   async createOrder(data: CreateOrderDto) {
     let customer = await this.prisma.customer.findFirst({
@@ -46,32 +62,63 @@ export class CustomerService {
   }
 
   async startTrial(data: StartTrialDto) {
-    // 1. Find or create customer by deviceId
-    let customer = await this.prisma.customer.findUnique({
-      where: { device_id: data.deviceId },
+    const customer = await this.findOrCreateCustomerByDevice(data.deviceId);
+    if (!customer.email || !customer.phone) {
+      return {
+        userNumber: customer.public_id,
+        email: customer.email,
+        phone: customer.phone,
+        accessType: 'NONE',
+        offerCode: null,
+        status: 'PROFILE_INCOMPLETE',
+        trialStartedAt: null,
+        trialExpiresAt: null,
+        subscriptionExpiresAt: null,
+        subscriptionUrl: null,
+        devicesAllowed: 1,
+        dataLimitGB: 0,
+        dataUsedBytes: '0',
+        profileCompletionRequired: true,
+        trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
+      };
+    }
+
+    return this.activateTrial({
+      userNumber: customer.public_id,
+      email: customer.email,
+      phone: customer.phone,
+    });
+  }
+
+  async activateTrial(data: ActivateTrialDto) {
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const normalizedPhone = this.normalizePhone(data.phone);
+
+    if (!normalizedPhone) {
+      throw new Error('Phone is required');
+    }
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { public_id: data.userNumber },
     });
 
     if (!customer) {
-      customer = await this.prisma.customer.create({
-        data: {
-          device_id: data.deviceId,
-        },
-      });
+      throw new Error('Customer not found');
     }
 
-    // 2. Check if already has a trial
-    const existingTrial = await this.prisma.order.findFirst({
-      where: {
-        customer_id: customer.id,
-        plan: { code: 'WEEK' }, // Assuming WEEK is used for trials or we have a specific one
+    const trialEligible = await this.isTrialEligible(customer, normalizedEmail, normalizedPhone);
+    if (!trialEligible) {
+      throw new Error('Trial already used for this device or contact data');
+    }
+
+    await this.prisma.customer.update({
+      where: { id: customer.id },
+      data: {
+        email: normalizedEmail,
+        phone: normalizedPhone,
       },
     });
 
-    if (existingTrial) {
-      return this.getProfile(customer.public_id);
-    }
-
-    // 3. Find "WEEK" plan (serving as trial for now)
     const trialPlan = await this.prisma.plan.findFirst({
       where: { code: 'WEEK' },
     });
@@ -80,25 +127,23 @@ export class CustomerService {
       throw new Error('Trial plan not configured in database');
     }
 
-    // 4. Create a pre-paid order for the trial
     const order = await this.prisma.order.create({
       data: {
-        order_ref: `TRIAL-${customer.public_id}`,
+        order_ref: `TRIAL-${customer.public_id}-${Date.now()}`,
         customer_id: customer.id,
         plan_id: trialPlan.id,
         amount_rub: 0,
         status: OrderStatus.PENDING,
+        payment_ref: 'TRIAL:3D',
       },
     });
 
-    // 5. Trigger fulfillment
     try {
       await firstValueFrom(
         this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
       );
     } catch (e) {
-      console.error('Fulfillment failed during trial start:', e);
-      // In production, we'd handle this with a retry queue
+      console.error('Fulfillment failed during trial activation:', e);
     }
 
     return this.getProfile(customer.public_id);
@@ -131,19 +176,41 @@ export class CustomerService {
     const latestOrder = customer.orders[0];
     const assignment = latestOrder?.assignments[0];
     const inventoryItem = assignment?.inventory_item;
+    const isTrialOrder = latestOrder?.payment_ref === 'TRIAL:3D' || latestOrder?.order_ref.startsWith('TRIAL-');
+    const accessType = latestOrder ? (isTrialOrder ? 'TRIAL' : 'PAID') : 'NONE';
+    const offerCode = latestOrder?.plan.code || null;
+    const subscriptionExpiresAt = latestOrder?.fulfilled_at
+      ? new Date(
+          latestOrder.fulfilled_at.getTime() +
+            this.getDurationMsFromOrder(latestOrder.plan.code, isTrialOrder),
+        ).toISOString()
+      : null;
+    const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
+    const status = latestOrder
+      ? subscriptionExpiresAt && new Date(subscriptionExpiresAt).getTime() < Date.now()
+        ? 'EXPIRED'
+        : 'ACTIVE'
+      : customer.email && customer.phone
+        ? 'TRIAL_AVAILABLE'
+        : 'PROFILE_INCOMPLETE';
 
     return {
       userNumber: customer.public_id,
       email: customer.email,
-      planType: latestOrder?.plan.code || 'NONE',
-      status: latestOrder ? 'ACTIVE' : 'INACTIVE',
+      phone: customer.phone,
+      accessType,
+      offerCode,
+      planType: accessType,
+      status,
       trialStartedAt: latestOrder?.created_at.toISOString() || null,
-      trialExpiresAt: null, // Logic to be refined based on plan duration
-      subscriptionExpiresAt: latestOrder?.fulfilled_at ? new Date(latestOrder.fulfilled_at.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() : null,
+      trialExpiresAt,
+      subscriptionExpiresAt,
       subscriptionUrl: inventoryItem?.raw_config || null,
       devicesAllowed: 1,
       dataLimitGB: latestOrder ? parseInt(latestOrder.plan.quota_label) : 0,
       dataUsedBytes: "0",
+      profileCompletionRequired: !customer.email || !customer.phone,
+      trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
     };
   }
 
@@ -277,6 +344,119 @@ export class CustomerService {
     } catch (e) {
       console.error(`Fulfillment failed for order ${order.id}:`, e);
       return { success: false, error: 'Fulfillment triggered but failed' };
+    }
+  }
+
+  private async findOrCreateCustomerByDevice(deviceId: string) {
+    const existing = await this.prisma.customer.findUnique({
+      where: { device_id: deviceId },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.prisma.customer.create({
+      data: {
+        device_id: deviceId,
+        public_id: await this.generatePublicUserNumber(),
+      },
+    });
+  }
+
+  private async generatePublicUserNumber() {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const candidate = `SW-${suffix}`;
+      const existing = await this.prisma.customer.findUnique({
+        where: { public_id: candidate },
+      });
+
+      if (!existing) {
+        return candidate;
+      }
+    }
+
+    throw new Error('Unable to generate unique public user number');
+  }
+
+  private normalizePhone(phone?: string) {
+    if (!phone) {
+      return '';
+    }
+
+    const normalized = phone.replace(/[^\d+]/g, '');
+    return normalized.trim();
+  }
+
+  private async isTrialEligible(customer: { id: string; device_id: string | null }, email?: string | null, phone?: string | null) {
+    const existingCustomerTrial = await this.prisma.order.findFirst({
+      where: {
+        customer_id: customer.id,
+        OR: [
+          { payment_ref: 'TRIAL:3D' },
+          { order_ref: { startsWith: 'TRIAL-' } },
+        ],
+      },
+    });
+
+    if (existingCustomerTrial) {
+      return false;
+    }
+
+    const normalizedEmail = email?.trim().toLowerCase();
+    const normalizedPhone = this.normalizePhone(phone || undefined);
+    const customerConditions: Array<{ device_id?: string; email?: string; phone?: string }> = [];
+
+    if (customer.device_id) {
+      customerConditions.push({ device_id: customer.device_id });
+    }
+    if (normalizedEmail) {
+      customerConditions.push({ email: normalizedEmail });
+    }
+    if (normalizedPhone) {
+      customerConditions.push({ phone: normalizedPhone });
+    }
+
+    if (customerConditions.length === 0) {
+      return true;
+    }
+
+    const existingTrial = await this.prisma.order.findFirst({
+      where: {
+        AND: [
+          {
+            OR: [
+              { payment_ref: 'TRIAL:3D' },
+              { order_ref: { startsWith: 'TRIAL-' } },
+            ],
+          },
+          { customer_id: { not: customer.id } },
+          {
+            customer: {
+              OR: customerConditions,
+            },
+          },
+        ],
+      },
+    });
+
+    return !existingTrial;
+  }
+
+  private getDurationMsFromOrder(planCode: string, isTrialOrder: boolean) {
+    if (isTrialOrder) {
+      return 3 * 24 * 60 * 60 * 1000;
+    }
+
+    switch (planCode) {
+      case 'MONTH':
+        return 30 * 24 * 60 * 60 * 1000;
+      case 'QUARTER':
+        return 90 * 24 * 60 * 60 * 1000;
+      case 'WEEK':
+      default:
+        return 7 * 24 * 60 * 60 * 1000;
     }
   }
 }

@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CustomerService } from './customer.service';
-import { StartTrialDto, CreateOrderDto } from '@app/contracts';
+import { StartTrialDto, CreateOrderDto, BootstrapAccessDto, ActivateTrialDto } from '@app/contracts';
 
 @Controller()
 export class CustomerController {
@@ -12,9 +12,19 @@ export class CustomerController {
     return this.customerService.createOrder(data);
   }
 
+  @MessagePattern({ cmd: 'bootstrap_access' })
+  async bootstrapAccess(@Payload() data: BootstrapAccessDto) {
+    return this.customerService.bootstrapAccess(data);
+  }
+
   @MessagePattern({ cmd: 'start_trial' })
   async startTrial(@Payload() data: StartTrialDto) {
     return this.customerService.startTrial(data);
+  }
+
+  @MessagePattern({ cmd: 'activate_trial' })
+  async activateTrial(@Payload() data: ActivateTrialDto) {
+    return this.customerService.activateTrial(data);
   }
 
   @MessagePattern({ cmd: 'get_profile' })

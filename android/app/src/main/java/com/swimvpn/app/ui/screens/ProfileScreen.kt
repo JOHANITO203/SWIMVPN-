@@ -20,6 +20,10 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -122,7 +126,7 @@ fun ProfileScreen(
                 
                 Text(stringResource(R.string.label_user_id), fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp)
                 Text(profile.userNumber, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 28.sp)
-                Text(profile.email ?: "v1-trial-user@swimvpn.com", color = Color(0xFF64748B), fontSize = 14.sp)
+                Text(profile.email ?: "-", color = Color(0xFF64748B), fontSize = 14.sp)
             }
         }
 
@@ -141,13 +145,14 @@ fun ProfileScreen(
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 // Data Usage Section
-                val isTrial = profile.planType == "TRIAL"
+                val isTrial = profile.accessType == "TRIAL"
                 val limitGB = profile.dataLimitGB.toDouble()
                 val sessionBytes = bytesIn + bytesOut
                 val totalUsedBytes = (profile.dataUsedBytes.filter { it.isDigit() }.toLongOrNull() ?: 0L) + sessionBytes
                 val limitBytes = (limitGB * 1024.0 * 1024.0 * 1024.0).toLong()
                 val remainingBytes = (limitBytes - totalUsedBytes).coerceAtLeast(0L)
-                val progress = if (isTrial || limitBytes <= 0L) 0f else (totalUsedBytes.toFloat() / limitBytes.toFloat()).coerceIn(0f, 1f)
+                val hasMeasuredLimit = limitBytes > 0L
+                val progress = if (!hasMeasuredLimit) 0f else (totalUsedBytes.toFloat() / limitBytes.toFloat()).coerceIn(0f, 1f)
                 
                 val statusColor = when {
                     isTrial -> SwimBlueMain
@@ -163,14 +168,14 @@ fun ProfileScreen(
                             Icon(Icons.Rounded.Bolt, contentDescription = null, tint = SwimBlueMain, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                if (isTrial) stringResource(R.string.label_unlimited) else "${formatBytes(remainingBytes)} ${stringResource(R.string.label_left)}",
+                                if (!hasMeasuredLimit) stringResource(R.string.label_unlimited) else "${formatBytes(remainingBytes)} ${stringResource(R.string.label_left)}",
                                 fontWeight = FontWeight.Black,
                                 color = SwimNavyMouth,
                                 fontSize = 18.sp
                             )
                         }
                     }
-                    if (!isTrial) {
+                    if (hasMeasuredLimit) {
                         Text(
                             String.format(Locale.US, "%.0f%%", progress * 100),
                             fontWeight = FontWeight.Black,
@@ -183,7 +188,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 LinearProgressIndicator(
-                    progress = { if (isTrial) 0f else progress },
+                    progress = { if (hasMeasuredLimit) progress else 0f },
                     modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
                     color = statusColor,
                     trackColor = Color(0xFFF1F5F9)
@@ -194,7 +199,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    val expiryString = if (profile.planType == "TRIAL") profile.trialExpiresAt else profile.subscriptionExpiresAt
+                    val expiryString = if (profile.accessType == "TRIAL") profile.trialExpiresAt else profile.subscriptionExpiresAt
                     val remainingText = calculateRemainingTime(expiryString)
 
                     Text(stringResource(R.string.label_expires_at), fontWeight = FontWeight.Bold, color = Color(0xFF475569), fontSize = 12.sp, letterSpacing = 0.5.sp)
@@ -247,6 +252,132 @@ fun ProfileScreen(
         }
         
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+fun TrialActivationProfileScreen(
+    userNumber: String,
+    email: String?,
+    phone: String?,
+    trialEligible: Boolean,
+    onActivateTrial: (String, String) -> Unit,
+    onBack: () -> Unit,
+) {
+    var emailInput by remember { mutableStateOf(email.orEmpty()) }
+    var phoneInput by remember { mutableStateOf(phone.orEmpty()) }
+    val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(emailInput.trim()).matches()
+    val isPhoneValid = phoneInput.filter { it.isDigit() }.length >= 8
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
+            .padding(24.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                    .clickable { onBack() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = SwimNavyMouth)
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                stringResource(R.string.title_account),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = SwimNavyMouth)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFFFF7ED)
+                ) {
+                    Text(
+                        text = "TRIAL 3 DAYS",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = Color(0xFFC2410C),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text("Your SWIMVPN+ ID", fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp)
+                Text(userNumber, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 28.sp)
+
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    "Complete your profile to unlock the 3-day trial. We use your device, email, and phone to prevent abuse.",
+                    color = Color(0xFF64748B),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = emailInput,
+                    onValueChange = { emailInput = it },
+                    label = { Text("Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = phoneInput,
+                    onValueChange = { phoneInput = it },
+                    label = { Text("Phone number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = { onActivateTrial(emailInput.trim(), phoneInput.trim()) },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    enabled = trialEligible && isEmailValid && isPhoneValid,
+                    colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain)
+                ) {
+                    Text("Activate 3-day trial", color = Color.White, fontWeight = FontWeight.Black)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = if (trialEligible) {
+                        "Your trial activates once after profile completion."
+                    } else {
+                        "Trial already used for this device or these contact details."
+                    },
+                    color = if (trialEligible) Color(0xFF64748B) else Color(0xFFDC2626),
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
     }
 }
 

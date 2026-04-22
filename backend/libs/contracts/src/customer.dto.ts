@@ -1,5 +1,19 @@
 import { IsNotEmpty, IsString, IsOptional, IsEmail, IsNumber, Min } from 'class-validator';
 
+export class BootstrapAccessDto {
+  @IsString()
+  @IsNotEmpty()
+  deviceId: string;
+
+  @IsString()
+  @IsOptional()
+  platform?: string;
+
+  @IsString()
+  @IsOptional()
+  locale?: string;
+}
+
 export class StartTrialDto {
   @IsString()
   @IsNotEmpty()
@@ -12,6 +26,19 @@ export class StartTrialDto {
   @IsString()
   @IsOptional()
   locale?: string;
+}
+
+export class ActivateTrialDto {
+  @IsString()
+  @IsNotEmpty()
+  userNumber: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  phone: string;
 }
 
 export class CreateOrderDto {
