@@ -183,3 +183,22 @@ pm run build PASSED.
 px ts-node apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts PASSED.
     - Root compose render: docker compose config PASSED with required env variables set.
     - Backend compose render: docker compose config PASSED.
+
+## [2026-04-22] [Secrets Hardening + Resend Mail Transport]
+- **Status**: DONE
+- **Changes**:
+    - Removed remaining secret hardcodes from ackend/docker-compose.yml (POSTGRES_*, JWT_SECRET, admin auth secrets).
+    - Added explicit ADMIN_JWT_SECRET wiring to dmin-control-service and removed fallback hardcoded JWT secret from app module.
+    - Migrated 
+otification-bot-service email sender from SMTP (
+odemailer) to Resend API (esend).
+    - Added Resend runtime env contract: RESEND_API_KEY, MAILER_FROM_EMAIL, MAILER_FROM_NAME.
+    - Updated root/backend .env.example files accordingly.
+    - Updated notification service README environment contract to Resend.
+- **Verification**:
+    - ackend: 
+pm run lint PASSED.
+    - ackend: 
+pm run build PASSED.
+    - Root compose render: docker compose config PASSED with required env values.
+    - Backend compose render: docker compose config PASSED with required env values.

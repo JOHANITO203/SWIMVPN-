@@ -50,10 +50,9 @@ Required:
 - `DATABASE_URL`
 - `ADMIN_CHAT_ID`
 - `TELEGRAM_BOT_TOKEN` (sender)
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_USER`
-- `SMTP_PASS`
+- `RESEND_API_KEY`
+- `MAILER_FROM_EMAIL`
+- `MAILER_FROM_NAME`
 
 Optional:
 - `NOTIFICATION_BOT_TOKEN` for dedicated Telegram command bot polling.

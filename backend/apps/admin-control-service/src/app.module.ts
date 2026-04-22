@@ -19,7 +19,7 @@ import { AdminSupportBotService } from './admin-support-bot.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET', 'SWIM_VPN_SUPER_SECRET'),
+        secret: config.get('ADMIN_JWT_SECRET') || config.get('JWT_SECRET'),
         signOptions: { expiresIn: '7d' },
       }),
     }),

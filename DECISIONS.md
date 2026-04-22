@@ -63,3 +63,14 @@ otification-bot-service) instead of extending dmin-control-service.
 - **Decision**: Implement the admin support bot as a focused deterministic module/service inside dmin-control-service for MVP.
 - **Why**: Smallest viable change with least operational overhead; reuses existing admin Telegram context while keeping strict non-LLM menu-based behavior.
 - **Impact**: No additional standalone support microservice needed now; escalation handling is operational with static RU/EN templates and support-group relay.
+
+## [2026-04-22] [Use Resend as Notification Mail Provider]
+- **Decision**: Replace SMTP transport in 
+otification-bot-service with Resend API for transactional delivery emails.
+- **Why**: Lower operational overhead, simpler deterministic integration, and cleaner production setup with one API key.
+- **Impact**: Email sending now depends on RESEND_API_KEY; sender identity is controlled by MAILER_FROM_EMAIL and MAILER_FROM_NAME.
+
+## [2026-04-22] [Explicit Admin JWT Secret]
+- **Decision**: Introduce ADMIN_JWT_SECRET as a distinct required secret for dmin-control-service JWT signing.
+- **Why**: Removes hardcoded fallback and separates admin token scope from generic service JWT usage.
+- **Impact**: Deployment env must include ADMIN_JWT_SECRET (while JWT_SECRET remains required for other services).

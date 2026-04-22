@@ -1,43 +1,40 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class EmailSenderService {
-  private readonly transporter;
+  private readonly resend: Resend | null;
+  private readonly fromEmail: string;
+  private readonly fromName: string;
 
   constructor(private readonly configService: ConfigService) {
-    const smtpHost = this.configService.get<string>('SMTP_HOST');
-    const smtpPort = Number(this.configService.get<string>('SMTP_PORT') || '587');
-    const smtpUser = this.configService.get<string>('SMTP_USER');
-    const smtpPass = this.configService.get<string>('SMTP_PASS');
+    const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
+    this.fromEmail = this.configService.get<string>('MAILER_FROM_EMAIL', 'support@swimvpn.pro');
+    this.fromName = this.configService.get<string>('MAILER_FROM_NAME', 'SWIMVPN+ Support');
 
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      this.transporter = null;
+    if (!resendApiKey) {
+      this.resend = null;
       return;
     }
 
-    this.transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-    });
+    this.resend = new Resend(resendApiKey);
   }
 
   async sendDeliveryEmail(to: string, subject: string, body: string): Promise<void> {
-    if (!this.transporter) {
-      throw new Error('SMTP transport is not configured');
+    if (!this.resend) {
+      throw new Error('Resend transport is not configured');
     }
 
-    await this.transporter.sendMail({
-      from: 'SWIMVPN+ Support <support@swimvpn.pro>',
+    const { error } = await this.resend.emails.send({
+      from: `${this.fromName} <${this.fromEmail}>`,
       to,
       subject,
       text: body,
     });
+
+    if (error) {
+      throw new Error(`Resend send failed: ${error.message}`);
+    }
   }
 }

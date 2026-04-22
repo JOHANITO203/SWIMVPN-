@@ -39,3 +39,8 @@ otification-bot-service event handoff.
 - Add admin command handlers for /order, /resend, /status, /help in support-bot context (currently only guided customer escalation flow is implemented).
 - Add optional callback actions in admin group (mark delivered, copy VPN link) when linked to finalized support-case storage.
 - Add integration tests covering Telegram callback flow and support-group relay failure paths.
+
+## Secrets Follow-up
+- Provide real RESEND_API_KEY in root .env and ackend/.env before enabling delivery emails in production.
+- Verify sender domain/email (support@swimvpn.pro) is validated in Resend account.
+- Rotate previously exposed Telegram bot token and keep only regenerated token in non-versioned .env files.
