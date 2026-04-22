@@ -58,3 +58,7 @@ otification-bot-service event handoff.
 - Configure Dockploy Domain mapping for `api.swimvpn.pro` -> `gateway-service:3000`.
 - Configure Dockploy Domain mapping for `admin.swimvpn.pro` according to desired backend route policy.
 - Re-run deployment and verify health endpoint externally.
+
+## Admin Support Bot Next
+- Set `ADMIN_SUPPORT_REPORT_CHAT_ID=7161959711` in Dockploy env to receive personal support reports.
+- Redeploy `main` and verify escalation flow: message -> email -> confirmation + group relay + personal report relay.

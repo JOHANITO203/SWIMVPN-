@@ -1,4 +1,9 @@
-﻿import { buildTicketId, extractOptionalFields, formatEscalationRelayMessage } from '../admin-support-bot.formatter';
+import {
+  buildTicketId,
+  extractOptionalFields,
+  formatAdminSupportReportMessage,
+  formatEscalationRelayMessage,
+} from '../admin-support-bot.formatter';
 import { SUPPORT_TOPICS, resolveSupportLanguage } from '../admin-support-bot.templates';
 
 function assert(condition: boolean, message: string) {
@@ -18,8 +23,19 @@ const message = formatEscalationRelayMessage({
   orderRef: 'SW12345',
   telegramUserId: '123456',
 });
+const report = formatAdminSupportReportMessage({
+  ticketId: 'SUP-20260422-AAAAAA',
+  topic,
+  userMessage: 'Cannot import link, order SW12345, email user@example.com',
+  timestampIso: '2026-04-22T12:00:00.000Z',
+  language: 'en',
+  email: 'user@example.com',
+  orderRef: 'SW12345',
+  telegramUserId: '123456',
+});
 
 assert(message.includes('SUP-20260422-AAAAAA'), 'ticket formatting failed');
+assert(report.includes('SWIMVPN+ SUPPORT REPORT'), 'report formatting failed');
 assert(resolveSupportLanguage(undefined) === 'ru', 'default language should be ru');
 assert(resolveSupportLanguage('en') === 'en', 'en language resolution failed');
 

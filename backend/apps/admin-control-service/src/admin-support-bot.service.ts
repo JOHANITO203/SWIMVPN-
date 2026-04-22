@@ -9,12 +9,20 @@ import {
   getTopicByKey,
   resolveSupportLanguage,
 } from './admin-support-bot.templates';
-import { buildTicketId, extractOptionalFields, formatEscalationRelayMessage } from './admin-support-bot.formatter';
+import {
+  buildTicketId,
+  extractOptionalFields,
+  formatAdminSupportReportMessage,
+  formatEscalationRelayMessage,
+} from './admin-support-bot.formatter';
 
 type PendingState = {
   topicKey: SupportTopicKey;
   language: SupportLanguage;
-  waitingMessage: boolean;
+  stage: 'awaitingMessage' | 'awaitingEmail';
+  userMessage?: string;
+  phone?: string;
+  orderRef?: string;
 };
 
 @Injectable()
@@ -22,6 +30,7 @@ export class AdminSupportBotService implements OnModuleInit {
   private readonly logger = new Logger(AdminSupportBotService.name);
   private readonly bot?: Telegraf;
   private readonly supportChatId: string;
+  private readonly reportChatId?: string;
   private readonly defaultLanguage: SupportLanguage;
   private readonly fallbackLanguage: SupportLanguage;
 
@@ -33,6 +42,7 @@ export class AdminSupportBotService implements OnModuleInit {
     const token = this.configService.get<string>('ADMIN_SUPPORT_BOT_TOKEN');
     this.supportChatId =
       this.configService.get<string>('ADMIN_SUPPORT_CHAT_ID') || '-1003912107958';
+    this.reportChatId = this.configService.get<string>('ADMIN_SUPPORT_REPORT_CHAT_ID') || undefined;
     this.defaultLanguage = resolveSupportLanguage(
       this.configService.get<string>('ADMIN_SUPPORT_DEFAULT_LANGUAGE'),
       'ru',
@@ -88,7 +98,7 @@ export class AdminSupportBotService implements OnModuleInit {
 
       const userKey = String(ctx.from?.id || 'unknown');
       const language = this.resolveUserLanguage(userKey);
-      this.pending.set(userKey, { topicKey, language, waitingMessage: false });
+      this.pending.set(userKey, { topicKey, language, stage: 'awaitingMessage' });
 
       const answer = language === 'ru' ? topic.answerRu : topic.answerEn;
       await ctx.answerCbQuery();
@@ -110,7 +120,7 @@ export class AdminSupportBotService implements OnModuleInit {
 
       const userKey = String(ctx.from?.id || 'unknown');
       const language = this.resolveUserLanguage(userKey);
-      this.pending.set(userKey, { topicKey, language, waitingMessage: true });
+      this.pending.set(userKey, { topicKey, language, stage: 'awaitingMessage' });
 
       await ctx.answerCbQuery();
       await ctx.reply(SUPPORT_COPY[language].askMessage);
@@ -123,10 +133,23 @@ export class AdminSupportBotService implements OnModuleInit {
 
       const userKey = String(ctx.from?.id || 'unknown');
       const language = this.resolveUserLanguage(userKey);
-      this.pending.set(userKey, { topicKey, language, waitingMessage: true });
+      this.pending.set(userKey, { topicKey, language, stage: 'awaitingMessage' });
 
       await ctx.answerCbQuery();
       await ctx.reply(SUPPORT_COPY[language].askMessage);
+    });
+
+    this.bot.action('change_language', async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.reply(
+        'Language / Язык',
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback('Русский', 'lang:ru'),
+            Markup.button.callback('English', 'lang:en'),
+          ],
+        ]),
+      );
     });
 
     this.bot.on('text', async (ctx) => {
@@ -135,7 +158,7 @@ export class AdminSupportBotService implements OnModuleInit {
       const state = this.pending.get(userKey);
       const language = this.resolveUserLanguage(userKey);
 
-      if (!state || !state.waitingMessage) {
+      if (!state) {
         if (text.startsWith('/')) {
           return;
         }
@@ -143,13 +166,32 @@ export class AdminSupportBotService implements OnModuleInit {
         return;
       }
 
-      if (text.length < 1 || text.length > 500) {
-        await ctx.reply(SUPPORT_COPY[language].invalidMessage);
+      if (state.stage === 'awaitingMessage') {
+        if (text.length < 1 || text.length > 500) {
+          await ctx.reply(SUPPORT_COPY[language].invalidMessage);
+          return;
+        }
+
+        if (!this.consumeRateLimit(userKey)) {
+          await ctx.reply(SUPPORT_COPY[language].rateLimited);
+          return;
+        }
+
+        const optional = extractOptionalFields(text);
+        this.pending.set(userKey, {
+          ...state,
+          language,
+          stage: 'awaitingEmail',
+          userMessage: text,
+          phone: optional.phone,
+          orderRef: optional.orderRef,
+        });
+        await ctx.reply(SUPPORT_COPY[language].askEmail);
         return;
       }
 
-      if (!this.consumeRateLimit(userKey)) {
-        await ctx.reply(SUPPORT_COPY[language].rateLimited);
+      if (!this.isValidEmail(text)) {
+        await ctx.reply(SUPPORT_COPY[language].invalidEmail);
         return;
       }
 
@@ -161,22 +203,37 @@ export class AdminSupportBotService implements OnModuleInit {
       }
 
       const ticketId = buildTicketId();
-      const optional = extractOptionalFields(text);
+      const timestampIso = new Date().toISOString();
       const relay = formatEscalationRelayMessage({
         ticketId,
         topic,
-        userMessage: text,
-        timestampIso: new Date().toISOString(),
+        userMessage: state.userMessage || '',
+        timestampIso,
         language,
-        email: optional.email,
-        phone: optional.phone,
-        orderRef: optional.orderRef,
+        email: text,
+        phone: state.phone,
+        orderRef: state.orderRef,
+        telegramUserId: userKey,
+        telegramUsername: ctx.from?.username,
+      });
+      const report = formatAdminSupportReportMessage({
+        ticketId,
+        topic,
+        userMessage: state.userMessage || '',
+        timestampIso,
+        language,
+        email: text,
+        phone: state.phone,
+        orderRef: state.orderRef,
         telegramUserId: userKey,
         telegramUsername: ctx.from?.username,
       });
 
       try {
         await this.bot!.telegram.sendMessage(this.supportChatId, relay);
+        if (this.reportChatId) {
+          await this.bot!.telegram.sendMessage(this.reportChatId, report);
+        }
       } catch (error) {
         this.logger.error(`Failed to relay support case: ${(error as Error).message}`);
         await ctx.reply(language === 'ru' ? 'Не удалось отправить запрос. Попробуйте позже.' : 'Failed to send request. Please try later.');
@@ -184,7 +241,7 @@ export class AdminSupportBotService implements OnModuleInit {
       }
 
       this.pending.delete(userKey);
-      await ctx.reply(SUPPORT_COPY[language].sent(ticketId));
+      await ctx.reply(SUPPORT_COPY[language].sent(ticketId, text));
       await this.sendTopicMenu(ctx, language);
     });
 
@@ -208,6 +265,7 @@ export class AdminSupportBotService implements OnModuleInit {
         `topic:${topic.key}`,
       ),
     ]);
+    buttons.push([Markup.button.callback(SUPPORT_COPY[language].changeLanguage, 'change_language')]);
 
     await ctx.reply(SUPPORT_COPY[language].chooseTopic, Markup.inlineKeyboard(buttons));
   }
@@ -226,5 +284,9 @@ export class AdminSupportBotService implements OnModuleInit {
     records.push(now);
     this.rateLimit.set(userKey, records);
     return true;
+  }
+
+  private isValidEmail(value: string): boolean {
+    return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value);
   }
 }

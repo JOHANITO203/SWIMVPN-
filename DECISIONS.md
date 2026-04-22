@@ -89,3 +89,13 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Build each service explicitly in Docker build pipeline rather than relying on default `nest build` target.
 - **Why**: Default build produced only gateway output, causing runtime `MODULE_NOT_FOUND` for other service entrypoints.
 - **Impact**: Slightly longer build time; deterministic multi-service runtime correctness.
+
+## [2026-04-22] [Support Escalation Requires Email Before Closing Ticket]
+- **Decision**: Support bot now collects a valid customer email after escalation message and only then forwards the case.
+- **Why**: Support handoff policy requires clear callback channel and explicit expectation of email response.
+- **Impact**: User receives deterministic confirmation with ticket id + target email.
+
+## [2026-04-22] [Optional Personal Support Report Destination]
+- **Decision**: Add optional `ADMIN_SUPPORT_REPORT_CHAT_ID` for parallel admin report notifications.
+- **Why**: Owner requested visibility in personal Telegram account while keeping primary support group destination.
+- **Impact**: Primary escalation remains `ADMIN_SUPPORT_CHAT_ID`; personal relay activates only when report chat id is set.

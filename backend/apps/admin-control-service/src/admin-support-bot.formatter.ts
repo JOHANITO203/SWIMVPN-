@@ -30,6 +30,20 @@ export function formatEscalationRelayMessage(input: EscalationRelayInput): strin
   ].join('\n');
 }
 
+export function formatAdminSupportReportMessage(input: EscalationRelayInput): string {
+  return [
+    'SWIMVPN+ SUPPORT REPORT',
+    `Ticket: ${input.ticketId}`,
+    `Topic: ${input.language === 'ru' ? input.topic.labelRu : input.topic.labelEn}`,
+    `Email: ${input.email || '-'}`,
+    `Language: ${input.language}`,
+    `UserId: ${input.telegramUserId}`,
+    `Username: ${input.telegramUsername || '-'}`,
+    `Time: ${input.timestampIso}`,
+    `Summary: ${input.userMessage.slice(0, 220)}`,
+  ].join('\n');
+}
+
 export function buildTicketId(now: Date = new Date()): string {
   const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
   const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();

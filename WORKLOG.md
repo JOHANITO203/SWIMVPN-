@@ -245,3 +245,16 @@ pm run build PASSED.
 - **Verification**:
     - Ran `npm run build:all` locally: all 7 services compiled successfully.
     - Confirmed `dist/apps` contains all required service directories including `store-engine-service`.
+
+## [2026-04-22] [Admin Support Bot UX + Escalation Follow-Up Email]
+- **Status**: DONE
+- **Changes**:
+    - Added 2-step escalation flow in admin support bot: issue message -> required email -> final confirmation.
+    - Added runtime language switch option in support menu (`change_language`) with RU/EN callbacks.
+    - Added optional personal admin report relay via `ADMIN_SUPPORT_REPORT_CHAT_ID`.
+    - Kept deterministic static templates only (no AI/LLM logic).
+    - Updated env contracts and compose wiring for new optional report chat id.
+- **Verification**:
+    - `backend`: `npm run lint` PASSED.
+    - `backend`: `npm run build` PASSED.
+    - `backend`: `npx ts-node apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts` PASSED.
