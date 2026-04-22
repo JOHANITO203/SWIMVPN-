@@ -143,7 +143,7 @@
     <string name="routing_mode_full_tunnel">POLNYY TUNNEL\'</string>
     <string name="routing_mode_local_proxy">LOKAL\'NYY PROKSI</string>
     <string name="routing_mode_split_tunnel">CHASTICHNYY TUNNEL\'</string>
-    <string name="routing_runtime_desc">Tekushchiy runtime podderzhivaet tol\'ko bezopasnyy tunnel\' dlya vsego ustroystva.</string>
+    <string name="routing_runtime_desc">Vybirayte mezhdu polnym tunnel\'em i lokal\'nym nativnym proksi. Split tunnel budet pozhe.</string>
     <string name="tunnel_title">VPN Tunnel (Rekomenduetsya)</string>
     <string name="tunnel_desc">Marshrutiziruet ves\' trafik ustroystva.</string>
     <string name="proxy_title">Tol\'ko lokal\'nyy proksi</string>

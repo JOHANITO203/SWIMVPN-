@@ -3,6 +3,17 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def xrayCoreVersion = providers.gradleProperty("xrayCoreVersion").getOrElse("v26.3.27")
+def xrayAssetRoot = "runtime/xray"
+def xrayArtifactByAbi = [
+    "arm64-v8a"  : "Xray-android-arm64-v8a.zip",
+    "x86_64"     : "Xray-android-amd64.zip",
+]
+def generatedRuntimeAssetsDir = file("$buildDir/generated/runtimeAssets/main")
+def generatedRuntimeJniLibsDir = file("$buildDir/generated/runtimeJniLibs/main")
+def xrayDownloadsDir = file("$buildDir/downloads/xray/${xrayCoreVersion}")
+def xrayExtractDir = file("$buildDir/intermediates/xrayExtract")
+
 android {
     namespace 'com.swimvpn.app'
     compileSdk 34
@@ -18,6 +29,10 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
+
+        buildConfigField "String", "XRAY_CORE_VERSION", "\"${xrayCoreVersion}\""
+        buildConfigField "String", "XRAY_ASSET_ROOT", "\"${xrayAssetRoot}\""
+        buildConfigField "String", "XRAY_EXECUTABLE_LIBRARY_NAME", "\"libxray.so\""
     }
 
     buildTypes {
@@ -35,6 +50,7 @@ android {
         jvmTarget = '1.8'
     }
     buildFeatures {
+        buildConfig true
         compose true
     }
     composeOptions {
@@ -45,6 +61,84 @@ android {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
     }
+    sourceSets {
+        main {
+            assets.srcDir(generatedRuntimeAssetsDir)
+            jniLibs.srcDir(generatedRuntimeJniLibsDir)
+        }
+    }
+}
+
+tasks.register("prepareXrayRuntimeAssets") {
+    inputs.property("xrayCoreVersion", xrayCoreVersion)
+    outputs.dir(generatedRuntimeAssetsDir)
+    outputs.dir(generatedRuntimeJniLibsDir)
+
+    doLast {
+        generatedRuntimeAssetsDir.mkdirs()
+        generatedRuntimeJniLibsDir.mkdirs()
+        xrayDownloadsDir.mkdirs()
+        xrayExtractDir.mkdirs()
+
+        def commonTargetDir = file("${generatedRuntimeAssetsDir}/${xrayAssetRoot}/common")
+        delete(commonTargetDir)
+        commonTargetDir.mkdirs()
+        def copiedCommonFiles = false
+
+        xrayArtifactByAbi.each { abi, archiveName ->
+            def archiveFile = file("${xrayDownloadsDir}/${archiveName}")
+            def downloadUrl = "https://github.com/XTLS/Xray-core/releases/download/${xrayCoreVersion}/${archiveName}"
+
+            if (!archiveFile.exists()) {
+                logger.lifecycle("Downloading official Xray core ${xrayCoreVersion} for ${abi}")
+                new URL(downloadUrl).withInputStream { stream ->
+                    archiveFile.withOutputStream { output ->
+                        output << stream
+                    }
+                }
+            }
+
+            def abiExtractDir = file("${xrayExtractDir}/${abi}")
+            delete(abiExtractDir)
+            copy {
+                from zipTree(archiveFile)
+                into abiExtractDir
+            }
+
+            def extractedBinary = fileTree(abiExtractDir).matching {
+                include "**/xray"
+            }.files.find { it.isFile() }
+
+            if (extractedBinary == null) {
+                throw new GradleException("Official Xray archive ${archiveName} did not contain an xray executable")
+            }
+
+            def targetDir = file("${generatedRuntimeJniLibsDir}/${abi}")
+            delete(targetDir)
+            targetDir.mkdirs()
+
+            copy {
+                from extractedBinary
+                into targetDir
+                rename { "libxray.so" }
+            }
+
+            if (!copiedCommonFiles) {
+                copy {
+                    from fileTree(abiExtractDir).matching {
+                        include "**/geoip.dat"
+                        include "**/geosite.dat"
+                    }
+                    into commonTargetDir
+                }
+                copiedCommonFiles = true
+            }
+        }
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(tasks.named("prepareXrayRuntimeAssets"))
 }
 
 dependencies {

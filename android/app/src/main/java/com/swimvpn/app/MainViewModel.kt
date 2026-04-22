@@ -320,7 +320,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun maybeAutoConnect(context: Context, successState: AppState.Success) {
         if (!successState.autoConnect) return
-        if (VpnService.prepare(context) != null) return
+        if (successState.routingMode == RuntimeMode.FULL_TUNNEL && VpnService.prepare(context) != null) return
         val server = successState.activeServer ?: return
         val profile = successState.profile
         if (profile.isExpired || profile.subscriptionUrl.isNullOrBlank()) return

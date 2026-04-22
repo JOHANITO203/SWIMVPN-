@@ -42,7 +42,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -62,6 +61,8 @@ import com.swimvpn.app.ui.theme.ElectricBlue
 
 private const val LEGACY_PROXY_MODE = "PROXY"
 private const val LEGACY_TUNNEL_MODE = "TUNNEL"
+private const val FULL_TUNNEL_MODE = "FULL_TUNNEL"
+private const val LOCAL_PROXY_MODE = "LOCAL_PROXY"
 
 @Composable
 fun TechnicalSettingsScreen(
@@ -77,15 +78,10 @@ fun TechnicalSettingsScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    var showRoutingMenu by rememberSaveable { mutableStateOf(false) }
     var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
     var showThemeMenu by rememberSaveable { mutableStateOf(false) }
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
-
-    LaunchedEffect(routingMode) {
-        if (routingMode.equals(LEGACY_PROXY_MODE, ignoreCase = true)) {
-            onRoutingModeChange(LEGACY_TUNNEL_MODE)
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -121,8 +117,10 @@ fun TechnicalSettingsScreen(
                 onClick = {
                     selectedThemeMode = AppThemePreference.SYSTEM
                     onThemeModeChange(AppThemePreference.SYSTEM)
-                    if (!routingMode.equals(LEGACY_TUNNEL_MODE, ignoreCase = true)) {
-                        onRoutingModeChange(LEGACY_TUNNEL_MODE)
+                    if (!routingMode.equals(FULL_TUNNEL_MODE, ignoreCase = true) &&
+                        !routingMode.equals(LEGACY_TUNNEL_MODE, ignoreCase = true)
+                    ) {
+                        onRoutingModeChange(FULL_TUNNEL_MODE)
                     }
                     onAutoConnectChange(false)
                     onLanguageChange("en")
@@ -228,14 +226,30 @@ fun TechnicalSettingsScreen(
                 .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
         ) {
             Column {
-                SettingsRowWithChip(
-                    icon = Icons.Outlined.AccountTree,
-                    title = stringResource(R.string.label_routing),
-                    subtitle = stringResource(R.string.routing_runtime_desc),
-                    chipText = routingChipLabel(routingMode),
-                    onClick = {},
-                    enabled = false
-                )
+                Box {
+                    SettingsRowWithChip(
+                        icon = Icons.Outlined.AccountTree,
+                        title = stringResource(R.string.label_routing),
+                        subtitle = stringResource(R.string.routing_runtime_desc),
+                        chipText = routingChipLabel(routingMode),
+                        onClick = { showRoutingMenu = true },
+                    )
+
+                    DropdownMenu(
+                        expanded = showRoutingMenu,
+                        onDismissRequest = { showRoutingMenu = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        RoutingMenuItem(stringResource(R.string.routing_mode_full_tunnel)) {
+                            onRoutingModeChange(FULL_TUNNEL_MODE)
+                            showRoutingMenu = false
+                        }
+                        RoutingMenuItem(stringResource(R.string.routing_mode_local_proxy)) {
+                            onRoutingModeChange(LOCAL_PROXY_MODE)
+                            showRoutingMenu = false
+                        }
+                    }
+                }
                 HorizontalDivider(color = Color(0xFFF1F5F9))
                 SettingsRowWithSwitch(
                     icon = Icons.Outlined.PowerSettingsNew,
@@ -299,6 +313,14 @@ private fun ThemeMenuItem(label: String, onClick: () -> Unit) {
 }
 
 @Composable
+private fun RoutingMenuItem(label: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(text = label, fontWeight = FontWeight.Bold) },
+        onClick = onClick
+    )
+}
+
+@Composable
 private fun languageChipLabel(language: String): String =
     when (language.lowercase()) {
         "fr" -> stringResource(R.string.lang_fr)
@@ -317,6 +339,7 @@ private fun themeChipLabel(themeMode: String): String =
 @Composable
 private fun routingChipLabel(routingMode: String): String =
     when (routingMode.uppercase()) {
+        LEGACY_PROXY_MODE -> stringResource(R.string.routing_mode_local_proxy)
         "LOCAL_PROXY" -> stringResource(R.string.routing_mode_local_proxy)
         "SPLIT_TUNNEL" -> stringResource(R.string.routing_mode_split_tunnel)
         else -> stringResource(R.string.routing_mode_full_tunnel)

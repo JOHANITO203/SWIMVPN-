@@ -555,3 +555,26 @@ pm run build PASSED.
 - **Verification**:
     - `android\\gradlew.bat assembleDebug` PASSED.
     - `backend\\npm run build` PASSED.
+## [2026-04-22] [VPN Core Batch 2 - Native Xray Packaging + Local Proxy Path]
+- **Status**: DONE
+- **Changes**:
+    - Added build-time packaging for official Android `Xray-core` artifacts without committing large binaries to the repository.
+    - Generated native runtime assets and `jniLibs` during Android build:
+      - `arm64-v8a`
+      - `x86_64`
+      - shared geodata assets
+    - Added a native runtime package under `com.swimvpn.app.runtime` with:
+      - runtime asset catalog
+      - runtime file preparation
+      - Xray process bridge
+      - session log / exit tracking
+    - Extended `TunnelRuntimeAdapter` so Android can now produce a full Xray runtime document instead of only outbound fragments.
+    - Integrated `SwimVpnService` with the native Xray bridge for a real `LOCAL_PROXY` path.
+    - Kept `FULL_TUNNEL` on the transitional interface-only path until the `tun2socks` batch is implemented.
+    - Enabled routing selection between `FULL_TUNNEL` and `LOCAL_PROXY` in the technical screen.
+    - Updated Home / auto-connect flow so `LOCAL_PROXY` does not request Android VPN permission unnecessarily.
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.
+    - Generated runtime packaging confirmed in:
+      - `android\\app\\build\\generated\\runtimeAssets\\main\\runtime\\xray`
+      - `android\\app\\build\\generated\\runtimeJniLibs\\main`

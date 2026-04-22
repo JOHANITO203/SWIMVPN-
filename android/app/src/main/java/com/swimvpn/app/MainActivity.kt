@@ -346,6 +346,7 @@ fun HomeScreen(
 ) {
     val profile = data.profile
     val activeServer = data.activeServer
+    val selectedRuntimeMode = data.routingMode
 
     // Lier l'UI au VRAI statut du service VPN Android
     val vpnState by VpnManager.state.collectAsState()
@@ -401,11 +402,29 @@ fun HomeScreen(
         else -> "ACCESS ACTIVE"
     }
     val connectionSubtitle = when (vpnState) {
-        VpnState.CONNECTED -> activeServer?.let { "Connected via ${it.country}, ${it.city}" } ?: "Connected"
-        VpnState.CONNECTING -> "Establishing secure tunnel..."
-        VpnState.DISCONNECTING -> "Stopping secure tunnel..."
+        VpnState.CONNECTED -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
+            "Local proxy ready on 127.0.0.1:10808"
+        } else {
+            activeServer?.let { "Connected via ${it.country}, ${it.city}" } ?: "Connected"
+        }
+        VpnState.CONNECTING -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
+            "Starting native local proxy..."
+        } else {
+            "Establishing secure tunnel..."
+        }
+        VpnState.DISCONNECTING -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
+            "Stopping local proxy..."
+        } else {
+            "Stopping secure tunnel..."
+        }
         VpnState.ERROR -> errorMessage ?: "Check your server or imported config."
-        else -> if (activeServer != null) "Tap to connect using the selected server" else "Select a server or import a config first"
+        else -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
+            "Tap to start the local Xray proxy"
+        } else if (activeServer != null) {
+            "Tap to connect using the selected server"
+        } else {
+            "Select a server or import a config first"
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
@@ -515,9 +534,13 @@ fun HomeScreen(
                         indication = null
                     ) {
                         if (vpnState == VpnState.DISCONNECTED || vpnState == VpnState.ERROR) {
-                            val intent = android.net.VpnService.prepare(context)
-                            if (intent != null) {
-                                vpnPermissionLauncher.launch(intent)
+                            if (selectedRuntimeMode == RuntimeMode.FULL_TUNNEL) {
+                                val intent = android.net.VpnService.prepare(context)
+                                if (intent != null) {
+                                    vpnPermissionLauncher.launch(intent)
+                                } else {
+                                    viewModel.toggleVpn(context, activeServer, profile)
+                                }
                             } else {
                                 viewModel.toggleVpn(context, activeServer, profile)
                             }

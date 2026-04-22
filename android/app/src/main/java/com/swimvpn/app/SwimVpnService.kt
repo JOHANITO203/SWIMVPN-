@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
+import com.swimvpn.app.runtime.XrayProcessBridge
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.VpnManager
@@ -27,8 +28,10 @@ import kotlinx.coroutines.launch
 class SwimVpnService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
+    private var activeXraySessionId: String? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+    private val xrayBridge by lazy { XrayProcessBridge(applicationContext) }
 
     private val channelId = "swim_vpn_status"
     private val notificationId = 1
@@ -102,10 +105,6 @@ class SwimVpnService : VpnService() {
 
         serviceScope.launch {
             try {
-                if (requestedMode != RuntimeMode.FULL_TUNNEL) {
-                    throw IllegalStateException("Runtime mode $requestedMode is not available yet")
-                }
-
                 val runtime = rawConfig?.takeIf { it.isNotBlank() }?.let {
                     TunnelRuntimeAdapter.prepareRuntimeFromRawConfig(
                         rawConfig = it,
@@ -118,35 +117,90 @@ class SwimVpnService : VpnService() {
                     }
                 } ?: throw IllegalStateException("Missing runtime config for VPN session")
 
-                vpnInterface = Builder()
-                    .setSession("SWIMVPN+ (${runtime.profile.displayName})")
-                    .addAddress("10.0.0.2", 24)
-                    .addRoute("0.0.0.0", 0)
-                    .addDnsServer("8.8.8.8")
-                    .addDnsServer("1.1.1.1")
-                    .setMtu(1500)
-                    .establish()
-
-                if (vpnInterface == null) {
-                    throw IllegalStateException("Failed to establish VPN interface. Permission missing?")
+                when (requestedMode) {
+                    RuntimeMode.LOCAL_PROXY -> startLocalProxy(runtime, host, port)
+                    RuntimeMode.FULL_TUNNEL -> startTunnelInterface(runtime, host, port)
+                    RuntimeMode.SPLIT_TUNNEL -> {
+                        throw IllegalStateException("Split tunnel is not available yet")
+                    }
                 }
-
-                VpnManager.markStarted()
-                delay(350)
-                VpnManager.markHandshake()
-                VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
-                updateNotification("Tunnel ready: ${runtime.profile.displayName}")
-
-                Log.i(
-                    "SwimVpnService",
-                    "Prepared runtime for ${runtime.profile.protocol} ${runtime.summary} via $host:$port",
-                )
             } catch (e: Exception) {
                 Log.e("SwimVpnService", "Error starting VPN", e)
                 VpnManager.setError("Connection failed: ${e.localizedMessage}")
                 stopVpn(clearRuntimeState = false)
             }
         }
+    }
+
+    private suspend fun startTunnelInterface(
+        runtime: TunnelRuntimeAdapter.RuntimePreparationResult,
+        host: String,
+        port: Int,
+    ) {
+        // Transitional path preserved until the tun2socks-native batch is wired.
+        vpnInterface = Builder()
+            .setSession("SWIMVPN+ (${runtime.profile.displayName})")
+            .addAddress("10.0.0.2", 24)
+            .addRoute("0.0.0.0", 0)
+            .addDnsServer("8.8.8.8")
+            .addDnsServer("1.1.1.1")
+            .setMtu(1500)
+            .establish()
+
+        if (vpnInterface == null) {
+            throw IllegalStateException("Failed to establish VPN interface. Permission missing?")
+        }
+
+        VpnManager.markStarted()
+        delay(350)
+        VpnManager.markHandshake()
+        VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
+        updateNotification("Tunnel interface ready: ${runtime.profile.displayName}")
+
+        Log.i(
+            "SwimVpnService",
+            "Prepared tunnel interface for ${runtime.profile.protocol} ${runtime.summary} via $host:$port",
+        )
+    }
+
+    private suspend fun startLocalProxy(
+        runtime: TunnelRuntimeAdapter.RuntimePreparationResult,
+        host: String,
+        port: Int,
+    ) {
+        val preparedRuntime = xrayBridge.prepare(runtime.runtimeConfig)
+        val running = xrayBridge.start(preparedRuntime)
+        activeXraySessionId = running.sessionId()
+
+        VpnManager.markStarted()
+        delay(600)
+
+        val snapshot = running.snapshot()
+        if (!snapshot.isAlive) {
+            val stderrTail = snapshot.stderrLogFile
+                .takeIf { it.exists() }
+                ?.readText()
+                ?.takeLast(400)
+                ?.trim()
+            throw IllegalStateException(
+                buildString {
+                    append("Xray local proxy exited before becoming ready")
+                    if (!stderrTail.isNullOrBlank()) {
+                        append(": ")
+                        append(stderrTail)
+                    }
+                }
+            )
+        }
+
+        VpnManager.markHandshake()
+        VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
+        updateNotification("Local proxy ready: 127.0.0.1:${runtime.ports.socksPort}")
+
+        Log.i(
+            "SwimVpnService",
+            "Started local proxy for ${runtime.profile.protocol} ${runtime.summary} via $host:$port",
+        )
     }
 
     private fun stopVpn(clearRuntimeState: Boolean = true) {
@@ -162,6 +216,10 @@ class SwimVpnService : VpnService() {
         }
 
         try {
+            activeXraySessionId?.let { sessionId ->
+                xrayBridge.stop(sessionId)
+            }
+            activeXraySessionId = null
             vpnInterface?.close()
         } catch (e: Exception) {
             Log.e("SwimVpnService", "Error closing VPN interface", e)
@@ -221,6 +279,10 @@ class SwimVpnService : VpnService() {
             stopVpn()
         } else {
             try {
+                activeXraySessionId?.let { sessionId ->
+                    xrayBridge.stop(sessionId)
+                }
+                activeXraySessionId = null
                 vpnInterface?.close()
             } catch (e: Exception) {
                 Log.e("SwimVpnService", "Error closing VPN interface during failure cleanup", e)

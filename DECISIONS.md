@@ -225,3 +225,24 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Subscription cards are now backend-driven while keeping the premium look.
   - Android order creation now reuses known profile contact data when available.
   - The app no longer pretends to have a finished PSP checkout flow; it creates the order and tells the user honestly that payment is not yet enabled in-app.
+## [2026-04-22] [Package Official Xray At Build Time Instead Of Versioning Large Binaries]
+- **Decision**: Android must download and package official `Xray-core` artifacts during build time instead of storing heavyweight runtime binaries directly in Git.
+- **Why**: The native runtime now needs a real Xray executable, but checking large ABI binaries into the repository would bloat history and make routine frontend/backend work much heavier.
+- **Impact**:
+  - `android/app/build.gradle` prepares official Android Xray artifacts during `preBuild`.
+  - The repository stays source-focused while native runtime packaging remains reproducible.
+  - ABI support in this batch is intentionally limited to the artifacts officially available and useful for MVP:
+    - `arm64-v8a`
+    - `x86_64`
+## [2026-04-22] [Use Native Xray Process Bridge Before The tun2socks Data Plane]
+- **Decision**: Introduce a native Xray process bridge now, and use it to unlock a real `LOCAL_PROXY` runtime path before the `tun2socks`-based full tunnel data plane is finished.
+- **Why**: Official Android Xray artifacts are available immediately, while `tun2socks` packaging still needs its own dedicated batch. Shipping the bridge now creates real native execution and observability without pretending the full tunnel is already complete.
+- **Impact**:
+  - Android now has a concrete native runtime layer:
+    - runtime preparation
+    - config file emission
+    - Xray process start/stop
+    - stdout/stderr capture
+    - exit tracking
+  - `LOCAL_PROXY` becomes the first real native execution mode in the app.
+  - `FULL_TUNNEL` remains transitional until the `tun2socks` batch is complete.

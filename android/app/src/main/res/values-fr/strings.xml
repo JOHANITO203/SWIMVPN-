@@ -143,7 +143,7 @@
     <string name="routing_mode_full_tunnel">TUNNEL COMPLET</string>
     <string name="routing_mode_local_proxy">PROXY LOCAL</string>
     <string name="routing_mode_split_tunnel">TUNNEL PARTIEL</string>
-    <string name="routing_runtime_desc">Le runtime actuel prend en charge uniquement le tunnel securise de tout l\'appareil.</string>
+    <string name="routing_runtime_desc">Choisissez entre tunnel complet et proxy local natif. Le tunnel partiel arrive plus tard.</string>
     <string name="tunnel_title">Tunnel VPN (RECOMMANDE)</string>
     <string name="tunnel_desc">Route tout le trafic de l\'appareil.</string>
     <string name="proxy_title">Proxy Local uniquement</string>

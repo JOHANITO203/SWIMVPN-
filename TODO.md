@@ -113,10 +113,19 @@ otification-bot-service event handoff.
   - language switching `EN / FR / RU`
   - honest kill-switch shortcut -> Android VPN settings
   - auto-connect only when permission and access are already valid
-- Start real native runtime packaging for the VPN core:
-  - `Xray-core`
-  - `tun2socks` or equivalent tunnel execution bridge
-  - ABI strategy for device + emulator
+  - routing selection:
+    - `FULL_TUNNEL`
+    - `LOCAL_PROXY`
+- Validate the new native Xray local proxy path on device:
+  - start / stop lifecycle
+  - Xray process stays alive
+  - local SOCKS port responds
+  - logs are written under runtime session directory
+- Implement the next VPN core native batch:
+  - package or build `tun2socks`
+  - bridge `SwimVpnService` full-tunnel data plane to `tun2socks`
+  - replace the transitional full-tunnel interface-only path with real traffic forwarding
+  - add runtime bytes telemetry instead of session-only placeholders
 - Re-test the subscription screen on device:
   - backend plans render with correct name, duration, quota, and RUB price
   - selecting a plan still enables order creation

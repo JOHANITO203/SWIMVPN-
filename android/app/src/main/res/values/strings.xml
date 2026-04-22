@@ -151,7 +151,7 @@
     <string name="routing_mode_full_tunnel">FULL TUNNEL</string>
     <string name="routing_mode_local_proxy">LOCAL PROXY</string>
     <string name="routing_mode_split_tunnel">SPLIT TUNNEL</string>
-    <string name="routing_runtime_desc">Current runtime supports secure full-device tunneling only.</string>
+    <string name="routing_runtime_desc">Choose between full-device tunnel and native local proxy. Split tunnel arrives later.</string>
     <string name="tunnel_title">VPN Tunnel (Recommended)</string>
     <string name="tunnel_desc">Routes all device traffic securely.</string>
     <string name="proxy_title">Local Proxy Only</string>
