@@ -84,3 +84,8 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Install OpenSSL userland libs in backend images (`builder` + `runtime`) for Prisma stability.
 - **Why**: Dockploy deployment showed `prisma-migrate` exit 1 with schema engine parse errors on Alpine.
 - **Impact**: Backend image gains minimal system deps; migrations should run reliably in production containers.
+
+## [2026-04-22] [Build All Nest Services for Monorepo Runtime Images]
+- **Decision**: Build each service explicitly in Docker build pipeline rather than relying on default `nest build` target.
+- **Why**: Default build produced only gateway output, causing runtime `MODULE_NOT_FOUND` for other service entrypoints.
+- **Impact**: Slightly longer build time; deterministic multi-service runtime correctness.

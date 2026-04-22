@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "build:all": "nest build gateway-service && nest build customer-order-service && nest build inventory-delivery-service && nest build admin-control-service && nest build vpn-config-engine-service && nest build store-engine-service && nest build notification-bot-service",
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

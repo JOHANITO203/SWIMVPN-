@@ -235,3 +235,13 @@ pm run build PASSED.
 - **Verification**:
     - Commit pushed to `main`: `ab236d1`.
     - Runtime validation pending on VPS redeploy.
+
+## [2026-04-22] [Fix Multi-Service Dist Build in Docker]
+- **Status**: DONE
+- **Changes**:
+    - Added backend script `build:all` to compile all NestJS services explicitly.
+    - Updated backend Dockerfile builder step from `npm run build` to `npm run build:all`.
+    - This ensures `/app/dist/apps/<service>/main` exists for all runtime service commands.
+- **Verification**:
+    - Ran `npm run build:all` locally: all 7 services compiled successfully.
+    - Confirmed `dist/apps` contains all required service directories including `store-engine-service`.

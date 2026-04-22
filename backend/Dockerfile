@@ -9,7 +9,7 @@ RUN npm install
 RUN npx prisma generate
 
 COPY . .
-RUN npm run build
+RUN npm run build:all
 
 FROM node:18-alpine AS runtime
 
