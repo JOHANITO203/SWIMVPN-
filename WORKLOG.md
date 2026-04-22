@@ -256,6 +256,19 @@ pm run build PASSED.
     - Updated env contracts and compose wiring for new optional report chat id.
 - **Verification**:
     - `backend`: `npm run lint` PASSED.
+
+## [2026-04-22] [Android Import Flow Consolidation]
+- **Status**: DONE
+- **Changes**:
+    - Removed the legacy import sheet as the main entry point from the Android home screen.
+    - Rewired the home floating `+` action and the profile management entry to the same `ConfigImportScreen` hub.
+    - Removed coupon-first wording from the main Android import UX since the feature is intentionally inactive for now.
+    - Expanded `ConfigImportScreen` into a clearer access/config hub with paste, QR, and manual input paths visible without relying on a FAB.
+    - Kept raw config import local-first while attempting profile sync through the existing backend import endpoint.
+    - Softened backend sync failure behavior so a local import no longer throws the user into a blocking error screen.
+- **Verification**:
+    - `backend`: `npm run build` PASSED.
+    - Android shell environment does not provide `gradle` or `gradlew`, so Android build verification was completed through static reference checks only in this batch.
     - `backend`: `npm run build` PASSED.
     - `backend`: `npx ts-node apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts` PASSED.
 

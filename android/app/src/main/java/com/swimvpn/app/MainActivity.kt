@@ -146,7 +146,8 @@ fun AppNavigation(viewModel: MainViewModel) {
                 viewModel = viewModel, 
                 data = data,
                 onNavigateProfile = { navController.navigate("profile") },
-                onNavigateServers = { navController.navigate("servers") }
+                onNavigateServers = { navController.navigate("servers") },
+                onNavigateImport = { navController.navigate("import") },
             ) 
         }
         composable("servers") { 
@@ -204,13 +205,13 @@ fun AppNavigation(viewModel: MainViewModel) {
                 onProfileSelected = { profile ->
                     // TODO: Implement profile selection for VPN connection
                 },
+                onImportToProfile = { rawConfig ->
+                    viewModel.importVless(rawConfig)
+                },
                 showToast = { message ->
                     android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
                 }
             )
-        }
-        composable("importOld") {
-            ImportMenuSheet(viewModel = viewModel, onDismiss = { navController.popBackStack() })
         }
         composable("subscription") { 
             val data = state as? AppState.Success ?: return@composable
@@ -315,10 +316,15 @@ fun SplashScreen() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfile: () -> Unit, onNavigateServers: () -> Unit) {
+fun HomeScreen(
+    viewModel: MainViewModel,
+    data: AppState.Success,
+    onNavigateProfile: () -> Unit,
+    onNavigateServers: () -> Unit,
+    onNavigateImport: () -> Unit,
+) {
     val profile = data.profile
     val activeServer = data.activeServer
-    var showQuickActions by remember { mutableStateOf(false) }
 
     // Lier l'UI au VRAI statut du service VPN Android
     val vpnState by VpnManager.state.collectAsState()
@@ -615,7 +621,7 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
         }
 
         FloatingActionButton(
-            onClick = { showQuickActions = true },
+            onClick = onNavigateImport,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp),
@@ -624,13 +630,6 @@ fun HomeScreen(viewModel: MainViewModel, data: AppState.Success, onNavigateProfi
             shape = RoundedCornerShape(28.dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = "Quick actions", modifier = Modifier.size(30.dp))
-        }
-
-        if (showQuickActions) {
-            ImportMenuSheet(
-                viewModel = viewModel,
-                onDismiss = { showQuickActions = false }
-            )
         }
     }
 }
@@ -726,73 +725,6 @@ fun StatItem(label: String, value: String, icon: androidx.compose.ui.graphics.ve
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
-    var showActivateCode by remember { mutableStateOf(false) }
-    var showQrScanner by remember { mutableStateOf(false) }
-
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color.White) {
-        if (showActivateCode) {
-            ActivateCodeDialog(
-                onDismiss = { showActivateCode = false },
-                onActivate = { code ->
-                    viewModel.activateCode(code)
-                    showActivateCode = false
-                    onDismiss()
-                }
-            )
-        } else if (showQrScanner) {
-            QrScannerView(
-                onCodeScanned = { code ->
-                    viewModel.importVless(code)
-                    showQrScanner = false
-                    onDismiss()
-                },
-                onClose = { showQrScanner = false }
-            )
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 48.dp, start = 24.dp, end = 24.dp, top = 8.dp)
-            ) {
-                Text(
-                    stringResource(R.string.title_import_method),
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFF0F172A)
-                    )
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    ImportMethodCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.QrCodeScanner,
-                        title = stringResource(R.string.method_qr),
-                        onClick = { showQrScanner = true }
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    ImportMethodCard(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Default.Link,
-                        title = stringResource(R.string.method_url),
-                        onClick = { /* TODO: Implement clipboard auto-paste or dialog */ }
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                ImportMethodCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.Default.ConfirmationNumber,
-                    title = stringResource(R.string.method_code),
-                    onClick = { showActivateCode = true }
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
@@ -864,71 +796,6 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
             modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).background(Color.Black.copy(alpha = 0.3f), CircleShape)
         ) {
             Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
-        }
-    }
-}
-
-@Composable
-fun ActivateCodeDialog(onDismiss: () -> Unit, onActivate: (String) -> Unit) {
-    var inputText by remember { mutableStateOf("") }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f))
-            .clickable { onDismiss() }
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = false) { }
-                .background(Color.White, RoundedCornerShape(32.dp))
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(stringResource(R.string.btn_activate_coupon), fontWeight = FontWeight.Black, fontSize = 20.sp)
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                placeholder = { Text("XXXX-XXXX-XXXX") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = { onActivate(inputText) },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain),
-                enabled = inputText.isNotBlank()
-            ) {
-                Text(stringResource(R.string.btn_activate), color = Color.White, fontWeight = FontWeight.Black)
-            }
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color.Gray)
-            }
-        }
-    }
-}
-
-@Composable
-fun ImportMethodCard(modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, onClick: () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-        modifier = modifier.height(100.dp).clickable { onClick() }
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(icon, contentDescription = null, tint = SwimBlueMain)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF475569), fontSize = 12.sp)
         }
     }
 }

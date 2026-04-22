@@ -89,6 +89,15 @@ otification-bot-service event handoff.
 - Re-test the rebuilt Android home screen on device:
   - selected server card click -> servers page
   - profile icon -> profile page
-  - floating `+` -> import/action sheet
+  - floating `+` -> unified import hub
 - Decide whether the home server card should eventually display real backend latency/load once the backend exposes those metrics explicitly.
-- Decide whether the home quick-action `+` should remain a sheet or evolve into a dedicated premium quick-actions surface later.
+
+## Import Flow Follow-up
+- Re-test on device that both entry points lead to the same experience:
+  - home `+` -> import hub
+  - profile management import row -> import hub
+- Confirm QR, paste, and manual input all:
+  - preserve raw config locally
+  - update the visible imported profile list
+  - attempt backend profile sync without throwing a blocking full-screen error
+- Decide later whether code activation should return as a separate approved product flow instead of a hidden generic import action.

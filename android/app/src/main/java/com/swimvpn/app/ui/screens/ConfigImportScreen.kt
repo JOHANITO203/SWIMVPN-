@@ -8,8 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +34,7 @@ fun ConfigImportScreen(
     configRepository: ConfigRepository,
     onBack: () -> Unit,
     onProfileSelected: (SwimVpnProfile) -> Unit = {},
+    onImportToProfile: (String) -> Unit = {},
     showToast: (String) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
@@ -75,7 +76,7 @@ fun ConfigImportScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "Imported Configurations",
+                        text = "Access Configurations",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -88,15 +89,6 @@ fun ConfigImportScreen(
                     containerColor = Color.Transparent
                 )
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showImportDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Import Configuration")
-            }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -137,7 +129,7 @@ fun ConfigImportScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "Use the + button to import a VPN configuration",
+                                    text = "Choose one of the methods below to import a VPN configuration",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -236,6 +228,35 @@ fun ConfigImportScreen(
                             }
                         }
                     }
+
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clickable {
+                                    showImportDialog = true
+                                },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Manual Input",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+                    }
                     
                     // Imported configurations section
                     if (importedProfiles.isNotEmpty()) {
@@ -307,6 +328,7 @@ fun ConfigImportScreen(
                             importedProfiles = configRepository.getAllProfiles()
                             @Suppress("UNUSED_VALUE")
                             showImportDialog = false
+                            onImportToProfile(text)
                             showToast("Configuration imported successfully")
                         }
                         is com.swimvpn.app.config.ImportResult.Error -> {
@@ -340,6 +362,7 @@ fun ConfigImportScreen(
                         when (val result = configRepository.importConfig(content)) {
                             is com.swimvpn.app.config.ImportResult.Success -> {
                                 importedProfiles = configRepository.getAllProfiles()
+                                onImportToProfile(content)
                                 onDismissClipboardSheet()
                                 showToast("Configuration imported from clipboard")
                             }
@@ -372,6 +395,7 @@ fun ConfigImportScreen(
                         when (val result = configRepository.importConfig(qrText)) {
                             is com.swimvpn.app.config.ImportResult.Success -> {
                                 importedProfiles = configRepository.getAllProfiles()
+                                onImportToProfile(qrText)
                                 onCloseQrScanner()
                                 showToast("Configuration imported from QR code")
                             }

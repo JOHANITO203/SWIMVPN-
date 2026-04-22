@@ -25,10 +25,9 @@
     <string name="upgrade_needed">Mise à niveau requise</string>
 
     <!-- Import Modal -->
-    <string name="import_title">ACTIVER L\'ACCÈS</string>
+    <string name="import_title">IMPORTER L\'ACCÈS</string>
     <string name="btn_scan_qr">SCANNER QR</string>
     <string name="btn_paste">COLLER</string>
-    <string name="btn_coupon">COUPON</string>
     <string name="btn_manual">MANUEL</string>
     <string name="label_quick_actions">ACTIONS RAPIDES</string>
     <string name="label_direct_input">ENTRÉE DIRECTE</string>
@@ -57,7 +56,7 @@
     <string name="menu_security">Sécurité du compte</string>
     <string name="menu_technical">Paramètres Techniques</string>
     <string name="menu_support">Support &amp; Aide</string>
-    <string name="btn_activate_coupon">ACTIVER UN COUPON</string>
+    <string name="menu_import_access">IMPORTER L\'ACCÈS</string>
     <string name="btn_retry">RÉESSAYER</string>
     <string name="menu_signout">Déconnexion</string>
 

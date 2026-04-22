@@ -230,7 +230,7 @@ fun ProfileScreen(
             Column {
                 ManagementRow(icon = Icons.Outlined.CreditCard, title = stringResource(R.string.menu_subscription), onClick = onNavigateToSubscription)
                 HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 24.dp))
-                ManagementRow(icon = Icons.Outlined.LocalOffer, title = stringResource(R.string.btn_activate_coupon), onClick = onNavigateToImport)
+                ManagementRow(icon = Icons.Outlined.LocalOffer, title = stringResource(R.string.menu_import_access), onClick = onNavigateToImport)
                 HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 24.dp))
                 ManagementRow(icon = Icons.Outlined.Settings, title = stringResource(R.string.menu_technical), onClick = onNavigateToTechnical)
                 HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 24.dp))

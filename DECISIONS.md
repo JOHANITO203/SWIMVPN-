@@ -143,3 +143,12 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Selected server is now represented as a premium card instead of a low-information text line.
   - The floating `+` action returns on the home screen as the quick access point for config import / QR / code actions.
   - Status badge and subtitle now reflect access truth and VPN runtime state more honestly.
+
+## [2026-04-22] [ConfigImportScreen Becomes The Single Import Hub]
+- **Decision**: Use `ConfigImportScreen` as the single Android entry point for access/config import actions, and stop driving the main UX through the legacy import bottom sheet.
+- **Why**: The repository already contains a richer config-first screen aligned with the product grammar (`ingest -> parse -> validate -> preview -> preserve raw config`). Keeping both the sheet and the screen as first-class flows created duplication and user confusion.
+- **Impact**:
+  - Home `+` and profile import actions now converge on the same screen.
+  - Coupon/code activation is removed from the main Android UX for now because it is not an active product partnership flow.
+  - Local config import stays primary, with backend profile sync attempted through the existing import endpoint when possible.
+  - Import sync failures no longer collapse the whole app into a blocking error state if the local import already succeeded.

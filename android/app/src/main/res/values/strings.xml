@@ -30,14 +30,12 @@
     <string name="label_upload">UPLOAD</string>
 
     <!-- Import Modal -->
-    <string name="import_title">ACTIVATE ACCESS</string>
-    <string name="title_import_method">CHOOSE METHOD</string>
+    <string name="import_title">IMPORT ACCESS</string>
+    <string name="title_import_method">CHOOSE IMPORT METHOD</string>
     <string name="method_qr">SCAN QR CODE</string>
     <string name="method_url">PASTE LINK</string>
-    <string name="method_code">REDEEM COUPON</string>
     <string name="btn_scan_qr">SCAN QR</string>
     <string name="btn_paste">PASTE</string>
-    <string name="btn_coupon">COUPON</string>
     <string name="btn_manual">MANUAL</string>
     <string name="label_quick_actions">QUICK ACTIONS</string>
     <string name="label_direct_input">DIRECT INPUT</string>
@@ -66,7 +64,7 @@
     <string name="menu_security">Account Security</string>
     <string name="menu_technical">Technical Settings</string>
     <string name="menu_support">Help &amp; Support</string>
-    <string name="btn_activate_coupon">ACTIVATE COUPON</string>
+    <string name="menu_import_access">IMPORT ACCESS</string>
     <string name="btn_retry">RETRY</string>
     <string name="menu_signout">Sign Out</string>
 

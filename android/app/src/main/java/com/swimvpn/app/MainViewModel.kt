@@ -230,10 +230,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun importVless(url: String) {
         viewModelScope.launch {
+            val currentState = _state.value as? AppState.Success ?: return@launch
             try {
-                val currentState = _state.value as? AppState.Success ?: return@launch
-                _state.value = AppState.Loading
-
                 val updatedProfile = api.importSubscription(
                     ImportSubscriptionRequest(
                         userNumber = currentState.profile.userNumber,
@@ -242,10 +240,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 _state.value = currentState.copy(profile = updatedProfile)
-                _effect.emit(AppSideEffect.ShowToast("Configuration imported successfully"))
             } catch (e: Exception) {
-                _state.value = AppState.Error("Import failed: ${e.localizedMessage}")
-                _effect.emit(AppSideEffect.ShowToast("Import failed"))
+                Log.e("MainViewModel", "Import failed", e)
+                _state.value = currentState
+                _effect.emit(AppSideEffect.ShowToast("Configuration imported locally, but profile sync failed"))
             }
         }
     }
