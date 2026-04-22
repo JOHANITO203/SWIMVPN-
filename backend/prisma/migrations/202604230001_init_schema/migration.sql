@@ -187,4 +187,3 @@ ALTER TABLE "AdminSession" ADD CONSTRAINT "AdminSession_admin_id_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "AdminEvent" ADD CONSTRAINT "AdminEvent_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "Admin"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
