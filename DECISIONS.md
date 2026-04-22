@@ -46,3 +46,31 @@
 - **Why**: Prevents race conditions and avoids migration logic duplication across runtime services.
 - **Impact**: App services are gated by migration completion using depends_on: service_completed_successfully.
 
+
+## [2026-04-22] [Add notification-bot-service as Controlled Utility Service]
+- **Decision**: Implement post-purchase delivery as a new isolated microservice (
+otification-bot-service) instead of extending dmin-control-service.
+- **Why**: Keeps responsibilities narrow (Telegram + email delivery only), avoids coupling admin auth/control concerns with delivery operations, and remains easy to plug into current flow.
+- **Impact**: Backend keeps core 6 services plus one utility service justified by explicit MVP delivery requirements.
+
+## [2026-04-22] [Dedicated Notification Bot Token Optionality]
+- **Decision**: Use NOTIFICATION_BOT_TOKEN (optional) for command polling to avoid collision with existing admin bot polling token; fallback sender can still use TELEGRAM_BOT_TOKEN for outbound notifications.
+- **Why**: Running two pollers on the same Telegram token is unstable.
+- **Impact**: Reliable command mode when dedicated token is provided; deterministic notification sending remains available without it.
+
+
+## [2026-04-22] [Admin Support Bot Embedded in admin-control-service]
+- **Decision**: Implement the admin support bot as a focused deterministic module/service inside dmin-control-service for MVP.
+- **Why**: Smallest viable change with least operational overhead; reuses existing admin Telegram context while keeping strict non-LLM menu-based behavior.
+- **Impact**: No additional standalone support microservice needed now; escalation handling is operational with static RU/EN templates and support-group relay.
+
+## [2026-04-22] [Use Resend as Notification Mail Provider]
+- **Decision**: Replace SMTP transport in 
+otification-bot-service with Resend API for transactional delivery emails.
+- **Why**: Lower operational overhead, simpler deterministic integration, and cleaner production setup with one API key.
+- **Impact**: Email sending now depends on RESEND_API_KEY; sender identity is controlled by MAILER_FROM_EMAIL and MAILER_FROM_NAME.
+
+## [2026-04-22] [Explicit Admin JWT Secret]
+- **Decision**: Introduce ADMIN_JWT_SECRET as a distinct required secret for dmin-control-service JWT signing.
+- **Why**: Removes hardcoded fallback and separates admin token scope from generic service JWT usage.
+- **Impact**: Deployment env must include ADMIN_JWT_SECRET (while JWT_SECRET remains required for other services).

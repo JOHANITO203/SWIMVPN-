@@ -12,6 +12,7 @@ export class InventoryService {
     private readonly prisma: PrismaService,
     @Inject('VPN_CONFIG_SERVICE') private readonly vpnClient: ClientProxy,
     @Inject('ADMIN_SERVICE') private readonly adminClient: ClientProxy,
+    @Inject('NOTIFICATION_SERVICE') private readonly notificationClient: ClientProxy,
   ) {}
 
   async importConfigs(data: ImportConfigsDto) {
@@ -49,7 +50,7 @@ export class InventoryService {
       // 1. Get order details
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        include: { plan: true },
+        include: { plan: true, customer: true },
       });
 
       if (!order || (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAID)) {
@@ -115,6 +116,21 @@ export class InventoryService {
       });
 
       this.checkStockAndNotify(tx, order.plan.code);
+
+      const shouldSendPostPurchaseDelivery =
+        order.status === OrderStatus.PAID || order.paid_at !== null || !!order.payment_ref;
+
+      if (shouldSendPostPurchaseDelivery && order.customer?.email) {
+        this.notificationClient.emit('process_post_purchase_delivery', {
+          orderRef: updatedOrder.order_ref,
+          customerEmail: order.customer.email,
+          customerPhone: order.customer.phone || undefined,
+          planCode: order.plan.code,
+          planLabel: order.plan.name,
+          vpnLink: inventoryItem.raw_config,
+          expiryLabel: order.plan.duration_label,
+        });
+      }
 
       return { success: true, orderId: updatedOrder.id, itemProtocol: inventoryItem.display_protocol };
     });

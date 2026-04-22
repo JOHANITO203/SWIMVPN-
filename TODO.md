@@ -26,3 +26,30 @@
 - Add deeper admin session hardening (token rotation / refresh flow) when moving beyond minimal MVP compliance.
 - Add integration tests for order paid->fulfilled path and session-bound admin auth flow.
 
+
+## Notification Bot Next Steps
+- Add pre-expiry reminder workflow (quota/offer reminder) in a separate scheduler-safe batch.
+- Add explicit delivery history endpoint contract for admin panel consumption.
+- Add integration tests for inventory-delivery-service -> 
+otification-bot-service event handoff.
+
+
+## Admin Support Bot Next Steps
+- Persist support escalation tickets in PostgreSQL (support_cases) when this scope is approved.
+- Add admin command handlers for /order, /resend, /status, /help in support-bot context (currently only guided customer escalation flow is implemented).
+- Add optional callback actions in admin group (mark delivered, copy VPN link) when linked to finalized support-case storage.
+- Add integration tests covering Telegram callback flow and support-group relay failure paths.
+
+## Secrets Follow-up
+- Provide real RESEND_API_KEY in root .env and ackend/.env before enabling delivery emails in production.
+- Verify sender domain/email (support@swimvpn.pro) is validated in Resend account.
+- Rotate previously exposed Telegram bot token and keep only regenerated token in non-versioned .env files.
+
+## Env Provisioning
+- Provide real values for placeholders in `/.env` and `/backend/.env`:
+  - `TRAEFIK_DASHBOARD_AUTH`
+  - `TELEGRAM_BOT_TOKEN`
+  - `NOTIFICATION_BOT_TOKEN` (or leave empty intentionally)
+  - `ADMIN_CHAT_ID`
+  - `ADMIN_SUPPORT_BOT_TOKEN`
+  - `RESEND_API_KEY`

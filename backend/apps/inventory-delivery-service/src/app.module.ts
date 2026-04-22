@@ -24,6 +24,14 @@ import { InventoryService } from './inventory.service';
           port: 3003
         },
       },
+      {
+        name: 'NOTIFICATION_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.NOTIFICATION_SERVICE_HOST || '127.0.0.1',
+          port: 3006,
+        },
+      },
     ]),
   ],
   controllers: [InventoryController],

@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/apps/gateway-service/main",
-    "start:all": "concurrently \"npm run start:dev gateway-service\" \"npm run start:dev customer-order-service\" \"npm run start:dev inventory-delivery-service\" \"npm run start:dev admin-control-service\" \"npm run start:dev vpn-config-engine-service\" \"npm run start:dev store-engine-service\"",
+    "start:all": "concurrently \"npm run start:dev gateway-service\" \"npm run start:dev customer-order-service\" \"npm run start:dev inventory-delivery-service\" \"npm run start:dev admin-control-service\" \"npm run start:dev vpn-config-engine-service\" \"npm run start:dev store-engine-service\" \"npm run start:dev notification-bot-service\"",
     "lint": "tsc --noEmit"
   },
   "prisma": {
@@ -28,6 +28,7 @@
     "bcryptjs": "^2.4.3",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",
+    "resend": "^4.5.0",
     "@prisma/client": "^5.8.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",

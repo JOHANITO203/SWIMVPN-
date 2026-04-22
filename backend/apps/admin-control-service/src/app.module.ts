@@ -6,6 +6,7 @@ import { DatabaseModule } from '@app/database';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { AdminBotService } from './admin-bot.service';
+import { AdminSupportBotService } from './admin-support-bot.service';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { AdminBotService } from './admin-bot.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get('JWT_SECRET', 'SWIM_VPN_SUPER_SECRET'),
+        secret: config.get('ADMIN_JWT_SECRET') || config.get('JWT_SECRET'),
         signOptions: { expiresIn: '7d' },
       }),
     }),
@@ -50,6 +51,6 @@ import { AdminBotService } from './admin-bot.service';
     ]),
   ],
   controllers: [AdminController],
-  providers: [AdminService, AdminBotService],
+  providers: [AdminService, AdminBotService, AdminSupportBotService],
 })
 export class AppModule {}

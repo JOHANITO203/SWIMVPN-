@@ -137,3 +137,82 @@ pm run build PASSED.
     - Root compose syntax: docker compose config PASSED with required env variables set.
     - Port exposure check: only 80/443 are published in compose.
 
+
+## [2026-04-22] [notification-bot-service MVP Utility]
+- **Status**: DONE
+- **Changes**:
+    - Created new isolated microservice 
+otification-bot-service (TCP 3006) for deterministic post-purchase delivery only.
+    - Implemented Telegram admin notifications with structured order data and delivery action buttons.
+    - Implemented SMTP transactional email sender (from SWIMVPN+ Support <support@swimvpn.pro>) with static RU/EN templates.
+    - Added language fallback logic: default RU, fallback EN, optional payload language override.
+    - Added TCP handlers: process_post_purchase_delivery, esend_delivery_email, get_delivery_status.
+    - Added Telegram admin commands: /order, /status, /resend, /help (enabled via optional NOTIFICATION_BOT_TOKEN).
+    - Integrated inventory-delivery-service to emit post-purchase delivery payload for paid orders.
+    - Added service documentation with example payloads and resend-ready notes.
+    - Added minimal template test script and verified it passes.
+    - Added compose/env wiring for 
+otification-bot-service and SMTP requirements.
+- **Verification**:
+    - ackend: 
+pm run lint PASSED.
+    - ackend: 
+pm run build PASSED.
+    - Template test: 
+px ts-node apps/notification-bot-service/src/__tests__/template.spec.ts PASSED.
+    - Root compose render: docker compose config PASSED with required env values.
+
+
+## [2026-04-22] [Admin Support Bot (Deterministic Telegram) MVP Batch]
+- **Status**: DONE
+- **Changes**:
+    - Added deterministic admin support bot inside dmin-control-service (no LLM, no freeform AI chat).
+    - Implemented RU default + EN fallback topic menu with static guided replies for 7 required support topics.
+    - Implemented escalation flow: unresolved/support buttons -> one short user message -> relay to support group ADMIN_SUPPORT_CHAT_ID.
+    - Added escalation ticket id generation and clear admin relay formatter (topic, message, timestamp, language, optional email/phone/orderRef, Telegram identifiers).
+    - Added in-memory anti-spam guard for escalation submissions.
+    - Added minimal tests for formatter, language resolution, optional field extraction, and ticket id format.
+    - Updated root and backend env examples with ADMIN_SUPPORT_* variables.
+    - Corrected backend compose local wiring so ADMIN_SUPPORT_* variables are bound to dmin-control-service (not gateway).
+- **Verification**:
+    - ackend: 
+pm run lint PASSED.
+    - ackend: 
+pm run build PASSED.
+    - ackend: 
+px ts-node apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts PASSED.
+    - Root compose render: docker compose config PASSED with required env variables set.
+    - Backend compose render: docker compose config PASSED.
+
+## [2026-04-22] [Secrets Hardening + Resend Mail Transport]
+- **Status**: DONE
+- **Changes**:
+    - Removed remaining secret hardcodes from ackend/docker-compose.yml (POSTGRES_*, JWT_SECRET, admin auth secrets).
+    - Added explicit ADMIN_JWT_SECRET wiring to dmin-control-service and removed fallback hardcoded JWT secret from app module.
+    - Migrated 
+otification-bot-service email sender from SMTP (
+odemailer) to Resend API (esend).
+    - Added Resend runtime env contract: RESEND_API_KEY, MAILER_FROM_EMAIL, MAILER_FROM_NAME.
+    - Updated root/backend .env.example files accordingly.
+    - Updated notification service README environment contract to Resend.
+- **Verification**:
+    - ackend: 
+pm run lint PASSED.
+    - ackend: 
+pm run build PASSED.
+    - Root compose render: docker compose config PASSED with required env values.
+    - Backend compose render: docker compose config PASSED with required env values.
+
+## [2026-04-22] [Env Files Full Regeneration Without Code Changes]
+- **Status**: DONE
+- **Changes**:
+    - Fully regenerated `/.env` and `/backend/.env` from current runtime contract.
+    - Preserved required support-bot constants:
+      - `ADMIN_SUPPORT_CHAT_ID=-1003912107958`
+      - `ADMIN_SUPPORT_DEFAULT_LANGUAGE=ru`
+      - `ADMIN_SUPPORT_FALLBACK_LANGUAGE=en`
+    - Generated fresh strong values for `POSTGRES_PASSWORD`, `JWT_SECRET`, and `ADMIN_JWT_SECRET`.
+    - Replaced Telegram/Resend/chat fields with explicit placeholders to avoid reusing compromised values.
+- **Verification**:
+    - Read back both env files and confirmed key presence/structure.
+    - No application source code files were modified.
