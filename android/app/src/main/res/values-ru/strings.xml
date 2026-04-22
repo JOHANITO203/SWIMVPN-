@@ -78,6 +78,11 @@
     <string name="btn_retry">ПОВТОРИТЬ</string>
     <string name="menu_signout">Выйти</string>
     <string name="profile_trial_badge">ПРОБНЫЙ ПЕРИОД 3 ДНЯ</string>
+
+    <string name="err_bootstrap_failed">Ошибка загрузки профиля. Проверьте соединение.</string>
+    <string name="err_server_maintenance">Техработы на сервере (HTTP %1$d). Повторите позже.</string>
+    <string name="err_network_timeout">Превышено время ожидания. Проверьте интернет.</string>
+
     <string name="profile_trial_id_label">ВАШ ID SWIMVPN+</string>
     <string name="profile_trial_description">Заполните профиль, чтобы активировать пробный период на 3 дня. Мы используем ваше устройство, email и телефон для защиты от злоупотреблений.</string>
     <string name="profile_email_label">Email</string>

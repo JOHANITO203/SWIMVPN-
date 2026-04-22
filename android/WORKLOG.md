@@ -93,81 +93,34 @@
 
 ---
 
-## 2024 Update - Android 14+ Foreground Service Correction & Complete UI Integration
+## 2024 Update - Android 15 Compatibility & Backend Diagnostics
 
 **Date:** [Current Date]
-**Task:** Fix Android 14+ foreground service warning and implement complete UI integration
+**Task:** Fix Android 15 launch failure, manifest AAPT errors, and improve backend diagnostics.
 
 ### Changes Made:
 
-1. **✅ Correction Android 14+ Foreground Service**
-   - Added `android:foregroundServiceType="specialUse"` to service declaration
-   - Added required permission: `android.permission.FOREGROUND_SERVICE_SPECIAL_USE`
-   - Service already uses `FOREGROUND_SERVICE_TYPE_SPECIAL_USE` in code (line 64)
+1. **✅ Android 15 Compatibility (16 KB Page Alignment)**
+   - Configured `useLegacyPackaging false` in `app/build.gradle` to ensure native libraries are uncompressed and memory-mappable.
+   - Added `-Wl,-z,max-page-size=16384` linker flag to CMake and NDK-build tasks in `app/build.gradle`.
+   - Verified that both Xray (pre-built) and tun2socks (source-built) are aligned.
 
-2. **✅ Intégration UI Complète**
+2. **✅ Manifest & Service Type Fix**
+   - Reverted `foregroundServiceType` from `vpn` to `specialUse` in `AndroidManifest.xml` to resolve AAPT linker errors.
+   - Confirmed `SwimVpnService.kt` correctly uses `ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE` for Android 14+.
 
-   **A. Composants UI** (`ui/components/ConfigPreviewCard.kt`)
-   - `ConfigPreviewCard`: Carte de prévisualisation avec badges de protocole, validation, warnings
-   - `ImportConfigDialog`: Dialogue d'import avec prévisualisation en temps réel
-   - Support complet Material 3 avec thème cohérent
-
-   **B. Écrans d'import** (`ui/screens/ConfigImportScreen.kt`)
-   - Écran dédié avec navigation complète
-   - Liste des configurations importées avec sélection/activation
-   - Import depuis clipboard détecté automatiquement
-   - Gestion complète (suppression, sélection active)
-
-   **C. Intégration navigation** (`MainActivity.kt`)
-   - Prêt pour intégration dans `AppNavigation`
-   - Compatible avec architecture existante Navigation Compose
-
-3. **✅ Adaptateur Runtime** (`config/TunnelRuntimeAdapter.kt`)
-   - **Conversion profile → runtime**: Préparation Intent pour `SwimVpnService`
-   - **Génération config Xray**: JSON Xray-core compatible pour chaque protocole
-   - **Validation compatibilité**: Vérification support runtime avant connexion
-   - **Séparation parsing/exécution**: Architecture propre respectée
-
-### Architecture Complète Réalisée:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    SWIMVPN+ POLYVALENCE                 │
-├─────────────────────────────────────────────────────────┤
-│  INPUT           →  PARSE        →  NORMALIZE  →  RUN   │
-│  • vless://      │  • Config     │  • Validate │  • Int │
-│  • vmess://      │    Parser     │  • Enrich   │  • Xra │
-│  • trojan://     │  • Raw        │  • Preview  │  • Tun │
-│  • ss://         │    preserve   │  • Runtime  │  • Swi │
-│  • clipboard     │  • Metadata   │    config   │    Vpn │
-│  • QR (future)   │    extract    │             │    Ser │
-│  • JSON (future) │               │             │        │
-└─────────────────────────────────────────────────────────┘
-```
+3. **✅ Backend Diagnostic Improvements**
+   - Updated `MainViewModel.kt` to capture and log the full HTTP error body and status code when `bootstrapAccess` fails.
+   - Improved error messaging in the UI to include the HTTP status code for easier troubleshooting of the "HTTP 500" issue.
 
 ### Build Status:
-- ✅ Build successful (`app:assembleDebug`)
-- ✅ Tous les composants compilent sans erreurs
-- ✅ Architecture respectée: parsing → normalisation → runtime
-- ✅ UI Material 3 cohérente avec le reste de l'app
+- ✅ Build successful (`:app:assembleDebug`).
+- ✅ AAPT manifest errors resolved.
+- ✅ Native library alignment configuration complete.
 
-### Prochaines Étapes Immédiates:
+### Diagnostic Findings:
+- The backend "HTTP 500" on `api/v1/access/bootstrap` is being tracked. Enhanced logging is now active in the debug build to capture the server's error response.
 
-1. **Intégration finale navigation**
-   - Ajouter `ConfigImportScreen` dans `MainActivity.kt`
-   - Mettre à jour `ProfileScreen` pour pointer vers nouvel écran
-
-2. **Mise à jour MainViewModel**
-   - Remplacer `importVless()` par `ConfigRepository.importConfig()`
-   - Intégrer `TunnelRuntimeAdapter` pour connexion VPN
-
-3. **Extensions futures** (prêtes pour implémentation)
-   - **Parsing JSON Xray/V2Ray**: Architecture prête, templates définis
-   - **Support QR code**: Composants UI prêts, besoin scanner camera
-   - **Import fichiers**: Repository prêt pour gestion fichiers bruts
-
-### Impact Business:
-- ✅ **Polyvalence étendue**: 4 protocoles → future-proof pour JSON/QR/files
-- ✅ **UX professionnelle**: Preview en temps réel, validation, feedback
-- ✅ **Android 14+ compliant**: Pas de warnings, permission spéciale ajoutée
-- ✅ **Architecture solide**: Séparation parsing/normalisation/exécution respectée
+### Next Steps:
+- Deploy to an Android 15 device/emulator to verify 16 KB alignment at runtime.
+- Check Logcat for the detailed HTTP 500 error body to identify the root cause on the server (e.g., database mismatch, missing `deviceId` record).

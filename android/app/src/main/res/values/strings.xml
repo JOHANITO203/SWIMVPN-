@@ -86,6 +86,11 @@
     <string name="btn_retry">RETRY</string>
     <string name="menu_signout">Sign Out</string>
     <string name="profile_trial_badge">TRIAL 3 DAYS</string>
+
+    <string name="err_bootstrap_failed">Failed to load your profile. Check your connection.</string>
+    <string name="err_server_maintenance">Server maintenance (HTTP %1$d). Please retry later.</string>
+    <string name="err_network_timeout">Network timeout. Please check your internet.</string>
+
     <string name="profile_trial_id_label">YOUR SWIMVPN+ ID</string>
     <string name="profile_trial_description">Complete your profile to unlock the 3-day trial. We use your device, email, and phone to prevent abuse.</string>
     <string name="profile_email_label">Email</string>

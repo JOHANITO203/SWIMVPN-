@@ -143,6 +143,8 @@ otification-bot-service event handoff.
   - paid active
   - expired
   - profile incomplete
+- [FIXED] Updated `MainViewModel.kt` to handle HTTP 500 and network timeouts with localized error messages.
+- [INVESTIGATED] HTTP 500 on `bootstrap` is likely due to `backend/.env` using `localhost` for `DATABASE_URL` instead of `db` (when running in Docker), or missing `npx prisma db seed` on the server.
 
 ## Prisma / Production Follow-up
 - Apply the new Prisma production rollout on the real deployment target:

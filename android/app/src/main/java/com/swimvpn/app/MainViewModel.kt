@@ -85,19 +85,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val isOnboardingDone = prefs.onboardingDoneFlow.first()
                 val routingMode = prefs.runtimeModeFlow.first()
                 val autoConnect = prefs.autoConnectFlow.first()
+                val deviceId = getDeviceId()
                 val language = prefs.languageFlow.first()
                 val themeMode = prefs.themeModeFlow.first()
+
+                Log.d("MainViewModel", "Bootstrapping with deviceId: $deviceId, locale: $language")
 
                 val bootstrap = try {
                     api.bootstrapAccess(
                         BootstrapAccessRequest(
-                            deviceId = getDeviceId(),
+                            deviceId = deviceId,
                             locale = language,
                         )
                     )
+                } catch (e: retrofit2.HttpException) {
+                    val errorBody = e.response()?.errorBody()?.string()
+                    Log.e("MainViewModel", "HTTP ${e.code()} bootstrapping access: $errorBody", e)
+                    val msg = if (e.code() >= 500) {
+                        getApplication<Application>().getString(R.string.err_server_maintenance, e.code())
+                    } else {
+                        getApplication<Application>().getString(R.string.err_bootstrap_failed)
+                    }
+                    _state.value = AppState.Error(msg)
+                    return@launch
+                } catch (e: java.net.SocketTimeoutException) {
+                    Log.e("MainViewModel", "Timeout bootstrapping access", e)
+                    _state.value = AppState.Error(getApplication<Application>().getString(R.string.err_network_timeout))
+                    return@launch
                 } catch (e: Exception) {
                     Log.e("MainViewModel", "API Error bootstrapping access", e)
-                    _state.value = AppState.Error("Impossible de charger votre profil. Verifiez votre connexion et reessayez.")
+                    _state.value = AppState.Error(getApplication<Application>().getString(R.string.err_bootstrap_failed))
                     return@launch
                 }
 
