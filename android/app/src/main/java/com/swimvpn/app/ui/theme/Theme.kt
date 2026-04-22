@@ -17,6 +17,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 
+object AppThemePreference {
+    const val SYSTEM = "SYSTEM"
+    const val LIGHT = "LIGHT"
+    const val DARK = "DARK"
+}
+
 // --- COLORS ---
 val SwimBlueMain = Color(0xFF4A9ED7) // Bleu du corps du requin
 val SwimBlueFace = Color(0xFFA6D8F0) // Bleu clair du visage

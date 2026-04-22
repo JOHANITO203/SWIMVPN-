@@ -1,5 +1,26 @@
 # DECISIONS
 
+## [2026-04-22] [Expose Only Runtime Modes That Actually Exist]
+- **Decision**: In the first VPN core batch, expose only `FULL_TUNNEL` as an honest supported runtime mode in the Android app UI.
+- **Why**: The repository already had a persisted `PROXY` preference in settings, but no real proxy runtime behind it. Leaving it visible would continue to mislead the user about what the app can actually execute.
+- **Impact**:
+  - `TechnicalSettingsScreen` now presents only the truthful full-tunnel runtime for this batch.
+  - `LOCAL_PROXY` and `SPLIT_TUNNEL` stay in the typed runtime contract for future phases but are not marketed as active capabilities yet.
+
+## [2026-04-22] [Use The Existing Config Pipeline As The Mandatory Runtime Entry]
+- **Decision**: Route VPN startup through the existing config handling pipeline (`parse -> normalize -> validate -> prepare runtime payload`) before establishing the Android tunnel state.
+- **Why**: Source-of-truth requires that raw VPN config handling be treated as a real ingest/normalize/runtime-preparation flow, not as vague “decryption” or direct string pass-through.
+- **Impact**:
+  - `SwimVpnService` now validates the raw config before marking runtime as ready.
+  - The app is better positioned for future native `Xray-core / tun2socks` integration without rewriting the config path.
+
+## [2026-04-22] [Technical Settings Must Be Honest About Android System Responsibilities]
+- **Decision**: Treat `Kill Switch` as an Android-system-managed capability in the current app surface and present it as a settings shortcut rather than a fake in-app toggle.
+- **Why**: The previous switch visually implied app-controlled kill-switch behavior that did not exist.
+- **Impact**:
+  - The technical screen no longer lies about kill-switch state.
+  - Future always-on / lockdown integration can attach to a truthful UI contract instead of replacing a false one.
+
 ## [2026-04-20] [Shared Prisma Schema for Microservices]
 - **Decision**: Use a single unified `schema.prisma` inside `libs/database`.
 - **Why**: Ensures rapid MVP development and strict referential integrity.

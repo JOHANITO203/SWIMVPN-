@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.swimvpn.app.vpn.RuntimeMode
+import com.swimvpn.app.vpn.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -17,9 +19,10 @@ class PreferencesManager(private val context: Context) {
         val ONBOARDING_DONE_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("onboarding_done")
         
         // Technical Settings
-        val ROUTING_MODE_KEY = stringPreferencesKey("routing_mode") // "TUNNEL" or "PROXY"
+        val ROUTING_MODE_KEY = stringPreferencesKey("routing_mode")
         val AUTO_CONNECT_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("auto_connect")
         val LANGUAGE_KEY = stringPreferencesKey("language") // "en", "fr", "ru"
+        val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SELECTED_SERVER_ID_KEY = stringPreferencesKey("selected_server_id")
     }
 
@@ -29,14 +32,26 @@ class PreferencesManager(private val context: Context) {
     val onboardingDoneFlow: Flow<Boolean> = context.dataStore.data
         .map { preferences -> preferences[ONBOARDING_DONE_KEY] ?: false }
 
-    val routingModeFlow: Flow<String> = context.dataStore.data
-        .map { preferences -> preferences[ROUTING_MODE_KEY] ?: "TUNNEL" }
+    val runtimeModeFlow: Flow<RuntimeMode> = context.dataStore.data
+        .map { preferences ->
+            when (preferences[ROUTING_MODE_KEY]) {
+                "TUNNEL" -> RuntimeMode.FULL_TUNNEL
+                "PROXY" -> RuntimeMode.LOCAL_PROXY
+                else -> RuntimeMode.fromPersisted(preferences[ROUTING_MODE_KEY])
+            }
+        }
+
+    val routingModeFlow: Flow<String> = runtimeModeFlow
+        .map { it.name }
 
     val autoConnectFlow: Flow<Boolean> = context.dataStore.data
         .map { preferences -> preferences[AUTO_CONNECT_KEY] ?: false }
 
     val languageFlow: Flow<String> = context.dataStore.data
         .map { preferences -> preferences[LANGUAGE_KEY] ?: "en" }
+
+    val themeModeFlow: Flow<ThemeMode> = context.dataStore.data
+        .map { preferences -> ThemeMode.fromPersisted(preferences[THEME_MODE_KEY]) }
 
     val selectedServerIdFlow: Flow<String?> = context.dataStore.data
         .map { preferences -> preferences[SELECTED_SERVER_ID_KEY] }
@@ -49,8 +64,17 @@ class PreferencesManager(private val context: Context) {
         context.dataStore.edit { preferences -> preferences[ONBOARDING_DONE_KEY] = done }
     }
 
+    suspend fun setRuntimeMode(mode: RuntimeMode) {
+        context.dataStore.edit { preferences -> preferences[ROUTING_MODE_KEY] = mode.name }
+    }
+
     suspend fun setRoutingMode(mode: String) {
-        context.dataStore.edit { preferences -> preferences[ROUTING_MODE_KEY] = mode }
+        val runtimeMode = when (mode) {
+            "TUNNEL" -> RuntimeMode.FULL_TUNNEL
+            "PROXY" -> RuntimeMode.LOCAL_PROXY
+            else -> RuntimeMode.fromPersisted(mode)
+        }
+        setRuntimeMode(runtimeMode)
     }
 
     suspend fun setAutoConnect(enabled: Boolean) {
@@ -59,6 +83,10 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setLanguage(lang: String) {
         context.dataStore.edit { preferences -> preferences[LANGUAGE_KEY] = lang }
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { preferences -> preferences[THEME_MODE_KEY] = mode.name }
     }
 
     suspend fun setSelectedServerId(serverId: String?) {

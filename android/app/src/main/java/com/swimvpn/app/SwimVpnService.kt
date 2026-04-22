@@ -1,6 +1,5 @@
 package com.swimvpn.app
 
-import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -13,9 +12,17 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.swimvpn.app.config.SourceType
+import com.swimvpn.app.config.TunnelRuntimeAdapter
+import com.swimvpn.app.vpn.RuntimeMode
+import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.VpnManager
-import com.swimvpn.app.vpn.VpnState
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class SwimVpnService : VpnService() {
 
@@ -23,8 +30,8 @@ class SwimVpnService : VpnService() {
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
 
-    private val CHANNEL_ID = "swim_vpn_status"
-    private val NOTIFICATION_ID = 1
+    private val channelId = "swim_vpn_status"
+    private val notificationId = 1
 
     companion object {
         const val ACTION_START = "com.swimvpn.app.START_VPN"
@@ -36,177 +43,190 @@ class SwimVpnService : VpnService() {
         const val EXTRA_URL = "SUBSCRIPTION_URL"
         const val EXTRA_DATA_LIMIT = "DATA_LIMIT_BYTES"
         const val EXTRA_DATA_USED = "DATA_USED_BYTES"
+        const val EXTRA_RUNTIME_MODE = "RUNTIME_MODE"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action
-
         createNotificationChannel()
 
-        when (action) {
+        when (intent?.action) {
             ACTION_START -> {
                 val host = intent.getStringExtra(EXTRA_SERVER_HOST) ?: "unknown"
                 val port = intent.getIntExtra(EXTRA_SERVER_PORT, 443)
-                val limit = intent.getLongExtra(EXTRA_DATA_LIMIT, -1L)
-                val used = intent.getLongExtra(EXTRA_DATA_USED, 0L)
-                
-                // Start as Foreground Service
-                val notification = createNotification("Connecting to $host...")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    // Android 14+ requires FOREGROUND_SERVICE_TYPE_SPECIAL_USE for VPN
-                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    // Android 10-13: startForeground with just notification
-                    startForeground(NOTIFICATION_ID, notification)
-                } else {
-                    // Pre-Android 10
-                    startForeground(NOTIFICATION_ID, notification)
-                }
+                val requestedMode = RuntimeMode.fromPersisted(intent.getStringExtra(EXTRA_RUNTIME_MODE))
 
-                startVpn(host, port, limit, used)
+                startAsForeground("Preparing tunnel to $host...")
+                startVpn(
+                    host = host,
+                    port = port,
+                    requestedMode = requestedMode,
+                    rawConfig = intent.getStringExtra(EXTRA_URL),
+                )
             }
-            ACTION_STOP -> {
-                stopVpn()
-            }
+
+            ACTION_STOP -> stopVpn()
         }
 
         return START_NOT_STICKY
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "VPN Status"
-            val descriptionText = "Shows when VPN is active"
-            val importance = NotificationManager.IMPORTANCE_LOW
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            val notificationManager: NotificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+    private fun startAsForeground(content: String) {
+        val notification = createNotification(content)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                notificationId,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+            )
+        } else {
+            startForeground(notificationId, notification)
         }
     }
 
-    private fun createNotification(content: String): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("SWIMVPN+")
-            .setContentText(content)
-            .setSmallIcon(R.drawable.swimvpn_logo) // Assuming this exists from previous steps
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .build()
-    }
-
-    private fun updateNotification(content: String) {
-        // Check notification permission for Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                Log.w("SwimVpnService", "Notification permission not granted, skipping notification update")
-                return
-            }
-        }
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, createNotification(content))
-    }
-
-    private fun startVpn(host: String, port: Int, limit: Long, initialUsed: Long) {
-        if (VpnManager.state.value == VpnState.CONNECTED || VpnManager.state.value == VpnState.CONNECTING) {
+    private fun startVpn(
+        host: String,
+        port: Int,
+        requestedMode: RuntimeMode,
+        rawConfig: String?,
+    ) {
+        if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING ||
+            VpnManager.runtimeStatus.value == RuntimeStatus.STARTING
+        ) {
             return
         }
 
-        VpnManager.updateState(VpnState.CONNECTING)
+        VpnManager.setRuntimeMode(requestedMode)
+        VpnManager.resetUsage()
+        VpnManager.clearError()
+        VpnManager.updateRuntimeStatus(RuntimeStatus.STARTING)
 
         serviceScope.launch {
             try {
-                // 1. Initialiser l'interface TUN d'Android
-                val builder = Builder()
-                    .setSession("SWIMVPN+ ($host)")
+                if (requestedMode != RuntimeMode.FULL_TUNNEL) {
+                    throw IllegalStateException("Runtime mode $requestedMode is not available yet")
+                }
+
+                val runtime = rawConfig?.takeIf { it.isNotBlank() }?.let {
+                    TunnelRuntimeAdapter.prepareRuntimeFromRawConfig(
+                        rawConfig = it,
+                        sourceType = SourceType.BACKEND_API,
+                    ).getOrElse { error ->
+                        throw IllegalStateException(
+                            "Invalid runtime config: ${error.localizedMessage}",
+                            error,
+                        )
+                    }
+                } ?: throw IllegalStateException("Missing runtime config for VPN session")
+
+                vpnInterface = Builder()
+                    .setSession("SWIMVPN+ (${runtime.profile.displayName})")
                     .addAddress("10.0.0.2", 24)
-                    .addRoute("0.0.0.0", 0) // Route tout le trafic IPv4
+                    .addRoute("0.0.0.0", 0)
                     .addDnsServer("8.8.8.8")
                     .addDnsServer("1.1.1.1")
                     .setMtu(1500)
-
-                // 2. Établir l'interface (Fait apparaître la clé VPN dans la barre d'état)
-                vpnInterface = builder.establish()
+                    .establish()
 
                 if (vpnInterface == null) {
-                    VpnManager.setError("Failed to establish VPN interface. Permission missing?")
-                    stopSelf()
-                    return@launch
+                    throw IllegalStateException("Failed to establish VPN interface. Permission missing?")
                 }
 
-                // 3. Simuler le temps de connexion au serveur distant
-                delay(2500) // Un peu plus long pour faire réaliste
+                VpnManager.markStarted()
+                delay(350)
+                VpnManager.markHandshake()
+                VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
+                updateNotification("Tunnel ready: ${runtime.profile.displayName}")
 
-                // RANDOM ERROR SIMULATION (10% of the time for testing UX)
-                if (System.currentTimeMillis() % 10 == 0L) {
-                    throw Exception("Remote server refused connection (Handshake timeout)")
-                }
-
-                // ICI, DANS LA VRAIE IMPLÉMENTATION (HORS SCOPE LLM) :
-                // On passe le file descriptor (vpnInterface?.fd) au moteur natif (ex: tun2socks / xray-core JNI)
-                // nativeStartEngine(vpnInterface!!.fd, host, port, configUrl)
-
-                Log.i("SwimVpnService", "VPN Tunnel established to $host:$port")
-                VpnManager.updateState(VpnState.CONNECTED)
-                updateNotification("Connected to $host")
-
-                // Start simulating data consumption
-                simulateTraffic(limit, initialUsed)
-
+                Log.i(
+                    "SwimVpnService",
+                    "Prepared runtime for ${runtime.profile.protocol} ${runtime.summary} via $host:$port",
+                )
             } catch (e: Exception) {
                 Log.e("SwimVpnService", "Error starting VPN", e)
                 VpnManager.setError("Connection failed: ${e.localizedMessage}")
-                stopVpn()
+                stopVpn(clearRuntimeState = false)
             }
         }
     }
 
-    private fun stopVpn() {
-        if (VpnManager.state.value == VpnState.DISCONNECTED || VpnManager.state.value == VpnState.DISCONNECTING) return
-        
-        VpnManager.updateState(VpnState.DISCONNECTING)
-        
+    private fun stopVpn(clearRuntimeState: Boolean = true) {
+        if (clearRuntimeState &&
+            (VpnManager.runtimeStatus.value == RuntimeStatus.IDLE ||
+                VpnManager.runtimeStatus.value == RuntimeStatus.STOPPING)
+        ) {
+            return
+        }
+
+        if (clearRuntimeState) {
+            VpnManager.updateRuntimeStatus(RuntimeStatus.STOPPING)
+        }
+
         try {
             vpnInterface?.close()
         } catch (e: Exception) {
             Log.e("SwimVpnService", "Error closing VPN interface", e)
         } finally {
             vpnInterface = null
-            VpnManager.updateState(VpnState.DISCONNECTED)
+            if (clearRuntimeState) {
+                VpnManager.updateRuntimeStatus(RuntimeStatus.IDLE)
+            }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
 
-    private fun simulateTraffic(limit: Long, initialUsed: Long) {
-        serviceScope.launch {
-            var currentSessionUsed = 0L
-            while (VpnManager.state.value == VpnState.CONNECTED) {
-                // Simulate 50KB - 500KB every 2 seconds
-                val download = (50000..500000).random().toLong()
-                val upload = (5000..50000).random().toLong()
-                
-                currentSessionUsed += (download + upload)
-                VpnManager.updateUsage(download, upload)
-
-                // Check limit
-                if (limit > 0 && (initialUsed + currentSessionUsed) >= limit) {
-                    Log.w("SwimVpnService", "Data limit reached! Stopping VPN.")
-                    VpnManager.setError("Data limit reached. Please upgrade your plan.")
-                    stopVpn()
-                    break
-                }
-
-                delay(2000)
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "VPN Status",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Shows when VPN is active"
             }
+
+            val notificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
         }
+    }
+
+    private fun createNotification(content: String): Notification {
+        return NotificationCompat.Builder(this, channelId)
+            .setContentTitle("SWIMVPN+")
+            .setContentText(content)
+            .setSmallIcon(R.drawable.swimvpn_logo)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .build()
+    }
+
+    private fun updateNotification(content: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w("SwimVpnService", "Notification permission not granted, skipping notification update")
+            return
+        }
+
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(notificationId, createNotification(content))
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        serviceJob.cancel()
-        stopVpn()
+        serviceScope.cancel()
+        if (VpnManager.runtimeStatus.value != RuntimeStatus.FAILED) {
+            stopVpn()
+        } else {
+            try {
+                vpnInterface?.close()
+            } catch (e: Exception) {
+                Log.e("SwimVpnService", "Error closing VPN interface during failure cleanup", e)
+            } finally {
+                vpnInterface = null
+            }
+        }
     }
 }

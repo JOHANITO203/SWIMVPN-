@@ -1,5 +1,46 @@
 # WORKLOG
 
+## [2026-04-22] [VPN Core Batch 1 - Runtime Truth Foundations + Technical Settings Alignment]
+- **Status**: DONE
+- **Changes**:
+    - Added typed Android runtime contracts for VPN execution:
+      - `RuntimeMode`
+      - `RuntimeStatus`
+      - `RuntimeMetrics`
+      - `ThemeMode`
+    - Upgraded `VpnManager` so the app now tracks runtime mode, runtime status, metrics, handshake timing, and stable error state instead of relying only on the older coarse `VpnState`.
+    - Reworked `SwimVpnService` to stop faking random failures and fake traffic generation.
+    - Wired the service through the real config pipeline before tunnel startup:
+      - parse
+      - normalize
+      - validate
+      - prepare runtime payload
+    - Kept this first batch honest:
+      - only `FULL_TUNNEL` is treated as supported runtime mode
+      - unsupported modes now fail explicitly instead of pretending to work
+    - Added typed persisted settings for:
+      - runtime mode
+      - theme mode
+      - existing language / auto-connect compatibility preserved
+    - Implemented honest `autoConnect` behavior:
+      - only when enabled
+      - only when Android VPN permission is already granted
+      - only when a valid active access and selected server exist
+      - guarded against repeated relaunch loops
+    - Centralized language + theme application in `MainActivity`.
+    - Aligned `TechnicalSettingsScreen` with runtime truth:
+      - removed deprecated local locale mutation
+      - added a real theme preference surface (`SYSTEM / LIGHT / DARK`)
+      - replaced fake routing toggle with truthful full-tunnel-only presentation
+      - replaced fake kill-switch switch with an honest Android-system settings shortcut
+    - Added technical-screen localization updates in:
+      - `values`
+      - `values-fr`
+      - `values-ru`
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug` PASSED.
+    - `backend\\npm run build` PASSED.
+
 ## [2026-04-20] [Initialize NestJS Monorepo & Prisma Schema]
 - **Status**: DONE
 - **Changes**: Created monorepo structure, shared Prisma schema, and `nest-cli.json`.

@@ -1,26 +1,52 @@
 package com.swimvpn.app.ui.screens
 
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,8 +57,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
+import com.swimvpn.app.ui.theme.AppThemePreference
 import com.swimvpn.app.ui.theme.ElectricBlue
-import java.util.Locale
+
+private const val LEGACY_PROXY_MODE = "PROXY"
+private const val LEGACY_TUNNEL_MODE = "TUNNEL"
 
 @Composable
 fun TechnicalSettingsScreen(
@@ -42,11 +71,21 @@ fun TechnicalSettingsScreen(
     onRoutingModeChange: (String) -> Unit,
     onAutoConnectChange: (Boolean) -> Unit,
     onLanguageChange: (String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    themeMode: String = AppThemePreference.SYSTEM,
+    onThemeModeChange: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    var showLanguageMenu by remember { mutableStateOf(false) }
+    var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
+    var showThemeMenu by rememberSaveable { mutableStateOf(false) }
+    var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
+
+    LaunchedEffect(routingMode) {
+        if (routingMode.equals(LEGACY_PROXY_MODE, ignoreCase = true)) {
+            onRoutingModeChange(LEGACY_TUNNEL_MODE)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -55,7 +94,6 @@ fun TechnicalSettingsScreen(
             .verticalScroll(scrollState)
             .padding(24.dp)
     ) {
-        // Header
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -64,110 +102,159 @@ fun TechnicalSettingsScreen(
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF0F172A))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
+                    tint = Color(0xFF0F172A)
+                )
             }
             Spacer(modifier = Modifier.width(16.dp))
-            Text(stringResource(R.string.title_technical), style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A)))
+            Text(
+                text = stringResource(R.string.title_technical),
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF0F172A)
+                )
+            )
             Spacer(modifier = Modifier.weight(1f))
             Button(
-                onClick = { /* Reset */ },
+                onClick = {
+                    selectedThemeMode = AppThemePreference.SYSTEM
+                    onThemeModeChange(AppThemePreference.SYSTEM)
+                    if (!routingMode.equals(LEGACY_TUNNEL_MODE, ignoreCase = true)) {
+                        onRoutingModeChange(LEGACY_TUNNEL_MODE)
+                    }
+                    onAutoConnectChange(false)
+                    onLanguageChange("en")
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF3B30)),
                 shape = RoundedCornerShape(20.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 modifier = Modifier.height(36.dp)
             ) {
-                Text(stringResource(R.string.btn_reset), fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.sp)
+                Text(
+                    text = stringResource(R.string.btn_reset),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    letterSpacing = 1.sp
+                )
             }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Application
         SectionTitle(icon = Icons.Outlined.Language, title = stringResource(R.string.section_app))
         Spacer(modifier = Modifier.height(12.dp))
         Card(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
         ) {
             Column {
                 Box {
                     SettingsRowWithChip(
-                        icon = Icons.Outlined.Language, 
-                        title = stringResource(R.string.label_language), 
-                        subtitle = stringResource(R.string.desc_language), 
-                        chipText = when(language) {
-                            "fr" -> stringResource(R.string.lang_fr)
-                            "ru" -> stringResource(R.string.lang_ru)
-                            else -> stringResource(R.string.lang_en)
-                        }, 
+                        icon = Icons.Outlined.Language,
+                        title = stringResource(R.string.label_language),
+                        subtitle = stringResource(R.string.desc_language),
+                        chipText = languageChipLabel(language),
                         onClick = { showLanguageMenu = true }
                     )
-                    
+
                     DropdownMenu(
                         expanded = showLanguageMenu,
                         onDismissRequest = { showLanguageMenu = false },
                         modifier = Modifier.background(Color.White)
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("English", fontWeight = FontWeight.Bold) },
-                            onClick = {
-                                onLanguageChange("en")
-                                showLanguageMenu = false
-                                updateLocale(context, "en")
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Français", fontWeight = FontWeight.Bold) },
-                            onClick = {
-                                onLanguageChange("fr")
-                                showLanguageMenu = false
-                                updateLocale(context, "fr")
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Русский", fontWeight = FontWeight.Bold) },
-                            onClick = {
-                                onLanguageChange("ru")
-                                showLanguageMenu = false
-                                updateLocale(context, "ru")
-                            }
-                        )
+                        LanguageMenuItem(stringResource(R.string.lang_en)) {
+                            onLanguageChange("en")
+                            showLanguageMenu = false
+                        }
+                        LanguageMenuItem(stringResource(R.string.lang_fr)) {
+                            onLanguageChange("fr")
+                            showLanguageMenu = false
+                        }
+                        LanguageMenuItem(stringResource(R.string.lang_ru)) {
+                            onLanguageChange("ru")
+                            showLanguageMenu = false
+                        }
                     }
                 }
                 HorizontalDivider(color = Color(0xFFF1F5F9))
-                SettingsRowWithChip(icon = Icons.Outlined.Palette, title = stringResource(R.string.label_theme), subtitle = stringResource(R.string.desc_theme), chipText = stringResource(R.string.theme_light), onClick = {})
+                Box {
+                    SettingsRowWithChip(
+                        icon = Icons.Outlined.Palette,
+                        title = stringResource(R.string.label_theme),
+                        subtitle = stringResource(R.string.desc_theme),
+                        chipText = themeChipLabel(selectedThemeMode),
+                        onClick = { showThemeMenu = true }
+                    )
+
+                    DropdownMenu(
+                        expanded = showThemeMenu,
+                        onDismissRequest = { showThemeMenu = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        ThemeMenuItem(stringResource(R.string.theme_system)) {
+                            selectedThemeMode = AppThemePreference.SYSTEM
+                            onThemeModeChange(AppThemePreference.SYSTEM)
+                            showThemeMenu = false
+                        }
+                        ThemeMenuItem(stringResource(R.string.theme_light)) {
+                            selectedThemeMode = AppThemePreference.LIGHT
+                            onThemeModeChange(AppThemePreference.LIGHT)
+                            showThemeMenu = false
+                        }
+                        ThemeMenuItem(stringResource(R.string.theme_dark)) {
+                            selectedThemeMode = AppThemePreference.DARK
+                            onThemeModeChange(AppThemePreference.DARK)
+                            showThemeMenu = false
+                        }
+                    }
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Connectivity Features
         SectionTitle(icon = Icons.Outlined.Speed, title = stringResource(R.string.section_connectivity))
         Spacer(modifier = Modifier.height(12.dp))
         Card(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
         ) {
             Column {
-                SettingsRowWithChip(icon = Icons.Outlined.AccountTree, title = stringResource(R.string.label_routing), subtitle = stringResource(R.string.section_routing), chipText = routingMode, onClick = {
-                    onRoutingModeChange(if (routingMode == "TUNNEL") "PROXY" else "TUNNEL")
-                })
-                HorizontalDivider(color = Color(0xFFF1F5F9))
-                SettingsRowWithSwitch(icon = Icons.Outlined.PowerSettingsNew, title = stringResource(R.string.auto_connect), subtitle = stringResource(R.string.desc_boot), checked = autoConnect, onCheckedChange = onAutoConnectChange)
+                SettingsRowWithChip(
+                    icon = Icons.Outlined.AccountTree,
+                    title = stringResource(R.string.label_routing),
+                    subtitle = stringResource(R.string.routing_runtime_desc),
+                    chipText = routingChipLabel(routingMode),
+                    onClick = {},
+                    enabled = false
+                )
                 HorizontalDivider(color = Color(0xFFF1F5F9))
                 SettingsRowWithSwitch(
-                    icon = Icons.Outlined.Security, 
-                    title = stringResource(R.string.kill_switch), 
+                    icon = Icons.Outlined.PowerSettingsNew,
+                    title = stringResource(R.string.auto_connect),
+                    subtitle = stringResource(R.string.desc_boot),
+                    checked = autoConnect,
+                    onCheckedChange = onAutoConnectChange
+                )
+                HorizontalDivider(color = Color(0xFFF1F5F9))
+                SettingsRowWithChip(
+                    icon = Icons.Outlined.Security,
+                    title = stringResource(R.string.kill_switch),
                     subtitle = stringResource(R.string.kill_switch_desc),
-                    checked = false, 
-                    onCheckedChange = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                            val intent = Intent(Settings.ACTION_VPN_SETTINGS)
-                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            context.startActivity(intent)
+                    chipText = stringResource(R.string.kill_switch_system_chip),
+                    onClick = {
+                        val intent = Intent(Settings.ACTION_VPN_SETTINGS).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
+                        context.startActivity(intent)
                     }
                 )
             }
@@ -177,68 +264,154 @@ fun TechnicalSettingsScreen(
 
         Button(
             onClick = { onBack() },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
         ) {
-            Text(stringResource(R.string.btn_save), fontWeight = FontWeight.Black, fontSize = 14.sp, letterSpacing = 1.sp)
+            Text(
+                text = stringResource(R.string.btn_save),
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                letterSpacing = 1.sp
+            )
         }
-        
+
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
-fun updateLocale(context: android.content.Context, langCode: String) {
-    val locale = Locale(langCode)
-    Locale.setDefault(locale)
-    val config = context.resources.configuration
-    config.setLocale(locale)
-    context.resources.updateConfiguration(config, context.resources.displayMetrics)
-    
-    // Pour une application moderne, il est souvent préférable de recréer l'activité 
-    // ou d'utiliser AppCompatDelegate.setApplicationLocales si possible.
-    if (context is android.app.Activity) {
-        context.recreate()
-    }
+@Composable
+private fun LanguageMenuItem(label: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(text = label, fontWeight = FontWeight.Bold) },
+        onClick = onClick
+    )
 }
+
+@Composable
+private fun ThemeMenuItem(label: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(text = label, fontWeight = FontWeight.Bold) },
+        onClick = onClick
+    )
+}
+
+@Composable
+private fun languageChipLabel(language: String): String =
+    when (language.lowercase()) {
+        "fr" -> stringResource(R.string.lang_fr)
+        "ru" -> stringResource(R.string.lang_ru)
+        else -> stringResource(R.string.lang_en)
+    }
+
+@Composable
+private fun themeChipLabel(themeMode: String): String =
+    when (normalizeThemeMode(themeMode)) {
+        AppThemePreference.LIGHT -> stringResource(R.string.theme_light)
+        AppThemePreference.DARK -> stringResource(R.string.theme_dark)
+        else -> stringResource(R.string.theme_system)
+    }
+
+@Composable
+private fun routingChipLabel(routingMode: String): String =
+    when (routingMode.uppercase()) {
+        "LOCAL_PROXY" -> stringResource(R.string.routing_mode_local_proxy)
+        "SPLIT_TUNNEL" -> stringResource(R.string.routing_mode_split_tunnel)
+        else -> stringResource(R.string.routing_mode_full_tunnel)
+    }
+
+private fun normalizeThemeMode(themeMode: String): String =
+    when (themeMode.uppercase()) {
+        AppThemePreference.LIGHT -> AppThemePreference.LIGHT
+        AppThemePreference.DARK -> AppThemePreference.DARK
+        else -> AppThemePreference.SYSTEM
+    }
 
 @Composable
 fun SectionTitle(icon: ImageVector, title: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 8.dp)
+    ) {
         Icon(icon, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(16.dp))
         Spacer(modifier = Modifier.width(8.dp))
-        Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp)
+        Text(
+            text = title,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF94A3B8),
+            fontSize = 10.sp,
+            letterSpacing = 1.sp
+        )
     }
 }
 
 @Composable
-fun SettingsRowWithChip(icon: ImageVector, title: String, subtitle: String, chipText: String, onClick: () -> Unit) {
+fun SettingsRowWithChip(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    chipText: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .then(
+                if (enabled) Modifier.clickable { onClick() } else Modifier
+            )
             .padding(24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(Color(0xFFF1F5F9), CircleShape), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFFF1F5F9), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(icon, contentDescription = null, tint = Color(0xFF0F172A))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(title, fontWeight = FontWeight.Black, color = Color(0xFF0F172A), fontSize = 14.sp)
-                Text(subtitle, fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 0.5.sp)
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF0F172A),
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = subtitle,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF94A3B8),
+                    fontSize = 10.sp,
+                    letterSpacing = 0.5.sp
+                )
             }
         }
         Surface(color = Color(0xFFF1F5F9), shape = RoundedCornerShape(12.dp)) {
-            Text(chipText, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontWeight = FontWeight.Bold, color = Color(0xFF0F172A), fontSize = 10.sp)
+            Text(
+                text = chipText,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A),
+                fontSize = 10.sp
+            )
         }
     }
 }
 
 @Composable
-fun SettingsRowWithSwitch(icon: ImageVector, title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun SettingsRowWithSwitch(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -247,19 +420,38 @@ fun SettingsRowWithSwitch(icon: ImageVector, title: String, subtitle: String, ch
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(40.dp).background(Color(0xFFF1F5F9), CircleShape), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color(0xFFF1F5F9), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(icon, contentDescription = null, tint = Color(0xFF0F172A))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(title, fontWeight = FontWeight.Black, color = Color(0xFF0F172A), fontSize = 14.sp)
-                Text(subtitle, fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 0.5.sp)
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF0F172A),
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = subtitle,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF94A3B8),
+                    fontSize = 10.sp,
+                    letterSpacing = 0.5.sp
+                )
             }
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = ElectricBlue)
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = ElectricBlue
+            )
         )
     }
 }

@@ -124,29 +124,35 @@
     <string name="plan_code_quarter">TRIMESTRE</string>
     <string name="no_plans_available">Aucune offre active disponible pour le moment.</string>
     <string name="order_created_pending_payment">Commande %1$s creee. Etape de paiement pas encore active dans application.</string>
-
     <!-- Technical -->
     <string name="title_technical">TECHNIQUE</string>
-    <string name="btn_reset">RÉINITIALISER</string>
+    <string name="btn_reset">REINITIALISER</string>
     <string name="section_app">APPLICATION</string>
     <string name="label_language">LANGUE</string>
     <string name="desc_language">TRADUCTION DE L\'INTERFACE</string>
     <string name="lang_en">ENGLISH</string>
-    <string name="lang_fr">FRANÇAIS</string>
-    <string name="lang_ru">РУССКИЙ</string>
-    <string name="label_theme">THÈME VISUEL</string>
-    <string name="desc_theme">MODE D\'APPARENCE</string>
+    <string name="lang_fr">FRANCAIS</string>
+    <string name="lang_ru">RUSSKIY</string>
+    <string name="label_theme">THEME VISUEL</string>
+    <string name="desc_theme">PREFERENCE D\'APPARENCE</string>
+    <string name="theme_system">SYSTEME</string>
     <string name="theme_light">CLAIR</string>
+    <string name="theme_dark">SOMBRE</string>
     <string name="section_routing">MODE DE ROUTAGE</string>
     <string name="label_routing">ROUTAGE</string>
-    <string name="tunnel_title">Tunnel VPN (Recommandé)</string>
+    <string name="routing_mode_full_tunnel">TUNNEL COMPLET</string>
+    <string name="routing_mode_local_proxy">PROXY LOCAL</string>
+    <string name="routing_mode_split_tunnel">TUNNEL PARTIEL</string>
+    <string name="routing_runtime_desc">Le runtime actuel prend en charge uniquement le tunnel securise de tout l\'appareil.</string>
+    <string name="tunnel_title">Tunnel VPN (RECOMMANDE)</string>
     <string name="tunnel_desc">Route tout le trafic de l\'appareil.</string>
     <string name="proxy_title">Proxy Local uniquement</string>
-    <string name="proxy_desc">Route uniquement les apps spécifiques.</string>
-    <string name="section_connectivity">CONNECTIVITÉ</string>
+    <string name="proxy_desc">Route uniquement les apps specifiques.</string>
+    <string name="section_connectivity">CONNECTIVITE</string>
     <string name="auto_connect">Connexion Auto</string>
-    <string name="desc_boot">CONNEXION AU DÉMARRAGE</string>
+    <string name="desc_boot">PREFERENCE AU DEMARRAGE</string>
     <string name="kill_switch">Kill Switch</string>
-    <string name="kill_switch_desc">Géré par le système Android.</string>
-    <string name="btn_save">ENREGISTRER LES PRÉFÉRENCES</string>
+    <string name="kill_switch_desc">Configurez le VPN permanent et le verrouillage dans les reglages Android.</string>
+    <string name="kill_switch_system_chip">ANDROID</string>
+    <string name="btn_save">ENREGISTRER LES PREFERENCES</string>
 </resources>

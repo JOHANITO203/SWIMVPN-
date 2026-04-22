@@ -1,8 +1,10 @@
 package com.swimvpn.app
 
 import android.app.Application
+import android.content.Context
 import android.provider.Settings
 import android.util.Log
+import android.net.VpnService
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.data.local.PreferencesManager
@@ -13,6 +15,8 @@ import com.swimvpn.app.data.network.BootstrapAccessRequest
 import com.swimvpn.app.data.network.ImportSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerNode
+import com.swimvpn.app.vpn.RuntimeMode
+import com.swimvpn.app.vpn.ThemeMode
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,9 +34,10 @@ sealed class AppState {
         val phone: String?,
         val trialEligible: Boolean,
         val isOnboardingDone: Boolean,
-        val routingMode: String,
+        val routingMode: RuntimeMode,
         val autoConnect: Boolean,
         val language: String,
+        val themeMode: ThemeMode,
     ) : AppState()
 
     data class Success(
@@ -40,9 +45,10 @@ sealed class AppState {
         val servers: List<ServerNode>,
         val plans: List<com.swimvpn.app.data.model.Plan>,
         val isOnboardingDone: Boolean,
-        val routingMode: String,
+        val routingMode: RuntimeMode,
         val autoConnect: Boolean,
         val language: String,
+        val themeMode: ThemeMode,
         val activeServer: ServerNode? = null
     ) : AppState()
 
@@ -65,6 +71,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _effect = MutableSharedFlow<AppSideEffect>()
     val effect: SharedFlow<AppSideEffect> = _effect.asSharedFlow()
 
+    private var lastAutoConnectSignature: String? = null
+
     init {
         initApp()
     }
@@ -75,9 +83,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _state.value = AppState.Loading
 
                 val isOnboardingDone = prefs.onboardingDoneFlow.first()
-                val routingMode = prefs.routingModeFlow.first()
+                val routingMode = prefs.runtimeModeFlow.first()
                 val autoConnect = prefs.autoConnectFlow.first()
                 val language = prefs.languageFlow.first()
+                val themeMode = prefs.themeModeFlow.first()
 
                 val bootstrap = try {
                     api.bootstrapAccess(
@@ -101,6 +110,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         routingMode = routingMode,
                         autoConnect = autoConnect,
                         language = language,
+                        themeMode = themeMode,
                     )
 
                     if (successState == null) {
@@ -118,6 +128,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         routingMode = routingMode,
                         autoConnect = autoConnect,
                         language = language,
+                        themeMode = themeMode,
                     )
                 }
             } catch (e: Exception) {
@@ -129,10 +140,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setRoutingMode(mode: String) {
         viewModelScope.launch {
-            prefs.setRoutingMode(mode)
+            val runtimeMode = when (mode) {
+                "TUNNEL" -> RuntimeMode.FULL_TUNNEL
+                "PROXY" -> RuntimeMode.LOCAL_PROXY
+                else -> RuntimeMode.fromPersisted(mode)
+            }
+            prefs.setRuntimeMode(runtimeMode)
             when (val currentState = _state.value) {
-                is AppState.Success -> _state.value = currentState.copy(routingMode = mode)
-                is AppState.TrialSetup -> _state.value = currentState.copy(routingMode = mode)
+                is AppState.Success -> _state.value = currentState.copy(routingMode = runtimeMode)
+                is AppState.TrialSetup -> _state.value = currentState.copy(routingMode = runtimeMode)
                 else -> {}
             }
         }
@@ -160,6 +176,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch {
+            prefs.setThemeMode(mode)
+            when (val currentState = _state.value) {
+                is AppState.Success -> _state.value = currentState.copy(themeMode = mode)
+                is AppState.TrialSetup -> _state.value = currentState.copy(themeMode = mode)
+                else -> {}
+            }
+        }
+    }
+
     fun completeOnboarding() {
         viewModelScope.launch {
             prefs.setOnboardingDone()
@@ -174,6 +201,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun signOut() {
         viewModelScope.launch {
             _state.value = AppState.Loading
+            lastAutoConnectSignature = null
             prefs.saveUserNumber("NEW_USER")
             prefs.setOnboardingDone(false)
             initApp()
@@ -200,6 +228,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     routingMode = currentState.routingMode,
                     autoConnect = currentState.autoConnect,
                     language = currentState.language,
+                    themeMode = currentState.themeMode,
                 )
 
                 if (successState == null) {
@@ -289,6 +318,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         initApp()
     }
 
+    fun maybeAutoConnect(context: Context, successState: AppState.Success) {
+        if (!successState.autoConnect) return
+        if (VpnService.prepare(context) != null) return
+        val server = successState.activeServer ?: return
+        val profile = successState.profile
+        if (profile.isExpired || profile.subscriptionUrl.isNullOrBlank()) return
+
+        val vpnState = com.swimvpn.app.vpn.VpnManager.state.value
+        if (vpnState != com.swimvpn.app.vpn.VpnState.DISCONNECTED && vpnState != com.swimvpn.app.vpn.VpnState.ERROR) {
+            return
+        }
+
+        val signature = listOf(profile.userNumber, server.id, profile.subscriptionUrl).joinToString(":")
+        if (lastAutoConnectSignature == signature) return
+
+        lastAutoConnectSignature = signature
+        toggleVpn(context, server, profile)
+    }
+
     fun toggleVpn(context: android.content.Context, server: ServerNode?, profile: AccessProfileResponse?) {
         val currentState = com.swimvpn.app.vpn.VpnManager.state.value
 
@@ -314,16 +362,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
                 putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
                 putExtra(SwimVpnService.EXTRA_URL, profile.subscriptionUrl)
+                putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
 
                 val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
                 val usedBytes = profile.totalConsumedBytes()
 
-                putExtra("DATA_LIMIT_BYTES", limitBytes)
-                putExtra("DATA_USED_BYTES", usedBytes)
+                putExtra(SwimVpnService.EXTRA_DATA_LIMIT, limitBytes)
+                putExtra(SwimVpnService.EXTRA_DATA_USED, usedBytes)
             }
             context.startService(intent)
         }
     }
+
+    private fun currentStateRoutingModeName(): String =
+        when (val currentState = _state.value) {
+            is AppState.Success -> currentState.routingMode.name
+            is AppState.TrialSetup -> currentState.routingMode.name
+            else -> RuntimeMode.FULL_TUNNEL.name
+        }
 
     @android.annotation.SuppressLint("HardwareIds")
     private fun getDeviceId(): String {
@@ -336,9 +392,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun buildSuccessState(
         profile: AccessProfileResponse,
         isOnboardingDone: Boolean,
-        routingMode: String,
+        routingMode: RuntimeMode,
         autoConnect: Boolean,
         language: String,
+        themeMode: ThemeMode,
     ): AppState.Success? {
         val servers = try {
             api.getServers(profile.userNumber)
@@ -367,6 +424,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             routingMode = routingMode,
             autoConnect = autoConnect,
             language = language,
+            themeMode = themeMode,
             activeServer = activeServer,
         )
     }

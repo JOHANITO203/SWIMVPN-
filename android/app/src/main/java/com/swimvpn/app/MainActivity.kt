@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,9 +57,10 @@ import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.screens.*
 import com.swimvpn.app.ui.theme.*
+import com.swimvpn.app.vpn.RuntimeMode
+import com.swimvpn.app.vpn.ThemeMode
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -82,16 +84,22 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
-        // Apply language on startup
-        val prefs = PreferencesManager(this)
-        lifecycleScope.launch { 
-            val lang = prefs.languageFlow.first()
-            applyLocale(lang)
-        }
-
         setContent {
-            SwimVpnTheme {
+            val prefs = remember { PreferencesManager(this@MainActivity) }
+            val language by prefs.languageFlow.collectAsState(initial = "en")
+            val themeMode by prefs.themeModeFlow.collectAsState(initial = ThemeMode.SYSTEM)
+            val systemDark = isSystemInDarkTheme()
+            val darkTheme = when (themeMode) {
+                ThemeMode.SYSTEM -> systemDark
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+            }
+
+            LaunchedEffect(language) {
+                applyLocale(language)
+            }
+
+            SwimVpnTheme(darkTheme = darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -112,10 +120,12 @@ class MainActivity : AppCompatActivity() {
 fun AppNavigation(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsState()
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     LaunchedEffect(state) {
         when (val currentState = state) {
             is AppState.Success -> {
+                viewModel.maybeAutoConnect(context, currentState)
                 if (!currentState.isOnboardingDone) {
                     navController.navigate("onboarding") { popUpTo(0) }
                 } else {
@@ -242,13 +252,24 @@ fun AppNavigation(viewModel: MainViewModel) {
                 is AppState.TrialSetup -> currentState.language
                 else -> return@composable
             }
+            val themeMode = when (val currentState = state) {
+                is AppState.Success -> currentState.themeMode
+                is AppState.TrialSetup -> currentState.themeMode
+                else -> return@composable
+            }
             TechnicalSettingsScreen(
-                routingMode = routingMode,
+                routingMode = when (routingMode) {
+                    RuntimeMode.FULL_TUNNEL -> "FULL_TUNNEL"
+                    RuntimeMode.LOCAL_PROXY -> "LOCAL_PROXY"
+                    RuntimeMode.SPLIT_TUNNEL -> "SPLIT_TUNNEL"
+                },
                 autoConnect = autoConnect,
                 language = language,
                 onRoutingModeChange = { viewModel.setRoutingMode(it) },
                 onAutoConnectChange = { viewModel.setAutoConnect(it) },
                 onLanguageChange = { viewModel.setLanguage(it) },
+                themeMode = themeMode.name,
+                onThemeModeChange = { viewModel.setThemeMode(ThemeMode.fromPersisted(it)) },
                 onBack = { navController.popBackStack() }
             )
         }

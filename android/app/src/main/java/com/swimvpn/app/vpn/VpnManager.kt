@@ -14,45 +14,93 @@ enum class VpnState {
 
 /**
  * Singleton servant de pont entre l'interface utilisateur (Compose/ViewModel)
- * et le service VPN Android qui tourne en arrière-plan.
+ * et le service VPN Android qui tourne en arriere-plan.
  */
 object VpnManager {
     private val _state = MutableStateFlow(VpnState.DISCONNECTED)
     val state: StateFlow<VpnState> = _state.asStateFlow()
 
+    private val _runtimeMode = MutableStateFlow(RuntimeMode.FULL_TUNNEL)
+    val runtimeMode: StateFlow<RuntimeMode> = _runtimeMode.asStateFlow()
+
+    private val _runtimeStatus = MutableStateFlow(RuntimeStatus.IDLE)
+    val runtimeStatus: StateFlow<RuntimeStatus> = _runtimeStatus.asStateFlow()
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // Data usage tracking (in bytes)
+    private val _metrics = MutableStateFlow(RuntimeMetrics())
+    val metrics: StateFlow<RuntimeMetrics> = _metrics.asStateFlow()
+
     private val _bytesIn = MutableStateFlow(0L)
     val bytesIn: StateFlow<Long> = _bytesIn.asStateFlow()
 
     private val _bytesOut = MutableStateFlow(0L)
     val bytesOut: StateFlow<Long> = _bytesOut.asStateFlow()
 
+    fun setRuntimeMode(mode: RuntimeMode) {
+        _runtimeMode.value = mode
+    }
+
+    fun updateRuntimeStatus(newStatus: RuntimeStatus) {
+        _runtimeStatus.value = newStatus
+        _state.value = when (newStatus) {
+            RuntimeStatus.IDLE -> VpnState.DISCONNECTED
+            RuntimeStatus.STARTING -> VpnState.CONNECTING
+            RuntimeStatus.RUNNING -> VpnState.CONNECTED
+            RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
+            RuntimeStatus.FAILED -> VpnState.ERROR
+        }
+        if (newStatus == RuntimeStatus.STARTING || newStatus == RuntimeStatus.RUNNING || newStatus == RuntimeStatus.STOPPING) {
+            _errorMessage.value = null
+        }
+    }
+
     fun updateState(newState: VpnState) {
         _state.value = newState
         if (newState != VpnState.ERROR) {
             _errorMessage.value = null
         }
-        if (newState == VpnState.DISCONNECTED) {
-            // Optional: reset usage on disconnect? 
-            // Better to keep it for the session or until synced with backend.
+        _runtimeStatus.value = when (newState) {
+            VpnState.DISCONNECTED -> RuntimeStatus.IDLE
+            VpnState.CONNECTING -> RuntimeStatus.STARTING
+            VpnState.CONNECTED -> RuntimeStatus.RUNNING
+            VpnState.DISCONNECTING -> RuntimeStatus.STOPPING
+            VpnState.ERROR -> RuntimeStatus.FAILED
         }
+    }
+
+    fun markStarted(startedAt: Long = System.currentTimeMillis()) {
+        _metrics.value = _metrics.value.copy(startedAt = startedAt)
+    }
+
+    fun markHandshake(handshakeAt: Long = System.currentTimeMillis()) {
+        _metrics.value = _metrics.value.copy(lastHandshakeAt = handshakeAt)
     }
 
     fun updateUsage(downloaded: Long, uploaded: Long) {
         _bytesIn.value += downloaded
         _bytesOut.value += uploaded
+        _metrics.value = _metrics.value.copy(
+            bytesIn = _bytesIn.value,
+            bytesOut = _bytesOut.value,
+        )
     }
 
     fun resetUsage() {
         _bytesIn.value = 0L
         _bytesOut.value = 0L
+        _metrics.value = _metrics.value.copy(bytesIn = 0L, bytesOut = 0L)
     }
 
     fun setError(message: String) {
         _errorMessage.value = message
-        _state.value = VpnState.ERROR
+        _metrics.value = _metrics.value.copy(lastError = message)
+        updateRuntimeStatus(RuntimeStatus.FAILED)
+    }
+
+    fun clearError() {
+        _errorMessage.value = null
+        _metrics.value = _metrics.value.copy(lastError = null)
     }
 }

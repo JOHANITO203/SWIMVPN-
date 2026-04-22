@@ -16,6 +16,42 @@ import com.swimvpn.app.SwimVpnService
 object TunnelRuntimeAdapter {
     
     private val TAG = "TunnelRuntimeAdapter"
+
+    data class RuntimePreparationResult(
+        val profile: SwimVpnProfile,
+        val runtimeConfig: String,
+        val summary: String,
+    )
+
+    fun prepareRuntimeFromRawConfig(
+        rawConfig: String,
+        sourceType: SourceType = SourceType.BACKEND_API,
+    ): Result<RuntimePreparationResult> {
+        val parseResult = ConfigParserEngine.parseConfig(rawConfig, sourceType)
+        if (!parseResult.isValid) {
+            return Result.failure(IllegalArgumentException(parseResult.errors.joinToString("; ")))
+        }
+
+        val normalized = ConfigNormalizationEngine.normalizeProfile(parseResult)
+            ?: return Result.failure(IllegalStateException("Failed to normalize runtime profile"))
+
+        val support = isProfileSupported(normalized)
+        if (!support.first) {
+            return Result.failure(IllegalStateException(support.second))
+        }
+
+        val runtimeConfig = normalized.normalizedRuntimeConfig
+            ?: generateXrayConfig(normalized)
+            ?: return Result.failure(IllegalStateException("Runtime config generation failed"))
+
+        return Result.success(
+            RuntimePreparationResult(
+                profile = normalized,
+                runtimeConfig = runtimeConfig,
+                summary = getConnectionSummary(normalized),
+            )
+        )
+    }
     
     /**
      * Prepare VPN service intent from a SwimVpnProfile

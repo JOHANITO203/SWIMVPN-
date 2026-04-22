@@ -132,7 +132,6 @@
     <string name="plan_code_quarter">QUARTER</string>
     <string name="no_plans_available">No active offers are available right now.</string>
     <string name="order_created_pending_payment">Order %1$s created. Payment step is not yet enabled in the app.</string>
-
     <!-- Technical -->
     <string name="title_technical">TECHNICAL</string>
     <string name="btn_reset">RESET</string>
@@ -140,21 +139,28 @@
     <string name="label_language">LANGUAGE</string>
     <string name="desc_language">INTERFACE TRANSLATION</string>
     <string name="lang_en">ENGLISH</string>
-    <string name="lang_fr">FRANÇAIS</string>
-    <string name="lang_ru">РУССКИЙ</string>
+    <string name="lang_fr">FRANCAIS</string>
+    <string name="lang_ru">RUSSKIY</string>
     <string name="label_theme">VISUAL THEME</string>
-    <string name="desc_theme">APPEARANCE MODE</string>
+    <string name="desc_theme">APPEARANCE PREFERENCE</string>
+    <string name="theme_system">SYSTEM</string>
     <string name="theme_light">LIGHT</string>
+    <string name="theme_dark">DARK</string>
     <string name="section_routing">ROUTING MODE</string>
     <string name="label_routing">ROUTING</string>
+    <string name="routing_mode_full_tunnel">FULL TUNNEL</string>
+    <string name="routing_mode_local_proxy">LOCAL PROXY</string>
+    <string name="routing_mode_split_tunnel">SPLIT TUNNEL</string>
+    <string name="routing_runtime_desc">Current runtime supports secure full-device tunneling only.</string>
     <string name="tunnel_title">VPN Tunnel (Recommended)</string>
     <string name="tunnel_desc">Routes all device traffic securely.</string>
     <string name="proxy_title">Local Proxy Only</string>
     <string name="proxy_desc">Only routes specific apps or browser plugins.</string>
     <string name="section_connectivity">CONNECTIVITY</string>
     <string name="auto_connect">Auto-Connect</string>
-    <string name="desc_boot">BOOT CONNECTION</string>
+    <string name="desc_boot">STARTUP PREFERENCE</string>
     <string name="kill_switch">Kill Switch</string>
-    <string name="kill_switch_desc">Managed by Android System.</string>
+    <string name="kill_switch_desc">Configure always-on VPN and lockdown in Android system settings.</string>
+    <string name="kill_switch_system_chip">ANDROID</string>
     <string name="btn_save">SAVE ALL PREFERENCES</string>
 </resources>

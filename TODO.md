@@ -1,6 +1,10 @@
 # TODO
 
 ## Now
+- Start VPN core batch 2:
+  - package prebuilt native runtime artifacts
+  - replace prepared-runtime placeholder with real native tunnel execution
+  - keep `FULL_TUNNEL` as the only exposed mode until the execution path is truly live
 - Set up Docker Compose networking logic to replace `0.0.0.0` with proper service names.
 
 ## Next
@@ -104,6 +108,15 @@ otification-bot-service event handoff.
 - If backend usage metering is introduced later, replace the current honest hybrid display (`backend dataUsedBytes + local session bytes`) with a fully server-driven total.
 
 ## Android Build Follow-up
+- Re-test Technical Settings on device:
+  - theme `SYSTEM / LIGHT / DARK`
+  - language switching `EN / FR / RU`
+  - honest kill-switch shortcut -> Android VPN settings
+  - auto-connect only when permission and access are already valid
+- Start real native runtime packaging for the VPN core:
+  - `Xray-core`
+  - `tun2socks` or equivalent tunnel execution bridge
+  - ABI strategy for device + emulator
 - Re-test the subscription screen on device:
   - backend plans render with correct name, duration, quota, and RUB price
   - selecting a plan still enables order creation
