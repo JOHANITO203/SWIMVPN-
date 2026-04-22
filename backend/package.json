@@ -14,7 +14,14 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/apps/gateway-service/main",
     "start:all": "concurrently \"npm run start:dev gateway-service\" \"npm run start:dev customer-order-service\" \"npm run start:dev inventory-delivery-service\" \"npm run start:dev admin-control-service\" \"npm run start:dev vpn-config-engine-service\" \"npm run start:dev store-engine-service\" \"npm run start:dev notification-bot-service\"",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "prisma db seed",
+    "prisma:baseline:prod": "prisma migrate resolve --applied 202604230001_init_schema",
+    "prisma:deploy": "npm run prisma:generate && npm run prisma:migrate:deploy && npm run prisma:seed"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

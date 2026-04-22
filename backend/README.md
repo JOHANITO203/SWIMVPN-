@@ -28,10 +28,19 @@ Production-ready NestJS microservices for VLESS/Xray management and tiered subsc
 2. **Database Setup**
    ```bash
    # Update .env with your DATABASE_URL
-   npx prisma generate
-   # Run migrations (ensure nanoid extension is enabled in PG)
-   npx prisma db push
+   npm run prisma:generate
+   npm run prisma:migrate:deploy
+   npm run prisma:seed
    ```
+
+   Existing production databases that were previously created with `db push` must be baselined once before `prisma:migrate:deploy`:
+   ```bash
+   npm run prisma:baseline:prod
+   npm run prisma:migrate:deploy
+   npm run prisma:seed
+   ```
+
+   `prisma db push` should remain a local emergency/dev-only tool and must not be used as the normal production rollout path.
 
 3. **Run All Services (Development)**
    ```bash

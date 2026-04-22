@@ -144,6 +144,21 @@ otification-bot-service event handoff.
   - expired
   - profile incomplete
 
+## Prisma / Production Follow-up
+- Apply the new Prisma production rollout on the real deployment target:
+  - back up production database
+  - run `npm run prisma:baseline:prod` once if the schema was previously created without migrations
+  - run `npm run prisma:migrate:deploy`
+  - run `npm run prisma:seed`
+- After rollout, re-test public backend endpoints:
+  - `GET /api/v1/store/plans`
+  - `POST /api/v1/access/bootstrap`
+  - `POST /api/v1/access/trial`
+- If production still returns `500`, collect runtime logs from:
+  - gateway-service
+  - store-engine-service
+  - customer-order-service
+
 ## Disk Cleanup Follow-up
 - Re-check Android build behavior now that disk pressure has been reduced significantly and shell startup no longer forces `D:\Dev`.
 - If Android build temp folders are recreated and become large again, clean them after each heavy build/debug batch:

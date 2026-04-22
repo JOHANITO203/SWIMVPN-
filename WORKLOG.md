@@ -645,3 +645,24 @@ pm run build PASSED.
     - `backend\\npm run build` PASSED.
     - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.
     - `android\\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Backend Batch - Prisma Production Hardening]
+- **Status**: DONE
+- **Changes**:
+    - Replaced the fragile `Customer.public_id` database-generated default with application-owned ID generation in Prisma schema and customer creation flows.
+    - Updated `customer-order-service` order creation so new customers always receive a generated `public_id` and normalized email/phone values.
+    - Added a versioned Prisma baseline migration under:
+      - `backend/prisma/migrations/202604230001_init_schema/migration.sql`
+      - `backend/prisma/migrations/migration_lock.toml`
+    - Replaced ad hoc Prisma rollout guidance with production-oriented scripts:
+      - `prisma:generate`
+      - `prisma:validate`
+      - `prisma:migrate:deploy`
+      - `prisma:seed`
+      - `prisma:baseline:prod`
+      - `prisma:deploy`
+    - Hardened Prisma startup by making services fail fast with a clear schema-drift error when critical production columns are missing.
+    - Updated backend setup documentation to baseline existing prod databases once, then rely on `migrate deploy` instead of `db push`.
+- **Verification**:
+    - `backend\\npm run prisma:validate` PASSED.
+    - `backend\\npm run prisma:generate` PASSED.
+    - `backend\\npm run build` PASSED.

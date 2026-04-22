@@ -30,7 +30,7 @@ enum InventoryStatus {
 
 model Customer {
   id         String   @id @default(uuid())
-  public_id  String   @unique @default(dbgenerated("nanoid(12)"))
+  public_id  String   @unique
   device_id  String?  @unique
   email      String?
   phone      String?

@@ -29,11 +29,14 @@ export class CustomerService {
   }
 
   async createOrder(data: CreateOrderDto) {
+    const normalizedEmail = data.email?.trim().toLowerCase() || undefined;
+    const normalizedPhone = this.normalizePhone(data.phone) || undefined;
+
     let customer = await this.prisma.customer.findFirst({
       where: {
         OR: [
-          { email: data.email || undefined },
-          { phone: data.phone || undefined },
+          { email: normalizedEmail },
+          { phone: normalizedPhone },
         ].filter(Boolean),
       },
     });
@@ -41,8 +44,9 @@ export class CustomerService {
     if (!customer) {
       customer = await this.prisma.customer.create({
         data: {
-          email: data.email,
-          phone: data.phone,
+          public_id: await this.generatePublicUserNumber(),
+          email: normalizedEmail,
+          phone: normalizedPhone,
         },
       });
     }
