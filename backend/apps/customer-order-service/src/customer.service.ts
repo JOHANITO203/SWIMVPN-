@@ -176,23 +176,19 @@ export class CustomerService {
     const latestOrder = customer.orders[0];
     const assignment = latestOrder?.assignments[0];
     const inventoryItem = assignment?.inventory_item;
-    const isTrialOrder = latestOrder?.payment_ref === 'TRIAL:3D' || latestOrder?.order_ref.startsWith('TRIAL-');
+    const isTrialOrder =
+      latestOrder?.payment_ref === 'TRIAL:3D' || latestOrder?.order_ref.startsWith('TRIAL-');
     const accessType = latestOrder ? (isTrialOrder ? 'TRIAL' : 'PAID') : 'NONE';
     const offerCode = latestOrder?.plan.code || null;
-    const subscriptionExpiresAt = latestOrder?.fulfilled_at
-      ? new Date(
-          latestOrder.fulfilled_at.getTime() +
-            this.getDurationMsFromOrder(latestOrder.plan.code, isTrialOrder),
-        ).toISOString()
-      : null;
+    const subscriptionExpiresAt = this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder);
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
-    const status = latestOrder
-      ? subscriptionExpiresAt && new Date(subscriptionExpiresAt).getTime() < Date.now()
-        ? 'EXPIRED'
-        : 'ACTIVE'
-      : customer.email && customer.phone
-        ? 'TRIAL_AVAILABLE'
-        : 'PROFILE_INCOMPLETE';
+    const status = this.resolveProfileStatus({
+      hasCompletedProfile: !!customer.email && !!customer.phone,
+      hasOrder: !!latestOrder,
+      subscriptionExpiresAt,
+    });
+    const quotaLabel =
+      latestOrder?.plan.quota_label || assignment?.fallback_quota_label || '';
 
     return {
       userNumber: customer.public_id,
@@ -207,8 +203,8 @@ export class CustomerService {
       subscriptionExpiresAt,
       subscriptionUrl: inventoryItem?.raw_config || null,
       devicesAllowed: 1,
-      dataLimitGB: latestOrder ? parseInt(latestOrder.plan.quota_label) : 0,
-      dataUsedBytes: "0",
+      dataLimitGB: latestOrder ? this.parseQuotaLabelToGb(quotaLabel) : 0,
+      dataUsedBytes: '0',
       profileCompletionRequired: !customer.email || !customer.phone,
       trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
     };
@@ -458,5 +454,55 @@ export class CustomerService {
       default:
         return 7 * 24 * 60 * 60 * 1000;
     }
+  }
+
+  private calculateSubscriptionExpiresAt(
+    latestOrder:
+      | {
+          fulfilled_at: Date | null;
+          plan: { code: string };
+        }
+      | undefined,
+    isTrialOrder: boolean,
+  ) {
+    if (!latestOrder?.fulfilled_at) {
+      return null;
+    }
+
+    return new Date(
+      latestOrder.fulfilled_at.getTime() +
+        this.getDurationMsFromOrder(latestOrder.plan.code, isTrialOrder),
+    ).toISOString();
+  }
+
+  private resolveProfileStatus(params: {
+    hasCompletedProfile: boolean;
+    hasOrder: boolean;
+    subscriptionExpiresAt: string | null;
+  }) {
+    if (!params.hasCompletedProfile) {
+      return 'PROFILE_INCOMPLETE';
+    }
+
+    if (!params.hasOrder) {
+      return 'TRIAL_AVAILABLE';
+    }
+
+    if (!params.subscriptionExpiresAt) {
+      return 'ACTIVE';
+    }
+
+    return new Date(params.subscriptionExpiresAt).getTime() < Date.now() ? 'EXPIRED' : 'ACTIVE';
+  }
+
+  private parseQuotaLabelToGb(quotaLabel: string) {
+    const match = quotaLabel.match(/(\d+(?:[.,]\d+)?)/);
+    if (!match) {
+      return 0;
+    }
+
+    const normalized = match[1].replace(',', '.');
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 }
