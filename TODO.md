@@ -122,13 +122,11 @@ otification-bot-service event handoff.
   - local SOCKS port responds
   - logs are written under runtime session directory
 - Complete the next VPN core native batch:
-  - package a repo-owned Android JNI shim for `hev-socks5-tunnel`
-  - bind the packaged shared library to the prepared `tun fd` + config-file contract
-  - decide whether executable fallback remains only diagnostic or should be removed once JNI is live
-  - bridge `SwimVpnService` full-tunnel data plane to `tun2socks`
-  - replace the transitional full-tunnel path with real traffic forwarding
+  - validate the JNI-driven `FULL_TUNNEL` data plane end-to-end on device
+  - confirm `tun fd` forwarding is stable across repeated start/stop cycles
+  - decide whether executable fallback remains only diagnostic or should now be removed
   - add runtime bytes telemetry instead of session-only placeholders
-  - verify `FULL_TUNNEL` end-to-end on device, not just in build
+  - confirm upstream auto-build of `tun2socks` remains reproducible on clean environments
 - Re-test the subscription screen on device:
   - backend plans render with correct name, duration, quota, and RUB price
   - selecting a plan still enables order creation

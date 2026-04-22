@@ -619,3 +619,29 @@ pm run build PASSED.
 - **Verification**:
     - `backend\\npm run build` PASSED.
     - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.
+## [2026-04-22] [VPN Core Batch 5 - Phase 2B JNI Shim + Upstream tun2socks Auto-Build]
+- **Status**: DONE
+- **Changes**:
+    - Added a repo-owned Android JNI shim build for `tun2socks`:
+      - `android/app/CMakeLists.txt`
+      - `android/app/src/main/cpp/tun2socks_jni.c`
+    - Extended Android app build configuration so the JNI shim is compiled through `externalNativeBuild` for:
+      - `arm64-v8a`
+      - `x86_64`
+    - Upgraded `Tun2SocksNativeBridge` from contract-only scaffolding to a real Kotlin/JNI bridge capable of:
+      - loading the shim
+      - loading the packaged upstream `libhev-socks5-tunnel.so`
+      - starting the native tunnel loop with a real `tun fd`
+      - stopping the native runtime
+      - querying native stats
+    - Updated `SwimVpnService` so the full-tunnel path now wires:
+      - validated Xray runtime
+      - Android TUN interface
+      - JNI tun2socks bridge
+      - stop/error handling for the native data plane
+    - Fixed the Gradle `prepareTun2SocksRuntimeAssets` task so upstream source builds are copied from the real NDK output location instead of an incorrect nested `jni/libs/...` assumption.
+    - Verified that the app can now auto-build upstream `hev-socks5-tunnel` shared libraries on this workstation during Android build.
+- **Verification**:
+    - `backend\\npm run build` PASSED.
+    - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.
+    - `android\\gradlew.bat assembleDebug` PASSED.

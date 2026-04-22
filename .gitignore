@@ -5,6 +5,7 @@ android/build/
 android/local.properties
 android/Generated/
 android/app/build/
+android/app/.cxx/
 android/app/java_pid*.hprof
 *.hprof
 

@@ -263,3 +263,10 @@ otification-bot-service with Resend API for transactional delivery emails.
     - package a repo-owned JNI shim or equivalent binding
     - link it to the packaged `hev-socks5-tunnel` library
     - then execute the full-tunnel data plane for real on device.
+## [2026-04-22] [Auto-Build Upstream tun2socks Shared Libraries During Android Build]
+- **Decision**: For Phase 2B, Android should auto-build upstream `hev-socks5-tunnel` shared libraries during `assembleDebug` when no local prebuilt `.so` is explicitly supplied.
+- **Why**: We already have a working NDK/CMake toolchain on this workstation, and keeping Phase 2B blocked on manually curated local `.so` files would slow down integration and make the build less reproducible for our current development flow.
+- **Impact**:
+  - `prepareTun2SocksRuntimeAssets` now clones the upstream source, repairs Windows symlink placeholders, runs `ndk-build`, and packages the resulting `libhev-socks5-tunnel.so`.
+  - The Android app now owns the JNI shim that binds the packaged shared library to the `tun fd` contract.
+  - Phase 2B can now be treated as closed from an implementation/build perspective, with operational signoff deferred to device testing.

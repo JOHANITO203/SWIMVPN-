@@ -12,6 +12,7 @@ def xrayArtifactByAbi = [
 ]
 def tun2SocksExecutableName = "tun2socks"
 def tun2SocksSharedLibraryName = "libhev-socks5-tunnel.so"
+def tun2SocksUpstreamTag = providers.gradleProperty("tun2socksUpstreamTag").getOrElse("2.14.4")
 def tun2SocksBinaryByAbi = [
     "arm64-v8a": providers.gradleProperty("tun2socksArm64Path").orNull,
     "x86_64"   : providers.gradleProperty("tun2socksX8664Path").orNull,
@@ -24,10 +25,69 @@ def generatedRuntimeAssetsDir = file("$buildDir/generated/runtimeAssets/main")
 def generatedRuntimeJniLibsDir = file("$buildDir/generated/runtimeJniLibs/main")
 def xrayDownloadsDir = file("$buildDir/downloads/xray/${xrayCoreVersion}")
 def xrayExtractDir = file("$buildDir/intermediates/xrayExtract")
+def tun2SocksSourceRoot = file("$buildDir/downloads/tun2socks/${tun2SocksUpstreamTag}")
+
+def ensureTun2SocksSourceCheckout = {
+    def repoDir = file("${tun2SocksSourceRoot}/jni")
+    if (!repoDir.exists()) {
+        repoDir.parentFile.mkdirs()
+        exec {
+            workingDir(tun2SocksSourceRoot)
+            commandLine("git", "clone", "--recursive", "--depth", "1", "--branch", tun2SocksUpstreamTag, "https://github.com/heiher/hev-socks5-tunnel", "jni")
+        }
+    }
+    return repoDir
+}
+
+def repairTun2SocksWindowsSymlinks = { File repoDir ->
+    fileTree(repoDir).matching { include "**/*" }.files.each { candidate ->
+        if (!candidate.isFile() || candidate.length() >= 260L) {
+            return
+        }
+
+        def raw = candidate.getText("UTF-8").trim()
+        if (!(raw ==~ /^\.{1,2}\/.+/) || raw.contains("\n") || raw.contains("\r")) {
+            return
+        }
+
+        def target = new File(candidate.parentFile, raw).canonicalFile
+        if (target.exists() && target.isFile()) {
+            candidate.bytes = target.bytes
+        }
+    }
+}
+
+def buildTun2SocksSharedLibraries = { File repoDir, List<String> abis ->
+    def ndkDir = file("${android.sdkDirectory}/ndk/${android.ndkVersion}")
+    if (!ndkDir.exists()) {
+        throw new GradleException("Android NDK ${android.ndkVersion} is not installed under ${android.sdkDirectory}/ndk")
+    }
+
+    exec {
+        workingDir(repoDir)
+        commandLine(
+            new File(ndkDir, "ndk-build.cmd").absolutePath,
+            "-j2",
+            "APP_ABI=${abis.join(' ')}",
+        )
+    }
+}
+
+def locateTun2SocksSharedLibrary = { String abi ->
+    def candidatePaths = [
+        file("${tun2SocksSourceRoot}/libs/${abi}/${tun2SocksSharedLibraryName}"),
+        file("${tun2SocksSourceRoot}/jni/libs/${abi}/${tun2SocksSharedLibraryName}"),
+        file("${tun2SocksSourceRoot}/obj/local/${abi}/${tun2SocksSharedLibraryName}"),
+        file("${tun2SocksSourceRoot}/jni/obj/local/${abi}/${tun2SocksSharedLibraryName}"),
+    ]
+
+    return candidatePaths.find { it.exists() }
+}
 
 android {
     namespace 'com.swimvpn.app'
     compileSdk 34
+    ndkVersion "27.0.12077973"
 
     defaultConfig {
         applicationId "com.swimvpn.app"
@@ -35,6 +95,9 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        ndk {
+            abiFilters "arm64-v8a", "x86_64"
+        }
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -82,6 +145,12 @@ android {
         main {
             assets.srcDir(generatedRuntimeAssetsDir)
             jniLibs.srcDir(generatedRuntimeJniLibsDir)
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path file("CMakeLists.txt")
+            version "3.22.1"
         }
     }
 }
@@ -165,12 +234,13 @@ tasks.register("prepareTun2SocksRuntimeAssets") {
 
         def availability = []
 
+        def missingSharedLibraryAbis = []
+
         tun2SocksBinaryByAbi.each { abi, binaryPath ->
             def abiDir = file("${tun2SocksRoot}/${abi}")
             abiDir.mkdirs()
 
             def sourceFile = binaryPath ? file(binaryPath) : null
-            def targetFile = file("${abiDir}/${tun2SocksExecutableName}")
             def executableAvailable = sourceFile != null && sourceFile.exists()
 
             def sharedLibraryPath = tun2SocksSharedLibraryByAbi[abi]
@@ -198,11 +268,50 @@ tasks.register("prepareTun2SocksRuntimeAssets") {
                     into jniTargetDir
                     rename { tun2SocksSharedLibraryName }
                 }
+            } else {
+                missingSharedLibraryAbis << abi
             }
+
+            if (sharedLibraryAvailable && !jniTargetFile.exists()) {
+                missingSharedLibraryAbis << abi
+            }
+        }
+
+        if (!missingSharedLibraryAbis.isEmpty()) {
+            def repoDir = ensureTun2SocksSourceCheckout()
+            repairTun2SocksWindowsSymlinks(repoDir)
+            buildTun2SocksSharedLibraries(repoDir, missingSharedLibraryAbis.unique())
+
+            missingSharedLibraryAbis.unique().each { abi ->
+                def builtFile = locateTun2SocksSharedLibrary(abi)
+                if (builtFile == null || !builtFile.exists()) {
+                    throw new GradleException("tun2socks source build did not produce ${tun2SocksSharedLibraryName} for ${abi}")
+                }
+                def jniTargetDir = file("${generatedRuntimeJniLibsDir}/${abi}")
+                jniTargetDir.mkdirs()
+                copy {
+                    from builtFile
+                    into jniTargetDir
+                    rename { tun2SocksSharedLibraryName }
+                }
+            }
+        }
+
+        availability = []
+
+        tun2SocksBinaryByAbi.each { abi, binaryPath ->
+            def abiDir = file("${tun2SocksRoot}/${abi}")
+            abiDir.mkdirs()
+
+            def sourceFile = binaryPath ? file(binaryPath) : null
+            def executableAvailable = sourceFile != null && sourceFile.exists()
+            def jniTargetDir = file("${generatedRuntimeJniLibsDir}/${abi}")
+            def jniTargetFile = file("${jniTargetDir}/${tun2SocksSharedLibraryName}")
+            def sharedLibraryAvailable = jniTargetFile.exists()
 
             def preferredLaunchMode = sharedLibraryAvailable ? "jni" : (executableAvailable ? "executable" : "missing")
             def reason = sharedLibraryAvailable
-                ? "shared library packaged via Gradle property"
+                ? "shared library packaged from local property or upstream source build"
                 : (executableAvailable
                     ? "local executable provided via Gradle property"
                     : "no local tun2socks shared library or executable configured for this ABI")
@@ -215,7 +324,7 @@ tasks.register("prepareTun2SocksRuntimeAssets") {
                 executableSourcePath           : binaryPath ?: "",
                 executableAssetPath            : executableAvailable ? "${tun2SocksAssetRoot}/${abi}/${tun2SocksExecutableName}" : "",
                 packagedSharedLibraryAvailable : sharedLibraryAvailable,
-                packagedSharedLibrarySourcePath: sharedLibraryPath ?: "",
+                packagedSharedLibrarySourcePath: sharedLibraryAvailable ? jniTargetFile.absolutePath : "",
                 packagedSharedLibraryName      : sharedLibraryAvailable ? tun2SocksSharedLibraryName : "",
                 reason                         : reason,
             ]

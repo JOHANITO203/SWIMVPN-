@@ -20,6 +20,7 @@ import com.swimvpn.app.runtime.Tun2SocksAssetCatalog
 import com.swimvpn.app.runtime.Tun2SocksLaunchMode
 import com.swimvpn.app.runtime.Tun2SocksLaunchSpec
 import com.swimvpn.app.runtime.Tun2SocksNativeBridge
+import com.swimvpn.app.runtime.Tun2SocksNativeBridgeContract
 import com.swimvpn.app.runtime.Tun2SocksRuntimeFilePreparer
 import com.swimvpn.app.runtime.XrayProcessBridge
 import com.swimvpn.app.vpn.RuntimeMode
@@ -36,6 +37,8 @@ class SwimVpnService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var activeXraySessionId: String? = null
+    private var activeTun2SocksContract: Tun2SocksNativeBridgeContract? = null
+    private var activeTun2SocksJob: Job? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val xrayBridge by lazy { XrayProcessBridge(applicationContext) }
@@ -192,18 +195,52 @@ class SwimVpnService : VpnService() {
             null
         }
 
+        var nativeBridgeStarted = false
         tun2SocksNativePrep?.let { preparedRuntime ->
             val nativeContract = Tun2SocksNativeBridge.contract(
                 preparedRuntime = preparedRuntime,
                 tunFd = tunFd,
             )
-            val guidance = Tun2SocksNativeBridge.launchError(nativeContract)
-            preparedRuntime.stderrLogFile.appendText("${guidance.message}\n")
-            preparedRuntime.exitStateFile.writeText("JNI_SHIM_PENDING")
-            Log.i(
-                "SwimVpnService",
-                "Prepared tun2socks native bridge contract for ${preparedRuntime.sharedLibraryName} fd=${nativeContract.tunFd}",
-            )
+            if (Tun2SocksNativeBridge.isShimAvailable()) {
+                activeTun2SocksContract = nativeContract
+                val tunnelJob = serviceScope.launch {
+                    val exitCode = runCatching {
+                        Tun2SocksNativeBridge.start(nativeContract)
+                    }.getOrElse { error ->
+                        preparedRuntime.stderrLogFile.appendText("${error.message ?: "tun2socks native bridge failure"}\n")
+                        preparedRuntime.exitStateFile.writeText("FAILED")
+                        Log.e("SwimVpnService", "tun2socks native bridge failed", error)
+                        if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
+                            VpnManager.setError("tun2socks failed: ${error.localizedMessage}")
+                            VpnManager.updateRuntimeStatus(RuntimeStatus.FAILED)
+                            stopVpn(clearRuntimeState = false)
+                        }
+                        return@launch
+                    }
+
+                    preparedRuntime.exitStateFile.writeText(exitCode.toString())
+                    if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
+                        Log.w("SwimVpnService", "tun2socks exited unexpectedly with code $exitCode")
+                        VpnManager.setError("tun2socks exited with code $exitCode")
+                        VpnManager.updateRuntimeStatus(RuntimeStatus.FAILED)
+                        stopVpn(clearRuntimeState = false)
+                    }
+                }
+                activeTun2SocksJob = tunnelJob
+                delay(200)
+                if (!tunnelJob.isCancelled) {
+                    nativeBridgeStarted = true
+                }
+                Log.i(
+                    "SwimVpnService",
+                    "Started tun2socks native bridge for ${preparedRuntime.sharedLibraryName} fd=${nativeContract.tunFd}",
+                )
+            } else {
+                val guidance = Tun2SocksNativeBridge.launchError(nativeContract)
+                preparedRuntime.stderrLogFile.appendText("${guidance.message}\n")
+                preparedRuntime.exitStateFile.writeText("JNI_SHIM_UNAVAILABLE")
+                Log.w("SwimVpnService", guidance.message ?: "tun2socks JNI shim unavailable")
+            }
         }
 
         VpnManager.markStarted()
@@ -213,7 +250,11 @@ class SwimVpnService : VpnService() {
 
         val runtimeMessage = when (tun2SocksAvailability.preferredLaunchMode) {
             Tun2SocksLaunchMode.JNI -> {
-                "Tunnel interface ready; tun2socks native library packaged, JNI shim pending"
+                if (nativeBridgeStarted) {
+                    "Full tunnel active; tun2socks JNI data plane running"
+                } else {
+                    "Tunnel interface ready; tun2socks native library packaged, JNI shim unavailable"
+                }
             }
             Tun2SocksLaunchMode.EXECUTABLE -> {
                 "Tunnel interface ready; tun2socks executable packaged, Android native bridge pending"
@@ -275,6 +316,15 @@ class SwimVpnService : VpnService() {
         }
 
         try {
+            activeTun2SocksContract?.let { contract ->
+                runCatching { Tun2SocksNativeBridge.stop(contract) }
+                    .onFailure { error ->
+                        Log.e("SwimVpnService", "Error stopping tun2socks native bridge", error)
+                    }
+            }
+            activeTun2SocksJob?.cancel()
+            activeTun2SocksJob = null
+            activeTun2SocksContract = null
             activeXraySessionId?.let { sessionId ->
                 xrayBridge.stop(sessionId)
             }
@@ -338,6 +388,15 @@ class SwimVpnService : VpnService() {
             stopVpn()
         } else {
             try {
+                activeTun2SocksContract?.let { contract ->
+                    runCatching { Tun2SocksNativeBridge.stop(contract) }
+                        .onFailure { error ->
+                            Log.e("SwimVpnService", "Error stopping tun2socks native bridge during failure cleanup", error)
+                        }
+                }
+                activeTun2SocksJob?.cancel()
+                activeTun2SocksJob = null
+                activeTun2SocksContract = null
                 activeXraySessionId?.let { sessionId ->
                     xrayBridge.stop(sessionId)
                 }
