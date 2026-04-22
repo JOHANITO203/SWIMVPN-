@@ -121,11 +121,13 @@ otification-bot-service event handoff.
   - Xray process stays alive
   - local SOCKS port responds
   - logs are written under runtime session directory
-- Implement the next VPN core native batch:
-  - package or build `tun2socks`
+- Complete the next VPN core native batch:
+  - supply a real Android `tun2socks` executable for supported ABIs
+  - decide the final Android launch contract for the TUN device/file descriptor
   - bridge `SwimVpnService` full-tunnel data plane to `tun2socks`
   - replace the transitional full-tunnel interface-only path with real traffic forwarding
   - add runtime bytes telemetry instead of session-only placeholders
+  - verify `FULL_TUNNEL` end-to-end on device, not just in build
 - Re-test the subscription screen on device:
   - backend plans render with correct name, duration, quota, and RUB price
   - selecting a plan still enables order creation

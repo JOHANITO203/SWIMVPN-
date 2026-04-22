@@ -246,3 +246,10 @@ otification-bot-service with Resend API for transactional delivery emails.
     - exit tracking
   - `LOCAL_PROXY` becomes the first real native execution mode in the app.
   - `FULL_TUNNEL` remains transitional until the `tun2socks` batch is complete.
+## [2026-04-22] [tun2socks Must Be Optional Until A Real Android Binary Exists]
+- **Decision**: Treat `tun2socks` packaging as optional and non-blocking in the Android build until a real Android executable is available for the target ABI set.
+- **Why**: There is no ready-to-embed official Android `tun2socks` artifact in the current workflow, and this machine does not currently provide a guaranteed local build path (`go` absent, Docker daemon unavailable). Breaking `assembleDebug` on that dependency would stall the whole app.
+- **Impact**:
+  - Android build stays green even with no packaged `tun2socks` binary.
+  - The repo now exposes a proper `tun2socks` runtime contract and availability detection.
+  - `FULL_TUNNEL` remains explicitly transitional until the data plane binary is supplied and wired.

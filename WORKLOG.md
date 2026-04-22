@@ -578,3 +578,22 @@ pm run build PASSED.
     - Generated runtime packaging confirmed in:
       - `android\\app\\build\\generated\\runtimeAssets\\main\\runtime\\xray`
       - `android\\app\\build\\generated\\runtimeJniLibs\\main`
+## [2026-04-22] [VPN Core Batch 3 - Phase 2B tun2socks Contract Engagement]
+- **Status**: DONE
+- **Changes**:
+    - Engaged Phase 2B without breaking the current Android runtime by adding a real `tun2socks` packaging and process contract.
+    - Added optional build-time `tun2socks` packaging scaffolding in `android/app/build.gradle`:
+      - non-blocking when no binary is configured
+      - per-ABI local binary hooks via Gradle properties
+      - generated availability manifest under runtime assets
+    - Added dedicated runtime classes for `tun2socks`:
+      - asset catalog
+      - runtime models
+      - runtime file preparation
+      - process bridge
+    - Extended `SwimVpnService` so the `FULL_TUNNEL` path now explicitly knows whether `tun2socks` is packaged and logs/announces that truth.
+    - Kept `LOCAL_PROXY` untouched and fully working.
+    - Kept the transitional `FULL_TUNNEL` path alive instead of replacing it with an incomplete native data plane.
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.
+    - `android\\gradlew.bat assembleDebug` PASSED after manifest/build cleanup.

@@ -12,12 +12,14 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.swimvpn.app.BuildConfig
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
 import com.swimvpn.app.runtime.XrayProcessBridge
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.VpnManager
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,6 +28,23 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class SwimVpnService : VpnService() {
+
+    private enum class Tun2SocksAvailability {
+        AVAILABLE,
+        MISSING,
+    }
+
+    private data class Tun2SocksContract(
+        val availability: Tun2SocksAvailability,
+        val executableFile: File?,
+        val probePaths: List<String>,
+        val localSocksHost: String,
+        val localSocksPort: Int,
+        val tunMtu: Int,
+    ) {
+        val isAvailable: Boolean
+            get() = availability == Tun2SocksAvailability.AVAILABLE && executableFile != null
+    }
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var activeXraySessionId: String? = null
@@ -137,7 +156,8 @@ class SwimVpnService : VpnService() {
         host: String,
         port: Int,
     ) {
-        // Transitional path preserved until the tun2socks-native batch is wired.
+        val tun2SocksContract = resolveTun2SocksContract(runtime)
+
         vpnInterface = Builder()
             .setSession("SWIMVPN+ (${runtime.profile.displayName})")
             .addAddress("10.0.0.2", 24)
@@ -155,11 +175,29 @@ class SwimVpnService : VpnService() {
         delay(350)
         VpnManager.markHandshake()
         VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
-        updateNotification("Tunnel interface ready: ${runtime.profile.displayName}")
+
+        val runtimeMessage = if (tun2SocksContract.isAvailable) {
+            "Tunnel interface ready; tun2socks detected, native data plane wiring pending"
+        } else {
+            "Tunnel interface ready; tun2socks is not packaged yet, running transitional mode"
+        }
+        updateNotification(runtimeMessage)
 
         Log.i(
             "SwimVpnService",
-            "Prepared tunnel interface for ${runtime.profile.protocol} ${runtime.summary} via $host:$port",
+            buildString {
+                append("Prepared tunnel interface for ${runtime.profile.protocol} ${runtime.summary} via $host:$port")
+                append(" | tun2socks=")
+                append(tun2SocksContract.availability.name)
+                append(" | socks=")
+                append("${tun2SocksContract.localSocksHost}:${tun2SocksContract.localSocksPort}")
+                append(" | mtu=")
+                append(tun2SocksContract.tunMtu)
+                if (!tun2SocksContract.isAvailable) {
+                    append(" | probes=")
+                    append(tun2SocksContract.probePaths.joinToString())
+                }
+            },
         )
     }
 
@@ -290,5 +328,35 @@ class SwimVpnService : VpnService() {
                 vpnInterface = null
             }
         }
+    }
+
+    private fun resolveTun2SocksContract(
+        runtime: TunnelRuntimeAdapter.RuntimePreparationResult,
+    ): Tun2SocksContract {
+        val candidateFiles = buildList {
+            val nativeLibDir = applicationInfo.nativeLibraryDir
+            add(File(nativeLibDir, "libtun2socks.so"))
+            add(File(nativeLibDir, "libhevsocks5.so"))
+            add(File(nativeLibDir, "libhev-socks5-tunnel.so"))
+            add(File(nativeLibDir, "tun2socks"))
+            add(File(nativeLibDir, "hev-socks5-tunnel"))
+            val assetRoot = File(applicationInfo.dataDir, "files/${BuildConfig.XRAY_ASSET_ROOT.removeSuffix("/xray")}/tun2socks")
+            add(File(assetRoot, "tun2socks"))
+            add(File(assetRoot, "hev-socks5-tunnel"))
+        }
+
+        val executable = candidateFiles.firstOrNull { it.exists() && it.isFile }
+        return Tun2SocksContract(
+            availability = if (executable != null) {
+                Tun2SocksAvailability.AVAILABLE
+            } else {
+                Tun2SocksAvailability.MISSING
+            },
+            executableFile = executable,
+            probePaths = candidateFiles.map { it.absolutePath },
+            localSocksHost = "127.0.0.1",
+            localSocksPort = runtime.ports.socksPort,
+            tunMtu = 1500,
+        )
     }
 }

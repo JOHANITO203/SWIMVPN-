@@ -5,9 +5,15 @@ plugins {
 
 def xrayCoreVersion = providers.gradleProperty("xrayCoreVersion").getOrElse("v26.3.27")
 def xrayAssetRoot = "runtime/xray"
+def tun2SocksAssetRoot = "runtime/tun2socks"
 def xrayArtifactByAbi = [
     "arm64-v8a"  : "Xray-android-arm64-v8a.zip",
     "x86_64"     : "Xray-android-amd64.zip",
+]
+def tun2SocksExecutableName = "tun2socks"
+def tun2SocksBinaryByAbi = [
+    "arm64-v8a": providers.gradleProperty("tun2socksArm64Path").orNull,
+    "x86_64"   : providers.gradleProperty("tun2socksX8664Path").orNull,
 ]
 def generatedRuntimeAssetsDir = file("$buildDir/generated/runtimeAssets/main")
 def generatedRuntimeJniLibsDir = file("$buildDir/generated/runtimeJniLibs/main")
@@ -33,6 +39,8 @@ android {
         buildConfigField "String", "XRAY_CORE_VERSION", "\"${xrayCoreVersion}\""
         buildConfigField "String", "XRAY_ASSET_ROOT", "\"${xrayAssetRoot}\""
         buildConfigField "String", "XRAY_EXECUTABLE_LIBRARY_NAME", "\"libxray.so\""
+        buildConfigField "String", "TUN2SOCKS_ASSET_ROOT", "\"${tun2SocksAssetRoot}\""
+        buildConfigField "String", "TUN2SOCKS_EXECUTABLE_NAME", "\"${tun2SocksExecutableName}\""
     }
 
     buildTypes {
@@ -57,6 +65,9 @@ android {
         kotlinCompilerExtensionVersion '1.5.1'
     }
     packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
@@ -137,8 +148,56 @@ tasks.register("prepareXrayRuntimeAssets") {
     }
 }
 
+tasks.register("prepareTun2SocksRuntimeAssets") {
+    outputs.dir(generatedRuntimeAssetsDir)
+
+    doLast {
+        def tun2SocksRoot = file("${generatedRuntimeAssetsDir}/${tun2SocksAssetRoot}")
+        delete(tun2SocksRoot)
+        tun2SocksRoot.mkdirs()
+
+        def availability = []
+
+        tun2SocksBinaryByAbi.each { abi, binaryPath ->
+            def abiDir = file("${tun2SocksRoot}/${abi}")
+            abiDir.mkdirs()
+
+            def sourceFile = binaryPath ? file(binaryPath) : null
+            def targetFile = file("${abiDir}/${tun2SocksExecutableName}")
+            def available = sourceFile != null && sourceFile.exists()
+
+            if (available) {
+                copy {
+                    from sourceFile
+                    into abiDir
+                    rename { tun2SocksExecutableName }
+                }
+            }
+
+            availability << [
+                abi         : abi,
+                available   : available,
+                sourcePath  : binaryPath ?: "",
+                executable  : available ? "${tun2SocksAssetRoot}/${abi}/${tun2SocksExecutableName}" : "",
+                reason      : available
+                    ? "local binary provided via Gradle property"
+                    : "no local tun2socks binary configured for this ABI",
+            ]
+        }
+
+        def availabilityFile = file("${tun2SocksRoot}/availability.json")
+        availabilityFile.text = groovy.json.JsonOutput.prettyPrint(
+            groovy.json.JsonOutput.toJson([
+                generatedAt: new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX"),
+                entries    : availability,
+            ])
+        )
+    }
+}
+
 tasks.named("preBuild").configure {
     dependsOn(tasks.named("prepareXrayRuntimeAssets"))
+    dependsOn(tasks.named("prepareTun2SocksRuntimeAssets"))
 }
 
 dependencies {
