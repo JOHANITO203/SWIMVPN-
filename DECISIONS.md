@@ -181,3 +181,12 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Impact**:
   - Android local build caches no longer block repository commits.
   - The repo keeps only reproducible Android wrapper/build configuration, not transient cache internals.
+
+## [2026-04-22] [ProfileScreen Must Render Backend Truth, Not Legacy Mock Semantics]
+- **Decision**: Align the Android profile screen around backend-driven identity and access truth: `userNumber`, `email`, `phone`, `accessType`, `offerCode`, `status`, `dataLimitGB`, `dataUsedBytes`, and effective expiry.
+- **Why**: The premium profile UI was already strong visually, but it still mixed legacy `planType`/mock semantics with the newer backend contract. That created ambiguity around what the user actually has, what is expiring, and how much traffic remains.
+- **Impact**:
+  - `SW-XXXXXX` remains the primary visible account identity.
+  - `email` and `phone` are displayed as secondary identity fields when present.
+  - profile badges and analytics now derive from backend truth first, with Android session bytes only augmenting consumption display.
+  - management actions remain limited to validated product flows and do not reintroduce coupon behavior.

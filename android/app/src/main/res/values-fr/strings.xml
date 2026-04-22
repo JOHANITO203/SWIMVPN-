@@ -49,6 +49,24 @@
     <string name="label_left">RESTANT</string>
     <string name="label_expires_at">L\'ABONNEMENT EXPIRE LE</string>
     <string name="status_active">ACTIF</string>
+    <string name="profile_status_label">STATUT D\'ACCÈS</string>
+    <string name="profile_usage_note">Inclut l\'usage du compte et la session courante de cet appareil.</string>
+    <string name="profile_email_format">Email • %1$s</string>
+    <string name="profile_phone_format">Téléphone • %1$s</string>
+    <string name="profile_contact_missing">Aucune donnée de contact enregistrée pour le moment.</string>
+    <string name="profile_offer_format">Offre • %1$s</string>
+    <string name="profile_unknown">Inconnu</string>
+    <string name="profile_expired_days_ago">Expiré il y a %1$d j</string>
+    <string name="profile_days_left">%1$d jours restants</string>
+    <string name="profile_hours_left">%1$d heures restantes</string>
+    <string name="profile_expiring_soon">Expire bientôt</string>
+    <string name="profile_status_complete_profile">COMPLÉTER LE PROFIL</string>
+    <string name="profile_status_trial_available">ESSAI DISPONIBLE</string>
+    <string name="profile_status_expired">EXPIRÉ</string>
+    <string name="profile_status_trial_active">ESSAI ACTIF</string>
+    <string name="profile_status_paid_active">ACTIF</string>
+    <string name="profile_status_offer_active">%1$s ACTIF</string>
+    <string name="profile_status_inactive">INACTIF</string>
     <string name="label_management">GESTION</string>
     <string name="label_plan">Forfait</string>
     <string name="label_expires">Expire le</string>
@@ -59,6 +77,14 @@
     <string name="menu_import_access">IMPORTER L\'ACCÈS</string>
     <string name="btn_retry">RÉESSAYER</string>
     <string name="menu_signout">Déconnexion</string>
+    <string name="profile_trial_badge">ESSAI 3 JOURS</string>
+    <string name="profile_trial_id_label">VOTRE ID SWIMVPN+</string>
+    <string name="profile_trial_description">Complétez votre profil pour débloquer l\'essai de 3 jours. Nous utilisons votre appareil, votre email et votre téléphone pour éviter les abus.</string>
+    <string name="profile_email_label">Email</string>
+    <string name="profile_phone_label">Numéro de téléphone</string>
+    <string name="profile_activate_trial">Activer l\'essai 3 jours</string>
+    <string name="profile_trial_eligible_note">Votre essai s\'active une seule fois après la complétion du profil.</string>
+    <string name="profile_trial_ineligible_note">L\'essai a déjà été utilisé pour cet appareil ou ces coordonnées.</string>
 
     <!-- Support -->
     <string name="support_title">SUPPORT &amp; AIDE</string>

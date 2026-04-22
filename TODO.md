@@ -101,11 +101,17 @@ otification-bot-service event handoff.
   - update the visible imported profile list
   - attempt backend profile sync without throwing a blocking full-screen error
 - Decide later whether code activation should return as a separate approved product flow instead of a hidden generic import action.
+- If backend usage metering is introduced later, replace the current honest hybrid display (`backend dataUsedBytes + local session bytes`) with a fully server-driven total.
 
 ## Android Build Follow-up
 - Use the restored repository wrapper as the default Android verification path:
   - `android\\gradlew.bat assembleDebug`
 - Re-test the freshly rebuilt APK on device before making the next frontend alignment batch.
+- Re-test the aligned profile screen on device for:
+  - trial active
+  - paid active
+  - expired
+  - profile incomplete
 
 ## Disk Cleanup Follow-up
 - Re-check Android build behavior now that disk pressure has been reduced significantly and shell startup no longer forces `D:\Dev`.

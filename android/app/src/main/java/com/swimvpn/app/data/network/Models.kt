@@ -41,7 +41,31 @@ data class AccessProfileResponse(
     val dataUsedBytes: String,
     val profileCompletionRequired: Boolean,
     val trialEligible: Boolean
-)
+) {
+    val parsedDataUsedBytes: Long
+        get() = dataUsedBytes.filter { it.isDigit() }.toLongOrNull() ?: 0L
+
+    val effectiveExpiryAt: String?
+        get() = if (accessType == "TRIAL") trialExpiresAt else subscriptionExpiresAt
+
+    val isExpired: Boolean
+        get() = status == "EXPIRED"
+
+    val hasMeasuredLimit: Boolean
+        get() = dataLimitGB > 0
+
+    val dataLimitBytes: Long
+        get() = if (hasMeasuredLimit) dataLimitGB.toLong() * 1024L * 1024L * 1024L else 0L
+
+    fun totalConsumedBytes(bytesIn: Long = 0L, bytesOut: Long = 0L): Long =
+        parsedDataUsedBytes + bytesIn + bytesOut
+
+    fun remainingBytes(bytesIn: Long = 0L, bytesOut: Long = 0L): Long =
+        if (!hasMeasuredLimit) 0L else (dataLimitBytes - totalConsumedBytes(bytesIn, bytesOut)).coerceAtLeast(0L)
+
+    fun consumedPercentage(bytesIn: Long = 0L, bytesOut: Long = 0L): Float =
+        if (!hasMeasuredLimit) 0f else (totalConsumedBytes(bytesIn, bytesOut).toFloat() / dataLimitBytes.toFloat()).coerceIn(0f, 1f)
+}
 
 data class ActivateTrialRequest(
     val userNumber: String,

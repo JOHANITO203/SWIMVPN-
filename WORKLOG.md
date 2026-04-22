@@ -452,3 +452,33 @@ pm run build PASSED.
 - **Verification**:
     - Confirmed `android/.gradle-user-home/` no longer exists physically.
     - Confirmed `git status --short` is clean.
+
+## [2026-04-22] [ProfileScreen Alignment - Backend Truth + Android Mapping + Premium UI]
+- **Status**: DONE
+- **Changes**:
+    - Stabilized backend profile analytics truth in `customer.service.ts`:
+      - centralized expiration calculation
+      - centralized profile status resolution
+      - more robust parsing of `dataLimitGB` from `quota_label`
+      - kept `dataUsedBytes` intentionally honest at `0` until a real backend meter exists
+    - Enriched Android profile mapping in `Models.kt` with pure helpers for:
+      - parsed backend consumption
+      - effective expiry
+      - measured limit detection
+      - total consumed bytes
+      - remaining bytes
+      - consumed percentage
+    - Updated `MainViewModel.kt` to consume normalized profile truth instead of ad hoc expiry/limit parsing.
+    - Realigned `ProfileScreen.kt`:
+      - identity card now shows `SW-XXXXXX` as primary identifier
+      - email and phone are surfaced as secondary identity fields
+      - access badge and analytics status now reflect backend-driven truth
+      - analytics card stays premium while remaining honest about account + current-session usage
+      - management list stays aligned with real product flows and does not reintroduce coupon logic
+    - Localized newly introduced profile and trial strings in:
+      - `values`
+      - `values-fr`
+      - `values-ru`
+- **Verification**:
+    - `backend\\npm run build` PASSED.
+    - `android\\gradlew.bat assembleDebug` PASSED.

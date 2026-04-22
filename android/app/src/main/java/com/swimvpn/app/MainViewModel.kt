@@ -296,7 +296,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return
             }
 
-            if (profile.status == "EXPIRED") {
+            if (profile.isExpired) {
                 _state.value = AppState.Error("Your subscription has expired. Please upgrade.")
                 return
             }
@@ -308,12 +308,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
                 putExtra(SwimVpnService.EXTRA_URL, profile.subscriptionUrl)
 
-                val limitBytes = if (profile.dataLimitGB > 0) {
-                    profile.dataLimitGB.toLong() * 1024 * 1024 * 1024
-                } else {
-                    -1L
-                }
-                val usedBytes = profile.dataUsedBytes.toLongOrNull() ?: 0L
+                val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
+                val usedBytes = profile.totalConsumedBytes()
 
                 putExtra("DATA_LIMIT_BYTES", limitBytes)
                 putExtra("DATA_USED_BYTES", usedBytes)

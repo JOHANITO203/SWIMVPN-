@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,21 @@ fun ProfileScreen(
     onBack: (() -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val badgeText = profileBadgeText(profile, context)
+    val badgeColor = profileBadgeColor(profile)
+    val badgeBackground = profileBadgeBackground(profile)
+    val totalUsageNote = stringResource(R.string.profile_usage_note)
+    val expiryString = profile.effectiveExpiryAt
+    val statusText = profileStatusText(profile, context)
+    val expirationText = calculateRemainingTime(
+        expiryDateStr = expiryString,
+        unknownLabel = context.getString(R.string.profile_unknown),
+        expiredAgoFormat = context.getString(R.string.profile_expired_days_ago),
+        daysLeftFormat = context.getString(R.string.profile_days_left),
+        hoursLeftFormat = context.getString(R.string.profile_hours_left),
+        expiringSoonLabel = context.getString(R.string.profile_expiring_soon)
+    )
 
     Column(
         modifier = Modifier
@@ -109,12 +125,12 @@ fun ProfileScreen(
                     
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFFFF7ED)
+                        color = badgeBackground
                     ) {
                         Text(
-                            text = profile.planType,
+                            text = badgeText,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            color = Color(0xFFC2410C),
+                            color = badgeColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 10.sp,
                             letterSpacing = 1.sp
@@ -126,7 +142,34 @@ fun ProfileScreen(
                 
                 Text(stringResource(R.string.label_user_id), fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp)
                 Text(profile.userNumber, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 28.sp)
-                Text(profile.email ?: "-", color = Color(0xFF64748B), fontSize = 14.sp)
+                val contactLines = buildList {
+                    profile.email?.takeIf { it.isNotBlank() }?.let {
+                        add(context.getString(R.string.profile_email_format, it))
+                    }
+                    profile.phone?.takeIf { it.isNotBlank() }?.let {
+                        add(context.getString(R.string.profile_phone_format, it))
+                    }
+                }
+                if (contactLines.isEmpty()) {
+                    Text(
+                        stringResource(R.string.profile_contact_missing),
+                        color = Color(0xFF94A3B8),
+                        fontSize = 14.sp
+                    )
+                } else {
+                    contactLines.forEach { line ->
+                        Text(line, color = Color(0xFF64748B), fontSize = 14.sp)
+                    }
+                }
+                profile.offerCode?.takeIf { it.isNotBlank() }?.let { offerCode ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.profile_offer_format, offerCode),
+                        color = Color(0xFF94A3B8),
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
             }
         }
 
@@ -146,13 +189,9 @@ fun ProfileScreen(
             Column(modifier = Modifier.padding(24.dp)) {
                 // Data Usage Section
                 val isTrial = profile.accessType == "TRIAL"
-                val limitGB = profile.dataLimitGB.toDouble()
-                val sessionBytes = bytesIn + bytesOut
-                val totalUsedBytes = (profile.dataUsedBytes.filter { it.isDigit() }.toLongOrNull() ?: 0L) + sessionBytes
-                val limitBytes = (limitGB * 1024.0 * 1024.0 * 1024.0).toLong()
-                val remainingBytes = (limitBytes - totalUsedBytes).coerceAtLeast(0L)
-                val hasMeasuredLimit = limitBytes > 0L
-                val progress = if (!hasMeasuredLimit) 0f else (totalUsedBytes.toFloat() / limitBytes.toFloat()).coerceIn(0f, 1f)
+                val remainingBytes = profile.remainingBytes(bytesIn, bytesOut)
+                val hasMeasuredLimit = profile.hasMeasuredLimit
+                val progress = profile.consumedPercentage(bytesIn, bytesOut)
                 
                 val statusColor = when {
                     isTrial -> SwimBlueMain
@@ -194,22 +233,57 @@ fun ProfileScreen(
                     trackColor = Color(0xFFF1F5F9)
                 )
 
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = totalUsageNote,
+                    color = Color(0xFF94A3B8),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+
                 Spacer(modifier = Modifier.height(24.dp))
                 HorizontalDivider(color = Color(0xFFE2E8F0))
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    val expiryString = if (profile.accessType == "TRIAL") profile.trialExpiresAt else profile.subscriptionExpiresAt
-                    val remainingText = calculateRemainingTime(expiryString)
-
-                    Text(stringResource(R.string.label_expires_at), fontWeight = FontWeight.Bold, color = Color(0xFF475569), fontSize = 12.sp, letterSpacing = 0.5.sp)
-                    Text(
-                        text = remainingText,
-                        fontWeight = FontWeight.Bold, 
-                        color = if (remainingText.contains("ago")) Color(0xFFEF4444) else Color(0xFF22C55E), 
-                        fontSize = 12.sp, 
-                        letterSpacing = 0.5.sp
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            stringResource(R.string.profile_status_label),
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF475569),
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = statusText,
+                            fontWeight = FontWeight.Black,
+                            color = badgeColor,
+                            fontSize = 14.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            stringResource(R.string.label_expires_at),
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF475569),
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = expirationText,
+                            fontWeight = FontWeight.Bold,
+                            color = if (profile.isExpired) Color(0xFFEF4444) else Color(0xFF22C55E),
+                            fontSize = 12.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
                 }
             }
         }
@@ -308,7 +382,7 @@ fun TrialActivationProfileScreen(
                     color = Color(0xFFFFF7ED)
                 ) {
                     Text(
-                        text = "TRIAL 3 DAYS",
+                        text = stringResource(R.string.profile_trial_badge),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         color = Color(0xFFC2410C),
                         fontWeight = FontWeight.Bold,
@@ -319,12 +393,12 @@ fun TrialActivationProfileScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Text("Your SWIMVPN+ ID", fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp)
+                Text(stringResource(R.string.profile_trial_id_label), fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp)
                 Text(userNumber, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 28.sp)
 
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
-                    "Complete your profile to unlock the 3-day trial. We use your device, email, and phone to prevent abuse.",
+                    stringResource(R.string.profile_trial_description),
                     color = Color(0xFF64748B),
                     fontSize = 14.sp,
                     lineHeight = 20.sp
@@ -335,7 +409,7 @@ fun TrialActivationProfileScreen(
                 OutlinedTextField(
                     value = emailInput,
                     onValueChange = { emailInput = it },
-                    label = { Text("Email") },
+                    label = { Text(stringResource(R.string.profile_email_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp)
@@ -346,7 +420,7 @@ fun TrialActivationProfileScreen(
                 OutlinedTextField(
                     value = phoneInput,
                     onValueChange = { phoneInput = it },
-                    label = { Text("Phone number") },
+                    label = { Text(stringResource(R.string.profile_phone_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp)
@@ -361,16 +435,16 @@ fun TrialActivationProfileScreen(
                     enabled = trialEligible && isEmailValid && isPhoneValid,
                     colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain)
                 ) {
-                    Text("Activate 3-day trial", color = Color.White, fontWeight = FontWeight.Black)
+                    Text(stringResource(R.string.profile_activate_trial), color = Color.White, fontWeight = FontWeight.Black)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = if (trialEligible) {
-                        "Your trial activates once after profile completion."
+                        stringResource(R.string.profile_trial_eligible_note)
                     } else {
-                        "Trial already used for this device or these contact details."
+                        stringResource(R.string.profile_trial_ineligible_note)
                     },
                     color = if (trialEligible) Color(0xFF64748B) else Color(0xFFDC2626),
                     fontSize = 12.sp,
@@ -381,11 +455,17 @@ fun TrialActivationProfileScreen(
     }
 }
 
-private fun calculateRemainingTime(expiryDateStr: String?): String {
-    if (expiryDateStr.isNullOrEmpty()) return "Unknown"
+private fun calculateRemainingTime(
+    expiryDateStr: String?,
+    unknownLabel: String,
+    expiredAgoFormat: String,
+    daysLeftFormat: String,
+    hoursLeftFormat: String,
+    expiringSoonLabel: String
+): String {
+    if (expiryDateStr.isNullOrEmpty()) return unknownLabel
     
     return try {
-        // Parse ISO 8601 date string
         val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US)
         val expiryDate = dateFormat.parse(expiryDateStr)
         val now = Date()
@@ -395,16 +475,65 @@ private fun calculateRemainingTime(expiryDateStr: String?): String {
         val hours = TimeUnit.MILLISECONDS.toHours(diffMillis) % 24
         
         when {
-            diffMillis < 0 -> "Expired ${-days}d ago"
-            days > 0 -> "${days} days left"
-            hours > 0 -> "${hours} hours left"
-            else -> "Expiring soon"
+            diffMillis < 0 -> String.format(Locale.getDefault(), expiredAgoFormat, -days)
+            days > 0 -> String.format(Locale.getDefault(), daysLeftFormat, days)
+            hours > 0 -> String.format(Locale.getDefault(), hoursLeftFormat, hours)
+            else -> expiringSoonLabel
         }
     } catch (_: Exception) {
-        // Fallback: just show the date part
         expiryDateStr.take(10)
     }
 }
+
+private fun profileBadgeText(profile: AccessProfileResponse, context: android.content.Context): String =
+    when (profile.status) {
+        "PROFILE_INCOMPLETE" -> context.getString(R.string.profile_status_complete_profile)
+        "TRIAL_AVAILABLE" -> context.getString(R.string.profile_status_trial_available)
+        "EXPIRED" -> context.getString(R.string.profile_status_expired)
+        "ACTIVE" -> {
+            if (profile.accessType == "TRIAL") {
+                context.getString(R.string.profile_status_trial_active)
+            } else {
+                context.getString(R.string.profile_status_paid_active)
+            }
+        }
+        else -> context.getString(R.string.profile_status_inactive)
+    }
+
+private fun profileStatusText(profile: AccessProfileResponse, context: android.content.Context): String =
+    when (profile.status) {
+        "PROFILE_INCOMPLETE" -> context.getString(R.string.profile_status_complete_profile)
+        "TRIAL_AVAILABLE" -> context.getString(R.string.profile_status_trial_available)
+        "EXPIRED" -> context.getString(R.string.profile_status_expired)
+        "ACTIVE" -> {
+            if (profile.accessType == "TRIAL") {
+                context.getString(R.string.profile_status_trial_active)
+            } else {
+                profile.offerCode?.takeIf { it.isNotBlank() }
+                    ?.let { context.getString(R.string.profile_status_offer_active, it) }
+                    ?: context.getString(R.string.profile_status_paid_active)
+            }
+        }
+        else -> context.getString(R.string.profile_status_inactive)
+    }
+
+private fun profileBadgeColor(profile: AccessProfileResponse): Color =
+    when (profile.status) {
+        "PROFILE_INCOMPLETE" -> Color(0xFFB45309)
+        "TRIAL_AVAILABLE" -> SwimBlueMain
+        "EXPIRED" -> Color(0xFFDC2626)
+        "ACTIVE" -> if (profile.accessType == "TRIAL") SwimBlueMain else Color(0xFF15803D)
+        else -> Color(0xFF64748B)
+    }
+
+private fun profileBadgeBackground(profile: AccessProfileResponse): Color =
+    when (profile.status) {
+        "PROFILE_INCOMPLETE" -> Color(0xFFFFFBEB)
+        "TRIAL_AVAILABLE" -> Color(0xFFEFF6FF)
+        "EXPIRED" -> Color(0xFFFEF2F2)
+        "ACTIVE" -> if (profile.accessType == "TRIAL") Color(0xFFEFF6FF) else Color(0xFFF0FDF4)
+        else -> Color(0xFFF8FAFC)
+    }
 
 @Composable
 fun ManagementRow(icon: ImageVector, title: String, onClick: () -> Unit) {

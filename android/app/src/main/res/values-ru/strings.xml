@@ -49,6 +49,24 @@
     <string name="label_left">ОСТАЛОСЬ</string>
     <string name="label_expires_at">СРОК ПОДПИСКИ</string>
     <string name="status_active">АКТИВЕН</string>
+    <string name="profile_status_label">СТАТУС ДОСТУПА</string>
+    <string name="profile_usage_note">Включает использование аккаунта и текущую сессию на этом устройстве.</string>
+    <string name="profile_email_format">Email • %1$s</string>
+    <string name="profile_phone_format">Телефон • %1$s</string>
+    <string name="profile_contact_missing">Контактные данные пока не заполнены.</string>
+    <string name="profile_offer_format">Оффер • %1$s</string>
+    <string name="profile_unknown">Неизвестно</string>
+    <string name="profile_expired_days_ago">Истекло %1$d дн. назад</string>
+    <string name="profile_days_left">Осталось %1$d дн.</string>
+    <string name="profile_hours_left">Осталось %1$d ч.</string>
+    <string name="profile_expiring_soon">Скоро истекает</string>
+    <string name="profile_status_complete_profile">ЗАПОЛНИТЬ ПРОФИЛЬ</string>
+    <string name="profile_status_trial_available">ПРОБНЫЙ ДОСТУП ГОТОВ</string>
+    <string name="profile_status_expired">ИСТЕКЛО</string>
+    <string name="profile_status_trial_active">ПРОБНЫЙ ПЕРИОД АКТИВЕН</string>
+    <string name="profile_status_paid_active">АКТИВЕН</string>
+    <string name="profile_status_offer_active">%1$s АКТИВЕН</string>
+    <string name="profile_status_inactive">НЕАКТИВЕН</string>
     <string name="label_management">УПРАВЛЕНИЕ</string>
     <string name="label_plan">Тариф</string>
     <string name="label_expires">Истекает</string>
@@ -59,6 +77,14 @@
     <string name="menu_import_access">ИМПОРТ ДОСТУПА</string>
     <string name="btn_retry">ПОВТОРИТЬ</string>
     <string name="menu_signout">Выйти</string>
+    <string name="profile_trial_badge">ПРОБНЫЙ ПЕРИОД 3 ДНЯ</string>
+    <string name="profile_trial_id_label">ВАШ ID SWIMVPN+</string>
+    <string name="profile_trial_description">Заполните профиль, чтобы активировать пробный период на 3 дня. Мы используем ваше устройство, email и телефон для защиты от злоупотреблений.</string>
+    <string name="profile_email_label">Email</string>
+    <string name="profile_phone_label">Номер телефона</string>
+    <string name="profile_activate_trial">Активировать 3-дневный пробный период</string>
+    <string name="profile_trial_eligible_note">Пробный период активируется один раз после заполнения профиля.</string>
+    <string name="profile_trial_ineligible_note">Пробный период уже использован для этого устройства или этих контактов.</string>
 
     <!-- Support -->
     <string name="support_title">ПОДДЕРЖКА И ПОМОЩЬ</string>
