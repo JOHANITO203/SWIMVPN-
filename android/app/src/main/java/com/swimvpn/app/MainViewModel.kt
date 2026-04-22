@@ -250,17 +250,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun createOrder(planId: String, amount: Double) {
         viewModelScope.launch {
+            val currentState = _state.value as? AppState.Success ?: return@launch
             try {
                 _state.value = AppState.Loading
                 val request = com.swimvpn.app.data.model.CreateOrderRequest(
-                    email = null,
-                    phone = null,
+                    email = currentState.profile.email,
+                    phone = currentState.profile.phone,
                     planId = planId,
                     amountRub = amount
                 )
                 val response = api.createOrder(request)
-                val paymentUrl = "https://checkout.stripe.com/pay/${response.orderRef}"
-                _effect.emit(AppSideEffect.OpenUrl(paymentUrl))
+                _effect.emit(
+                    AppSideEffect.ShowToast(
+                        getApplication<Application>().getString(
+                            R.string.order_created_pending_payment,
+                            response.orderRef
+                        )
+                    )
+                )
                 initApp()
             } catch (e: Exception) {
                 _state.value = AppState.Error("Order creation failed: ${e.localizedMessage}")

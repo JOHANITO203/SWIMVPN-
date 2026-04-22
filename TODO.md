@@ -104,6 +104,10 @@ otification-bot-service event handoff.
 - If backend usage metering is introduced later, replace the current honest hybrid display (`backend dataUsedBytes + local session bytes`) with a fully server-driven total.
 
 ## Android Build Follow-up
+- Re-test the subscription screen on device:
+  - backend plans render with correct name, duration, quota, and RUB price
+  - selecting a plan still enables order creation
+  - create order shows the honest pending-payment message instead of a fake checkout URL
 - Re-test the support screen on device:
   - email row -> opens mail app with support@swimvpn.pro
   - Telegram row -> opens @SWIMVPNSUPPORTADMINBOT in Telegram or web fallback
@@ -124,4 +128,5 @@ otification-bot-service event handoff.
   - `android/wrapper/`
 - Keep `android/.gradle-user-home/` out of commits permanently; it is now intentionally ignored by Git.
 - If `android/.gradle-user-home/` reappears later, treat it as disposable local cache and delete it after the build/debug batch instead of trying to version it.
+
 

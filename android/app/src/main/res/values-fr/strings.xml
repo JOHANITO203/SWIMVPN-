@@ -102,8 +102,8 @@
     <string name="btn_renew">RENOUVELER L\'ABONNEMENT</string>
 
     <!-- Subscription -->
-    <string name="sub_title">ACCÈS VPN\nILLIMITÉ</string>
-    <string name="sub_desc">Choisissez le forfait qui correspond à votre style.</string>
+    <string name="sub_title">FORFAITS\nACCES VPN</string>
+    <string name="sub_desc">Choisissez une offre backend reelle adaptee a votre trafic et a votre duree.</string>
     <string name="title_pricing">TARIFS</string>
     <string name="plan_weekly">BRONZE</string>
     <string name="plan_weekly_desc">50 Go • 299 ₽ / semaine</string>
@@ -113,11 +113,17 @@
     <string name="plan_annual_desc">500 Go • 1899 ₽ / trimestre</string>
     <string name="label_traffic">TRAFIC</string>
     <string name="label_period"> / période</string>
-    <string name="feature_1">Serveurs Mondiaux Haute Vitesse</string>
-    <string name="feature_2">Chiffrement Militaire (VLESS)</string>
-    <string name="feature_3">Jusqu\'à 5 appareils simultanés</string>
-    <string name="feature_4">Politique stricte de non-conservation</string>
+    <string name="feature_1">Offres et quotas pilotés par le backend</string>
+    <string name="feature_2">Accès VLESS avec configuration brute préservée</string>
+    <string name="feature_3">Importer et gerer acces directement dans application</string>
+    <string name="feature_4">Cycle de commande tracable lie a votre profil</string>
     <string name="btn_upgrade">S\'ABONNER MAINTENANT</string>
+    <string name="btn_create_order">CREER LA COMMANDE</string>
+    <string name="plan_code_week">SEMAINE</string>
+    <string name="plan_code_month">MOIS</string>
+    <string name="plan_code_quarter">TRIMESTRE</string>
+    <string name="no_plans_available">Aucune offre active disponible pour le moment.</string>
+    <string name="order_created_pending_payment">Commande %1$s creee. Etape de paiement pas encore active dans application.</string>
 
     <!-- Technical -->
     <string name="title_technical">TECHNIQUE</string>

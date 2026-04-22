@@ -110,8 +110,8 @@
     <string name="btn_renew">RENEW SUBSCRIPTION</string>
 
     <!-- Subscription -->
-    <string name="sub_title">UNLIMITED\nVPN ACCESS</string>
-    <string name="sub_desc">Choose the plan that fits your swimming style.</string>
+    <string name="sub_title">VPN ACCESS\nPLANS</string>
+    <string name="sub_desc">Choose the real backend offer that matches your traffic and duration needs.</string>
     <string name="title_pricing">PRICING</string>
     <string name="plan_weekly">BRONZE</string>
     <string name="plan_weekly_desc">50 GB • 299 ₽ / week</string>
@@ -121,11 +121,17 @@
     <string name="plan_annual_desc">500 GB • 1899 ₽ / quarter</string>
     <string name="label_traffic">TRAFFIC</string>
     <string name="label_period"> / period</string>
-    <string name="feature_1">High-Speed Global Servers</string>
-    <string name="feature_2">Military-grade Encryption (VLESS)</string>
-    <string name="feature_3">Up to 5 Devices Simultaneous</string>
-    <string name="feature_4">Strict No-Logs Policy</string>
+    <string name="feature_1">Backend-managed offers and quotas</string>
+    <string name="feature_2">VLESS access with preserved raw config</string>
+    <string name="feature_3">Import and manage access directly in the app</string>
+    <string name="feature_4">Traceable order lifecycle linked to your profile</string>
     <string name="btn_upgrade">UPGRADE NOW</string>
+    <string name="btn_create_order">CREATE ORDER</string>
+    <string name="plan_code_week">WEEK</string>
+    <string name="plan_code_month">MONTH</string>
+    <string name="plan_code_quarter">QUARTER</string>
+    <string name="no_plans_available">No active offers are available right now.</string>
+    <string name="order_created_pending_payment">Order %1$s created. Payment step is not yet enabled in the app.</string>
 
     <!-- Technical -->
     <string name="title_technical">TECHNICAL</string>

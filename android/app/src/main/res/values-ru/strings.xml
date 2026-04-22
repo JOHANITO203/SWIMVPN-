@@ -102,8 +102,8 @@
     <string name="btn_renew">ОБНОВИТЬ ПОДПИСКУ</string>
 
     <!-- Subscription -->
-    <string name="sub_title">БЕЗЛИМИТНЫЙ\nVPN ДОСТУП</string>
-    <string name="sub_desc">Выберите тариф, который подходит вашему стилю.</string>
+    <string name="sub_title">ПЛАНЫ\nVPN ДОСТУПА</string>
+    <string name="sub_desc">Выберите реальное backend-предложение под ваш трафик и срок доступа.</string>
     <string name="title_pricing">ЦЕНЫ</string>
     <string name="plan_weekly">BRONZE</string>
     <string name="plan_weekly_desc">50 ГБ • 299 ₽ / неделя</string>
@@ -113,11 +113,17 @@
     <string name="plan_annual_desc">500 ГБ • 1899 ₽ / квартал</string>
     <string name="label_traffic">ТРАФИК</string>
     <string name="label_period"> / период</string>
-    <string name="feature_1">Высокоскоростные серверы</string>
-    <string name="feature_2">Военное шифрование (VLESS)</string>
-    <string name="feature_3">До 5 устройств одновременно</string>
-    <string name="feature_4">Строгая политика отсутствия логов</string>
+    <string name="feature_1">Тарифы и квоты управляются backend-ом</string>
+    <string name="feature_2">Доступ VLESS с сохранением исходной конфигурации</string>
+    <string name="feature_3">Импорт и управление доступом прямо в приложении</string>
+    <string name="feature_4">Отслеживаемый жизненный цикл заказа, связанный с профилем</string>
     <string name="btn_upgrade">ПОДПИСАТЬСЯ СЕЙЧАС</string>
+    <string name="btn_create_order">СОЗДАТЬ ЗАКАЗ</string>
+    <string name="plan_code_week">НЕДЕЛЯ</string>
+    <string name="plan_code_month">МЕСЯЦ</string>
+    <string name="plan_code_quarter">КВАРТАЛ</string>
+    <string name="no_plans_available">Сейчас нет активных предложений.</string>
+    <string name="order_created_pending_payment">Заказ %1$s создан. Шаг оплаты еще не включен в приложении.</string>
 
     <!-- Technical -->
     <string name="title_technical">ТЕХНИЧЕСКИЕ</string>

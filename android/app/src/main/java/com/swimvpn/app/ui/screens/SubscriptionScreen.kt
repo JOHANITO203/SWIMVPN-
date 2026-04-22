@@ -1,10 +1,19 @@
 package com.swimvpn.app.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,22 +22,32 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
 import com.swimvpn.app.R
 import com.swimvpn.app.data.model.Plan
 import com.swimvpn.app.ui.theme.SwimBlueMain
 import com.swimvpn.app.ui.theme.SwimNavyMouth
+import java.math.RoundingMode
 
 @Composable
 fun SubscriptionScreen(
@@ -46,7 +65,6 @@ fun SubscriptionScreen(
             .verticalScroll(scrollState)
             .padding(24.dp)
     ) {
-        // Top Bar
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -59,7 +77,13 @@ fun SubscriptionScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = SwimNavyMouth)
             }
             Spacer(modifier = Modifier.width(16.dp))
-            Text(stringResource(R.string.title_pricing), style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = SwimNavyMouth))
+            Text(
+                stringResource(R.string.title_pricing),
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Black,
+                    color = SwimNavyMouth,
+                )
+            )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -69,32 +93,32 @@ fun SubscriptionScreen(
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontWeight = FontWeight.Black,
                 color = SwimNavyMouth,
-                lineHeight = 40.sp
+                lineHeight = 40.sp,
             )
         )
         Text(
             text = stringResource(R.string.sub_desc),
             color = Color(0xFF64748B),
-            fontSize = 16.sp
+            fontSize = 16.sp,
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Dynamic Plans
         plans.forEach { plan ->
             val badgeColor = when (plan.code) {
-                "WEEK" -> Color(0xFFCD7F32) // Bronze
-                "MONTH" -> Color(0xFF94A3B8) // Silver
-                "QUARTER" -> Color(0xFFFFD700) // Gold
+                "WEEK" -> Color(0xFFCD7F32)
+                "MONTH" -> Color(0xFF94A3B8)
+                "QUARTER" -> Color(0xFFFFD700)
                 else -> Color.Gray
             }
 
             PlanCard(
                 title = plan.name,
-                price = "${plan.priceRub.split(".")[0]} ₽",
-                data = plan.quotaLabel,
+                price = formatPlanPrice(plan.priceRub),
+                quota = plan.quotaLabel,
+                duration = plan.durationLabel,
                 isSelected = selectedPlanId == plan.id,
-                badge = plan.code,
+                badge = localizedPlanCode(plan.code),
                 badgeColor = badgeColor,
                 onClick = { selectedPlanId = plan.id }
             )
@@ -103,16 +127,17 @@ fun SubscriptionScreen(
 
         if (plans.isEmpty()) {
             Text(
-                text = "No plans available at the moment.",
-                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                text = stringResource(R.string.no_plans_available),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
                 textAlign = TextAlign.Center,
-                color = Color.Gray
+                color = Color.Gray,
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Features
         FeatureItem(stringResource(R.string.feature_1))
         FeatureItem(stringResource(R.string.feature_2))
         FeatureItem(stringResource(R.string.feature_3))
@@ -129,9 +154,15 @@ fun SubscriptionScreen(
             colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain),
             enabled = selectedPlanId.isNotEmpty()
         ) {
-            Text(stringResource(R.string.btn_upgrade), color = Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp, letterSpacing = 1.sp)
+            Text(
+                stringResource(R.string.btn_create_order),
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp,
+                letterSpacing = 1.sp,
+            )
         }
-        
+
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
@@ -140,11 +171,12 @@ fun SubscriptionScreen(
 fun PlanCard(
     title: String,
     price: String,
-    data: String,
+    quota: String,
+    duration: String,
     isSelected: Boolean,
     badge: String,
     badgeColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -169,7 +201,13 @@ fun PlanCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, fontWeight = FontWeight.Black, fontSize = 14.sp, color = SwimNavyMouth, letterSpacing = 1.sp)
+                    Text(
+                        title,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp,
+                        color = SwimNavyMouth,
+                        letterSpacing = 0.5.sp,
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         color = badgeColor.copy(alpha = 0.15f),
@@ -179,21 +217,25 @@ fun PlanCard(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Icon(Icons.Rounded.Star, contentDescription = null, tint = badgeColor, modifier = Modifier.size(10.dp))
+                            Icon(
+                                Icons.Rounded.Star,
+                                contentDescription = null,
+                                tint = badgeColor,
+                                modifier = Modifier.size(10.dp)
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(badge, color = badgeColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(price, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 24.sp)
-                    Text(stringResource(R.string.label_period), color = Color(0xFF64748B), fontSize = 14.sp, modifier = Modifier.padding(bottom = 4.dp, start = 4.dp))
-                }
+                Text(duration, color = Color(0xFF64748B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(price, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 24.sp)
             }
-            
+
             Column(horizontalAlignment = Alignment.End) {
-                Text(data, fontWeight = FontWeight.Black, color = SwimBlueMain, fontSize = 18.sp)
+                Text(quota, fontWeight = FontWeight.Black, color = SwimBlueMain, fontSize = 18.sp)
                 Text(stringResource(R.string.label_traffic), color = Color(0xFF64748B), fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
@@ -209,7 +251,9 @@ fun FeatureItem(text: String) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(24.dp).background(SwimBlueMain.copy(alpha = 0.1f), CircleShape),
+            modifier = Modifier
+                .size(24.dp)
+                .background(SwimBlueMain.copy(alpha = 0.1f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = SwimBlueMain, modifier = Modifier.size(16.dp))
@@ -217,4 +261,24 @@ fun FeatureItem(text: String) {
         Spacer(modifier = Modifier.width(16.dp))
         Text(text, color = SwimNavyMouth, fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
+}
+
+@Composable
+private fun localizedPlanCode(code: String): String = when (code) {
+    "WEEK" -> stringResource(R.string.plan_code_week)
+    "MONTH" -> stringResource(R.string.plan_code_month)
+    "QUARTER" -> stringResource(R.string.plan_code_quarter)
+    else -> code
+}
+
+private fun formatPlanPrice(priceRub: String): String {
+    val normalized = priceRub.replace(',', '.')
+    val amount = normalized.toBigDecimalOrNull() ?: return "$priceRub RUB"
+    val stripped = amount.stripTrailingZeros()
+    val display = if (stripped.scale() <= 0) {
+        stripped.toPlainString()
+    } else {
+        stripped.setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+    }
+    return "$display RUB"
 }

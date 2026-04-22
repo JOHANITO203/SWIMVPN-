@@ -495,3 +495,22 @@ pm run build PASSED.
 - **Verification**:
     - `android\\gradlew.bat assembleDebug` PASSED.
     - `backend\\npm run build` PASSED.
+## [2026-04-22] [SubscriptionScreen Backend Truth Alignment]
+- **Status**: DONE
+- **Changes**:
+    - Reworked Android `SubscriptionScreen` so plan cards render backend-driven values instead of legacy marketing mocks.
+    - Replaced the misleading unlimited/access marketing copy with quota-aware subscription wording.
+    - Plan cards now display backend truth directly:
+      - `name`
+      - localized `code`
+      - `durationLabel`
+      - `quotaLabel`
+      - real `priceRub`
+    - Kept the premium visual grammar while removing the old `BRONZE / SILVER / GOLD` dependency from the runtime rendering.
+    - Updated subscription feature bullets to stay product-true instead of repeating unsupported promises.
+    - Aligned Android `createOrder()` with backend truth by sending known profile email/phone instead of always `null`.
+    - Removed the fake Stripe checkout URL and replaced it with an honest in-app order-created message until a real client checkout contract exists.
+    - Added localized strings for the subscription alignment batch in `values`, `values-fr`, and `values-ru`.
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug` PASSED.
+    - `backend\\npm run build` PASSED.

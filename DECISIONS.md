@@ -197,3 +197,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `SupportScreen` now uses `support@swimvpn.pro` as the mail target.
   - Telegram support now opens `@SWIMVPNSUPPORTADMINBOT` with native Telegram deep-link first and web fallback.
   - FAQ/help copy is aligned with current Android flows rather than legacy import wording.
+## [2026-04-22] [SubscriptionScreen Must Render Backend Plans And Stop Faking Checkout]
+- **Decision**: The Android subscription screen must render the real backend plan contract (`name`, `code`, `durationLabel`, `quotaLabel`, `priceRub`) and must not invent a client checkout URL when the backend does not provide one.
+- **Why**: The old screen mixed a premium visual language with stale marketing tiers (`BRONZE / SILVER / GOLD`) and a fake Stripe URL, which broke product truth.
+- **Impact**:
+  - Subscription cards are now backend-driven while keeping the premium look.
+  - Android order creation now reuses known profile contact data when available.
+  - The app no longer pretends to have a finished PSP checkout flow; it creates the order and tells the user honestly that payment is not yet enabled in-app.
