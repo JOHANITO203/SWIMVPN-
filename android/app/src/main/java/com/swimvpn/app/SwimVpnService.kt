@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager.NameNotFoundException
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.net.VpnService
@@ -15,11 +16,15 @@ import androidx.core.app.NotificationCompat
 import com.swimvpn.app.BuildConfig
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
+import com.swimvpn.app.runtime.Tun2SocksAssetCatalog
+import com.swimvpn.app.runtime.Tun2SocksLaunchMode
+import com.swimvpn.app.runtime.Tun2SocksLaunchSpec
+import com.swimvpn.app.runtime.Tun2SocksNativeBridge
+import com.swimvpn.app.runtime.Tun2SocksRuntimeFilePreparer
 import com.swimvpn.app.runtime.XrayProcessBridge
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.VpnManager
-import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -29,28 +34,12 @@ import kotlinx.coroutines.launch
 
 class SwimVpnService : VpnService() {
 
-    private enum class Tun2SocksAvailability {
-        AVAILABLE,
-        MISSING,
-    }
-
-    private data class Tun2SocksContract(
-        val availability: Tun2SocksAvailability,
-        val executableFile: File?,
-        val probePaths: List<String>,
-        val localSocksHost: String,
-        val localSocksPort: Int,
-        val tunMtu: Int,
-    ) {
-        val isAvailable: Boolean
-            get() = availability == Tun2SocksAvailability.AVAILABLE && executableFile != null
-    }
-
     private var vpnInterface: ParcelFileDescriptor? = null
     private var activeXraySessionId: String? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val xrayBridge by lazy { XrayProcessBridge(applicationContext) }
+    private val tun2SocksFilePreparer by lazy { Tun2SocksRuntimeFilePreparer(applicationContext) }
 
     private val channelId = "swim_vpn_status"
     private val notificationId = 1
@@ -156,19 +145,65 @@ class SwimVpnService : VpnService() {
         host: String,
         port: Int,
     ) {
-        val tun2SocksContract = resolveTun2SocksContract(runtime)
+        val tun2SocksAvailability = Tun2SocksAssetCatalog.availability(applicationContext)
+        startValidatedXrayRuntime(
+            runtime = runtime,
+            failurePrefix = "Xray tunnel runtime exited before tun2socks could be armed",
+        )
 
-        vpnInterface = Builder()
+        val builder = Builder()
             .setSession("SWIMVPN+ (${runtime.profile.displayName})")
             .addAddress("10.0.0.2", 24)
             .addRoute("0.0.0.0", 0)
             .addDnsServer("8.8.8.8")
             .addDnsServer("1.1.1.1")
             .setMtu(1500)
-            .establish()
+
+        try {
+            builder.addDisallowedApplication(packageName)
+        } catch (_: NameNotFoundException) {
+            Log.w("SwimVpnService", "Unable to exclude ${packageName} from full tunnel routing")
+        }
+
+        vpnInterface = builder.establish()
 
         if (vpnInterface == null) {
             throw IllegalStateException("Failed to establish VPN interface. Permission missing?")
+        }
+
+        val tunFd = vpnInterface?.fd ?: throw IllegalStateException("VPN interface fd is unavailable")
+        val tun2SocksLaunchSpec = Tun2SocksLaunchSpec(
+            deviceArgument = "android-vpn",
+            proxyUrl = "socks5://127.0.0.1:${runtime.ports.socksPort}",
+            tunFd = tunFd,
+            mtu = 1500,
+            interfaceName = "swim0",
+        )
+        val tun2SocksNativePrep = if (tun2SocksAvailability.packagedSharedLibraryAvailable) {
+            tun2SocksFilePreparer.prepareNativeRuntime(
+                launchSpec = tun2SocksLaunchSpec,
+            ).getOrElse { error ->
+                throw IllegalStateException(
+                    "tun2socks native runtime could not be prepared: ${error.localizedMessage}",
+                    error,
+                )
+            }
+        } else {
+            null
+        }
+
+        tun2SocksNativePrep?.let { preparedRuntime ->
+            val nativeContract = Tun2SocksNativeBridge.contract(
+                preparedRuntime = preparedRuntime,
+                tunFd = tunFd,
+            )
+            val guidance = Tun2SocksNativeBridge.launchError(nativeContract)
+            preparedRuntime.stderrLogFile.appendText("${guidance.message}\n")
+            preparedRuntime.exitStateFile.writeText("JNI_SHIM_PENDING")
+            Log.i(
+                "SwimVpnService",
+                "Prepared tun2socks native bridge contract for ${preparedRuntime.sharedLibraryName} fd=${nativeContract.tunFd}",
+            )
         }
 
         VpnManager.markStarted()
@@ -176,10 +211,16 @@ class SwimVpnService : VpnService() {
         VpnManager.markHandshake()
         VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
 
-        val runtimeMessage = if (tun2SocksContract.isAvailable) {
-            "Tunnel interface ready; tun2socks detected, native data plane wiring pending"
-        } else {
-            "Tunnel interface ready; tun2socks is not packaged yet, running transitional mode"
+        val runtimeMessage = when (tun2SocksAvailability.preferredLaunchMode) {
+            Tun2SocksLaunchMode.JNI -> {
+                "Tunnel interface ready; tun2socks native library packaged, JNI shim pending"
+            }
+            Tun2SocksLaunchMode.EXECUTABLE -> {
+                "Tunnel interface ready; tun2socks executable packaged, Android native bridge pending"
+            }
+            Tun2SocksLaunchMode.MISSING -> {
+                "Tunnel interface ready; tun2socks native bridge is not packaged yet, transitional mode"
+            }
         }
         updateNotification(runtimeMessage)
 
@@ -187,16 +228,16 @@ class SwimVpnService : VpnService() {
             "SwimVpnService",
             buildString {
                 append("Prepared tunnel interface for ${runtime.profile.protocol} ${runtime.summary} via $host:$port")
-                append(" | tun2socks=")
-                append(tun2SocksContract.availability.name)
+                append(" | tun2socksLaunchMode=")
+                append(tun2SocksAvailability.preferredLaunchMode.name)
                 append(" | socks=")
-                append("${tun2SocksContract.localSocksHost}:${tun2SocksContract.localSocksPort}")
+                append("127.0.0.1:${runtime.ports.socksPort}")
                 append(" | mtu=")
-                append(tun2SocksContract.tunMtu)
-                if (!tun2SocksContract.isAvailable) {
-                    append(" | probes=")
-                    append(tun2SocksContract.probePaths.joinToString())
-                }
+                append(tun2SocksLaunchSpec.mtu)
+                append(" | tunFd=")
+                append(tunFd)
+                append(" | reason=")
+                append(tun2SocksAvailability.reason)
             },
         )
     }
@@ -206,30 +247,10 @@ class SwimVpnService : VpnService() {
         host: String,
         port: Int,
     ) {
-        val preparedRuntime = xrayBridge.prepare(runtime.runtimeConfig)
-        val running = xrayBridge.start(preparedRuntime)
-        activeXraySessionId = running.sessionId()
-
-        VpnManager.markStarted()
-        delay(600)
-
-        val snapshot = running.snapshot()
-        if (!snapshot.isAlive) {
-            val stderrTail = snapshot.stderrLogFile
-                .takeIf { it.exists() }
-                ?.readText()
-                ?.takeLast(400)
-                ?.trim()
-            throw IllegalStateException(
-                buildString {
-                    append("Xray local proxy exited before becoming ready")
-                    if (!stderrTail.isNullOrBlank()) {
-                        append(": ")
-                        append(stderrTail)
-                    }
-                }
-            )
-        }
+        startValidatedXrayRuntime(
+            runtime = runtime,
+            failurePrefix = "Xray local proxy exited before becoming ready",
+        )
 
         VpnManager.markHandshake()
         VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
@@ -330,33 +351,33 @@ class SwimVpnService : VpnService() {
         }
     }
 
-    private fun resolveTun2SocksContract(
+    private suspend fun startValidatedXrayRuntime(
         runtime: TunnelRuntimeAdapter.RuntimePreparationResult,
-    ): Tun2SocksContract {
-        val candidateFiles = buildList {
-            val nativeLibDir = applicationInfo.nativeLibraryDir
-            add(File(nativeLibDir, "libtun2socks.so"))
-            add(File(nativeLibDir, "libhevsocks5.so"))
-            add(File(nativeLibDir, "libhev-socks5-tunnel.so"))
-            add(File(nativeLibDir, "tun2socks"))
-            add(File(nativeLibDir, "hev-socks5-tunnel"))
-            val assetRoot = File(applicationInfo.dataDir, "files/${BuildConfig.XRAY_ASSET_ROOT.removeSuffix("/xray")}/tun2socks")
-            add(File(assetRoot, "tun2socks"))
-            add(File(assetRoot, "hev-socks5-tunnel"))
-        }
+        failurePrefix: String,
+    ) {
+        val preparedRuntime = xrayBridge.prepare(runtime.runtimeConfig)
+        val running = xrayBridge.start(preparedRuntime)
+        activeXraySessionId = running.sessionId()
 
-        val executable = candidateFiles.firstOrNull { it.exists() && it.isFile }
-        return Tun2SocksContract(
-            availability = if (executable != null) {
-                Tun2SocksAvailability.AVAILABLE
-            } else {
-                Tun2SocksAvailability.MISSING
-            },
-            executableFile = executable,
-            probePaths = candidateFiles.map { it.absolutePath },
-            localSocksHost = "127.0.0.1",
-            localSocksPort = runtime.ports.socksPort,
-            tunMtu = 1500,
-        )
+        VpnManager.markStarted()
+        delay(600)
+
+        val snapshot = running.snapshot()
+        if (!snapshot.isAlive) {
+            val stderrTail = snapshot.stderrLogFile
+                .takeIf { it.exists() }
+                ?.readText()
+                ?.takeLast(400)
+                ?.trim()
+            throw IllegalStateException(
+                buildString {
+                    append(failurePrefix)
+                    if (!stderrTail.isNullOrBlank()) {
+                        append(": ")
+                        append(stderrTail)
+                    }
+                }
+            )
+        }
     }
 }

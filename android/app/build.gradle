@@ -11,9 +11,14 @@ def xrayArtifactByAbi = [
     "x86_64"     : "Xray-android-amd64.zip",
 ]
 def tun2SocksExecutableName = "tun2socks"
+def tun2SocksSharedLibraryName = "libhev-socks5-tunnel.so"
 def tun2SocksBinaryByAbi = [
     "arm64-v8a": providers.gradleProperty("tun2socksArm64Path").orNull,
     "x86_64"   : providers.gradleProperty("tun2socksX8664Path").orNull,
+]
+def tun2SocksSharedLibraryByAbi = [
+    "arm64-v8a": providers.gradleProperty("tun2socksArm64SoPath").orNull,
+    "x86_64"   : providers.gradleProperty("tun2socksX8664SoPath").orNull,
 ]
 def generatedRuntimeAssetsDir = file("$buildDir/generated/runtimeAssets/main")
 def generatedRuntimeJniLibsDir = file("$buildDir/generated/runtimeJniLibs/main")
@@ -41,6 +46,7 @@ android {
         buildConfigField "String", "XRAY_EXECUTABLE_LIBRARY_NAME", "\"libxray.so\""
         buildConfigField "String", "TUN2SOCKS_ASSET_ROOT", "\"${tun2SocksAssetRoot}\""
         buildConfigField "String", "TUN2SOCKS_EXECUTABLE_NAME", "\"${tun2SocksExecutableName}\""
+        buildConfigField "String", "TUN2SOCKS_SHARED_LIBRARY_NAME", "\"${tun2SocksSharedLibraryName}\""
     }
 
     buildTypes {
@@ -150,6 +156,7 @@ tasks.register("prepareXrayRuntimeAssets") {
 
 tasks.register("prepareTun2SocksRuntimeAssets") {
     outputs.dir(generatedRuntimeAssetsDir)
+    outputs.dir(generatedRuntimeJniLibsDir)
 
     doLast {
         def tun2SocksRoot = file("${generatedRuntimeAssetsDir}/${tun2SocksAssetRoot}")
@@ -164,9 +171,20 @@ tasks.register("prepareTun2SocksRuntimeAssets") {
 
             def sourceFile = binaryPath ? file(binaryPath) : null
             def targetFile = file("${abiDir}/${tun2SocksExecutableName}")
-            def available = sourceFile != null && sourceFile.exists()
+            def executableAvailable = sourceFile != null && sourceFile.exists()
 
-            if (available) {
+            def sharedLibraryPath = tun2SocksSharedLibraryByAbi[abi]
+            def sharedLibrarySourceFile = sharedLibraryPath ? file(sharedLibraryPath) : null
+            def sharedLibraryAvailable = sharedLibrarySourceFile != null && sharedLibrarySourceFile.exists()
+            def jniTargetDir = file("${generatedRuntimeJniLibsDir}/${abi}")
+            jniTargetDir.mkdirs()
+            def jniTargetFile = file("${jniTargetDir}/${tun2SocksSharedLibraryName}")
+
+            if (jniTargetFile.exists()) {
+                delete(jniTargetFile)
+            }
+
+            if (executableAvailable) {
                 copy {
                     from sourceFile
                     into abiDir
@@ -174,14 +192,32 @@ tasks.register("prepareTun2SocksRuntimeAssets") {
                 }
             }
 
+            if (sharedLibraryAvailable) {
+                copy {
+                    from sharedLibrarySourceFile
+                    into jniTargetDir
+                    rename { tun2SocksSharedLibraryName }
+                }
+            }
+
+            def preferredLaunchMode = sharedLibraryAvailable ? "jni" : (executableAvailable ? "executable" : "missing")
+            def reason = sharedLibraryAvailable
+                ? "shared library packaged via Gradle property"
+                : (executableAvailable
+                    ? "local executable provided via Gradle property"
+                    : "no local tun2socks shared library or executable configured for this ABI")
+
             availability << [
-                abi         : abi,
-                available   : available,
-                sourcePath  : binaryPath ?: "",
-                executable  : available ? "${tun2SocksAssetRoot}/${abi}/${tun2SocksExecutableName}" : "",
-                reason      : available
-                    ? "local binary provided via Gradle property"
-                    : "no local tun2socks binary configured for this ABI",
+                abi                            : abi,
+                available                      : sharedLibraryAvailable || executableAvailable,
+                preferredLaunchMode            : preferredLaunchMode,
+                executableAvailable            : executableAvailable,
+                executableSourcePath           : binaryPath ?: "",
+                executableAssetPath            : executableAvailable ? "${tun2SocksAssetRoot}/${abi}/${tun2SocksExecutableName}" : "",
+                packagedSharedLibraryAvailable : sharedLibraryAvailable,
+                packagedSharedLibrarySourcePath: sharedLibraryPath ?: "",
+                packagedSharedLibraryName      : sharedLibraryAvailable ? tun2SocksSharedLibraryName : "",
+                reason                         : reason,
             ]
         }
 

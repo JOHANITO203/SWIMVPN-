@@ -597,3 +597,25 @@ pm run build PASSED.
 - **Verification**:
     - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.
     - `android\\gradlew.bat assembleDebug` PASSED after manifest/build cleanup.
+## [2026-04-22] [VPN Core Batch 4 - Phase 2B JNI-First tun2socks Wiring]
+- **Status**: DONE
+- **Changes**:
+    - Reoriented Android `tun2socks` integration toward the upstream Android truth: packaged shared library + `tun fd` contract instead of a pretend CLI-only model.
+    - Extended Android build packaging so `tun2socks` can now advertise two artifact types per ABI:
+      - packaged shared library (`libhev-socks5-tunnel.so`)
+      - optional executable fallback
+    - Added richer runtime availability metadata and launch-mode selection:
+      - `JNI`
+      - `EXECUTABLE`
+      - `MISSING`
+    - Added session-scoped `tun2socks` config-file preparation so later JNI wiring can consume a stable runtime artifact without rebuilding service state ad hoc.
+    - Updated the executable fallback process bridge to launch from the prepared config file instead of the older fake flag contract.
+    - Updated `SwimVpnService` full-tunnel startup so it now:
+      - starts and validates Xray before arming the TUN path
+      - excludes the app package from the VPN builder to reduce self-routing loops
+      - establishes a concrete `tun fd` + config contract for future `tun2socks` JNI wiring
+      - reports honestly whether the runtime has a packaged JNI library, only an executable fallback, or no `tun2socks` artifact at all
+    - Added a contract-only `Tun2SocksNativeBridge` helper to capture the final JNI handoff shape while keeping the build green until a repo-owned JNI shim is packaged.
+- **Verification**:
+    - `backend\\npm run build` PASSED.
+    - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.

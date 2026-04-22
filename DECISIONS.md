@@ -253,3 +253,13 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Android build stays green even with no packaged `tun2socks` binary.
   - The repo now exposes a proper `tun2socks` runtime contract and availability detection.
   - `FULL_TUNNEL` remains explicitly transitional until the data plane binary is supplied and wired.
+## [2026-04-22] [Android tun2socks Must Be JNI-First With tun fd Contract]
+- **Decision**: The Android `tun2socks` path must follow the upstream Android model: shared-library/JNI integration with a `tun fd` handoff, while keeping any executable packaging only as a secondary fallback and not as the primary Android truth.
+- **Why**: The upstream `hev-socks5-tunnel` Android usage is library-oriented and expects `hev_socks5_tunnel_main(..., tun_fd)`. A pure `ProcessBuilder` story would keep us on the wrong architecture and delay the final full-tunnel wiring.
+- **Impact**:
+  - Android build packaging now supports a packaged shared library per ABI in addition to the optional executable fallback.
+  - `SwimVpnService` now prepares a stable `tun fd` + config-file contract for the future JNI handoff.
+  - The remaining blocker for closing Phase 2B is narrower and explicit:
+    - package a repo-owned JNI shim or equivalent binding
+    - link it to the packaged `hev-socks5-tunnel` library
+    - then execute the full-tunnel data plane for real on device.

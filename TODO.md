@@ -122,10 +122,11 @@ otification-bot-service event handoff.
   - local SOCKS port responds
   - logs are written under runtime session directory
 - Complete the next VPN core native batch:
-  - supply a real Android `tun2socks` executable for supported ABIs
-  - decide the final Android launch contract for the TUN device/file descriptor
+  - package a repo-owned Android JNI shim for `hev-socks5-tunnel`
+  - bind the packaged shared library to the prepared `tun fd` + config-file contract
+  - decide whether executable fallback remains only diagnostic or should be removed once JNI is live
   - bridge `SwimVpnService` full-tunnel data plane to `tun2socks`
-  - replace the transitional full-tunnel interface-only path with real traffic forwarding
+  - replace the transitional full-tunnel path with real traffic forwarding
   - add runtime bytes telemetry instead of session-only placeholders
   - verify `FULL_TUNNEL` end-to-end on device, not just in build
 - Re-test the subscription screen on device:

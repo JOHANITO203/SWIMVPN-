@@ -56,7 +56,7 @@ class Tun2SocksProcessBridge(
         launchSpec: Tun2SocksLaunchSpec,
         sessionId: String = defaultSessionId(),
     ): Result<PreparedTun2SocksRuntime> {
-        return filePreparer.prepare(
+        return filePreparer.prepareExecutable(
             launchSpec = launchSpec,
             sessionId = sessionId,
         )
@@ -64,21 +64,10 @@ class Tun2SocksProcessBridge(
 
     fun start(preparedRuntime: PreparedTun2SocksRuntime): RunningTun2SocksProcess {
         val command = mutableListOf(
-            preparedRuntime.executableFile.absolutePath,
-            "-device",
-            preparedRuntime.launchSpec.deviceArgument,
-            "-proxy",
-            preparedRuntime.launchSpec.proxyUrl,
-            "-tcp-auto-tuning",
+            preparedRuntime.executableFile?.absolutePath
+                ?: throw IllegalStateException("tun2socks executable runtime is missing"),
+            preparedRuntime.configFile.absolutePath,
         )
-
-        preparedRuntime.launchSpec.interfaceName?.takeIf { it.isNotBlank() }?.let {
-            command.addAll(listOf("-interface", it))
-        }
-
-        command.addAll(listOf("-mtu", preparedRuntime.launchSpec.mtu.toString()))
-        command.addAll(listOf("-loglevel", preparedRuntime.launchSpec.logLevel))
-        command.addAll(preparedRuntime.launchSpec.extraArgs)
 
         val processBuilder = ProcessBuilder(command)
             .directory(preparedRuntime.workingDirectory)
