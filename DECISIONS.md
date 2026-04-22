@@ -174,3 +174,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - PowerShell now respects the caller's working directory by default.
   - Future repo work is less likely to drift into the wrong project because of a global shell override.
   - No matching `cmd` autorun override was found, so no `cmd` startup correction was needed in this batch.
+
+## [2026-04-22] [Ignore Android Local Gradle User Home]
+- **Decision**: Treat `android/.gradle-user-home/` as a strictly local cache and ignore it in Git.
+- **Why**: GUI/CLI commit flows that stage all files were failing on Windows path-length limits when they tried to add Gradle cache files from that directory.
+- **Impact**:
+  - Android local build caches no longer block repository commits.
+  - The repo keeps only reproducible Android wrapper/build configuration, not transient cache internals.

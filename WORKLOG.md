@@ -433,3 +433,13 @@ pm run build PASSED.
     - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.
     - Verified generated APK:
       - `android/app/build/outputs/apk/debug/app-debug.apk`
+
+## [2026-04-22] [Git Commit Flow Unblocked For Android Cache Paths]
+- **Status**: DONE
+- **Changes**:
+    - Audited the exported Git client log to identify the actual source of the commit failure.
+    - Confirmed the failure was caused by `git add -A` trying to stage `android/.gradle-user-home/`, which contains very long Gradle cache paths.
+    - Added `android/.gradle-user-home/` to `.gitignore` so GUI/CLI commit flows stop trying to stage that cache.
+- **Verification**:
+    - Confirmed `git status --short` no longer reports `android/.gradle-user-home/`.
+    - Confirmed the only tracked change in the batch is the `.gitignore` fix itself.

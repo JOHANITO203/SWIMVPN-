@@ -112,3 +112,4 @@ otification-bot-service event handoff.
 - If Android build temp folders are recreated and become large again, clean them after each heavy build/debug batch:
   - `android/.gradle-user-home/`
   - `android/wrapper/`
+- Keep `android/.gradle-user-home/` out of commits permanently; it is now intentionally ignored by Git.
