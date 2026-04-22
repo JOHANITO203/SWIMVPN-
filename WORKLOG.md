@@ -443,3 +443,12 @@ pm run build PASSED.
 - **Verification**:
     - Confirmed `git status --short` no longer reports `android/.gradle-user-home/`.
     - Confirmed the only tracked change in the batch is the `.gitignore` fix itself.
+
+## [2026-04-22] [Android Local Gradle Cache Removed Physically]
+- **Status**: DONE
+- **Changes**:
+    - Removed the remaining physical `android/.gradle-user-home/` directory after confirming it was only a local Gradle cache.
+    - Used a long-path-safe Windows mirror cleanup approach to clear the directory tree completely.
+- **Verification**:
+    - Confirmed `android/.gradle-user-home/` no longer exists physically.
+    - Confirmed `git status --short` is clean.

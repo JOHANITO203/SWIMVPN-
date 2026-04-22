@@ -113,3 +113,4 @@ otification-bot-service event handoff.
   - `android/.gradle-user-home/`
   - `android/wrapper/`
 - Keep `android/.gradle-user-home/` out of commits permanently; it is now intentionally ignored by Git.
+- If `android/.gradle-user-home/` reappears later, treat it as disposable local cache and delete it after the build/debug batch instead of trying to version it.
