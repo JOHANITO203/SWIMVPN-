@@ -98,12 +98,15 @@
     <string name="support_title">HELP &amp; SUPPORT</string>
     <string name="support_faq_title">FAQ</string>
     <string name="faq_connect_title">How to connect?</string>
-    <string name="faq_connect_desc">Press the central \"ON\" button to start the secure connection.</string>
-    <string name="faq_import_title">How to import a link?</string>
-    <string name="faq_import_desc">Copy your vless:// link, then use the \"Import\" button on the home screen.</string>
+    <string name="faq_connect_desc">Choose an active server or import a valid access config, then press the central \"ON\" button to start the secure tunnel.</string>
+    <string name="faq_import_title">How to import access?</string>
+    <string name="faq_import_desc">Open Import Access from the home + button or from your profile, then paste, scan, or enter your raw config.</string>
     <string name="support_contact_title">CONTACT US</string>
     <string name="support_email">Support Email</string>
-    <string name="support_telegram">Telegram Channel</string>
+    <string name="support_email_value">support@swimvpn.pro</string>
+    <string name="support_telegram_bot">Telegram Support Bot</string>
+    <string name="support_telegram_handle">@SWIMVPNSUPPORTADMINBOT</string>
+    <string name="support_telegram_username">SWIMVPNSUPPORTADMINBOT</string>
     <string name="btn_renew">RENEW SUBSCRIPTION</string>
 
     <!-- Subscription -->

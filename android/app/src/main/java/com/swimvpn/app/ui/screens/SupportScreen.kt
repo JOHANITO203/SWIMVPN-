@@ -1,5 +1,6 @@
 package com.swimvpn.app.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
@@ -122,9 +124,10 @@ fun SupportScreen(
                 SupportRow(
                     icon = Icons.Outlined.Email,
                     title = stringResource(R.string.support_email),
+                    subtitle = stringResource(R.string.support_email_value),
                     onClick = {
                         val intent = Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:support@swimvpn.com")
+                            data = Uri.parse("mailto:${context.getString(R.string.support_email_value)}")
                         }
                         context.startActivity(intent)
                     }
@@ -132,10 +135,10 @@ fun SupportScreen(
                 HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 24.dp))
                 SupportRow(
                     icon = Icons.Outlined.Language,
-                    title = stringResource(R.string.support_telegram),
+                    title = stringResource(R.string.support_telegram_bot),
+                    subtitle = stringResource(R.string.support_telegram_handle),
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/swimvpn"))
-                        context.startActivity(intent)
+                        openTelegramSupport(context.getString(R.string.support_telegram_username), context)
                     }
                 )
             }
@@ -201,7 +204,12 @@ fun FaqItem(title: String, description: String) {
 }
 
 @Composable
-fun SupportRow(icon: ImageVector, title: String, onClick: () -> Unit) {
+fun SupportRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    onClick: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -211,7 +219,39 @@ fun SupportRow(icon: ImageVector, title: String, onClick: () -> Unit) {
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(16.dp))
-        Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF475569), fontSize = 12.sp, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF475569),
+                fontSize = 12.sp,
+                letterSpacing = 1.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    color = Color(0xFF64748B),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color(0xFF94A3B8))
+    }
+}
+
+private fun openTelegramSupport(username: String, context: android.content.Context) {
+    val cleanUsername = username.removePrefix("@")
+    val telegramIntent = Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?domain=$cleanUsername"))
+    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/$cleanUsername"))
+
+    try {
+        context.startActivity(telegramIntent)
+    } catch (_: ActivityNotFoundException) {
+        context.startActivity(webIntent)
     }
 }

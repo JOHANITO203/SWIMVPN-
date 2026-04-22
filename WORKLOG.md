@@ -482,3 +482,16 @@ pm run build PASSED.
 - **Verification**:
     - `backend\\npm run build` PASSED.
     - `android\\gradlew.bat assembleDebug` PASSED.
+## [2026-04-22] [SupportScreen Truth Alignment]
+- **Status**: DONE
+- **Changes**:
+    - Aligned Android `SupportScreen` contact truth with production support channels.
+    - Replaced the legacy support email with `support@swimvpn.pro`.
+    - Replaced the legacy Telegram link with the official support bot `@SWIMVPNSUPPORTADMINBOT`.
+    - Added Telegram deep-link behavior with native-app first (`tg://resolve`) and web fallback (`https://t.me/...`).
+    - Updated support rows to surface the real email address and Telegram handle directly in the UI while preserving the premium layout.
+    - Refreshed FAQ copy so it matches the validated Android flows: connect via active server/imported config and import access via the unified import hub.
+    - Localized the updated support strings in `values`, `values-fr`, and `values-ru`.
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug` PASSED.
+    - `backend\\npm run build` PASSED.

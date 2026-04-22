@@ -190,3 +190,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `email` and `phone` are displayed as secondary identity fields when present.
   - profile badges and analytics now derive from backend truth first, with Android session bytes only augmenting consumption display.
   - management actions remain limited to validated product flows and do not reintroduce coupon behavior.
+## [2026-04-22] [SupportScreen Must Point To Official Support Channels]
+- **Decision**: The Android support screen must expose the production support email and the official Telegram support bot instead of legacy placeholder/community links.
+- **Why**: The support UI is a customer-facing trust surface. It has to match the deterministic support path already defined in the backend/admin-control layer and send users to the right contact immediately.
+- **Impact**:
+  - `SupportScreen` now uses `support@swimvpn.pro` as the mail target.
+  - Telegram support now opens `@SWIMVPNSUPPORTADMINBOT` with native Telegram deep-link first and web fallback.
+  - FAQ/help copy is aligned with current Android flows rather than legacy import wording.

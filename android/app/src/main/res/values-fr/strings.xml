@@ -90,12 +90,15 @@
     <string name="support_title">SUPPORT &amp; AIDE</string>
     <string name="support_faq_title">FAQ</string>
     <string name="faq_connect_title">Comment se connecter ?</string>
-    <string name="faq_connect_desc">Appuyez sur le bouton central "ON" pour démarrer la connexion sécurisée.</string>
-    <string name="faq_import_title">Comment importer un lien ?</string>
-    <string name="faq_import_desc">Copiez votre lien vless://, puis utilisez le bouton "Import" sur l\'écran d\'accueil.</string>
+    <string name="faq_connect_desc">Choisissez un serveur actif ou importez une configuration d\'accès valide, puis appuyez sur le bouton central "ON" pour démarrer le tunnel sécurisé.</string>
+    <string name="faq_import_title">Comment importer un accès ?</string>
+    <string name="faq_import_desc">Ouvrez Import Access depuis le bouton + de l\'accueil ou depuis votre profil, puis collez, scannez ou saisissez votre configuration brute.</string>
     <string name="support_contact_title">NOUS CONTACTER</string>
     <string name="support_email">Email du Support</string>
-    <string name="support_telegram">Canal Telegram</string>
+    <string name="support_email_value">support@swimvpn.pro</string>
+    <string name="support_telegram_bot">Bot Telegram du Support</string>
+    <string name="support_telegram_handle">@SWIMVPNSUPPORTADMINBOT</string>
+    <string name="support_telegram_username">SWIMVPNSUPPORTADMINBOT</string>
     <string name="btn_renew">RENOUVELER L\'ABONNEMENT</string>
 
     <!-- Subscription -->
