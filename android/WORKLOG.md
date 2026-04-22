@@ -7,6 +7,14 @@
 
 ### Changes Made:
 
+4. **Android 15 & Connectivity Fixes (2026-04-23)**
+   - **FGS Alignment**: Updated `SwimVpnService` to use `foregroundServiceType="vpn"` (standard for Android 14+). Added `FOREGROUND_SERVICE_VPN` permission.
+   - **Backend Recovery**:
+     - Identified and fixed **UTF-8 BOM** in `migration.sql` causing PostgreSQL syntax errors (`E42601`) on VPS.
+     - Fixed `prisma db seed` failure by forcing `ts-node` to use CommonJS in `package.json`.
+     - Implemented UI-side error handling for HTTP 500 and network timeouts in `MainViewModel`.
+   - **Infrastructure**: Successfully verified production health endpoints and microservice connectivity.
+
 1. **Gradle Wrapper Updated**
    - Changed from Gradle 8.7 to 8.11.1 in `gradle/wrapper/gradle-wrapper.properties`
    - Distribution URL: `gradle-8.11.1-bin.zip`
