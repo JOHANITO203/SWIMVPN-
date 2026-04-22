@@ -44,3 +44,12 @@ otification-bot-service event handoff.
 - Provide real RESEND_API_KEY in root .env and ackend/.env before enabling delivery emails in production.
 - Verify sender domain/email (support@swimvpn.pro) is validated in Resend account.
 - Rotate previously exposed Telegram bot token and keep only regenerated token in non-versioned .env files.
+
+## Env Provisioning
+- Provide real values for placeholders in `/.env` and `/backend/.env`:
+  - `TRAEFIK_DASHBOARD_AUTH`
+  - `TELEGRAM_BOT_TOKEN`
+  - `NOTIFICATION_BOT_TOKEN` (or leave empty intentionally)
+  - `ADMIN_CHAT_ID`
+  - `ADMIN_SUPPORT_BOT_TOKEN`
+  - `RESEND_API_KEY`

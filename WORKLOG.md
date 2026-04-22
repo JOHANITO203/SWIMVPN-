@@ -202,3 +202,17 @@ pm run lint PASSED.
 pm run build PASSED.
     - Root compose render: docker compose config PASSED with required env values.
     - Backend compose render: docker compose config PASSED with required env values.
+
+## [2026-04-22] [Env Files Full Regeneration Without Code Changes]
+- **Status**: DONE
+- **Changes**:
+    - Fully regenerated `/.env` and `/backend/.env` from current runtime contract.
+    - Preserved required support-bot constants:
+      - `ADMIN_SUPPORT_CHAT_ID=-1003912107958`
+      - `ADMIN_SUPPORT_DEFAULT_LANGUAGE=ru`
+      - `ADMIN_SUPPORT_FALLBACK_LANGUAGE=en`
+    - Generated fresh strong values for `POSTGRES_PASSWORD`, `JWT_SECRET`, and `ADMIN_JWT_SECRET`.
+    - Replaced Telegram/Resend/chat fields with explicit placeholders to avoid reusing compromised values.
+- **Verification**:
+    - Read back both env files and confirmed key presence/structure.
+    - No application source code files were modified.
