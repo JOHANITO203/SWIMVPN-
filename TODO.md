@@ -62,3 +62,8 @@ otification-bot-service event handoff.
 ## Admin Support Bot Next
 - Set `ADMIN_SUPPORT_REPORT_CHAT_ID=7161959711` in Dockploy env to receive personal support reports.
 - Redeploy `main` and verify escalation flow: message -> email -> confirmation + group relay + personal report relay.
+
+## Ops Scripts Follow-up
+- Run `chmod +x scripts/ops/*.sh` on VPS after pulling latest `main`.
+- Validate scripts on VPS with `bash -n scripts/ops/*.sh`.
+- Wire periodic `backup-db.sh` via Dockploy schedule or cron.

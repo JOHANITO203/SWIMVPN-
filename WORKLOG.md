@@ -258,3 +258,16 @@ pm run build PASSED.
     - `backend`: `npm run lint` PASSED.
     - `backend`: `npm run build` PASSED.
     - `backend`: `npx ts-node apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts` PASSED.
+
+## [2026-04-22] [Ops Automation Scripts Pack]
+- **Status**: DONE
+- **Changes**:
+    - Added `scripts/ops/deploy.sh` for branch pull + compose redeploy + core logs.
+    - Added `scripts/ops/health-check.sh` for container status, migration exit code, API health, and TLS issuer check.
+    - Added `scripts/ops/backup-db.sh` for PostgreSQL custom-format backup from `db` container.
+    - Added `scripts/ops/restore-db.sh` with explicit `RESTORE` confirmation for safety.
+    - Added `scripts/ops/incident-report.sh` for quick diagnostics snapshot.
+    - Added `scripts/ops/README.md` with Dockploy-ready usage examples.
+- **Verification**:
+    - Confirmed script files exist and are readable.
+    - Full `bash -n` syntax validation could not run on this workstation (no bash runtime available).

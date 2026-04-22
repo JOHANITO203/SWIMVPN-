@@ -99,3 +99,8 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Add optional `ADMIN_SUPPORT_REPORT_CHAT_ID` for parallel admin report notifications.
 - **Why**: Owner requested visibility in personal Telegram account while keeping primary support group destination.
 - **Impact**: Primary escalation remains `ADMIN_SUPPORT_CHAT_ID`; personal relay activates only when report chat id is set.
+
+## [2026-04-22] [Server Ops Scripts as Minimal Repo Standard]
+- **Decision**: Introduce a minimal `scripts/ops` toolbox in-repo for deployment and incident response.
+- **Why**: Reduce manual mistakes and speed up routine VPS operations under Dockploy/Compose.
+- **Impact**: Team now has repeatable commands for deploy, health checks, DB backup/restore, and diagnostics.
