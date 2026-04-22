@@ -301,3 +301,26 @@ pm run build PASSED.
     - Rebuilt `android` debug APK successfully with Gradle 8.11.1 from the local wrapper distribution.
     - Inspected `android/app/build/outputs/apk/debug/app-debug.apk`.
     - Confirmed `libimage_processing_util_jni.so` is no longer packaged in any ABI.
+
+## [2026-04-22] [Android Startup Crash Audit - Retrofit Base URL Fix]
+- **Status**: DONE
+- **Changes**:
+    - Audited Android startup path (`MainActivity` -> `MainViewModel` -> `RetrofitClient`) without touching backend.
+    - Identified a fatal initialization issue in `android/app/src/main/java/com/swimvpn/app/data/network/RetrofitClient.kt`:
+      - Retrofit base URL was `http://10.0.2.2:3000` without the required trailing slash.
+    - Fixed it to `http://10.0.2.2:3000/`.
+- **Verification**:
+    - Rebuilt Android debug APK successfully after the fix.
+    - This removes the immediate `Retrofit.Builder().baseUrl(...)` crash path during `MainViewModel` creation.
+
+## [2026-04-22] [Android Startup Crash Audit - AppCompat Theme Fix]
+- **Status**: DONE
+- **Changes**:
+    - Audited Android launch path against the exported inspection reports.
+    - Identified an AppCompat theme mismatch:
+      - `MainActivity` extends `AppCompatActivity`
+      - `Theme.SwimVpn` inherited from `android:Theme.Material.Light.NoActionBar`
+    - Updated `android/app/src/main/res/values/themes.xml` so `Theme.SwimVpn` now inherits from `Theme.AppCompat.Light.NoActionBar`.
+- **Verification**:
+    - Rebuilt Android debug APK successfully after the theme change.
+    - This removes the classic `Theme.AppCompat` launch crash path for `AppCompatActivity`.

@@ -69,6 +69,8 @@ otification-bot-service event handoff.
 - Wire periodic `backup-db.sh` via Dockploy schedule or cron.
 
 ## Android Follow-up
-- In Android Studio: install the rebuilt APK on the affected device and confirm startup crash is resolved after scanner migration.
+- In Android Studio: install the rebuilt APK on the affected device and confirm startup crash is resolved after scanner migration + Retrofit base URL fix.
+- Re-test on device after the AppCompat theme fix.
 - Re-run Android Studio's 16 KB APK compatibility check and confirm the old `libimage_processing_util_jni.so` warning is gone.
+- If startup still crashes, collect `adb logcat` for the first fatal exception before making any broader Android changes.
 - If production must support non-GMS devices later, evaluate a separate fallback scanner path as an explicit future task.

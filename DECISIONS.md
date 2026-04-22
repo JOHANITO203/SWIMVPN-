@@ -114,3 +114,13 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Replace the Android QR scanner implementation with Google Play Services Code Scanner.
 - **Why**: The APK still shipped `libimage_processing_util_jni.so` after the previous mitigation, so the local image-processing scanner path remained incompatible with 16 KB page-size requirements.
 - **Impact**: The scanner UX remains `open scanner -> scan QR -> return content`, but the camera UI is now provided by Play Services instead of a custom in-app preview. This removes the blocking native library from the APK.
+
+## [2026-04-22] [Keep Retrofit Base URL Valid Even In Local Emulator Mode]
+- **Decision**: Ensure Android `RetrofitClient` base URL always ends with a trailing slash.
+- **Why**: `Retrofit.Builder().baseUrl(...)` throws immediately when the base URL is missing `/`, which can crash app startup before UI recovery paths run.
+- **Impact**: No backend contract change. This only prevents a fatal Android-side initialization error.
+
+## [2026-04-22] [Match MainActivity With An AppCompat Theme]
+- **Decision**: Keep `MainActivity` on `AppCompatActivity` and align `Theme.SwimVpn` to an AppCompat parent theme.
+- **Why**: `AppCompatActivity` with a framework `android:Theme.Material...` parent can crash on launch before Compose UI is shown.
+- **Impact**: No UI redesign and no backend impact. This is a strict startup-stability fix.
