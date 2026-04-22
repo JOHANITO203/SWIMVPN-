@@ -226,3 +226,12 @@ pm run build PASSED.
     - Updated `.env.example` and `DEPLOYMENT_GUIDE.md` to clarify Dockploy global proxy ownership.
 - **Verification**:
     - `docker compose config` PASSED for root stack after changes.
+
+## [2026-04-22] [Prisma Alpine OpenSSL Fix for Dockploy]
+- **Status**: DONE
+- **Changes**:
+    - Updated `backend/Dockerfile` to install `openssl` and `libc6-compat` in builder and runtime stages.
+    - Purpose: avoid Prisma schema engine/runtime failures on Alpine during `prisma migrate deploy`.
+- **Verification**:
+    - Commit pushed to `main`: `ab236d1`.
+    - Runtime validation pending on VPS redeploy.

@@ -79,3 +79,8 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: In Dockploy deployment mode, the app compose must not include its own Traefik instance.
 - **Why**: VPS already has Dockploy-managed proxy on 80/443; embedded Traefik caused port allocation failure.
 - **Impact**: Domain/TLS routing is configured at Dockploy layer; app compose runs backend services only.
+
+## [2026-04-22] [Prisma Runtime Dependency Baseline on Alpine]
+- **Decision**: Install OpenSSL userland libs in backend images (`builder` + `runtime`) for Prisma stability.
+- **Why**: Dockploy deployment showed `prisma-migrate` exit 1 with schema engine parse errors on Alpine.
+- **Impact**: Backend image gains minimal system deps; migrations should run reliably in production containers.
