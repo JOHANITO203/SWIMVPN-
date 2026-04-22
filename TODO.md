@@ -69,6 +69,6 @@ otification-bot-service event handoff.
 - Wire periodic `backup-db.sh` via Dockploy schedule or cron.
 
 ## Android Follow-up
-- In Android Studio: sync Gradle and run app on affected device to confirm startup crash is resolved.
-- Re-run APK 16KB compatibility check and confirm `libimage_processing_util_jni.so` warning is gone.
-- If still failing on non-GMS devices, add fallback scanner strategy (ZXing) behind feature flag.
+- In Android Studio: install the rebuilt APK on the affected device and confirm startup crash is resolved after scanner migration.
+- Re-run Android Studio's 16 KB APK compatibility check and confirm the old `libimage_processing_util_jni.so` warning is gone.
+- If production must support non-GMS devices later, evaluate a separate fallback scanner path as an explicit future task.

@@ -109,3 +109,8 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Switch Android barcode scanning dependency to `com.google.android.gms:play-services-mlkit-barcode-scanning`.
 - **Why**: Reduce risk from bundled JNI payload alignment issues while keeping same ML Kit scanning API in app code.
 - **Impact**: Requires Google Play Services availability on device; app code remains mostly unchanged.
+
+## [2026-04-22] [Use Google Code Scanner Instead Of Local CameraX/ML Kit Processing]
+- **Decision**: Replace the Android QR scanner implementation with Google Play Services Code Scanner.
+- **Why**: The APK still shipped `libimage_processing_util_jni.so` after the previous mitigation, so the local image-processing scanner path remained incompatible with 16 KB page-size requirements.
+- **Impact**: The scanner UX remains `open scanner -> scan QR -> return content`, but the camera UI is now provided by Play Services instead of a custom in-app preview. This removes the blocking native library from the APK.

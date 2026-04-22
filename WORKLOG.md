@@ -280,3 +280,24 @@ pm run build PASSED.
 - **Verification**:
     - Local Gradle dependency task could not be executed from this workstation because Gradle wrapper scripts are missing in repo.
     - Validation must be completed in Android Studio (sync, rebuild APK, re-run 16KB check, runtime launch test).
+
+## [2026-04-22] [Android Scanner Migration To Google Code Scanner]
+- **Status**: DONE
+- **Changes**:
+    - Removed the remaining local scanner stack from `android/app/build.gradle`:
+      - `com.google.android.gms:play-services-mlkit-barcode-scanning`
+      - `androidx.camera:camera-camera2`
+      - `androidx.camera:camera-lifecycle`
+      - `androidx.camera:camera-view`
+    - Added `com.google.android.gms:play-services-code-scanner:16.1.0`.
+    - Replaced the `CameraX + ML Kit` QR scanner implementation in `android/app/src/main/java/com/swimvpn/app/MainActivity.kt` with Google Play Services Code Scanner.
+    - Preserved scanner contract:
+      - open scanner
+      - scan QR
+      - return raw scanned content to `viewModel.importVless(code)`
+      - close cleanly on cancel/failure
+    - Added `com.google.mlkit.vision.DEPENDENCIES=barcode_ui` metadata in `AndroidManifest.xml` to let Play Services provision the scanner module cleanly.
+- **Verification**:
+    - Rebuilt `android` debug APK successfully with Gradle 8.11.1 from the local wrapper distribution.
+    - Inspected `android/app/build/outputs/apk/debug/app-debug.apk`.
+    - Confirmed `libimage_processing_util_jni.so` is no longer packaged in any ABI.

@@ -3,7 +3,6 @@ package com.swimvpn.app
 
 import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -11,13 +10,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.core.content.ContextCompat
 import com.swimvpn.app.config.ConfigRepository
 import com.swimvpn.app.ui.screens.ConfigImportScreen
 import androidx.core.os.LocaleListCompat
@@ -45,13 +37,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -59,10 +49,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.screens.*
@@ -70,7 +58,6 @@ import com.swimvpn.app.ui.theme.*
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.flow.first
-import java.util.concurrent.Executors
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -657,131 +644,66 @@ fun ImportMenuSheet(viewModel: MainViewModel, onDismiss: () -> Unit) {
 @Composable
 fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        hasCameraPermission = it
+    val currentOnCodeScanned by rememberUpdatedState(onCodeScanned)
+    val currentOnClose by rememberUpdatedState(onClose)
+    var hasLaunched by remember { mutableStateOf(false) }
+    var handledResult by remember { mutableStateOf(false) }
+    val scanner = remember(context) {
+        val options = GmsBarcodeScannerOptions.Builder()
+            .enableAutoZoom()
+            .allowManualInput()
+            .build()
+        GmsBarcodeScanning.getClient(context, options)
     }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "scanner")
-    val scanLineY by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scanLine"
-    )
-
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission) {
-            launcher.launch(Manifest.permission.CAMERA)
+    LaunchedEffect(scanner) {
+        if (hasLaunched) {
+            return@LaunchedEffect
         }
+
+        hasLaunched = true
+        scanner.startScan()
+            .addOnSuccessListener { barcode ->
+                if (!handledResult) {
+                    handledResult = true
+                    val rawValue = barcode.rawValue
+                    if (!rawValue.isNullOrBlank()) {
+                        currentOnCodeScanned(rawValue)
+                    } else {
+                        android.widget.Toast
+                            .makeText(context, "QR code is empty", android.widget.Toast.LENGTH_SHORT)
+                            .show()
+                        currentOnClose()
+                    }
+                }
+            }
+            .addOnCanceledListener {
+                if (!handledResult) {
+                    handledResult = true
+                    currentOnClose()
+                }
+            }
+            .addOnFailureListener { error ->
+                if (!handledResult) {
+                    handledResult = true
+                    Log.e("QrScannerView", "Google Code Scanner failed", error)
+                    android.widget.Toast
+                        .makeText(context, "Scanner unavailable on this device", android.widget.Toast.LENGTH_SHORT)
+                        .show()
+                    currentOnClose()
+                }
+            }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        if (hasCameraPermission) {
-            AndroidView(
-                factory = { context ->
-                    val previewView = PreviewView(context)
-                    val preview = Preview.Builder().build()
-                    val selector = CameraSelector.Builder()
-                        .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-                        .build()
-                    preview.setSurfaceProvider(previewView.surfaceProvider)
-
-                    val imageAnalysis = ImageAnalysis.Builder()
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build()
-
-                    val options = BarcodeScannerOptions.Builder()
-                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                        .build()
-                    val scanner = BarcodeScanning.getClient(options)
-
-                    imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
-                        processImageProxy(scanner, imageProxy, onCodeScanned)
-                    }
-
-                    try {
-                        ProcessCameraProvider.getInstance(context).get().bindToLifecycle(
-                            lifecycleOwner, selector, preview, imageAnalysis
-                        )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                    previewView
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // UI Overlay for QR scanner
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val width = size.width
-                val height = size.height
-                val rectSize = width * 0.7f
-                val left = (width - rectSize) / 2
-                val top = (height - rectSize) / 2
-                val right = left + rectSize
-                val bottom = top + rectSize
-
-                // 1. Semi-transparent background
-                val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(0f, 0f)
-                    lineTo(width, 0f)
-                    lineTo(width, height)
-                    lineTo(0f, height)
-                    close()
-                    
-                    // Punch a hole
-                    moveTo(left, top)
-                    lineTo(right, top)
-                    lineTo(right, bottom)
-                    lineTo(left, bottom)
-                    close()
-                }
-                drawPath(path, color = Color.Black.copy(alpha = 0.6f), style = androidx.compose.ui.graphics.drawscope.Fill)
-
-                // 2. Corner markers
-                val lineLength = 40.dp.toPx()
-                val strokeWidth = 4.dp.toPx()
-                val cornerColor = SwimBlueMain
-
-                // Top Left
-                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Offset(left + lineLength, top), strokeWidth)
-                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Offset(left, top + lineLength), strokeWidth)
-
-                // Top Right
-                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(right, top), androidx.compose.ui.geometry.Offset(right - lineLength, top), strokeWidth)
-                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(right, top), androidx.compose.ui.geometry.Offset(right, top + lineLength), strokeWidth)
-
-                // Bottom Left
-                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(left, bottom), androidx.compose.ui.geometry.Offset(left + lineLength, bottom), strokeWidth)
-                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(left, bottom), androidx.compose.ui.geometry.Offset(left, bottom - lineLength), strokeWidth)
-
-                // Bottom Right
-                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(right, bottom), androidx.compose.ui.geometry.Offset(right - lineLength, bottom), strokeWidth)
-                drawLine(cornerColor, androidx.compose.ui.geometry.Offset(right, bottom), androidx.compose.ui.geometry.Offset(right, bottom - lineLength), strokeWidth)
-
-                // 3. Animated Scan Line
-                val lineY = top + (rectSize * scanLineY)
-                drawLine(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, SwimBlueMain, Color.Transparent)
-                    ),
-                    start = androidx.compose.ui.geometry.Offset(left, lineY),
-                    end = androidx.compose.ui.geometry.Offset(right, lineY),
-                    strokeWidth = 2.dp.toPx()
-                )
-            }
-        } else {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Camera permission required", color = Color.White)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(color = SwimBlueMain)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Opening scanner...", color = Color.White)
             }
         }
 
@@ -793,35 +715,6 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
         }
     }
 }
-
-@androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
-private fun processImageProxy(
-    scanner: com.google.mlkit.vision.barcode.BarcodeScanner,
-    imageProxy: ImageProxy,
-    onCodeScanned: (String) -> Unit
-) {
-    val mediaImage = imageProxy.image
-    if (mediaImage != null) {
-        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-        scanner.process(image)
-            .addOnSuccessListener { barcodes ->
-                for (barcode in barcodes) {
-                    barcode.rawValue?.let {
-                        onCodeScanned(it)
-                    }
-                }
-            }
-            .addOnFailureListener {
-                it.printStackTrace()
-            }
-            .addOnCompleteListener {
-                imageProxy.close()
-            }
-    } else {
-        imageProxy.close()
-    }
-}
-
 
 @Composable
 fun ActivateCodeDialog(onDismiss: () -> Unit, onActivate: (String) -> Unit) {
