@@ -150,6 +150,9 @@ otification-bot-service event handoff.
   - run `npm run prisma:baseline:prod` once if the schema was previously created without migrations
   - run `npm run prisma:migrate:deploy`
   - run `npm run prisma:seed`
+- Preferred operational path on the server:
+  - `scripts/ops/prisma-rollout.sh --baseline` for the first rollout on the old production DB
+  - `scripts/ops/prisma-rollout.sh` for subsequent normal rollouts
 - After rollout, re-test public backend endpoints:
   - `GET /api/v1/store/plans`
   - `POST /api/v1/access/bootstrap`

@@ -4,6 +4,7 @@ Minimal server automation scripts for deployment and operations.
 
 ## Files
 - `deploy.sh`: pull latest branch and redeploy compose.
+- `prisma-rollout.sh`: production-safe Prisma rollout helper (backup, optional baseline, migrate, seed).
 - `health-check.sh`: validate containers, migration status, API health, TLS issuer.
 - `backup-db.sh`: create PostgreSQL dump from running `db` container.
 - `restore-db.sh`: restore PostgreSQL dump with explicit confirmation.
@@ -29,6 +30,9 @@ scripts/ops/deploy.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbacke
 # Health check
 scripts/ops/health-check.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code --project swimvpnapp-swimvpnbackend-d39yib
 
+# Prisma rollout for an existing production database that needs one-time baselining
+scripts/ops/prisma-rollout.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code --project swimvpnapp-swimvpnbackend-d39yib --baseline
+
 # Backup DB
 scripts/ops/backup-db.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code --project swimvpnapp-swimvpnbackend-d39yib
 
@@ -41,5 +45,6 @@ scripts/ops/incident-report.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swi
 
 ## Safety notes
 - `restore-db.sh` requires typing `RESTORE` before execution.
+- `prisma-rollout.sh` should be run with `--baseline` only once for databases that existed before versioned Prisma migrations were introduced.
 - Use URL-safe values for `POSTGRES_PASSWORD` to avoid DSN parsing issues.
 - Keep dumps outside git-tracked directories when possible.

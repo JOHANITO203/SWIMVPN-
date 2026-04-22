@@ -46,4 +46,4 @@ fi
 
 "${compose_cmd[@]}" ps
 
-"${compose_cmd[@]}" logs --tail "$TAIL_LINES" db prisma-migrate gateway-service admin-control-service notification-bot-service || true
+"${compose_cmd[@]}" logs --tail "$TAIL_LINES" db prisma-migrate prisma-seed gateway-service admin-control-service notification-bot-service || true

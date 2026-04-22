@@ -31,18 +31,20 @@ for svc in "${required_services[@]}"; do
   fi
 done
 
-echo "[2/4] prisma-migrate exit status"
-prisma_id="$("${compose_cmd[@]}" ps -aq prisma-migrate || true)"
-if [[ -z "$prisma_id" ]]; then
-  echo "  FAIL: prisma-migrate container not found"
-  exit 1
-fi
-prisma_exit="$(docker inspect -f '{{.State.ExitCode}}' "$prisma_id")"
-if [[ "$prisma_exit" != "0" ]]; then
-  echo "  FAIL: prisma-migrate exit code $prisma_exit"
-  exit 1
-fi
-echo "  OK: prisma-migrate exit code 0"
+echo "[2/4] Prisma rollout one-shot services"
+for prisma_service in prisma-migrate prisma-seed; do
+  prisma_id="$("${compose_cmd[@]}" ps -aq "$prisma_service" || true)"
+  if [[ -z "$prisma_id" ]]; then
+    echo "  FAIL: $prisma_service container not found"
+    exit 1
+  fi
+  prisma_exit="$(docker inspect -f '{{.State.ExitCode}}' "$prisma_id")"
+  if [[ "$prisma_exit" != "0" ]]; then
+    echo "  FAIL: $prisma_service exit code $prisma_exit"
+    exit 1
+  fi
+  echo "  OK: $prisma_service exit code 0"
+done
 
 echo "[3/4] API health endpoint"
 if [[ "$ALLOW_INSECURE_TLS" == "1" ]]; then

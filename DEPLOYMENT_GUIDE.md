@@ -25,21 +25,31 @@ This guide reflects the current MVP backend reality:
    - `ADMIN_CHAT_ID`
 
 ## Database Readiness
-The backend image runs Prisma deploy migrations at startup:
-- `npx prisma migrate deploy`
+The production rollout must now treat Prisma as an explicit deployment phase:
+- backup DB
+- optional one-time baseline for pre-migration databases
+- `prisma migrate deploy`
+- `prisma db seed`
 
 Recommended production workflow:
 1. Build images.
 2. Start `db`.
-3. Run migration deploy.
-4. Start all services.
+3. Run `scripts/ops/prisma-rollout.sh`.
+4. Start the full stack.
+5. Run `scripts/ops/health-check.sh`.
 
 ## Commands
 ```bash
 # Build
 Docker compose build
 
-# Start
+# Prisma rollout for a fresh/new migration-managed database
+scripts/ops/prisma-rollout.sh
+
+# Prisma rollout for an already-existing production database that was created before versioned migrations
+scripts/ops/prisma-rollout.sh --baseline
+
+# Start full stack
 Docker compose up -d
 
 # Validate service state
@@ -57,3 +67,4 @@ Docker compose config
 - `Server` model is optional internal support data.
 - Telegram is admin-control and notification only; PostgreSQL remains source of truth.
 - Do not treat deferred PSP code as active MVP functionality.
+- `prisma db push` must not be used as the normal production rollout path anymore.

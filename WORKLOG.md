@@ -666,3 +666,18 @@ pm run build PASSED.
     - `backend\\npm run prisma:validate` PASSED.
     - `backend\\npm run prisma:generate` PASSED.
     - `backend\\npm run build` PASSED.
+## [2026-04-23] [Ops Batch - Production Prisma Rollout Runbook]
+- **Status**: DONE
+- **Changes**:
+    - Added a dedicated production Prisma rollout script:
+      - `scripts/ops/prisma-rollout.sh`
+      - flow: compose validation -> db start -> backup -> optional baseline -> migrate -> seed
+    - Added a dedicated `prisma-seed` one-shot service to the root compose stack.
+    - Updated the stack so application services wait for `prisma-seed` success instead of only `prisma-migrate`.
+    - Extended ops scripts and docs so rollout observability covers both:
+      - `prisma-migrate`
+      - `prisma-seed`
+    - Updated deployment documentation to use the rollout script instead of an implicit `db push`-style startup assumption.
+- **Verification**:
+    - `backend\\npm run build` PASSED.
+    - root compose render validation attempted in current environment.

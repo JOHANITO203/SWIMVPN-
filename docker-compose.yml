@@ -32,12 +32,31 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: runtime
-    command: ["npx", "prisma", "migrate", "deploy"]
+    command: ["npm", "run", "prisma:migrate:deploy"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+    mem_limit: 128m
+    cpus: "0.20"
+    networks:
+      - private
+
+  prisma-seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["npm", "run", "prisma:seed"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+      prisma-migrate:
+        condition: service_completed_successfully
     restart: "no"
     mem_limit: 128m
     cpus: "0.20"
@@ -56,7 +75,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      prisma-migrate:
+      prisma-seed:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "-e", "const n=require('net');const s=n.createConnection(3004,'127.0.0.1');const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();process.exit(0)});s.on('timeout',f);s.on('error',f);"]
@@ -85,7 +104,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      prisma-migrate:
+      prisma-seed:
         condition: service_completed_successfully
       vpn-config-engine-service:
         condition: service_healthy
@@ -119,7 +138,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      prisma-migrate:
+      prisma-seed:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "-e", "const n=require('net');const t=[[3006,'127.0.0.1'],[5432,'db']];let i=0;const c=()=>{if(i===t.length)process.exit(0);const [p,h]=t[i++];const s=n.createConnection(p,h);const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();c()});s.on('timeout',f);s.on('error',f)};c();"]
@@ -147,7 +166,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      prisma-migrate:
+      prisma-seed:
         condition: service_completed_successfully
       inventory-delivery-service:
         condition: service_healthy
@@ -176,7 +195,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      prisma-migrate:
+      prisma-seed:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "-e", "const n=require('net');const t=[[3005,'127.0.0.1'],[5432,'db']];let i=0;const c=()=>{if(i===t.length)process.exit(0);const [p,h]=t[i++];const s=n.createConnection(p,h);const f=()=>{s.destroy();process.exit(1)};s.setTimeout(2000);s.on('connect',()=>{s.destroy();c()});s.on('timeout',f);s.on('error',f)};c();"]
@@ -213,7 +232,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      prisma-migrate:
+      prisma-seed:
         condition: service_completed_successfully
       customer-order-service:
         condition: service_healthy
@@ -253,7 +272,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      prisma-migrate:
+      prisma-seed:
         condition: service_completed_successfully
       customer-order-service:
         condition: service_healthy

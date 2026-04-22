@@ -53,6 +53,9 @@ fi
   echo
   echo "== Logs: prisma-migrate (last 120) =="
   "${compose_cmd[@]}" logs --tail 120 prisma-migrate || true
+  echo
+  echo "== Logs: prisma-seed (last 120) =="
+  "${compose_cmd[@]}" logs --tail 120 prisma-seed || true
 } > "$report_file"
 
 echo "Incident report saved: $report_file"
