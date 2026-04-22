@@ -67,3 +67,8 @@ otification-bot-service event handoff.
 - Run `chmod +x scripts/ops/*.sh` on VPS after pulling latest `main`.
 - Validate scripts on VPS with `bash -n scripts/ops/*.sh`.
 - Wire periodic `backup-db.sh` via Dockploy schedule or cron.
+
+## Android Follow-up
+- In Android Studio: sync Gradle and run app on affected device to confirm startup crash is resolved.
+- Re-run APK 16KB compatibility check and confirm `libimage_processing_util_jni.so` warning is gone.
+- If still failing on non-GMS devices, add fallback scanner strategy (ZXing) behind feature flag.

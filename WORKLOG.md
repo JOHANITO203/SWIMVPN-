@@ -271,3 +271,12 @@ pm run build PASSED.
 - **Verification**:
     - Confirmed script files exist and are readable.
     - Full `bash -n` syntax validation could not run on this workstation (no bash runtime available).
+
+## [2026-04-22] [Android 16KB Native Alignment Mitigation]
+- **Status**: DONE
+- **Changes**:
+    - Replaced bundled ML Kit barcode dependency `com.google.mlkit:barcode-scanning:17.3.0` with Play Services variant `com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1` in `android/app/build.gradle`.
+    - Goal: avoid shipping bundled native `.so` (`libimage_processing_util_jni.so`) that triggered 16KB alignment warning and probable startup crash on 16KB-page devices.
+- **Verification**:
+    - Local Gradle dependency task could not be executed from this workstation because Gradle wrapper scripts are missing in repo.
+    - Validation must be completed in Android Studio (sync, rebuild APK, re-run 16KB check, runtime launch test).

@@ -104,3 +104,8 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Introduce a minimal `scripts/ops` toolbox in-repo for deployment and incident response.
 - **Why**: Reduce manual mistakes and speed up routine VPS operations under Dockploy/Compose.
 - **Impact**: Team now has repeatable commands for deploy, health checks, DB backup/restore, and diagnostics.
+
+## [2026-04-22] [Use Play Services ML Kit Barcode Variant]
+- **Decision**: Switch Android barcode scanning dependency to `com.google.android.gms:play-services-mlkit-barcode-scanning`.
+- **Why**: Reduce risk from bundled JNI payload alignment issues while keeping same ML Kit scanning API in app code.
+- **Impact**: Requires Google Play Services availability on device; app code remains mostly unchanged.
