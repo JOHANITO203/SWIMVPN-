@@ -1,56 +1,12 @@
 networks:
-  public:
-    driver: bridge
-    name: swimvpn-public
   private:
     driver: bridge
     name: swimvpn-private
 
 volumes:
   swimvpn-pgdata:
-  traefik-letsencrypt:
 
 services:
-  traefik:
-    image: traefik:v3.0
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
-      - --certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL:?TRAEFIK_ACME_EMAIL is required}
-      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
-      - --api.dashboard=true
-      - --ping=true
-      - --log.level=INFO
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik-letsencrypt:/letsencrypt
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.traefik-dashboard.rule=Host(`traefik.swimvpn.pro`)
-      - traefik.http.routers.traefik-dashboard.entrypoints=websecure
-      - traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt
-      - traefik.http.routers.traefik-dashboard.service=api@internal
-      - traefik.http.routers.traefik-dashboard.middlewares=traefik-auth
-      - traefik.http.middlewares.traefik-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:?TRAEFIK_DASHBOARD_AUTH is required}
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    restart: unless-stopped
-    mem_limit: 128m
-    cpus: "0.20"
-    networks:
-      - public
-      - private
-
   db:
     image: postgres:15-alpine
     environment:
@@ -293,16 +249,6 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:?ADMIN_CHAT_ID is required}
       DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-RUB}
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=swimvpn-private
-      - traefik.http.services.swimvpn-gateway.loadbalancer.server.port=3000
-      - traefik.http.routers.swimvpn-api.rule=Host(`api.swimvpn.pro`)
-      - traefik.http.routers.swimvpn-api.entrypoints=websecure
-      - traefik.http.routers.swimvpn-api.tls.certresolver=letsencrypt
-      - traefik.http.routers.swimvpn-admin.rule=Host(`admin.swimvpn.pro`)
-      - traefik.http.routers.swimvpn-admin.entrypoints=websecure
-      - traefik.http.routers.swimvpn-admin.tls.certresolver=letsencrypt
     depends_on:
       db:
         condition: service_healthy
@@ -317,8 +263,6 @@ services:
       vpn-config-engine-service:
         condition: service_healthy
       store-engine-service:
-        condition: service_healthy
-      traefik:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/v1/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1));"]

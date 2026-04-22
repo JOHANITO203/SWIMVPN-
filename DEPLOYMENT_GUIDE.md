@@ -1,8 +1,9 @@
-# SWIMVPN+ Deployment Guide (Truth-Aligned)
+# SWIMVPN+ Deployment Guide (Dockploy + Truth-Aligned)
 
 ## Scope
 This guide reflects the current MVP backend reality:
 - PostgreSQL + 6 backend services
+- No embedded Traefik service in this compose (Dockploy global proxy is used)
 - No WireGuard/OpenVPN infrastructure in compose
 - PSP integration deferred from active public MVP APIs
 

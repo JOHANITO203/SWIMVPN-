@@ -74,3 +74,8 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Introduce ADMIN_JWT_SECRET as a distinct required secret for dmin-control-service JWT signing.
 - **Why**: Removes hardcoded fallback and separates admin token scope from generic service JWT usage.
 - **Impact**: Deployment env must include ADMIN_JWT_SECRET (while JWT_SECRET remains required for other services).
+
+## [2026-04-22] [Dockploy Owns Reverse Proxy Layer]
+- **Decision**: In Dockploy deployment mode, the app compose must not include its own Traefik instance.
+- **Why**: VPS already has Dockploy-managed proxy on 80/443; embedded Traefik caused port allocation failure.
+- **Impact**: Domain/TLS routing is configured at Dockploy layer; app compose runs backend services only.

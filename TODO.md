@@ -53,3 +53,8 @@ otification-bot-service event handoff.
   - `ADMIN_CHAT_ID`
   - `ADMIN_SUPPORT_BOT_TOKEN`
   - `RESEND_API_KEY`
+
+## Dockploy Routing Follow-up
+- Configure Dockploy Domain mapping for `api.swimvpn.pro` -> `gateway-service:3000`.
+- Configure Dockploy Domain mapping for `admin.swimvpn.pro` according to desired backend route policy.
+- Re-run deployment and verify health endpoint externally.

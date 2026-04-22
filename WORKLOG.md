@@ -216,3 +216,13 @@ pm run build PASSED.
 - **Verification**:
     - Read back both env files and confirmed key presence/structure.
     - No application source code files were modified.
+
+## [2026-04-22] [Dockploy Mode Compose - Remove Embedded Traefik]
+- **Status**: DONE
+- **Changes**:
+    - Removed embedded `traefik` service from root `docker-compose.yml` to avoid 80/443 bind conflict on VPS running Dockploy.
+    - Removed Traefik-specific labels from `gateway-service` and removed `depends_on` gateway -> traefik.
+    - Simplified networks/volumes by removing unused Traefik resources.
+    - Updated `.env.example` and `DEPLOYMENT_GUIDE.md` to clarify Dockploy global proxy ownership.
+- **Verification**:
+    - `docker compose config` PASSED for root stack after changes.
