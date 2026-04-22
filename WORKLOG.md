@@ -269,6 +269,36 @@ pm run build PASSED.
 - **Verification**:
     - `backend`: `npm run build` PASSED.
     - Android shell environment does not provide `gradle` or `gradlew`, so Android build verification was completed through static reference checks only in this batch.
+
+## [2026-04-22] [Android Gradle Wrapper Restoration]
+- **Status**: DONE
+- **Changes**:
+    - Restored the missing Android Gradle wrapper files:
+      - `android/gradlew`
+      - `android/gradlew.bat`
+      - `android/gradle/wrapper/gradle-wrapper.jar`
+    - Regenerated wrapper metadata from Gradle `8.11.1` to match the project distribution URL.
+    - Confirmed the wrapper now boots correctly from the repository root Android module.
+- **Verification**:
+    - `android\\gradlew.bat -v` PASSED.
+    - `android\\gradlew.bat assembleDebug` starts correctly through the restored wrapper, but the Gradle daemon crashes locally with a JVM crash log (`android/hs_err_pid11356.log`) before completion.
+    - Existing debug APK still exists at `android/app/build/outputs/apk/debug/app-debug.apk`.
+
+## [2026-04-22] [Critical Disk Space Cleanup]
+- **Status**: DONE
+- **Changes**:
+    - Deleted Android JVM crash dumps and replay logs from `SWIMVPN-/android`.
+    - Deleted Android build outputs under `android/app/build` and `android/build`.
+    - Deleted global Gradle cache at `C:\\Users\\Lenovo\\.gradle`.
+    - Removed the old `SWIM_TUNEL_VPN` junction from `C:\\Users\\Lenovo\\StudioProjects`.
+    - Removed the real old project target at `D:\\Dev\\Projects\\SWIM_TUNEL_VPN`.
+- **Verification**:
+    - Disk `C:` improved from `0.63 GB` free to `2.10 GB` free.
+    - Disk `D:` improved from `7.54 GB` free to `7.68 GB` free.
+    - Remaining locked temp folders:
+      - `android/.gradle-user-home`
+      - `android/wrapper`
+    - These remaining folders are still held by active Java/Android Studio processes.
     - `backend`: `npm run build` PASSED.
     - `backend`: `npx ts-node apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts` PASSED.
 
@@ -372,3 +402,34 @@ pm run build PASSED.
 - **Verification**:
     - `android`: `assembleDebug` PASSED.
     - `backend`: `npm run build` PASSED.
+
+## [2026-04-22] [Developer Workstation Cleanup + Shell Startup Correction]
+- **Status**: DONE
+- **Changes**:
+    - Audited the remaining high-volume local folders after the first emergency disk cleanup pass.
+    - Removed the forced `Set-Location 'D:\Dev'` command from the user PowerShell profile so new shells stop jumping into the wrong repository by default.
+    - Deleted the local `OneDrive` data tree after explicit user approval.
+    - Removed the remaining local developer/download artifact folders:
+      - `C:\Users\Lenovo\Downloads`
+      - `C:\Users\Lenovo\AppData\Local\360extremebrowser`
+      - `C:\Users\Lenovo\AppData\Local\npm-cache`
+      - `C:\Users\Lenovo\AppData\Local\pnpm-cache`
+      - `C:\Users\Lenovo\AppData\Local\ms-playwright`
+- **Verification**:
+    - Confirmed the PowerShell profile no longer contains the forced `Set-Location 'D:\Dev'`.
+    - Confirmed the targeted folders no longer exist locally.
+    - Re-checked disk space:
+      - `C:` free space increased to `11.33 GB`
+      - `D:` remained stable at `9.03 GB`
+
+## [2026-04-22] [Android CLI Build Recovery]
+- **Status**: DONE
+- **Changes**:
+    - Re-ran the Android Gradle wrapper after restoring disk headroom and correcting shell startup behavior.
+    - Confirmed the repository-carried wrapper executes correctly from CLI.
+    - Rebuilt the Android debug APK from the command line without relying on Android Studio.
+- **Verification**:
+    - `android\\gradlew.bat -v` PASSED.
+    - `android\\gradlew.bat assembleDebug --stacktrace` PASSED.
+    - Verified generated APK:
+      - `android/app/build/outputs/apk/debug/app-debug.apk`

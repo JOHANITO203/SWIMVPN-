@@ -152,3 +152,25 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Coupon/code activation is removed from the main Android UX for now because it is not an active product partnership flow.
   - Local config import stays primary, with backend profile sync attempted through the existing import endpoint when possible.
   - Import sync failures no longer collapse the whole app into a blocking error state if the local import already succeeded.
+
+## [2026-04-22] [Android Repo Must Carry Its Own Gradle Wrapper]
+- **Decision**: The Android module must version its Gradle wrapper files inside `android/` and not rely on Android Studio-only or machine-global Gradle availability.
+- **Why**: The project was buildable in Studio but not reproducible from CLI because the wrapper scripts and JAR were missing from the repository.
+- **Impact**:
+  - `android/gradlew`, `android/gradlew.bat`, and `android/gradle/wrapper/gradle-wrapper.jar` are now part of the repo contract.
+  - Future Android verification can start from the repository itself before depending on IDE behavior.
+
+## [2026-04-22] [Prioritize Safe Developer Artifact Cleanup Over Windows System Cleanup]
+- **Decision**: Free critical disk space first by removing development artifacts, caches, dumps, and obsolete project directories instead of touching Windows system files.
+- **Why**: The immediate stability risk came from a nearly full `C:` drive, and there were multiple large non-essential development files that could be removed safely with far lower system risk.
+- **Impact**:
+  - Disk recovery actions should start with build outputs, Gradle caches, JVM crash dumps, replay logs, and abandoned projects.
+  - System-level cleanup remains optional and secondary.
+
+## [2026-04-22] [Shell Startup Must Respect Invocation Directory]
+- **Decision**: Remove repository-agnostic `Set-Location` behavior from the user PowerShell profile so shells open in the directory where they are invoked.
+- **Why**: Forcing every PowerShell session to jump to `D:\Dev` was creating repeated context errors and pulling work into the wrong repository even when commands were launched elsewhere.
+- **Impact**:
+  - PowerShell now respects the caller's working directory by default.
+  - Future repo work is less likely to drift into the wrong project because of a global shell override.
+  - No matching `cmd` autorun override was found, so no `cmd` startup correction was needed in this batch.
