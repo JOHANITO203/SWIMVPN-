@@ -681,3 +681,12 @@ pm run build PASSED.
 - **Verification**:
     - `backend\\npm run build` PASSED.
     - root compose render validation attempted in current environment.
+## [2026-04-23] [Ops Batch - Dockploy Exact Rollout Commands]
+- **Status**: DONE
+- **Changes**:
+    - Added an exact Dockploy production command sequence to `DEPLOYMENT_GUIDE.md`.
+    - Added an explicit order-of-execution section to `scripts/ops/README.md`.
+    - Documented the public endpoint re-test commands to run immediately after rollout.
+- **Verification**:
+    - `backend\\npm run build` PASSED.
+    - `docker compose config` PASSED.

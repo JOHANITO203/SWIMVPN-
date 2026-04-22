@@ -153,6 +153,7 @@ otification-bot-service event handoff.
 - Preferred operational path on the server:
   - `scripts/ops/prisma-rollout.sh --baseline` for the first rollout on the old production DB
   - `scripts/ops/prisma-rollout.sh` for subsequent normal rollouts
+- Execute the exact Dockploy runbook now that it is documented in `DEPLOYMENT_GUIDE.md`.
 - After rollout, re-test public backend endpoints:
   - `GET /api/v1/store/plans`
   - `POST /api/v1/access/bootstrap`

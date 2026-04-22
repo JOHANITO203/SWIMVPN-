@@ -43,6 +43,17 @@ scripts/ops/restore-db.sh /path/to/backup.dump --compose-dir /etc/dokploy/compos
 scripts/ops/incident-report.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code --project swimvpnapp-swimvpnbackend-d39yib
 ```
 
+## Production order of execution
+Use this order on the real Dockploy host:
+1. `git pull --ff-only origin main`
+2. `docker compose -p swimvpnapp-swimvpnbackend-d39yib config > /dev/null`
+3. First rollout on the old DB only:
+   - `scripts/ops/prisma-rollout.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code --project swimvpnapp-swimvpnbackend-d39yib --baseline`
+4. Later normal rollouts:
+   - `scripts/ops/prisma-rollout.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code --project swimvpnapp-swimvpnbackend-d39yib`
+5. `docker compose -p swimvpnapp-swimvpnbackend-d39yib up -d --build --remove-orphans`
+6. `scripts/ops/health-check.sh --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code --project swimvpnapp-swimvpnbackend-d39yib`
+
 ## Safety notes
 - `restore-db.sh` requires typing `RESTORE` before execution.
 - `prisma-rollout.sh` should be run with `--baseline` only once for databases that existed before versioned Prisma migrations were introduced.

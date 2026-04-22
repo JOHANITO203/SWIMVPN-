@@ -59,6 +59,70 @@ Docker compose ps
 Docker compose config
 ```
 
+## Exact Dockploy Runbook
+Use this when connected to the production host that serves `api.swimvpn.pro`.
+
+### 1. Move into the deployed project directory
+```bash
+cd /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code
+```
+
+### 2. Pull the latest code
+```bash
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+```
+
+### 3. Validate compose rendering before touching the DB
+```bash
+docker compose -p swimvpnapp-swimvpnbackend-d39yib config > /dev/null
+```
+
+### 4. Run the Prisma rollout
+For the first rollout on the old production database:
+```bash
+scripts/ops/prisma-rollout.sh \
+  --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code \
+  --project swimvpnapp-swimvpnbackend-d39yib \
+  --baseline
+```
+
+For normal subsequent rollouts:
+```bash
+scripts/ops/prisma-rollout.sh \
+  --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code \
+  --project swimvpnapp-swimvpnbackend-d39yib
+```
+
+### 5. Start or refresh the full stack
+```bash
+docker compose -p swimvpnapp-swimvpnbackend-d39yib up -d --build --remove-orphans
+```
+
+### 6. Verify the stack locally on the server
+```bash
+scripts/ops/health-check.sh \
+  --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code \
+  --project swimvpnapp-swimvpnbackend-d39yib
+```
+
+### 7. Re-test the public endpoints
+```bash
+curl -i https://api.swimvpn.pro/api/v1/health
+curl -i https://api.swimvpn.pro/api/v1/store/plans
+curl -i -X POST https://api.swimvpn.pro/api/v1/access/bootstrap \
+  -H 'Content-Type: application/json' \
+  -d '{"deviceId":"prod-rollout-check","platform":"android","locale":"fr"}'
+```
+
+### 8. If anything fails
+```bash
+scripts/ops/incident-report.sh \
+  --compose-dir /etc/dokploy/compose/swimvpnapp-swimvpnbackend-d39yib/code \
+  --project swimvpnapp-swimvpnbackend-d39yib
+```
+
 ## Health Checks
 - Gateway health endpoint: `GET /api/v1/health`
 - Internal TCP services are health-checked by TCP port probes in compose.
