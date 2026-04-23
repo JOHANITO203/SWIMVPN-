@@ -162,6 +162,9 @@ otification-bot-service event handoff.
   - `GET /api/v1/store/plans`
   - `POST /api/v1/access/bootstrap`
   - `POST /api/v1/access/trial`
+- Re-test the Android VPN engine on device after the Xray APK extraction fix:
+  - confirm the old `Packaged Xray runtime is missing for ABI arm64-v8a` error is gone
+  - capture the next runtime/logcat signal if connection still fails
 - If production still returns `500`, collect runtime logs from:
   - gateway-service
   - store-engine-service

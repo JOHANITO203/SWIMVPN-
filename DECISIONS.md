@@ -299,3 +299,10 @@ otification-bot-service with Resend API for transactional delivery emails.
     - `dokploy-network`
   - Public routing is expressed explicitly in compose through Traefik labels.
   - Internal services remain private and are not exposed to the shared reverse-proxy network.
+## [2026-04-23] [Android Xray Runtime Must Be Extracted From APK At Session Start]
+- **Decision**: The Android app must extract the packaged Xray binary from the installed APK into its runtime session directory before launching it.
+- **Why**: On modern Android packaging/device combinations, native libraries packaged in the APK are not guaranteed to exist as plain files in `nativeLibraryDir`, so treating `libxray.so` as already extracted caused false runtime failures on real devices.
+- **Impact**:
+  - The app still packages Xray per ABI inside the APK.
+  - `RuntimeFilePreparer` now falls back to reading `lib/<abi>/libxray.so` from the APK itself when `nativeLibraryDir` does not contain the file.
+  - This keeps Phase 2B build/integration intact while unblocking real device execution for the Xray runtime path.

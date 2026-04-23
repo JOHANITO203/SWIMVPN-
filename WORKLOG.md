@@ -709,3 +709,13 @@ pm run build PASSED.
     - Kept all internal services private on `swimvpn-private`; only the public gateway joins the shared proxy network.
 - **Verification**:
     - `docker compose config` PASSED.
+## [2026-04-23] [Android VPN Batch - Xray Runtime APK Extraction Fix]
+- **Status**: DONE
+- **Changes**:
+    - Fixed Android Xray runtime preparation so the app no longer depends on `nativeLibraryDir` containing an extracted `libxray.so`.
+    - Added a fallback path that extracts the packaged ABI-specific Xray binary directly from the installed APK into the runtime session directory.
+    - Kept the runtime packaging model intact:
+      - Xray remains packaged per ABI in the APK
+      - the service now materializes an executable copy itself before launch
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug` PASSED.

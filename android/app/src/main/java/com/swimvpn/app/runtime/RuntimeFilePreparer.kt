@@ -1,7 +1,9 @@
 package com.swimvpn.app.runtime
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import java.io.File
+import java.util.zip.ZipFile
 
 data class PreparedXrayRuntime(
     val sessionId: String,
@@ -36,15 +38,10 @@ class RuntimeFilePreparer(
         sessionsDir.mkdirs()
         logsDir.mkdirs()
 
-        val executableFile = File(
-            context.applicationInfo.nativeLibraryDir,
-            RuntimeAssetCatalog.xrayExecutableLibraryName(),
+        val executableFile = prepareExecutableFile(
+            descriptor = descriptor,
+            targetDirectory = sessionsDir,
         )
-        if (!executableFile.exists()) {
-            error("Packaged Xray runtime is missing for ABI ${descriptor.abi}")
-        }
-        executableFile.setReadable(true, true)
-        executableFile.setExecutable(true, true)
 
         val geoipFile = copyAssetToWorkingDirectory(
             RuntimeAssetCatalog.commonAssetPath(RuntimeAssetCatalog.GEOIP_ASSET_NAME),
@@ -90,6 +87,69 @@ class RuntimeFilePreparer(
             }
         }
         return targetFile
+    }
+
+    private fun prepareExecutableFile(
+        descriptor: NativeBinaryDescriptor,
+        targetDirectory: File,
+    ): File {
+        val executableDir = File(targetDirectory, "bin").apply { mkdirs() }
+        val targetFile = File(executableDir, RuntimeAssetCatalog.XRAY_EXECUTABLE_NAME)
+
+        val nativeLibraryFile = File(
+            context.applicationInfo.nativeLibraryDir,
+            RuntimeAssetCatalog.xrayExecutableLibraryName(),
+        )
+
+        when {
+            nativeLibraryFile.exists() -> {
+                nativeLibraryFile.inputStream().use { input ->
+                    targetFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+            extractBundledLibraryFromApk(descriptor, targetFile) -> Unit
+            else -> error("Packaged Xray runtime is missing for ABI ${descriptor.abi}")
+        }
+
+        targetFile.setReadable(true, true)
+        targetFile.setWritable(true, true)
+        targetFile.setExecutable(true, true)
+        return targetFile
+    }
+
+    private fun extractBundledLibraryFromApk(
+        descriptor: NativeBinaryDescriptor,
+        targetFile: File,
+    ): Boolean {
+        val candidateApks = buildList {
+            add(context.applicationInfo.sourceDir)
+            context.applicationInfo.splitSourceDirs?.let { addAll(it) }
+        }
+
+        for (apkPath in candidateApks) {
+            if (apkPath.isNullOrBlank()) continue
+
+            val extracted = runCatching {
+                ZipFile(apkPath).use { zip ->
+                    val entry = zip.getEntry("lib/${descriptor.assetAbi}/${RuntimeAssetCatalog.xrayExecutableLibraryName()}")
+                        ?: return@use false
+                    zip.getInputStream(entry).use { input ->
+                        targetFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    true
+                }
+            }.getOrElse { false }
+
+            if (extracted) {
+                return true
+            }
+        }
+
+        return false
     }
 
     private fun defaultSessionId(): String = "xray-${System.currentTimeMillis()}"
