@@ -172,7 +172,7 @@ const Atmosphere = () => (
 
 const InteractiveGlobe = () => {
   const pointsRef = useRef<THREE.Points>(null);
-  const particleCount = 200000;
+  const particleCount = 75000; // Balanced for pixel-perfect clarity
 
   // 1. Instant Math Fallback
   const [{ initialPositions, initialSizes, initialColors }] = useState(() => {
@@ -200,9 +200,9 @@ const InteractiveGlobe = () => {
         (lat > -45 && lat < -10 && lon > 110 + n*5 && lon < 155 + n*5)
       );
 
-      siz[i] = isLand ? 0.01 : 0.002;
+      siz[i] = isLand ? 0.016 : 0.001; // Larger squares for land, tiny for water
       if (isLand) {
-        col[i*3] = 46/255; col[i*3+1] = 144/255; col[i*3+2] = 250/255;
+        col[i*3] = 46/255; col[i*3+1] = 144/255; col[i*3+2] = 250/255; // Primary Blue
       } else {
         col[i*3] = 15/255; col[i*3+1] = 23/255;  col[i*3+2] = 42/255;
       }
@@ -251,7 +251,7 @@ const InteractiveGlobe = () => {
 
             const isLand = imgData.data[index] < 128;
 
-            newSizes[i] = isLand ? 0.014 : 0.002;
+            newSizes[i] = isLand ? 0.018 : 0.001; // High contrast: big land pixels, nearly invisible water
             if (isLand) {
                 newColors[i*3] = 46/255; newColors[i*3+1] = 144/255; newColors[i*3+2] = 250/255;
             } else {
@@ -303,8 +303,8 @@ const InteractiveGlobe = () => {
             varying vec3 vColor;
             varying float vSize;
             void main() {
-              if (length(gl_PointCoord - vec2(0.5)) > 0.5) discard;
-              gl_FragColor = vec4(vColor, opacity);
+              // Removed circular discard to render perfect sharp pixel squares
+              gl_FragColor = vec4(vColor, opacity * 1.2);
             }
           `}
           blending={THREE.AdditiveBlending}
