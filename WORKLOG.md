@@ -719,3 +719,11 @@ pm run build PASSED.
       - the service now materializes an executable copy itself before launch
 - **Verification**:
     - `android\\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android VPN Batch - Xray Must Run From Extracted Native Library Path]
+- **Status**: DONE
+- **Changes**:
+    - Switched Android packaging to legacy native-lib extraction so packaged Xray binaries are materialized by the installer under `nativeLibraryDir`.
+    - Added `android:extractNativeLibs="true"` to make the install-time extraction intent explicit.
+    - Updated `RuntimeFilePreparer` to execute Xray directly from `nativeLibraryDir` when available instead of copying it into `no_backup/...`, which real devices refused to execute.
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug` PASSED.

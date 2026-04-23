@@ -306,3 +306,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - The app still packages Xray per ABI inside the APK.
   - `RuntimeFilePreparer` now falls back to reading `lib/<abi>/libxray.so` from the APK itself when `nativeLibraryDir` does not contain the file.
   - This keeps Phase 2B build/integration intact while unblocking real device execution for the Xray runtime path.
+## [2026-04-23] [Android Xray Must Prefer Installer-Extracted Native Libraries]
+- **Decision**: The Android app must prefer running Xray from installer-extracted native libraries (`nativeLibraryDir`) and package the APK so those libraries are actually extracted on device.
+- **Why**: Real devices rejected execution of a copied Xray binary under the app data directory (`no_backup/runtime/.../bin/xray`), so a runtime copy from the APK is not a reliable primary execution path.
+- **Impact**:
+  - `useLegacyPackaging` is enabled for `jniLibs`.
+  - the app manifest explicitly requests native library extraction.
+  - `RuntimeFilePreparer` now uses `nativeLibraryDir` first as the true runtime path, with APK extraction kept only as a secondary fallback.

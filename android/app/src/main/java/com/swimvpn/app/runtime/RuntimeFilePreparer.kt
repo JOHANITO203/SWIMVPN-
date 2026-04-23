@@ -93,26 +93,22 @@ class RuntimeFilePreparer(
         descriptor: NativeBinaryDescriptor,
         targetDirectory: File,
     ): File {
-        val executableDir = File(targetDirectory, "bin").apply { mkdirs() }
-        val targetFile = File(executableDir, RuntimeAssetCatalog.XRAY_EXECUTABLE_NAME)
-
         val nativeLibraryFile = File(
             context.applicationInfo.nativeLibraryDir,
             RuntimeAssetCatalog.xrayExecutableLibraryName(),
         )
 
-        when {
-            nativeLibraryFile.exists() -> {
-                nativeLibraryFile.inputStream().use { input ->
-                    targetFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            }
-            extractBundledLibraryFromApk(descriptor, targetFile) -> Unit
-            else -> error("Packaged Xray runtime is missing for ABI ${descriptor.abi}")
+        if (nativeLibraryFile.exists()) {
+            nativeLibraryFile.setReadable(true, true)
+            nativeLibraryFile.setExecutable(true, true)
+            return nativeLibraryFile
         }
 
+        val executableDir = File(targetDirectory, "bin").apply { mkdirs() }
+        val targetFile = File(executableDir, RuntimeAssetCatalog.XRAY_EXECUTABLE_NAME)
+        if (!extractBundledLibraryFromApk(descriptor, targetFile)) {
+            error("Packaged Xray runtime is missing for ABI ${descriptor.abi}")
+        }
         targetFile.setReadable(true, true)
         targetFile.setWritable(true, true)
         targetFile.setExecutable(true, true)
