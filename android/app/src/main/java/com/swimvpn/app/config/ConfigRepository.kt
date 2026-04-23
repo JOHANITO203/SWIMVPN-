@@ -475,6 +475,8 @@ class ConfigRepository(private val context: Context) {
         )
         val failures = mutableListOf<String>()
         var fallbackResult: SubscriptionFetchResult? = null
+        var bestResult: SubscriptionFetchResult? = null
+        var bestScore = 0
 
         fetchAttempts.forEach { attempt ->
             val request = Request.Builder()
@@ -507,8 +509,10 @@ class ConfigRepository(private val context: Context) {
                         },
                     )
 
-                    if (isImportableSubscriptionPayload(normalized.payload)) {
-                        return@withContext result
+                    val score = subscriptionPayloadScore(normalized.payload)
+                    if (score > bestScore) {
+                        bestResult = result
+                        bestScore = score
                     }
 
                     fallbackResult = fallbackResult ?: result.copy(
@@ -520,7 +524,7 @@ class ConfigRepository(private val context: Context) {
             }
         }
 
-        fallbackResult ?: throw IOException("Subscription fetch failed: ${failures.joinToString("; ")}")
+        bestResult ?: fallbackResult ?: throw IOException("Subscription fetch failed: ${failures.joinToString("; ")}")
     }
 
     private fun normalizeSubscriptionPayload(raw: String): SubscriptionPayload {
@@ -548,25 +552,58 @@ class ConfigRepository(private val context: Context) {
         return Regex("(?i)(vless|vmess|trojan|ss|hy2|hysteria2|hysteria|tuic|socks5|socks|wg|wireguard)://").containsMatchIn(input)
     }
 
-    private fun isImportableSubscriptionPayload(input: String): Boolean {
+    private fun subscriptionPayloadScore(input: String): Int {
         val trimmed = input.trim()
-        return containsSupportedEntry(trimmed) || trimmed.startsWith("{") || trimmed.startsWith("[")
+        return when {
+            containsSupportedEntry(trimmed) -> 3
+            trimmed.startsWith("{") -> 2
+            trimmed.startsWith("[") -> 1
+            else -> 0
+        }
     }
 
     private fun decodeSubscriptionBase64(input: String): String? {
         val compact = input
+            .removePrefix("\uFEFF")
             .lines()
             .joinToString("") { it.trim() }
-            .replace('-', '+')
-            .replace('_', '/')
-            .let { value ->
+            .filter { char -> char.isLetterOrDigit() || char == '+' || char == '/' || char == '-' || char == '_' || char == '=' }
+            .trim()
+
+        if (compact.isBlank()) {
+            return null
+        }
+
+        fun padBase64(value: String): String {
+            return value.let {
                 val padding = (4 - value.length % 4) % 4
                 value + "=".repeat(padding)
             }
+        }
 
-        return runCatching {
-            String(android.util.Base64.decode(compact, android.util.Base64.DEFAULT))
-        }.getOrNull()
+        val candidates = listOf(
+            padBase64(compact),
+            padBase64(compact.replace('-', '+').replace('_', '/')),
+        ).distinct()
+
+        val flags = listOf(
+            android.util.Base64.DEFAULT,
+            android.util.Base64.NO_WRAP,
+            android.util.Base64.URL_SAFE,
+            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP,
+        )
+
+        return candidates.asSequence()
+            .flatMap { candidate -> flags.asSequence().map { flag -> candidate to flag } }
+            .mapNotNull { (candidate, flag) ->
+                runCatching {
+                    String(android.util.Base64.decode(candidate, flag), Charsets.UTF_8)
+                }.getOrNull()
+            }
+            .firstOrNull { decoded ->
+                val trimmed = decoded.trim()
+                containsSupportedEntry(trimmed) || trimmed.startsWith("{") || trimmed.startsWith("[")
+            }
     }
 
     private fun resolveImportInput(input: String): ResolvedImportInput {

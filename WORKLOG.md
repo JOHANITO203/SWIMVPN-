@@ -1047,3 +1047,12 @@ pm run build PASSED.
   - Kept unsupported Happ crypt/routing links blocked from manual import attempts.
 - **Verification**:
   - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Android Subscription Batch - Robust Provider Payload Selection]
+- **Status**: DONE
+- **Changes**:
+  - Strengthened Base64 subscription decoding for standard, URL-safe, padded, unpadded, and newline-wrapped payloads.
+  - Added subscription payload scoring so direct supported node links are preferred over opaque JSON arrays when providers return different content per User-Agent.
+  - Kept remote subscription imports inside the existing grouped server import pipeline.
+  - Preserved unsupported Happ encrypted payload behavior; no third-party protected format bypass was added.
+- **Verification**:
+  - `cd android && .\gradlew.bat assembleDebug` PASSED.

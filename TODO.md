@@ -345,10 +345,10 @@ otification-bot-service event handoff.
   - test at least three different imported nodes with the same proxy curl method
   - treat nodes whose host pings but TCP port times out as dead or blocked candidates
   - add a future server quality status that can downgrade nodes after TCP port timeout
-- Re-test provider subscription URL import on device:
+- Re-test provider subscription URL import on device after robust payload selection:
   - `https://wb.routerwb.ru/jtz5386jCHkztYRZ`
-  - expect fallback to v2rayNG-compatible User-Agent
-  - expect Base64 decode into grouped `vless://` imported servers
+  - expect direct-link payload preference over opaque provider JSON when multiple User-Agents respond
+  - expect standard or URL-safe Base64 decode into grouped `vless://` imported servers
   - confirm imported VLESS Reality nodes appear in the server catalog
 - Re-test manual import button activation:
   - provider `https://wb.routerwb.ru/jtz5386jCHkztYRZ` enables Import without preview
