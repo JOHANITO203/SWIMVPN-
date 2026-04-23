@@ -1015,3 +1015,26 @@ pm run build PASSED.
   - Kept existing persistence and runtime mode change callbacks unchanged.
 - **Verification**:
   - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [ADB Runtime Diagnostic - Local Proxy Node Test]
+- **Status**: DONE
+- **Findings**:
+  - `LOCAL_PROXY` path starts Xray without creating `tun0`, which is expected.
+  - Xray exposes local SOCKS `127.0.0.1:10808` and HTTP `127.0.0.1:10809` listeners.
+  - Direct internet test from device succeeded against `https://example.com`.
+  - HTTP proxy and SOCKS proxy tests through Xray accepted the local connection but timed out before receiving upstream response.
+  - Xray logs confirm local requests were accepted and routed to the `proxy` outbound.
+  - Selected outbound server was `trojan` at `159.195.6.151:443`.
+  - Device ping to `159.195.6.151` succeeded with roughly 84-106 ms RTT.
+  - TCP connect to `159.195.6.151:443` timed out, while TCP connect to `1.1.1.1:443` succeeded.
+- **Conclusion**:
+  - The local proxy engine is alive, but the selected server's VPN TCP endpoint is not usable from the device/network at test time.
+  - Next test should use another imported node before changing local proxy engine code.
+## [2026-04-23] [Android Subscription Batch - Provider User-Agent Negotiation]
+- **Status**: DONE
+- **Changes**:
+  - Added subscription fetch fallback User-Agents for providers that return different payloads per client.
+  - Fetch now tries SWIMVPN default, then v2rayNG-compatible, then Happ-compatible User-Agents.
+  - Keeps the first directly importable payload, preferring Base64/direct standard node subscriptions over unsupported YAML paths.
+  - Verified the provider sample URL returns Base64 `vless://` entries with the v2rayNG-compatible User-Agent.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.

@@ -341,3 +341,12 @@ otification-bot-service event handoff.
   - running full tunnel shows green tunnel indicator only
   - running local proxy shows green proxy indicator only
   - switching mode while disconnected persists the choice
+- Local proxy ADB follow-up:
+  - test at least three different imported nodes with the same proxy curl method
+  - treat nodes whose host pings but TCP port times out as dead or blocked candidates
+  - add a future server quality status that can downgrade nodes after TCP port timeout
+- Re-test provider subscription URL import on device:
+  - `https://wb.routerwb.ru/jtz5386jCHkztYRZ`
+  - expect fallback to v2rayNG-compatible User-Agent
+  - expect Base64 decode into grouped `vless://` imported servers
+  - confirm imported VLESS Reality nodes appear in the server catalog

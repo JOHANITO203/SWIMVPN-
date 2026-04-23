@@ -451,37 +451,59 @@ class ConfigRepository(private val context: Context) {
     }
 
     private suspend fun fetchSubscriptionPayload(url: String): SubscriptionFetchResult = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(url)
-            .header("User-Agent", "SWIMVPN-Android/1.0")
-            .build()
+        val fetchAttempts = listOf(
+            SubscriptionFetchAttempt("SWIMVPN-Android/1.0", "SWIMVPN default subscription client"),
+            SubscriptionFetchAttempt("v2rayNG/1.9.0", "v2rayNG-compatible subscription client"),
+            SubscriptionFetchAttempt("Happ/1.0", "Happ-compatible subscription client"),
+        )
+        val failures = mutableListOf<String>()
+        var fallbackResult: SubscriptionFetchResult? = null
 
-        try {
-            subscriptionClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw IOException("HTTP ${response.code}")
+        fetchAttempts.forEach { attempt ->
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", attempt.userAgent)
+                .build()
+
+            try {
+                subscriptionClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        failures += "${attempt.label}: HTTP ${response.code}"
+                        return@use
+                    }
+
+                    val body = response.body ?: run {
+                        failures += "${attempt.label}: empty response body"
+                        return@use
+                    }
+                    val raw = body.string().take(MAX_SUBSCRIPTION_CHARS)
+                    val normalized = normalizeSubscriptionPayload(raw)
+                    val result = SubscriptionFetchResult(
+                        payload = normalized.payload,
+                        warnings = buildList {
+                            add("Fetched remote subscription URL")
+                            add("Subscription fetched with ${attempt.label}")
+                            addAll(normalized.warnings)
+                            if (raw.length >= MAX_SUBSCRIPTION_CHARS) {
+                                add("Subscription response was truncated to $MAX_SUBSCRIPTION_CHARS characters")
+                            }
+                        },
+                    )
+
+                    if (isImportableSubscriptionPayload(normalized.payload)) {
+                        return@withContext result
+                    }
+
+                    fallbackResult = fallbackResult ?: result.copy(
+                        warnings = result.warnings + "Subscription response did not contain directly importable supported entries",
+                    )
                 }
-
-                val body = response.body ?: return@withContext SubscriptionFetchResult(
-                    payload = "",
-                    warnings = listOf("Subscription response body is empty"),
-                )
-                val raw = body.string().take(MAX_SUBSCRIPTION_CHARS)
-                val normalized = normalizeSubscriptionPayload(raw)
-                SubscriptionFetchResult(
-                    payload = normalized.payload,
-                    warnings = buildList {
-                        add("Fetched remote subscription URL")
-                        addAll(normalized.warnings)
-                        if (raw.length >= MAX_SUBSCRIPTION_CHARS) {
-                            add("Subscription response was truncated to $MAX_SUBSCRIPTION_CHARS characters")
-                        }
-                    },
-                )
+            } catch (error: Exception) {
+                failures += "${attempt.label}: ${error.localizedMessage}"
             }
-        } catch (error: Exception) {
-            throw IOException("Subscription fetch failed: ${error.localizedMessage}", error)
         }
+
+        fallbackResult ?: throw IOException("Subscription fetch failed: ${failures.joinToString("; ")}")
     }
 
     private fun normalizeSubscriptionPayload(raw: String): SubscriptionPayload {
@@ -507,6 +529,11 @@ class ConfigRepository(private val context: Context) {
 
     private fun containsSupportedEntry(input: String): Boolean {
         return Regex("(?i)(vless|vmess|trojan|ss|hy2|hysteria2|hysteria|tuic|socks5|socks|wg|wireguard)://").containsMatchIn(input)
+    }
+
+    private fun isImportableSubscriptionPayload(input: String): Boolean {
+        val trimmed = input.trim()
+        return containsSupportedEntry(trimmed) || trimmed.startsWith("{") || trimmed.startsWith("[")
     }
 
     private fun decodeSubscriptionBase64(input: String): String? {
@@ -636,6 +663,11 @@ private const val MAX_SUBSCRIPTION_CHARS = 1_000_000
 private data class SubscriptionFetchResult(
     val payload: String,
     val warnings: List<String> = emptyList(),
+)
+
+private data class SubscriptionFetchAttempt(
+    val userAgent: String,
+    val label: String,
 )
 
 private data class SubscriptionPayload(
