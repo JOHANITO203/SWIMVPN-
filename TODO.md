@@ -350,6 +350,11 @@ otification-bot-service event handoff.
   - expect direct-link payload preference over opaque provider JSON when multiple User-Agents respond
   - expect standard or URL-safe Base64 decode into grouped `vless://` imported servers
   - confirm imported VLESS Reality nodes appear in the server catalog
+- Keep expanding parser regression fixtures when new provider samples arrive:
+  - multiline subscriptions
+  - JSON/string-wrapped direct links
+  - Base64 provider payloads
+  - mixed supported and recognized-unsupported protocols
 - Re-test manual import button activation:
   - provider `https://wb.routerwb.ru/jtz5386jCHkztYRZ` enables Import without preview
   - random text still keeps Import disabled

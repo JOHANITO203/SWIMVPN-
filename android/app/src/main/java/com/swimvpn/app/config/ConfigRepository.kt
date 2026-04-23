@@ -332,26 +332,11 @@ class ConfigRepository(private val context: Context) {
         val trimmed = normalizeImportPayloadForSplitting(input).trim()
         if (trimmed.isBlank()) return emptyList()
 
-        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        if ((trimmed.startsWith("{") || trimmed.startsWith("[")) && !containsSupportedEntry(trimmed)) {
             return listOf(trimmed)
         }
 
-        val normalized = trimmed.replace("\r", "\n")
-        val pattern = Regex("(?i)(?<![A-Za-z0-9+.-])(?=(vless|vmess|trojan|ss|hy2|hysteria2|hysteria|tuic|socks5|socks|wg|wireguard)://)")
-        val matches = pattern.findAll(normalized).toList()
-        if (matches.isEmpty()) {
-            return listOf(trimmed)
-        }
-
-        if (matches.size == 1) {
-            return listOf(trimmed)
-        }
-
-        return matches.mapIndexedNotNull { index, match ->
-            val start = match.range.first
-            val end = if (index + 1 < matches.size) matches[index + 1].range.first else normalized.length
-            normalized.substring(start, end).trim().takeIf { it.isNotBlank() }
-        }
+        return VpnConfigLinkExtractor.extractEntries(trimmed)
     }
 
     private fun normalizeImportPayloadForSplitting(input: String): String {
@@ -559,7 +544,7 @@ class ConfigRepository(private val context: Context) {
     }
 
     private fun containsSupportedEntry(input: String): Boolean {
-        return Regex("(?i)(vless|vmess|trojan|ss|hy2|hysteria2|hysteria|tuic|socks5|socks|wg|wireguard)://").containsMatchIn(input)
+        return VpnConfigLinkExtractor.containsRecognizedLink(input)
     }
 
     private fun subscriptionPayloadScore(input: String): Int {

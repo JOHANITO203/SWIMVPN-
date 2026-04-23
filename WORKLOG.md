@@ -1060,3 +1060,14 @@ pm run build PASSED.
 - **Verification**:
   - `cd android && .\gradlew.bat assembleDebug` PASSED.
   - ADB import test for `https://wb.routerwb.ru/jtz5386jCHkztYRZ` imported 11 server(s) into the locations list.
+## [2026-04-23] [Android Parser Hardening Batch - Tokenizer And Extractor]
+- **Status**: DONE
+- **Changes**:
+  - Moved provider link extraction into a dedicated `VpnConfigLinkExtractor`.
+  - Centralized recognized VPN schemes for direct and modern unsupported formats.
+  - Extracts links from multiline subscriptions and JSON/string wrappers without matching schemes inside another scheme token.
+  - Preserves JSON Xray/V2Ray block parsing when no direct links are embedded.
+  - Added regression tests for `vless://` versus nested `ss://`, mixed provider payloads, JSON-embedded links, and recognized unsupported modern links.
+- **Verification**:
+  - `cd android && .\gradlew.bat testDebugUnitTest` PASSED.
+  - `cd android && .\gradlew.bat assembleDebug` PASSED.

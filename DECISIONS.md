@@ -451,3 +451,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Supported entries remain importable from mixed subscriptions.
   - Unsupported recognized entries are retained for diagnostics without polluting the success UI.
   - If no supported server is importable, the import still fails clearly.
+## [2026-04-23] [Provider Link Extraction Is A Dedicated Parser Boundary]
+- **Decision**: VPN scheme extraction is centralized in `VpnConfigLinkExtractor` instead of ad-hoc regex splitting inside repository logic.
+- **Why**: Provider payloads often contain multiple links, Base64-decoded subscriptions, JSON/string wrappers, and mixed protocols. Extraction must avoid false positives such as detecting `ss://` inside `vless://`.
+- **Impact**:
+  - `ConfigRepository` delegates grouped entry extraction to a testable parser boundary.
+  - Direct links embedded in JSON/string provider payloads can be extracted without bypassing existing Xray/V2Ray JSON parsing.
+  - Regression tests now protect the tokenizer behavior before future parser expansion.
