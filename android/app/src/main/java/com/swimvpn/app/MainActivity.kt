@@ -59,6 +59,7 @@ import com.swimvpn.app.ui.screens.*
 import com.swimvpn.app.ui.theme.*
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.ThemeMode
+import com.swimvpn.app.vpn.RuntimeMetrics
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.launch
@@ -245,6 +246,7 @@ fun AppNavigation(viewModel: MainViewModel) {
             )
         }
         composable("technical") {
+            val metrics by VpnManager.metrics.collectAsState()
             val routingMode = when (val currentState = state) {
                 is AppState.Success -> currentState.routingMode
                 is AppState.TrialSetup -> currentState.routingMode
@@ -278,6 +280,7 @@ fun AppNavigation(viewModel: MainViewModel) {
                 onLanguageChange = { viewModel.setLanguage(it) },
                 themeMode = themeMode.name,
                 onThemeModeChange = { viewModel.setThemeMode(ThemeMode.fromPersisted(it)) },
+                runtimeDiagnostics = buildRuntimeDiagnostics(metrics),
                 onBack = { navController.popBackStack() }
             )
         }
@@ -684,6 +687,17 @@ fun HomeScreen(
             Icon(Icons.Default.Add, contentDescription = "Quick actions", modifier = Modifier.size(30.dp))
         }
     }
+}
+
+private fun buildRuntimeDiagnostics(metrics: RuntimeMetrics): String {
+    val lines = mutableListOf<String>()
+    metrics.activeMode?.let { lines += "Mode: $it" }
+    metrics.xraySessionId?.let { lines += "Xray session: $it" }
+    metrics.xrayLogPath?.let { lines += "Xray log: $it" }
+    metrics.tun2SocksSessionId?.let { lines += "tun2socks session: $it" }
+    metrics.tun2SocksLogPath?.let { lines += "tun2socks log: $it" }
+    metrics.lastError?.let { lines += "Last error: $it" }
+    return lines.joinToString("\n")
 }
 
 @Composable

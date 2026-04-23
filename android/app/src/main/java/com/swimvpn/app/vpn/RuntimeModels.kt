@@ -25,6 +25,11 @@ data class RuntimeMetrics(
     val startedAt: Long? = null,
     val lastHandshakeAt: Long? = null,
     val lastError: String? = null,
+    val activeMode: String? = null,
+    val xraySessionId: String? = null,
+    val xrayLogPath: String? = null,
+    val tun2SocksSessionId: String? = null,
+    val tun2SocksLogPath: String? = null,
 )
 
 enum class ThemeMode {

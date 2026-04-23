@@ -103,4 +103,30 @@ object VpnManager {
         _errorMessage.value = null
         _metrics.value = _metrics.value.copy(lastError = null)
     }
+
+    fun setRuntimeDiagnostics(
+        activeMode: String? = null,
+        xraySessionId: String? = null,
+        xrayLogPath: String? = null,
+        tun2SocksSessionId: String? = null,
+        tun2SocksLogPath: String? = null,
+    ) {
+        _metrics.value = _metrics.value.copy(
+            activeMode = activeMode,
+            xraySessionId = xraySessionId,
+            xrayLogPath = xrayLogPath,
+            tun2SocksSessionId = tun2SocksSessionId,
+            tun2SocksLogPath = tun2SocksLogPath,
+        )
+    }
+
+    fun clearRuntimeDiagnostics() {
+        _metrics.value = _metrics.value.copy(
+            activeMode = null,
+            xraySessionId = null,
+            xrayLogPath = null,
+            tun2SocksSessionId = null,
+            tun2SocksLogPath = null,
+        )
+    }
 }

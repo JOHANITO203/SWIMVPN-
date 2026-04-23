@@ -433,7 +433,6 @@ object TunnelRuntimeAdapter {
             add("servers", JsonArray().apply {
                 add("1.1.1.1")
                 add("8.8.8.8")
-                add("localhost")
             })
         }
     }

@@ -34,9 +34,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class SwimVpnService : VpnService() {
-
     private var vpnInterface: ParcelFileDescriptor? = null
     private var activeXraySessionId: String? = null
+    private var activeTun2SocksSessionId: String? = null
     private var activeTun2SocksContract: Tun2SocksNativeBridgeContract? = null
     private var activeTun2SocksJob: Job? = null
     private var activeTrafficStatsJob: Job? = null
@@ -49,6 +49,7 @@ class SwimVpnService : VpnService() {
     private val notificationId = 1
 
     companion object {
+        private const val DEFAULT_VPN_MTU = 1280
         const val ACTION_START = "com.swimvpn.app.START_VPN"
         const val ACTION_STOP = "com.swimvpn.app.STOP_VPN"
 
@@ -113,6 +114,7 @@ class SwimVpnService : VpnService() {
         VpnManager.setRuntimeMode(requestedMode)
         VpnManager.resetUsage()
         VpnManager.clearError()
+        VpnManager.clearRuntimeDiagnostics()
         VpnManager.updateRuntimeStatus(RuntimeStatus.STARTING)
 
         serviceScope.launch {
@@ -161,7 +163,7 @@ class SwimVpnService : VpnService() {
             .addRoute("0.0.0.0", 0)
             .addDnsServer("8.8.8.8")
             .addDnsServer("1.1.1.1")
-            .setMtu(1500)
+            .setMtu(DEFAULT_VPN_MTU)
 
         try {
             builder.addDisallowedApplication(packageName)
@@ -180,7 +182,7 @@ class SwimVpnService : VpnService() {
             deviceArgument = "android-vpn",
             proxyUrl = "socks5://127.0.0.1:${runtime.ports.socksPort}",
             tunFd = tunFd,
-            mtu = 1500,
+            mtu = DEFAULT_VPN_MTU,
             interfaceName = "swim0",
         )
         val tun2SocksNativePrep = if (tun2SocksAvailability.packagedSharedLibraryAvailable) {
@@ -198,6 +200,7 @@ class SwimVpnService : VpnService() {
 
         var nativeBridgeStarted = false
         tun2SocksNativePrep?.let { preparedRuntime ->
+            activeTun2SocksSessionId = preparedRuntime.sessionId
             val nativeContract = Tun2SocksNativeBridge.contract(
                 preparedRuntime = preparedRuntime,
                 tunFd = tunFd,
@@ -248,6 +251,12 @@ class SwimVpnService : VpnService() {
         delay(350)
         VpnManager.markHandshake()
         VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
+        VpnManager.setRuntimeDiagnostics(
+            activeMode = RuntimeMode.FULL_TUNNEL.name,
+            xraySessionId = activeXraySessionId,
+            tun2SocksSessionId = activeTun2SocksSessionId,
+            tun2SocksLogPath = tun2SocksNativePrep?.stderrLogFile?.absolutePath,
+        )
         startTrafficStatsPolling()
 
         val runtimeMessage = when (tun2SocksAvailability.preferredLaunchMode) {
@@ -297,6 +306,10 @@ class SwimVpnService : VpnService() {
 
         VpnManager.markHandshake()
         VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
+        VpnManager.setRuntimeDiagnostics(
+            activeMode = RuntimeMode.LOCAL_PROXY.name,
+            xraySessionId = activeXraySessionId,
+        )
         updateNotification("Local proxy ready: 127.0.0.1:${runtime.ports.socksPort}")
 
         Log.i(
@@ -326,6 +339,7 @@ class SwimVpnService : VpnService() {
             }
             activeTun2SocksJob?.cancel()
             activeTun2SocksJob = null
+            activeTun2SocksSessionId = null
             activeTrafficStatsJob?.cancel()
             activeTrafficStatsJob = null
             activeTun2SocksContract = null
@@ -338,6 +352,7 @@ class SwimVpnService : VpnService() {
             Log.e("SwimVpnService", "Error closing VPN interface", e)
         } finally {
             vpnInterface = null
+            VpnManager.clearRuntimeDiagnostics()
             if (clearRuntimeState) {
                 VpnManager.updateRuntimeStatus(RuntimeStatus.IDLE)
             }
@@ -400,6 +415,7 @@ class SwimVpnService : VpnService() {
                 }
                 activeTun2SocksJob?.cancel()
                 activeTun2SocksJob = null
+                activeTun2SocksSessionId = null
                 activeTrafficStatsJob?.cancel()
                 activeTrafficStatsJob = null
                 activeTun2SocksContract = null
@@ -412,6 +428,7 @@ class SwimVpnService : VpnService() {
                 Log.e("SwimVpnService", "Error closing VPN interface during failure cleanup", e)
             } finally {
                 vpnInterface = null
+                VpnManager.clearRuntimeDiagnostics()
             }
         }
     }
@@ -423,6 +440,11 @@ class SwimVpnService : VpnService() {
         val preparedRuntime = xrayBridge.prepare(runtime.runtimeConfig)
         val running = xrayBridge.start(preparedRuntime)
         activeXraySessionId = running.sessionId()
+        VpnManager.setRuntimeDiagnostics(
+            activeMode = VpnManager.runtimeMode.value.name,
+            xraySessionId = preparedRuntime.sessionId,
+            xrayLogPath = preparedRuntime.stderrLogFile.absolutePath,
+        )
 
         VpnManager.markStarted()
         delay(600)

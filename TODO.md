@@ -208,3 +208,11 @@ otification-bot-service event handoff.
   - capture the displayed ping
   - note whether bytes counters advance smoothly or stall
   - collect Xray/tun2socks session logs for that exact server
+- Re-test the same imported node after MTU/DNS stabilization:
+  - compare `FULL_TUNNEL` vs `LOCAL_PROXY`
+  - verify whether internet pages now complete loading more reliably
+  - inspect the technical screen diagnostics for Xray/tun2socks session ids and log paths
+- If sessions are still too slow:
+  - capture the diagnostic paths from the technical screen
+  - pull the corresponding Xray/tun2socks stderr logs from app storage
+  - use those logs to decide whether the next batch should target tun2socks/full-tunnel tuning or conclude the node quality is the main bottleneck

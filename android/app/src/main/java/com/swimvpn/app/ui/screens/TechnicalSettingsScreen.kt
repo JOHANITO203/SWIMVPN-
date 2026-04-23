@@ -74,7 +74,8 @@ fun TechnicalSettingsScreen(
     onLanguageChange: (String) -> Unit,
     onBack: () -> Unit,
     themeMode: String = AppThemePreference.SYSTEM,
-    onThemeModeChange: (String) -> Unit = {}
+    onThemeModeChange: (String) -> Unit = {},
+    runtimeDiagnostics: String = "",
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -270,6 +271,29 @@ fun TechnicalSettingsScreen(
                         }
                         context.startActivity(intent)
                     }
+                )
+            }
+        }
+
+        if (runtimeDiagnostics.isNotBlank()) {
+            Spacer(modifier = Modifier.height(32.dp))
+
+            SectionTitle(icon = Icons.Outlined.Security, title = "RUNTIME DIAGNOSTICS")
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+            ) {
+                Text(
+                    text = runtimeDiagnostics,
+                    modifier = Modifier.padding(24.dp),
+                    color = Color(0xFF0F172A),
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }

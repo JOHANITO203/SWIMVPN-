@@ -805,3 +805,17 @@ pm run build PASSED.
   - Confirmed during audit that the Android client did not contain an explicit bandwidth throttle; the main missing piece was measurement/observability.
 - **Verification**:
   - `android\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android VPN Batch - Throughput Stabilization MTU DNS Diagnostics]
+- **Status**: DONE
+- **Changes**:
+  - Lowered full-tunnel Android MTU to `1280` and centralized it in `SwimVpnService` so the VPN interface and tun2socks launch spec use the same safer value.
+  - Hardened the default Xray DNS section by removing `localhost` and keeping only explicit upstream resolvers.
+  - Added lightweight runtime diagnostics to `VpnManager` metrics:
+    - active mode
+    - Xray session id
+    - Xray log path
+    - tun2socks session id
+    - tun2socks log path
+  - Exposed these diagnostics on the technical settings screen so slow or half-working sessions are inspectable on-device without backend support.
+- **Verification**:
+  - `android\gradlew.bat assembleDebug` PASSED.

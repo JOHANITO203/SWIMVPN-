@@ -352,3 +352,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - The servers page can now receive measured TCP latency values from the client.
   - Full-tunnel sessions now report tun2socks byte deltas into `VpnManager`.
   - We can now distinguish more honestly between a slow remote server, a poor route, and a local data-plane problem.
+## [2026-04-23] [Stabilize Full Tunnel With Safer MTU And Explicit DNS Before Deeper Tuning]
+- **Decision**: For the first throughput stabilization pass, change only two runtime levers with high signal and low architectural risk: MTU and default DNS.
+- **Why**: `FULL_TUNNEL` was clearly more fragile than `LOCAL_PROXY`, but the client had no evidence of intentional throttling. A safer MTU and cleaner DNS are defensible first-order fixes that do not invent speculative performance policy.
+- **Impact**:
+  - Full-tunnel sessions now use MTU `1280` consistently.
+  - Default Xray DNS no longer mixes in `localhost`.
+  - Runtime diagnostics are now visible in-app through the technical screen, making later tuning evidence-based instead of guess-based.
