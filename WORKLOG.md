@@ -819,3 +819,33 @@ pm run build PASSED.
   - Exposed these diagnostics on the technical settings screen so slow or half-working sessions are inspectable on-device without backend support.
 - **Verification**:
   - `android\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android Roadmap Rebaseline - Parser Before Engine Before Perf]
+- **Status**: DONE
+- **Changes**:
+  - Added a dedicated Android execution memory document:
+    - `ANDROID_EXECUTION_STATUS.md`
+  - Rebased the Android roadmap so the active priority order is now explicitly:
+    - parser coverage and truth
+    - engine/runtime completion
+    - performance tuning
+  - Recorded that `2-B` is considered closed from an implementation/integration perspective.
+  - Recorded the major Android accomplishments already completed since `2-B` closure so future work can start from a stable shared memory instead of reopening old uncertainty.
+- **Verification**:
+  - Document created and aligned with existing `WORKLOG.md`, `DECISIONS.md`, and `TODO.md`.
+## [2026-04-23] [Android Parser Batch - Modern Supported Link Variants Preservation]
+- **Status**: DONE
+- **Changes**:
+  - Hardened `VMess` URL parsing for real public variants by adding a `path -> serviceName` fallback when `net=grpc`.
+  - Extended parser transport recognition for already-supported `HTTP2`-family transports:
+    - `http`
+    - `h2`
+    - `httpupgrade`
+    - `xhttp`
+    - `splithttp`
+  - Preserved `path/host` metadata for `VLESS`, `VMess`, `Trojan`, and JSON configs using those `HTTP2`-family transports.
+  - Added canonical model support for `Shadowsocks` plugin metadata:
+    - `plugin`
+    - `plugin-opts`
+  - Added an explicit warning when `Shadowsocks` plugin metadata is preserved but runtime support is not yet fully verified, so parser truth improves without pretending engine completeness.
+- **Verification**:
+  - `android\\gradlew.bat assembleDebug` PASSED.

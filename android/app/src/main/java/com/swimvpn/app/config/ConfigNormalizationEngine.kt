@@ -86,6 +86,9 @@ object ConfigNormalizationEngine {
                 if (profile.method.isNullOrBlank()) {
                     validationErrors.add("Shadowsocks requires encryption method")
                 }
+                if (profile.shadowsocksPluginSettings != null) {
+                    validationWarnings.add("Shadowsocks plugin metadata is preserved, but plugin runtime support is not fully verified yet")
+                }
             }
             Protocol.UNKNOWN -> {
                 validationErrors.add("Unknown protocol")

@@ -216,3 +216,44 @@ otification-bot-service event handoff.
   - capture the diagnostic paths from the technical screen
   - pull the corresponding Xray/tun2socks stderr logs from app storage
   - use those logs to decide whether the next batch should target tun2socks/full-tunnel tuning or conclude the node quality is the main bottleneck
+
+## Android Priority Reset
+- Use `ANDROID_EXECUTION_STATUS.md` as the source of truth for Android roadmap state.
+- Do not open a new Android performance batch before checking whether the next blocker is actually parser truth or engine/runtime completion.
+
+### Priority 1 - Parser Coverage And Truth
+- Continue hardening supported formats only:
+  - `vless://`
+  - `vmess://`
+  - `trojan://`
+  - `ss://`
+  - JSON Xray/V2Ray
+- Re-test real-world failing supported links and fix recognition/import gaps first.
+- Ensure one imported source can consistently produce:
+  - preserved raw input
+  - coherent group
+  - individually activable nodes
+- Re-test the newly hardened parser cases specifically:
+  - `vmess://` with `net=grpc` where `path` must become `serviceName`
+  - `vless://` / `trojan://` / JSON configs using:
+    - `http`
+    - `h2`
+    - `httpupgrade`
+    - `xhttp`
+    - `splithttp`
+  - `ss://` and JSON Shadowsocks payloads carrying:
+    - `plugin`
+    - `plugin-opts`
+- If `Shadowsocks` plugin metadata is preserved but the node still does not connect, treat the next batch as engine/runtime completion rather than reopening parser work blindly.
+
+### Priority 2 - Engine / Runtime Completion
+- Once a supported node parses correctly, verify:
+  - selected node -> runtime payload -> Xray launch -> traffic flow
+- Keep improving diagnostics for sessions that connect but do not actually behave correctly.
+- Re-test `FULL_TUNNEL` until it is functionally reliable, even if still slower than `LOCAL_PROXY`.
+
+### Priority 3 - Performance
+- Only after parser and engine truth are stable, continue performance comparison between:
+  - `LOCAL_PROXY`
+  - `FULL_TUNNEL`
+- Use latency, byte counters, and diagnostics before making further tuning choices.

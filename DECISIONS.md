@@ -359,3 +359,21 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Full-tunnel sessions now use MTU `1280` consistently.
   - Default Xray DNS no longer mixes in `localhost`.
   - Runtime diagnostics are now visible in-app through the technical screen, making later tuning evidence-based instead of guess-based.
+## [2026-04-23] [Android Priority Order Must Be Parser Then Engine Then Performance]
+- **Decision**: The Android VPN roadmap must be executed in this order:
+  - parser coverage and truth
+  - engine/runtime completion
+  - performance tuning
+- **Why**: Too many Android sub-chantiers were opened in parallel after `2-B`, which diluted progress and risked optimizing a stack whose parser and engine truth were still incomplete. The product value is higher if supported links are first recognized/imported correctly, then made connectable reliably, and only then optimized for speed.
+- **Impact**:
+  - `2-B` remains treated as closed from an implementation/integration standpoint.
+  - `2-C` is now explicitly guided by the above priority order.
+  - Performance work remains important, but it no longer outranks parser or engine completion.
+  - `ANDROID_EXECUTION_STATUS.md` is now the dedicated long-term execution memory for this Android roadmap.
+## [2026-04-23] [Preserve Modern Supported Link Metadata Even Before Full Runtime Coverage]
+- **Decision**: For already-supported ecosystems, the parser must preserve modern real-world metadata even when runtime support for every variant is not yet complete.
+- **Why**: The active roadmap puts parser truth ahead of engine completion. Public `vmess://`, `trojan://`, `vless://`, `ss://`, and JSON documents commonly rely on `grpc`, `http2`-family transport details, and `Shadowsocks` plugin metadata. Dropping those fields during ingest/parsing makes it impossible to truthfully evaluate the next engine gap.
+- **Impact**:
+  - `VMess gRPC` now keeps a usable `serviceName` via `path` fallback when needed.
+  - `HTTP2`-family transports now preserve `path/host` metadata through the canonical profile.
+  - `Shadowsocks` plugin metadata is preserved in the canonical profile with an explicit warning when runtime support is still incomplete.

@@ -1,0 +1,164 @@
+# Android Execution Status
+
+Last updated: 2026-04-23
+
+## Current Direction
+The Android roadmap is now explicitly prioritized in this order:
+
+1. Parser coverage and import truth
+2. VPN engine/runtime completion
+3. Performance tuning and throughput stabilization
+
+We are intentionally **not** treating performance as the primary current milestone anymore.
+The team decision is to stop opening parallel Android subprojects before the parser and engine are functionally complete.
+
+## Phase Status
+### Phase 2-B
+Status: CLOSED
+
+What is considered completed:
+- Native Xray packaging and execution path are integrated into the app
+- The app can launch the packaged Xray runtime on device
+- Import flow exists in the app
+- Imported configs can now appear in the server catalog
+- Grouped imported servers and local pinning are working
+
+Important nuance:
+- 2-B is closed from an implementation and integration perspective
+- closing 2-B does **not** mean the VPN product is feature-complete or fast yet
+- parser breadth, engine completeness, and production-grade runtime behavior remain Phase 2-C work
+
+### Phase 2-C
+Status: ACTIVE
+
+Current priority order inside 2-C:
+1. Parser expansion and hardening
+2. Engine/runtime completion
+3. Performance and tuning
+
+## Accomplished Since 2-B Closure
+### Parser / Import
+- Preserved runtime-critical `gRPC` fields such as `serviceName`
+- Hardened supported parsing for:
+  - `vless://`
+  - `vmess://`
+  - `trojan://`
+  - `ss://`
+  - JSON Xray/V2Ray
+- Added tolerant parsing for decorated `vless://` and `trojan://` links
+- Hardened support for:
+  - transport aliases such as `raw`, `xhttp`, `splithttp`, `httpupgrade`
+  - more tolerant Base64 handling for `VMess`
+  - more realistic `Trojan` and `Shadowsocks` variants
+- Added support for grouped imports so one payload can create multiple imported server nodes
+- Preserved additional modern parser details now needed by real public links:
+  - `VMess gRPC` can now fall back from `path` to `serviceName`
+  - `HTTP2`-family transports now preserve `path/host`
+  - `Shadowsocks` now preserves `plugin` / `plugin-opts` metadata
+
+### Server Catalog / UX
+- Imported payloads now become grouped selectable servers
+- Imported servers coexist with backend servers
+- Imported nodes can be pinned locally
+- Selected imported nodes can be used as actual connection targets
+
+### Engine / Runtime
+- Xray runtime launch path was repaired on real Android packaging/device conditions
+- Runtime metrics and traffic observability were added
+- Session diagnostics are now visible from the technical screen
+- First stabilization pass landed for:
+  - safer MTU
+  - cleaner default DNS
+
+## Remaining Work
+### Priority 1: Parser Coverage and Truth
+Goal: the app must correctly ingest, parse, validate, normalize, classify, preview, and prepare runtime payloads for the maximum realistic set of supported formats.
+
+Remaining work:
+- Continue hardening supported ecosystems only:
+  - `vless://`
+  - `vmess://`
+  - `trojan://`
+  - `ss://`
+  - JSON Xray
+  - JSON V2Ray
+- Expand real-world compatibility for:
+  - unusual `Trojan` variants still failing import
+  - advanced `VMess` payload shapes
+  - `Shadowsocks` plugin and edge variants where runtime support is still incomplete
+  - JSON documents whose usable outbound is nested or non-trivial
+- Improve subscription/group import truth:
+  - preserve raw input intact
+  - preserve one imported source as a coherent group
+  - ensure each node remains individually activable
+- Add stricter diagnostics when a supported format is recognized but cannot yet be normalized into a viable runtime profile
+
+Exit criteria for this priority:
+- supported links are consistently recognized and imported
+- imported groups are represented correctly
+- runtime payload generation is faithful for supported variants
+
+### Priority 2: Engine / Runtime Completion
+Goal: once a supported node is parsed correctly, the engine must reliably use it as a working connection target.
+
+Remaining work:
+- Validate the runtime pipeline end-to-end for imported nodes:
+  - chosen node
+  - raw config
+  - runtime payload
+  - Xray launch
+  - traffic flow
+- Continue narrowing gaps between:
+  - parser truth
+  - canonical profile
+  - emitted Xray runtime document
+- Improve diagnostics for:
+  - startup failures
+  - half-working sessions
+  - sessions that connect but do not pass traffic properly
+- Re-test `FULL_TUNNEL` data-plane behavior until it is functionally reliable
+
+Exit criteria for this priority:
+- imported supported nodes can be selected and connected consistently
+- runtime failures are diagnosable from app-visible signals
+- `LOCAL_PROXY` and `FULL_TUNNEL` are both functionally usable, even if not equally fast yet
+
+### Priority 3: Performance and Throughput
+Goal: optimize only after parser and engine truth are solid.
+
+Remaining work:
+- Compare the same node in:
+  - `LOCAL_PROXY`
+  - `FULL_TUNNEL`
+- Use latency, traffic counters, and session diagnostics to identify:
+  - slow server quality
+  - poor route quality
+  - local data-plane overhead
+- Tune only with evidence:
+  - MTU
+  - DNS
+  - tun2socks behavior
+  - runtime data-plane assumptions
+
+Important rule:
+- performance tuning must not become a substitute for parser or engine completion
+
+Exit criteria for this priority:
+- we can explain slow sessions with evidence
+- we can separate bad nodes from local runtime overhead
+- `FULL_TUNNEL` is no longer disproportionately fragile relative to `LOCAL_PROXY`
+
+## What We Are Not Prioritizing Right Now
+- Adding unsupported protocols such as `hy2://`
+- Backend refactors tied to Android parser work
+- Broad UI redesign unrelated to import/runtime truth
+- Speculative performance hacks without diagnostic evidence
+
+## Working Rule Going Forward
+For Android VPN work, choose the next batch by this rule:
+
+1. If a supported link cannot be parsed/imported correctly, work on the parser
+2. If parsing succeeds but connection/runtime is incomplete, work on the engine
+3. Only when both are reasonably true, work on performance
+
+This document is the current project memory for Android execution priorities.

@@ -36,6 +36,7 @@ data class SwimVpnProfile(
     val websocketSettings: WebsocketSettings? = null,
     val tcpSettings: TcpSettings? = null,
     val grpcSettings: GrpcSettings? = null,
+    val shadowsocksPluginSettings: ShadowsocksPluginSettings? = null,
     
     // Authentication
     val userId: String? = null,               // VLESS/VMess user ID
@@ -149,6 +150,11 @@ data class TcpSettings(
 data class GrpcSettings(
     val serviceName: String,
     val mode: String = "gun"
+)
+
+data class ShadowsocksPluginSettings(
+    val plugin: String,
+    val options: String? = null
 )
 
 /**

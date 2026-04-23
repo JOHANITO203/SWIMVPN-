@@ -100,6 +100,11 @@ object ConfigParserEngine {
                             it.key.removePrefix("header:")
                         }
                     )
+                } else if (transport == Transport.HTTP2) {
+                    WebsocketSettings(
+                        path = query["path"] ?: "/",
+                        host = query["host"] ?: query["authority"] ?: query["sni"] ?: host,
+                    )
                 } else null,
                 tcpSettings = if (transport == Transport.TCP) {
                     TcpSettings(
@@ -149,6 +154,7 @@ object ConfigParserEngine {
             val hostHeader = extractHostHeader(json["host"])
             val path = (json["path"] as? String)?.takeIf { it.isNotBlank() }
             val serviceName = (json["serviceName"] as? String)?.takeIf { it.isNotBlank() }
+                ?: path?.takeIf { net.equals("grpc", ignoreCase = true) }
             val sni = (json["sni"] as? String)?.takeIf { it.isNotBlank() }
                 ?: (json["serverName"] as? String)?.takeIf { it.isNotBlank() }
             val fingerprint = (json["fp"] as? String)?.takeIf { it.isNotBlank() }
@@ -161,6 +167,7 @@ object ConfigParserEngine {
                 "tcp" -> Transport.TCP
                 "ws" -> Transport.WEBSOCKET
                 "grpc" -> Transport.GRPC
+                "http", "h2", "httpupgrade", "xhttp", "splithttp" -> Transport.HTTP2
                 "kcp" -> Transport.KCP
                 "quic" -> Transport.QUIC
                 else -> Transport.UNKNOWN
@@ -204,6 +211,11 @@ object ConfigParserEngine {
                     WebsocketSettings(
                         path = path ?: "/",
                         host = hostHeader,
+                    )
+                } else if (transport == Transport.HTTP2) {
+                    WebsocketSettings(
+                        path = path ?: "/",
+                        host = hostHeader ?: sni ?: add,
                     )
                 } else null,
                 tcpSettings = if (transport == Transport.TCP && headerType != null) {
@@ -279,6 +291,11 @@ object ConfigParserEngine {
                         path = query["path"] ?: "/",
                         host = query["host"] ?: host
                     )
+                } else if (transport == Transport.HTTP2) {
+                    WebsocketSettings(
+                        path = query["path"] ?: "/",
+                        host = query["host"] ?: query["authority"] ?: query["sni"] ?: host,
+                    )
                 } else null,
                 tcpSettings = if (transport == Transport.TCP) {
                     TcpSettings(
@@ -317,6 +334,10 @@ object ConfigParserEngine {
                 .takeIf { it.isNotBlank() }
                 ?.let { URLDecoder.decode(it, "UTF-8") }
             val withoutFragment = raw.substringBefore('#')
+            val query = withoutFragment.substringAfter('?', "")
+                .takeIf { it.isNotBlank() }
+                ?.let(::parseQueryParams)
+                ?: emptyMap()
             val withoutQuery = withoutFragment.substringBefore('?')
 
             val decodedCore = if (withoutQuery.contains("@")) {
@@ -360,6 +381,7 @@ object ConfigParserEngine {
                 websocketSettings = null,
                 tcpSettings = null,
                 grpcSettings = null,
+                shadowsocksPluginSettings = parseShadowsocksPluginSettings(query, warnings),
                 password = password,
                 method = method,
                 displayName = displayName,
@@ -489,6 +511,13 @@ object ConfigParserEngine {
                                (wsSettings?.get("headers") as? Map<*, *>)?.get("Host") as? String
                     )
                 }
+                Transport.HTTP2 -> {
+                    val httpSettingsMap = streamSettings?.get("httpSettings") as? Map<*, *>
+                    websocketSettings = WebsocketSettings(
+                        path = httpSettingsMap?.get("path") as? String ?: "/",
+                        host = extractHostHeader(httpSettingsMap?.get("host"))
+                    )
+                }
                 Transport.TCP -> {
                     val tcpSettingsMap = streamSettings?.get("tcpSettings") as? Map<*, *>
                     val header = tcpSettingsMap?.get("header") as? Map<*, *>
@@ -499,8 +528,14 @@ object ConfigParserEngine {
                 }
                 Transport.GRPC -> {
                     val grpcSettingsMap = streamSettings?.get("grpcSettings") as? Map<*, *>
+                    val serviceName = grpcSettingsMap?.get("serviceName") as? String
+                    val fallbackPath = streamSettings?.get("wsSettings")
+                        ?.let { it as? Map<*, *> }
+                        ?.get("path") as? String
                     grpcSettings = GrpcSettings(
-                        serviceName = grpcSettingsMap?.get("serviceName") as? String ?: "",
+                        serviceName = serviceName?.takeIf { it.isNotBlank() }
+                            ?: fallbackPath?.takeIf { it.isNotBlank() }
+                            ?: "",
                         mode = if ((grpcSettingsMap?.get("multiMode") as? Boolean) == true) "multi" else "gun",
                     )
                 }
@@ -633,6 +668,13 @@ object ConfigParserEngine {
                                (wsSettings?.get("headers") as? Map<*, *>)?.get("Host") as? String
                     )
                 }
+                Transport.HTTP2 -> {
+                    val httpSettingsMap = streamSettings?.get("httpSettings") as? Map<*, *>
+                    websocketSettings = WebsocketSettings(
+                        path = httpSettingsMap?.get("path") as? String ?: "/",
+                        host = extractHostHeader(httpSettingsMap?.get("host"))
+                    )
+                }
                 Transport.TCP -> {
                     val tcpSettingsMap = streamSettings?.get("tcpSettings") as? Map<*, *>
                     val header = tcpSettingsMap?.get("header") as? Map<*, *>
@@ -643,8 +685,14 @@ object ConfigParserEngine {
                 }
                 Transport.GRPC -> {
                     val grpcSettingsMap = streamSettings?.get("grpcSettings") as? Map<*, *>
+                    val serviceName = grpcSettingsMap?.get("serviceName") as? String
+                    val fallbackPath = streamSettings?.get("httpSettings")
+                        ?.let { it as? Map<*, *> }
+                        ?.get("path") as? String
                     grpcSettings = GrpcSettings(
-                        serviceName = grpcSettingsMap?.get("serviceName") as? String ?: "",
+                        serviceName = serviceName?.takeIf { it.isNotBlank() }
+                            ?: fallbackPath?.takeIf { it.isNotBlank() }
+                            ?: "",
                         mode = if ((grpcSettingsMap?.get("multiMode") as? Boolean) == true) "multi" else "gun",
                     )
                 }
@@ -745,7 +793,7 @@ object ConfigParserEngine {
                 "tcp" -> Transport.TCP
                 "ws", "websocket" -> Transport.WEBSOCKET
                 "grpc" -> Transport.GRPC
-                "http", "h2" -> Transport.HTTP2
+                "http", "h2", "httpupgrade", "xhttp", "splithttp" -> Transport.HTTP2
                 else -> Transport.UNKNOWN
             }
             
@@ -758,6 +806,7 @@ object ConfigParserEngine {
             
             // Parse TLS settings
             var grpcSettings: GrpcSettings? = null
+            var websocketSettings: WebsocketSettings? = null
             var tlsSettings: TlsSettings? = null
             if (securityMode == SecurityMode.TLS || securityMode == SecurityMode.REALITY) {
                 val tlsSettingsMap = streamSettings?.get("tlsSettings") as? Map<*, *>
@@ -780,9 +829,19 @@ object ConfigParserEngine {
             }
             if (transport == Transport.GRPC) {
                 val grpcSettingsMap = streamSettings?.get("grpcSettings") as? Map<*, *>
+                val httpSettingsMap = streamSettings?.get("httpSettings") as? Map<*, *>
                 grpcSettings = GrpcSettings(
-                    serviceName = grpcSettingsMap?.get("serviceName") as? String ?: "",
+                    serviceName = (grpcSettingsMap?.get("serviceName") as? String)?.takeIf { it.isNotBlank() }
+                        ?: (httpSettingsMap?.get("path") as? String)?.takeIf { it.isNotBlank() }
+                        ?: "",
                     mode = if ((grpcSettingsMap?.get("multiMode") as? Boolean) == true) "multi" else "gun",
+                )
+            }
+            if (transport == Transport.HTTP2) {
+                val httpSettingsMap = streamSettings?.get("httpSettings") as? Map<*, *>
+                websocketSettings = WebsocketSettings(
+                    path = httpSettingsMap?.get("path") as? String ?: "/",
+                    host = extractHostHeader(httpSettingsMap?.get("host"))
                 )
             }
 
@@ -800,6 +859,7 @@ object ConfigParserEngine {
                 port = port,
                 realitySettings = realitySettings,
                 tlsSettings = tlsSettings,
+                websocketSettings = websocketSettings,
                 grpcSettings = grpcSettings,
                 password = password,
                 displayName = displayName,
@@ -850,6 +910,8 @@ object ConfigParserEngine {
             )
             
             val method = servers["method"] as? String ?: "aes-256-gcm"
+            val plugin = servers["plugin"] as? String
+            val pluginOptions = servers["plugin_opts"] as? String
             
             val displayName = outbound["tag"] as? String ?: "Shadowsocks: $address"
             val displaySubtitle = "Port: $port, Method: $method"
@@ -865,6 +927,13 @@ object ConfigParserEngine {
                 port = port,
                 password = password,
                 method = method,
+                shadowsocksPluginSettings = parseShadowsocksPluginSettings(
+                    query = buildMap {
+                        plugin?.takeIf { it.isNotBlank() }?.let { put("plugin", it) }
+                        pluginOptions?.takeIf { it.isNotBlank() }?.let { put("plugin-opts", it) }
+                    },
+                    warnings = warnings
+                ),
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
                 parseWarnings = warnings
@@ -887,6 +956,20 @@ object ConfigParserEngine {
             val value = if (parts.size == 2) URLDecoder.decode(parts[1], "UTF-8") else ""
             key to value
         }
+    }
+
+    private fun parseShadowsocksPluginSettings(
+        query: Map<String, String>,
+        warnings: MutableList<String>,
+    ): ShadowsocksPluginSettings? {
+        val plugin = query["plugin"]?.takeIf { it.isNotBlank() } ?: return null
+        val options = query["plugin-opts"]?.takeIf { it.isNotBlank() }
+
+        warnings += "Shadowsocks plugin metadata preserved, but runtime support may still be incomplete"
+        return ShadowsocksPluginSettings(
+            plugin = plugin,
+            options = options,
+        )
     }
     
     /**
