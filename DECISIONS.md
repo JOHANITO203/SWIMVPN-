@@ -345,3 +345,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - The connection server catalog is now a merge of backend access servers and locally imported groups.
   - Server selection can target imported nodes directly, and runtime launch uses the selected server's raw config when present.
   - The servers page can host multiple groups without inventing new backend services or changing PostgreSQL truth.
+## [2026-04-23] [Measure Server Responsiveness Before Tuning Tunnel Throughput]
+- **Decision**: Add client-side latency probing and tunnel traffic observability before applying speculative throughput tweaks to the VPN runtime.
+- **Why**: The app showed neither reliable ping values nor meaningful traffic metrics, which made every slowdown look like a generic "decryption/performance" issue. Without measurement, blind tuning would hide the true cause.
+- **Impact**:
+  - The servers page can now receive measured TCP latency values from the client.
+  - Full-tunnel sessions now report tun2socks byte deltas into `VpnManager`.
+  - We can now distinguish more honestly between a slow remote server, a poor route, and a local data-plane problem.

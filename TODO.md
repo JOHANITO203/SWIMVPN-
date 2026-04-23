@@ -200,3 +200,11 @@ otification-bot-service event handoff.
 - Re-test mixed catalog behavior:
   - backend access servers and imported groups should coexist on the servers page
   - the active selection should restore correctly from saved preferences
+- Re-test Android latency and throughput observability on device:
+  - open the servers page and confirm measured ping values appear for backend and imported nodes
+  - connect through a full-tunnel imported node and verify bytes in/out start moving in the UI
+  - compare the same node in `FULL_TUNNEL` vs `LOCAL_PROXY` mode to isolate tun2socks overhead from server-side slowness
+- If a node is still subjectively slow after metrics appear:
+  - capture the displayed ping
+  - note whether bytes counters advance smoothly or stall
+  - collect Xray/tun2socks session logs for that exact server

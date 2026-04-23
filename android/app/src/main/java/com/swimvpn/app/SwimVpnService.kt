@@ -39,6 +39,7 @@ class SwimVpnService : VpnService() {
     private var activeXraySessionId: String? = null
     private var activeTun2SocksContract: Tun2SocksNativeBridgeContract? = null
     private var activeTun2SocksJob: Job? = null
+    private var activeTrafficStatsJob: Job? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val xrayBridge by lazy { XrayProcessBridge(applicationContext) }
@@ -247,6 +248,7 @@ class SwimVpnService : VpnService() {
         delay(350)
         VpnManager.markHandshake()
         VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
+        startTrafficStatsPolling()
 
         val runtimeMessage = when (tun2SocksAvailability.preferredLaunchMode) {
             Tun2SocksLaunchMode.JNI -> {
@@ -324,6 +326,8 @@ class SwimVpnService : VpnService() {
             }
             activeTun2SocksJob?.cancel()
             activeTun2SocksJob = null
+            activeTrafficStatsJob?.cancel()
+            activeTrafficStatsJob = null
             activeTun2SocksContract = null
             activeXraySessionId?.let { sessionId ->
                 xrayBridge.stop(sessionId)
@@ -396,6 +400,8 @@ class SwimVpnService : VpnService() {
                 }
                 activeTun2SocksJob?.cancel()
                 activeTun2SocksJob = null
+                activeTrafficStatsJob?.cancel()
+                activeTrafficStatsJob = null
                 activeTun2SocksContract = null
                 activeXraySessionId?.let { sessionId ->
                     xrayBridge.stop(sessionId)
@@ -437,6 +443,32 @@ class SwimVpnService : VpnService() {
                     }
                 }
             )
+        }
+    }
+
+    private fun startTrafficStatsPolling() {
+        activeTrafficStatsJob?.cancel()
+        val contract = activeTun2SocksContract ?: return
+
+        activeTrafficStatsJob = serviceScope.launch {
+            var lastRxBytes = 0L
+            var lastTxBytes = 0L
+            while (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
+                runCatching {
+                    Tun2SocksNativeBridge.stats(contract)
+                }.onSuccess { stats ->
+                    val deltaIn = (stats.rxBytes - lastRxBytes).coerceAtLeast(0L)
+                    val deltaOut = (stats.txBytes - lastTxBytes).coerceAtLeast(0L)
+                    lastRxBytes = stats.rxBytes
+                    lastTxBytes = stats.txBytes
+                    if (deltaIn > 0L || deltaOut > 0L) {
+                        VpnManager.updateUsage(downloaded = deltaIn, uploaded = deltaOut)
+                    }
+                }.onFailure { error ->
+                    Log.w("SwimVpnService", "Unable to read tun2socks traffic stats", error)
+                }
+                delay(1000)
+            }
         }
     }
 }

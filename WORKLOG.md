@@ -796,3 +796,12 @@ pm run build PASSED.
   - Added local pinning for servers and exposed grouped sections on the servers page so multiple imported groups can coexist with backend-provided access servers.
 - **Verification**:
   - `android\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android VPN Batch - Latency Probing And Tunnel Traffic Observability]
+- **Status**: DONE
+- **Changes**:
+  - Added a client-side TCP latency evaluator for connection servers so the app can estimate server responsiveness instead of always showing `0ms`.
+  - `MainViewModel` now refreshes latency after building or refreshing the success state, including imported grouped servers.
+  - Wired tun2socks JNI byte counters into `VpnManager`, so full-tunnel sessions now expose real traffic deltas instead of staying blind on throughput.
+  - Confirmed during audit that the Android client did not contain an explicit bandwidth throttle; the main missing piece was measurement/observability.
+- **Verification**:
+  - `android\gradlew.bat assembleDebug` PASSED.

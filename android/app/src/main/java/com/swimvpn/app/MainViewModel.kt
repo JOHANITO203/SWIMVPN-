@@ -15,6 +15,7 @@ import com.swimvpn.app.data.network.BootstrapAccessRequest
 import com.swimvpn.app.data.network.ImportSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerGroup
+import com.swimvpn.app.data.network.ServerLatencyEvaluator
 import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.config.ConfigRepository
 import com.swimvpn.app.config.ImportedProfileGroup
@@ -142,6 +143,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     _state.value = successState
+                    refreshServerLatency()
                 } else {
                     _state.value = AppState.TrialSetup(
                         userNumber = bootstrap.userNumber,
@@ -260,6 +262,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 _state.value = successState
+                refreshServerLatency()
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Trial activation failed", e)
                 _state.value = currentState
@@ -293,9 +296,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 _state.value = refreshSuccessState(currentState.copy(profile = updatedProfile))
+                refreshServerLatency()
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Import failed", e)
                 _state.value = refreshSuccessState(currentState)
+                refreshServerLatency()
                 _effect.emit(AppSideEffect.ShowToast("Configuration imported locally, but profile sync failed"))
             }
         }
@@ -347,6 +352,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val targetId = importedServerId(profile)
             prefs.setSelectedServerId(targetId)
             _state.value = refreshSuccessState(current)
+            refreshServerLatency()
         }
     }
 
@@ -355,6 +361,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val current = _state.value as? AppState.Success ?: return@launch
             prefs.togglePinnedServerId(server.id)
             _state.value = refreshSuccessState(current)
+        }
+    }
+
+    fun refreshServerLatency() {
+        viewModelScope.launch {
+            val current = _state.value as? AppState.Success ?: return@launch
+            val measuredServers = ServerLatencyEvaluator.enrichWithLatency(current.servers)
+            val byId = measuredServers.associateBy { it.id }
+            val measuredGroups = current.serverGroups.map { group ->
+                group.copy(
+                    servers = group.servers.map { server -> byId[server.id] ?: server }
+                )
+            }
+            val activeServer = current.activeServer?.id?.let(byId::get) ?: current.activeServer
+            _state.value = current.copy(
+                servers = measuredServers,
+                serverGroups = measuredGroups,
+                activeServer = activeServer,
+            )
         }
     }
 
