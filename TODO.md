@@ -245,6 +245,27 @@ otification-bot-service event handoff.
     - `plugin`
     - `plugin-opts`
 - If `Shadowsocks` plugin metadata is preserved but the node still does not connect, treat the next batch as engine/runtime completion rather than reopening parser work blindly.
+- Re-test Happ wrapper cases explicitly:
+  - `happ://add/<direct-supported-link>`
+  - `happ://add/<subscription-url>`
+  - `happ://crypt3/...`
+  - `happ://crypt4/...`
+  - `happ://crypt5/...`
+  - `happ://routing/add/...`
+  - `happ://routing/onadd/...`
+  - `happ://routing/off`
+  - plain `https://...` subscription URLs
+- Next parser step after this batch:
+  - re-test remote subscription fetch/import on real provider URLs
+  - continue direct-link parser hardening if fetched payloads expose new supported-link variants
+- Re-test remote subscription import:
+  - `https://my.sub.tg/...`
+  - `happ://add/https://...`
+  - Base64 subscription content
+  - plain multi-link subscription content
+- Keep out of current parser scope until explicitly selected:
+  - Happ `crypt3/crypt4/crypt5` decryption
+  - Happ routing profile import
 
 ### Priority 2 - Engine / Runtime Completion
 - Once a supported node parses correctly, verify:

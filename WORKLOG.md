@@ -858,3 +858,33 @@ pm run build PASSED.
   - Stop now refuses to early-return when runtime resources are still active, even if `VpnManager` already says `IDLE` or `STOPPING`.
 - **Verification**:
   - `android\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Android Parser Batch - Recognize Happ Deep Links And Subscription Wrappers]
+- **Status**: DONE
+- **Changes**:
+  - Extended import classification so the app now explicitly recognizes:
+    - `happ://add/...`
+    - `happ://crypt3/...`
+    - `happ://crypt4/...`
+    - `happ://crypt5/...`
+    - `happ://routing/add/...`
+    - `happ://routing/onadd/...`
+    - `happ://routing/off`
+    - plain `http://` / `https://` subscription URLs
+  - Added tolerant unwrapping for `happ://add/...` so direct supported node links wrapped by Happ can flow back into the normal parser.
+  - Added explicit classification errors for recognized-but-not-yet-implemented cases instead of generic unsupported format failures:
+    - remote subscriptions
+    - Happ encrypted subscriptions
+    - Happ routing deep links
+  - Updated `isLikelyVpnConfig` so clipboard/manual import now treats Happ deep links and subscription URLs as recognizable VPN-related inputs.
+- **Verification**:
+  - `android\\gradlew.bat --no-daemon packageDebug --stacktrace` PASSED.
+## [2026-04-23] [Android Parser Batch - Remote Subscription Fetch Import]
+- **Status**: DONE
+- **Changes**:
+  - Implemented remote `http(s)` subscription import in `ConfigRepository`.
+  - `happ://add/<https-url>` now unwraps to a subscription URL and enters the same remote fetch path.
+  - Added bounded OkHttp fetch with redirects and timeouts.
+  - Added Base64 subscription payload detection/decoding before reusing the existing multi-link import flow.
+  - Preserved the existing direct-node import path and still keeps Happ encrypted/routing links as explicitly recognized but not implemented.
+- **Verification**:
+  - `android\\gradlew.bat --no-daemon assembleDebug` PASSED.

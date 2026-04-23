@@ -547,6 +547,9 @@ object ConfigNormalizationEngine {
             trimmed.startsWith("vmess://") -> true
             trimmed.startsWith("trojan://") -> true
             trimmed.startsWith("ss://") -> true
+            trimmed.startsWith("happ://", ignoreCase = true) -> true
+            trimmed.startsWith("https://", ignoreCase = true) -> true
+            trimmed.startsWith("http://", ignoreCase = true) -> true
             isJsonConfig(trimmed) -> true
             else -> false
         }

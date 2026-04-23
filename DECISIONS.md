@@ -384,3 +384,18 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `SwimVpnService` now cancels in-flight startup before cleanup.
   - shutdown no longer early-returns if active runtime resources still exist.
   - orphaned Xray processes are defensively reaped with `stopAll()` during cleanup.
+## [2026-04-23] [Recognize Happ Deep Links And Subscription Wrappers Before Fetch Support]
+- **Decision**: The Android parser/import layer must explicitly recognize Happ client deep links and plain subscription wrappers even before remote fetch/decryption support is fully implemented.
+- **Why**: Happ is a major reference client in the market, and its wrappers are part of the modern config ecosystem users actually paste into the app. Treating them as generic unsupported text blocks parser progress and hides the next real implementation gap.
+- **Impact**:
+  - `happ://add/...` can now unwrap direct supported node links into the standard parser flow.
+  - Happ encrypted subscription links and Happ routing links are now classified honestly with explicit messages.
+  - Plain `http(s)` subscription URLs are now recognized as VPN-related wrappers instead of unknown strings.
+## [2026-04-23] [Remote Subscriptions Feed The Same Grouped Import Pipeline]
+- **Decision**: Standard remote subscription URLs should be fetched and normalized into the existing grouped multi-link import pipeline instead of creating a separate subscription system.
+- **Why**: The app already has a useful local catalog model for imported groups, selectable nodes, and pins. Creating a second system for fetched subscriptions would duplicate behavior and weaken parser truth.
+- **Impact**:
+  - `http(s)` subscriptions are downloaded with bounded timeouts and size limits.
+  - Base64 subscription payloads are decoded before splitting into node links.
+  - Fetched nodes become normal imported grouped servers.
+  - Encrypted Happ subscriptions remain classified separately until their crypto format is implemented.

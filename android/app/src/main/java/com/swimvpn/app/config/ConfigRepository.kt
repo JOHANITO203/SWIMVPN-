@@ -9,7 +9,14 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.IOException
+import java.net.URLDecoder
+import java.util.concurrent.TimeUnit
 import java.util.UUID
 
 /**
@@ -25,6 +32,12 @@ class ConfigRepository(private val context: Context) {
     
     private val TAG = "ConfigRepository"
     private val gson = Gson()
+    private val subscriptionClient = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
     
     companion object {
         private const val DATA_STORE_NAME = "vpn_configs"
@@ -41,78 +54,39 @@ class ConfigRepository(private val context: Context) {
      */
     suspend fun importConfig(input: String, sourceType: SourceType = SourceType.MANUAL_ENTRY): ImportResult {
         return try {
-            val entries = splitConfigEntries(input)
-            val existingProfiles = getAllProfiles()
-            val warnings = mutableListOf<String>()
-            val errors = mutableListOf<String>()
-            val importedProfiles = mutableListOf<SwimVpnProfile>()
-            val duplicateEntries = mutableListOf<String>()
-            val bundleId = if (entries.size > 1) UUID.randomUUID().toString() else null
+            val resolution = resolveImportInput(input)
+            when (resolution) {
+                is ResolvedImportInput.SubscriptionUrl -> {
+                    val fetched = fetchSubscriptionPayload(resolution.url)
+                    if (fetched.payload.isBlank()) {
+                        return ImportResult.Error(
+                            errors = listOf("Subscription URL returned no importable content"),
+                            warnings = resolution.warnings + fetched.warnings,
+                        )
+                    }
 
-            entries.forEachIndexed { index, entry ->
-                val parseResult = ConfigParserEngine.parseConfig(entry, sourceType)
-                if (!parseResult.isValid) {
-                    errors += parseResult.errors
-                    warnings += parseResult.warnings
-                    return@forEachIndexed
-                }
-
-                val normalizedProfile = ConfigNormalizationEngine.normalizeProfile(parseResult)
-                if (normalizedProfile == null) {
-                    errors += "Failed to normalize configuration ${index + 1}"
-                    warnings += parseResult.warnings
-                    return@forEachIndexed
-                }
-
-                if (checkDuplicate(normalizedProfile, existingProfiles + importedProfiles)) {
-                    duplicateEntries += normalizedProfile.displayName
-                    return@forEachIndexed
-                }
-
-                importedProfiles += normalizedProfile
-                warnings += parseResult.warnings
-            }
-
-            if (importedProfiles.isEmpty()) {
-                return if (duplicateEntries.isNotEmpty() && errors.isEmpty()) {
-                    ImportResult.Duplicate(
-                        warnings = listOf("This configuration appears to be a duplicate")
-                    )
-                } else {
-                    ImportResult.Error(
-                        errors = errors.ifEmpty { listOf("No supported server could be imported") },
-                        warnings = warnings,
+                    processResolvedImport(
+                        resolution = ResolvedImportInput.DirectConfig(
+                            payload = fetched.payload,
+                            warnings = resolution.warnings + fetched.warnings,
+                        ),
+                        sourceType = SourceType.SUBSCRIPTION_URL,
                     )
                 }
+                is ResolvedImportInput.HappEncryptedSubscription -> {
+                    return ImportResult.Error(
+                        errors = listOf("Recognized Happ encrypted subscription deep link, but encrypted Happ subscription import is not implemented yet"),
+                        warnings = resolution.warnings,
+                    )
+                }
+                is ResolvedImportInput.HappRoutingDeepLink -> {
+                    return ImportResult.Error(
+                        errors = listOf("Recognized Happ routing deep link, but Happ routing profile import is not implemented yet"),
+                        warnings = resolution.warnings,
+                    )
+                }
+                is ResolvedImportInput.DirectConfig -> processResolvedImport(resolution, sourceType)
             }
-
-            val bundleName = deriveBundleName(importedProfiles)
-            val finalizedProfiles = importedProfiles.mapIndexed { index, profile ->
-                profile.copy(
-                    sourceBundleId = bundleId ?: profile.id,
-                    sourceBundleName = if (entries.size > 1) bundleName else profile.displayName,
-                    sourceBundleOrder = index,
-                )
-            }
-
-            if (errors.isNotEmpty()) {
-                warnings += "Imported ${finalizedProfiles.size} server(s), but ${errors.size} entrie(s) could not be parsed"
-            }
-            if (duplicateEntries.isNotEmpty()) {
-                warnings += "${duplicateEntries.size} duplicate entrie(s) were ignored"
-            }
-
-            val updatedProfiles = existingProfiles + finalizedProfiles
-            saveProfiles(updatedProfiles)
-
-            Log.i(TAG, "Successfully imported ${finalizedProfiles.size} configuration(s)")
-
-            ImportResult.Success(
-                profile = finalizedProfiles.first(),
-                importedProfiles = finalizedProfiles,
-                importedCount = finalizedProfiles.size,
-                warnings = warnings,
-            )
         } catch (e: Exception) {
             Log.e(TAG, "Error importing configuration", e)
             ImportResult.Error(
@@ -220,7 +194,12 @@ class ConfigRepository(private val context: Context) {
      */
     fun previewConfig(input: String): ConfigPreview? {
         return try {
-            val entries = splitConfigEntries(input)
+            val resolution = resolveImportInput(input)
+            if (resolution !is ResolvedImportInput.DirectConfig) {
+                return null
+            }
+
+            val entries = splitConfigEntries(resolution.payload)
             if (entries.isEmpty()) {
                 return null
             }
@@ -339,6 +318,255 @@ class ConfigRepository(private val context: Context) {
             "Imported group (${profiles.size})"
         }
     }
+
+    private suspend fun processResolvedImport(
+        resolution: ResolvedImportInput.DirectConfig,
+        sourceType: SourceType,
+    ): ImportResult {
+        val entries = splitConfigEntries(resolution.payload)
+        val existingProfiles = getAllProfiles()
+        val warnings = resolution.warnings.toMutableList()
+        val errors = mutableListOf<String>()
+        val importedProfiles = mutableListOf<SwimVpnProfile>()
+        val duplicateEntries = mutableListOf<String>()
+        val bundleId = if (entries.size > 1) UUID.randomUUID().toString() else null
+
+        entries.forEachIndexed { index, entry ->
+            val parseResult = ConfigParserEngine.parseConfig(entry, sourceType)
+            if (!parseResult.isValid) {
+                errors += parseResult.errors
+                warnings += parseResult.warnings
+                return@forEachIndexed
+            }
+
+            val normalizedProfile = ConfigNormalizationEngine.normalizeProfile(parseResult)
+            if (normalizedProfile == null) {
+                errors += "Failed to normalize configuration ${index + 1}"
+                warnings += parseResult.warnings
+                return@forEachIndexed
+            }
+
+            if (checkDuplicate(normalizedProfile, existingProfiles + importedProfiles)) {
+                duplicateEntries += normalizedProfile.displayName
+                return@forEachIndexed
+            }
+
+            importedProfiles += normalizedProfile
+            warnings += parseResult.warnings
+        }
+
+        if (importedProfiles.isEmpty()) {
+            return if (duplicateEntries.isNotEmpty() && errors.isEmpty()) {
+                ImportResult.Duplicate(
+                    warnings = listOf("This configuration appears to be a duplicate")
+                )
+            } else {
+                ImportResult.Error(
+                    errors = errors.ifEmpty { listOf("No supported server could be imported") },
+                    warnings = warnings,
+                )
+            }
+        }
+
+        val bundleName = deriveBundleName(importedProfiles)
+        val finalizedProfiles = importedProfiles.mapIndexed { index, profile ->
+            profile.copy(
+                sourceBundleId = bundleId ?: profile.id,
+                sourceBundleName = if (entries.size > 1) bundleName else profile.displayName,
+                sourceBundleOrder = index,
+            )
+        }
+
+        if (errors.isNotEmpty()) {
+            warnings += "Imported ${finalizedProfiles.size} server(s), but ${errors.size} entrie(s) could not be parsed"
+        }
+        if (duplicateEntries.isNotEmpty()) {
+            warnings += "${duplicateEntries.size} duplicate entrie(s) were ignored"
+        }
+
+        val updatedProfiles = existingProfiles + finalizedProfiles
+        saveProfiles(updatedProfiles)
+
+        Log.i(TAG, "Successfully imported ${finalizedProfiles.size} configuration(s)")
+
+        return ImportResult.Success(
+            profile = finalizedProfiles.first(),
+            importedProfiles = finalizedProfiles,
+            importedCount = finalizedProfiles.size,
+            warnings = warnings,
+        )
+    }
+
+    private suspend fun fetchSubscriptionPayload(url: String): SubscriptionFetchResult = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", "SWIMVPN-Android/1.0")
+            .build()
+
+        try {
+            subscriptionClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw IOException("HTTP ${response.code}")
+                }
+
+                val body = response.body ?: return@withContext SubscriptionFetchResult(
+                    payload = "",
+                    warnings = listOf("Subscription response body is empty"),
+                )
+                val raw = body.string().take(MAX_SUBSCRIPTION_CHARS)
+                val normalized = normalizeSubscriptionPayload(raw)
+                SubscriptionFetchResult(
+                    payload = normalized.payload,
+                    warnings = buildList {
+                        add("Fetched remote subscription URL")
+                        addAll(normalized.warnings)
+                        if (raw.length >= MAX_SUBSCRIPTION_CHARS) {
+                            add("Subscription response was truncated to $MAX_SUBSCRIPTION_CHARS characters")
+                        }
+                    },
+                )
+            }
+        } catch (error: Exception) {
+            throw IOException("Subscription fetch failed: ${error.localizedMessage}", error)
+        }
+    }
+
+    private fun normalizeSubscriptionPayload(raw: String): SubscriptionPayload {
+        val trimmed = raw.trim()
+        if (trimmed.isBlank()) {
+            return SubscriptionPayload("")
+        }
+
+        if (containsSupportedEntry(trimmed) || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            return SubscriptionPayload(trimmed)
+        }
+
+        val decoded = decodeSubscriptionBase64(trimmed)
+        return if (decoded != null && (containsSupportedEntry(decoded) || decoded.trim().startsWith("{") || decoded.trim().startsWith("["))) {
+            SubscriptionPayload(
+                payload = decoded.trim(),
+                warnings = listOf("Decoded Base64 subscription payload"),
+            )
+        } else {
+            SubscriptionPayload(trimmed)
+        }
+    }
+
+    private fun containsSupportedEntry(input: String): Boolean {
+        return Regex("(?i)(vless|vmess|trojan|ss)://").containsMatchIn(input)
+    }
+
+    private fun decodeSubscriptionBase64(input: String): String? {
+        val compact = input
+            .lines()
+            .joinToString("") { it.trim() }
+            .replace('-', '+')
+            .replace('_', '/')
+            .let { value ->
+                val padding = (4 - value.length % 4) % 4
+                value + "=".repeat(padding)
+            }
+
+        return runCatching {
+            String(android.util.Base64.decode(compact, android.util.Base64.DEFAULT))
+        }.getOrNull()
+    }
+
+    private fun resolveImportInput(input: String): ResolvedImportInput {
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) {
+            return ResolvedImportInput.DirectConfig(payload = trimmed)
+        }
+
+        val lowercase = trimmed.lowercase()
+
+        if (lowercase.startsWith("happ://add/")) {
+            val wrapped = URLDecoder.decode(trimmed.removePrefix("happ://add/"), "UTF-8").trim()
+            val warnings = mutableListOf("Recognized Happ add deep link")
+            return when {
+                wrapped.startsWith("http://", ignoreCase = true) || wrapped.startsWith("https://", ignoreCase = true) -> {
+                    ResolvedImportInput.SubscriptionUrl(
+                        url = wrapped,
+                        warnings = warnings + "Happ deep link wraps a subscription URL",
+                    )
+                }
+                else -> ResolvedImportInput.DirectConfig(
+                    payload = wrapped,
+                    warnings = warnings,
+                )
+            }
+        }
+
+        if (
+            lowercase.startsWith("happ://crypt3/") ||
+            lowercase.startsWith("happ://crypt4/") ||
+            lowercase.startsWith("happ://crypt5/")
+        ) {
+            val version = when {
+                lowercase.startsWith("happ://crypt3/") -> "crypt3"
+                lowercase.startsWith("happ://crypt4/") -> "crypt4"
+                else -> "crypt5"
+            }
+            return ResolvedImportInput.HappEncryptedSubscription(
+                payload = trimmed,
+                warnings = listOf("Recognized Happ encrypted subscription deep link: $version"),
+            )
+        }
+
+        if (
+            lowercase.startsWith("happ://routing/add/") ||
+            lowercase.startsWith("happ://routing/onadd/") ||
+            lowercase == "happ://routing/off"
+        ) {
+            return ResolvedImportInput.HappRoutingDeepLink(
+                payload = trimmed,
+                warnings = listOf("Recognized Happ routing deep link"),
+            )
+        }
+
+        if (lowercase.startsWith("http://") || lowercase.startsWith("https://")) {
+            return ResolvedImportInput.SubscriptionUrl(
+                url = trimmed,
+                warnings = listOf("Recognized remote subscription URL"),
+            )
+        }
+
+        return ResolvedImportInput.DirectConfig(payload = trimmed)
+    }
+}
+
+private const val MAX_SUBSCRIPTION_CHARS = 1_000_000
+
+private data class SubscriptionFetchResult(
+    val payload: String,
+    val warnings: List<String> = emptyList(),
+)
+
+private data class SubscriptionPayload(
+    val payload: String,
+    val warnings: List<String> = emptyList(),
+)
+
+private sealed class ResolvedImportInput {
+    data class DirectConfig(
+        val payload: String,
+        val warnings: List<String> = emptyList(),
+    ) : ResolvedImportInput()
+
+    data class SubscriptionUrl(
+        val url: String,
+        val warnings: List<String> = emptyList(),
+    ) : ResolvedImportInput()
+
+    data class HappEncryptedSubscription(
+        val payload: String,
+        val warnings: List<String> = emptyList(),
+    ) : ResolvedImportInput()
+
+    data class HappRoutingDeepLink(
+        val payload: String,
+        val warnings: List<String> = emptyList(),
+    ) : ResolvedImportInput()
 }
 
 /**

@@ -55,6 +55,15 @@ Current priority order inside 2-C:
   - `VMess gRPC` can now fall back from `path` to `serviceName`
   - `HTTP2`-family transports now preserve `path/host`
   - `Shadowsocks` now preserves `plugin` / `plugin-opts` metadata
+- Added first-class recognition for modern wrapper imports:
+  - Happ add deep links
+  - Happ encrypted subscription deep links
+  - Happ routing deep links
+  - plain `http(s)` subscription URLs
+- Added remote subscription URL import for standard providers:
+  - fetches `http(s)` subscription content
+  - decodes Base64 subscription payloads when needed
+  - reinjects fetched content into the existing grouped multi-server parser
 
 ### Server Catalog / UX
 - Imported payloads now become grouped selectable servers
