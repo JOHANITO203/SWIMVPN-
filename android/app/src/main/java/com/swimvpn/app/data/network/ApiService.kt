@@ -1,6 +1,8 @@
 package com.swimvpn.app.data.network
 
 import com.swimvpn.app.data.model.CreateOrderRequest
+import com.swimvpn.app.data.model.CheckoutRequest
+import com.swimvpn.app.data.model.CheckoutResponse
 import com.swimvpn.app.data.model.OrderResponse
 import com.swimvpn.app.data.model.Plan
 import retrofit2.http.Body
@@ -39,4 +41,7 @@ interface ApiService {
 
     @POST("api/v1/orders")
     suspend fun createOrder(@Body request: CreateOrderRequest): OrderResponse
+
+    @POST("api/v1/orders/checkout")
+    suspend fun createCheckout(@Body request: CheckoutRequest): CheckoutResponse
 }

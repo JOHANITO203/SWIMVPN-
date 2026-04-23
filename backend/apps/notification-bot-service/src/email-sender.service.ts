@@ -37,4 +37,8 @@ export class EmailSenderService {
       throw new Error(`Resend send failed: ${error.message}`);
     }
   }
+
+  async sendTextEmail(to: string, subject: string, body: string): Promise<void> {
+    return this.sendDeliveryEmail(to, subject, body);
+  }
 }

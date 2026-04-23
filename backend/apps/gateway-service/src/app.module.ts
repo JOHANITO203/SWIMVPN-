@@ -4,6 +4,7 @@ import { StoreController } from './controllers/store.controller';
 import { CustomerController } from './controllers/customer.controller';
 import { AdminController } from './controllers/admin.controller';
 import { AccessController } from './controllers/access.controller';
+import { PaymentsController } from './controllers/payments.controller';
 
 @Module({
   imports: [
@@ -35,7 +36,7 @@ import { AccessController } from './controllers/access.controller';
       },
     ]),
   ],
-  controllers: [StoreController, CustomerController, AdminController, AccessController],
+  controllers: [StoreController, CustomerController, AdminController, AccessController, PaymentsController],
   providers: [],
 })
 export class AppModule {}

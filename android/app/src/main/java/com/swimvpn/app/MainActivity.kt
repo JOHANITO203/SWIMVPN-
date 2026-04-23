@@ -256,11 +256,11 @@ fun AppNavigation(
             val data = state as? AppState.Success ?: return@composable
             SubscriptionScreen(
                 plans = data.plans,
-                onUpgradeClick = { planId ->
-                    val plan = (state as? AppState.Success)?.plans?.find { it.id == planId }
-                    plan?.let {
-                        viewModel.createOrder(it.id, it.priceRub.toDoubleOrNull() ?: 0.0)
-                    }
+                onCheckoutClick = { planId, paymentMethod ->
+                    viewModel.createCheckout(
+                        planId = planId,
+                        paymentMethod = paymentMethod,
+                    )
                 },
                 onBack = { navController.popBackStack() }
             )

@@ -1,7 +1,14 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CustomerService } from './customer.service';
-import { StartTrialDto, CreateOrderDto, BootstrapAccessDto, ActivateTrialDto } from '@app/contracts';
+import {
+  StartTrialDto,
+  CreateOrderDto,
+  BootstrapAccessDto,
+  ActivateTrialDto,
+  CreateCheckoutDto,
+  CryptoWebhookDto,
+} from '@app/contracts';
 
 @Controller()
 export class CustomerController {
@@ -10,6 +17,11 @@ export class CustomerController {
   @MessagePattern({ cmd: 'create_order' })
   async createOrder(@Payload() data: CreateOrderDto) {
     return this.customerService.createOrder(data);
+  }
+
+  @MessagePattern({ cmd: 'create_checkout' })
+  async createCheckout(@Payload() data: CreateCheckoutDto) {
+    return this.customerService.createCheckout(data);
   }
 
   @MessagePattern({ cmd: 'bootstrap_access' })
@@ -56,4 +68,23 @@ export class CustomerController {
   async handleYookassaWebhook(@Payload() data: any) {
     return this.customerService.handleYookassaWebhook(data);
   }
-}
+
+  @MessagePattern({ cmd: 'handle_crypto_webhook' })
+  async handleCryptoWebhook(
+    @Payload() data: { body: CryptoWebhookDto; signature?: string | string[] },
+  ) {
+    return this.customerService.handleCryptoWebhook(data);
+  }
+
+  @MessagePattern({ cmd: 'approve_manual_card_payment' })
+  async approveManualCardPayment(
+    @Payload() data: { orderRef: string; paymentRef: string; proofEventId?: string },
+  ) {
+    return this.customerService.approveManualCardPayment(data);
+  }
+
+  @MessagePattern({ cmd: 'reject_manual_card_payment' })
+  async rejectManualCardPayment(@Payload() data: { orderRef: string; reason?: string }) {
+    return this.customerService.rejectManualCardPayment(data);
+  }
+} 

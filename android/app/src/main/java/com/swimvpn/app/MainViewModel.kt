@@ -14,6 +14,7 @@ import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ActivateCodeRequest
 import com.swimvpn.app.data.network.ActivateTrialRequest
 import com.swimvpn.app.data.network.BootstrapAccessRequest
+import com.swimvpn.app.data.model.CheckoutRequest
 import com.swimvpn.app.data.network.ImportSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerGroup
@@ -312,26 +313,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createOrder(planId: String, amount: Double) {
+    fun createCheckout(planId: String, paymentMethod: String, cryptoAsset: String? = null) {
         viewModelScope.launch {
             val currentState = _state.value as? AppState.Success ?: return@launch
             try {
-                _state.value = AppState.Loading
-                val request = com.swimvpn.app.data.model.CreateOrderRequest(
+                val request = CheckoutRequest(
                     email = currentState.profile.email,
                     phone = currentState.profile.phone,
                     planId = planId,
-                    amountRub = amount
+                    paymentMethod = paymentMethod,
+                    cryptoAsset = cryptoAsset,
                 )
-                val response = api.createOrder(request)
+                val response = api.createCheckout(request)
+                response.redirectUrl?.let { redirectUrl ->
+                    _effect.emit(AppSideEffect.OpenUrl(redirectUrl))
+                }
                 _effect.emit(
                     AppSideEffect.ShowToast(
-                        s(R.string.order_created_pending_payment, response.orderRef)
+                        response.message?.takeIf { it.isNotBlank() }
+                            ?: s(R.string.order_created_pending_payment, response.orderRef)
                     )
                 )
-                initApp()
             } catch (e: Exception) {
-                _state.value = AppState.Error(s(R.string.err_order_creation_failed, e.localizedMessage ?: "unknown"))
+                _effect.emit(
+                    AppSideEffect.ShowToast(
+                        s(R.string.err_order_creation_failed, e.localizedMessage ?: "unknown")
+                    )
+                )
             }
         }
     }

@@ -1,11 +1,17 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { DatabaseModule } from '@app/database';
 import { CustomerController } from './customer.controller';
 import { CustomerService } from './customer.service';
+import { CryptoPayService } from './crypto-pay.service';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     DatabaseModule,
     ClientsModule.register([
       {
@@ -27,7 +33,7 @@ import { CustomerService } from './customer.service';
     ]),
   ],
   controllers: [CustomerController],
-  providers: [CustomerService],
+  providers: [CustomerService, CryptoPayService],
   exports: [CustomerService],
 })
 export class AppModule {}

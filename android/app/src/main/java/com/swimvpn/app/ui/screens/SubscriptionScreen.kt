@@ -52,10 +52,11 @@ import java.math.RoundingMode
 @Composable
 fun SubscriptionScreen(
     plans: List<Plan>,
-    onUpgradeClick: (planId: String) -> Unit,
+    onCheckoutClick: (planId: String, paymentMethod: String) -> Unit,
     onBack: () -> Unit = {}
 ) {
     var selectedPlanId by remember { mutableStateOf(plans.firstOrNull()?.id ?: "") }
+    var selectedPaymentMethod by remember { mutableStateOf("CARD_MANUAL") }
     val scrollState = rememberScrollState()
 
     Column(
@@ -138,6 +139,38 @@ fun SubscriptionScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        Text(
+            text = stringResource(R.string.payment_method_title),
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Black,
+                color = SwimNavyMouth,
+            )
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            PaymentMethodCard(
+                modifier = Modifier.weight(1f),
+                title = stringResource(R.string.payment_method_card),
+                subtitle = stringResource(R.string.payment_method_card_desc),
+                isSelected = selectedPaymentMethod == "CARD_MANUAL",
+                onClick = { selectedPaymentMethod = "CARD_MANUAL" }
+            )
+            PaymentMethodCard(
+                modifier = Modifier.weight(1f),
+                title = stringResource(R.string.payment_method_crypto),
+                subtitle = stringResource(R.string.payment_method_crypto_desc),
+                isSelected = selectedPaymentMethod == "CRYPTO",
+                onClick = { selectedPaymentMethod = "CRYPTO" }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         FeatureItem(stringResource(R.string.feature_1))
         FeatureItem(stringResource(R.string.feature_2))
         FeatureItem(stringResource(R.string.feature_3))
@@ -146,7 +179,7 @@ fun SubscriptionScreen(
         Spacer(modifier = Modifier.height(48.dp))
 
         Button(
-            onClick = { if (selectedPlanId.isNotEmpty()) onUpgradeClick(selectedPlanId) },
+            onClick = { if (selectedPlanId.isNotEmpty()) onCheckoutClick(selectedPlanId, selectedPaymentMethod) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp),
@@ -164,6 +197,47 @@ fun SubscriptionScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun PaymentMethodCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) Color.White else Color(0xFFF1F5F9)
+        ),
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) SwimBlueMain else Color(0xFFE2E8F0),
+                shape = RoundedCornerShape(20.dp)
+            )
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Text(
+                text = title,
+                color = SwimNavyMouth,
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = subtitle,
+                color = Color(0xFF64748B),
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
+            )
+        }
     }
 }
 

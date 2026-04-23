@@ -135,6 +135,52 @@ export class NotificationService {
     };
   }
 
+  async sendManualPaymentReviewEmail(params: {
+    to: string;
+    orderRef: string;
+    planName: string;
+    approved: boolean;
+    reason?: string;
+  }) {
+    const subject = params.approved
+      ? `SWIMVPN+ payment approved: ${params.orderRef}`
+      : `SWIMVPN+ payment update: ${params.orderRef}`;
+
+    const body = params.approved
+      ? [
+          'Hello,',
+          '',
+          `Your payment for ${params.planName} has been approved.`,
+          'Your VPN access will be delivered shortly.',
+          '',
+          `Order: ${params.orderRef}`,
+          '',
+          'SWIMVPN+ Team',
+        ].join('\n')
+      : [
+          'Hello,',
+          '',
+          `We reviewed your payment proof for ${params.planName}.`,
+          'We could not confirm the transfer at this time.',
+          params.reason ? `Reason: ${params.reason}` : null,
+          '',
+          `Order: ${params.orderRef}`,
+          'Please contact support if you believe this is a mistake.',
+          '',
+          'SWIMVPN+ Team',
+        ]
+          .filter(Boolean)
+          .join('\n');
+
+    await this.emailSender.sendTextEmail(params.to, subject, body);
+
+    return {
+      success: true,
+      orderRef: params.orderRef,
+      approved: params.approved,
+    };
+  }
+
   private async ensureDeliveryRecord(orderRef: string, customerEmail: string) {
     const order = await this.prisma.order.findUnique({
       where: { order_ref: orderRef },

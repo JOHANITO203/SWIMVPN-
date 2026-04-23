@@ -179,12 +179,17 @@
     <string name="feature_3">Import and manage access directly in the app</string>
     <string name="feature_4">Traceable order lifecycle linked to your profile</string>
     <string name="btn_upgrade">UPGRADE NOW</string>
-    <string name="btn_create_order">CREATE ORDER</string>
+    <string name="btn_create_order">PAY NOW</string>
+    <string name="payment_method_title">PAYMENT METHOD</string>
+    <string name="payment_method_card">CARD</string>
+    <string name="payment_method_card_desc">Manual bank transfer with proof review in Telegram.</string>
+    <string name="payment_method_crypto">CRYPTO</string>
+    <string name="payment_method_crypto_desc">Create a crypto invoice and finish payment in the payment bot.</string>
     <string name="plan_code_week">WEEK</string>
     <string name="plan_code_month">MONTH</string>
     <string name="plan_code_quarter">QUARTER</string>
     <string name="no_plans_available">No active offers are available right now.</string>
-    <string name="order_created_pending_payment">Order %1$s created. Payment step is not yet enabled in the app.</string>
+    <string name="order_created_pending_payment">Order %1$s created.</string>
 
     <!-- Technical -->
     <string name="title_technical">TECHNICAL</string>

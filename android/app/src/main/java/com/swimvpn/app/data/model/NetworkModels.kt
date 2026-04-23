@@ -16,8 +16,8 @@ data class Plan(
 data class CreateOrderRequest(
     @SerializedName("email") val email: String?,
     @SerializedName("phone") val phone: String?,
-    @SerializedName("plan_id") val planId: String,
-    @SerializedName("amount_rub") val amountRub: Double
+    @SerializedName("planId") val planId: String,
+    @SerializedName("amountRub") val amountRub: Double
 )
 
 data class OrderResponse(
@@ -25,4 +25,21 @@ data class OrderResponse(
     @SerializedName("order_ref") val orderRef: String,
     @SerializedName("status") val status: String,
     @SerializedName("amount_rub") val amountRub: String
+)
+
+data class CheckoutRequest(
+    @SerializedName("email") val email: String?,
+    @SerializedName("phone") val phone: String?,
+    @SerializedName("planId") val planId: String,
+    @SerializedName("paymentMethod") val paymentMethod: String,
+    @SerializedName("cryptoAsset") val cryptoAsset: String? = null,
+)
+
+data class CheckoutResponse(
+    @SerializedName("orderRef") val orderRef: String,
+    @SerializedName("status") val status: String,
+    @SerializedName("amountRub") val amountRub: String,
+    @SerializedName("paymentMethod") val paymentMethod: String,
+    @SerializedName("redirectUrl") val redirectUrl: String?,
+    @SerializedName("message") val message: String?,
 )

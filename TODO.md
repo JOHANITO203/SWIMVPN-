@@ -409,3 +409,20 @@ otification-bot-service event handoff.
 - Re-test `LOCAL_PROXY` on the same node that previously felt fast.
 - Compare only user-perceived page opening after the proxy-specific rollback.
 - Keep `FULL_TUNNEL` unchanged unless a new regression appears there.
+## [2026-04-24] Proxy Stabilization Closed
+- Treat the current proxy runtime as frozen/stable.
+- Do not retune `LOCAL_PROXY` again unless a reproducible regression returns.
+- Move implementation focus to the next product task.
+## [2026-04-24] Payment MVP Follow-up
+- Configure real env values before rollout:
+  - `CRYPTO_PAY_API_TOKEN`
+  - `PAYMENT_BOT_USERNAME`
+  - `MANUAL_CARD_NUMBER`
+  - optional `PAYMENT_REVIEW_CHAT_ID`
+- Rebuild/redeploy backend services after env setup.
+- Test Android payment selection end-to-end:
+  - card-manual deep link to bot
+  - screenshot proof submission
+  - admin approve/reject callbacks
+  - crypto invoice creation + webhook callback
+- Add a future admin UI for payment review only if Telegram review becomes insufficient.

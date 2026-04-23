@@ -58,3 +58,34 @@ export class CreateOrderDto {
   @Min(0)
   amountRub: number;
 }
+
+export class CreateCheckoutDto {
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  planId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  paymentMethod: 'CRYPTO' | 'CARD_MANUAL';
+
+  @IsString()
+  @IsOptional()
+  cryptoAsset?: string;
+}
+
+export class CryptoWebhookDto {
+  @IsString()
+  @IsOptional()
+  update_type?: string;
+
+  @IsOptional()
+  payload?: Record<string, unknown>;
+}

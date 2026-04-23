@@ -543,3 +543,18 @@ otification-bot-service with Resend API for transactional delivery emails.
     - DNS `1.1.1.1` + `8.8.8.8`
   - `FULL_TUNNEL` keeps the newer policy for tunnel behavior.
   - The shared runtime generator is now mode-aware rather than forcing one policy onto both paths.
+## [2026-04-24] [Freeze Proxy Runtime After Recovery]
+- **Decision**: Freeze the current `LOCAL_PROXY` runtime configuration after the reinstall-and-audit recovery.
+- **Why**: The latest live audits confirmed the intended rollback policy is active, Xray is healthy, proxy traffic exits correctly, and DuckDuckGo plus the user's real app usage recovered. Further runtime edits would add risk without a reproducible regression.
+- **Impact**:
+  - `LOCAL_PROXY` stays on the rollbacked DNS/routing profile.
+  - Future proxy work should only resume if a new reproducible regression appears.
+  - The next implementation focus can safely move away from proxy stabilization.
+## [2026-04-24] [Use Backend-Driven Checkout With Crypto Pay And Manual Card Review]
+- **Decision**: Subscription checkout now branches into two explicit MVP payment methods: `CRYPTO` through Crypto Pay invoices, and `CARD_MANUAL` through Telegram proof review.
+- **Why**: There is no card PSP yet, but the product still needs a real payment path. Crypto Pay offers a documented invoice/webhook seam, while manual card review keeps the card flow operational without pretending to automate bank processing.
+- **Impact**:
+  - The mobile app no longer invents a checkout step; it asks the backend for a payment-specific redirect.
+  - Checkout pricing now comes from PostgreSQL plan truth, not the Android client.
+  - Manual payment proof and review are logged through `AdminEvent` while `Order` remains the payment truth anchor.
+  - Existing inventory fulfillment and delivery email flows remain the final post-payment path.

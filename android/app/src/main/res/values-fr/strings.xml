@@ -179,12 +179,17 @@
     <string name="feature_3">Importer et gérer vos accès directement dans l’application</string>
     <string name="feature_4">Cycle de commande traçable lié à votre profil</string>
     <string name="btn_upgrade">S’ABONNER MAINTENANT</string>
-    <string name="btn_create_order">CRÉER LA COMMANDE</string>
+    <string name="btn_create_order">PAYER MAINTENANT</string>
+    <string name="payment_method_title">MODE DE PAIEMENT</string>
+    <string name="payment_method_card">CARTE</string>
+    <string name="payment_method_card_desc">Virement bancaire manuel avec vérification de la preuve dans Telegram.</string>
+    <string name="payment_method_crypto">CRYPTO</string>
+    <string name="payment_method_crypto_desc">Crée une facture crypto et termine le paiement dans le bot de paiement.</string>
     <string name="plan_code_week">SEMAINE</string>
     <string name="plan_code_month">MOIS</string>
     <string name="plan_code_quarter">TRIMESTRE</string>
     <string name="no_plans_available">Aucune offre active n’est disponible pour le moment.</string>
-    <string name="order_created_pending_payment">Commande %1$s créée. L’étape de paiement n’est pas encore activée dans l’application.</string>
+    <string name="order_created_pending_payment">Commande %1$s créée.</string>
 
     <!-- Technical -->
     <string name="title_technical">TECHNIQUE</string>

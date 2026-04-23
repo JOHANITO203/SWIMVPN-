@@ -1245,3 +1245,39 @@ pm run build PASSED.
   - Left Android `VpnService` tunnel DNS configuration unchanged.
 - **Verification**:
   - Diff review confirmed the rollback targets `LOCAL_PROXY` only.
+## [2026-04-24] [Android Proxy Stabilization Confirmed After Reinstall + Runtime Audit]
+- **Status**: DONE
+- **Changes**:
+  - Re-audited `LOCAL_PROXY` after sync and full app reinstall on the phone.
+  - Confirmed the active Xray runtime now uses the intended proxy rollback policy:
+    - DNS servers: `1.1.1.1`, `8.8.8.8`
+    - `queryStrategy = UseIP`
+    - `domainStrategy = AsIs`
+  - Re-ran live proxy-path checks and real device opening scenarios through DuckDuckGo and Chrome.
+  - Observed temporary client-side inconsistency during investigation, then confirmed that DuckDuckGo and the user's other real-world app flows recovered and work again.
+  - Frozen the proxy runtime in its current state with no further engine changes.
+- **Verification**:
+  - Active runtime state remained `LOCAL_PROXY` + `RUNNING`.
+  - Active Xray session config matched the rollbacked proxy policy.
+  - Forwarded proxy checks returned `HTTP 200` through HTTP and SOCKS listeners.
+  - Live device/browser audit confirmed that navigation behavior recovered.
+## [2026-04-24] [Subscription Checkout MVP - Crypto Pay + Manual Card Telegram Flow]
+- **Status**: DONE
+- **Changes**:
+  - Replaced the Android fake subscription checkout with a backend-driven `orders/checkout` flow.
+  - Added payment-method selection on the Android subscription screen: `CARD_MANUAL` and `CRYPTO`.
+  - Stopped trusting client-supplied plan pricing during checkout; the backend now loads the amount from PostgreSQL plan truth.
+  - Added Crypto Pay invoice creation in `customer-order-service` using the official Crypto Pay API contract (`createInvoice` + `bot_invoice_url`).
+  - Added public gateway webhook endpoint for Crypto Pay payment updates and backend verification of `crypto-pay-api-signature`.
+  - Added manual card-payment MVP flow through the Telegram notification bot:
+    - app opens Telegram bot with order deep link
+    - bot shows the configured card number and instructions
+    - user sends screenshot proof
+    - bot forwards proof to private review chat with approve/reject buttons
+    - approve triggers paid+fulfillment
+    - reject marks the order failed and sends customer email
+  - Reused existing order truth, inventory fulfillment, delivery email, and `AdminEvent` logging without introducing a new payment table.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.

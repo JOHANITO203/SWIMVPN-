@@ -3,7 +3,14 @@ import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom } from 'rxjs';
 import { OrderStatus } from '@prisma/client';
-import { StartTrialDto, CreateOrderDto, BootstrapAccessDto, ActivateTrialDto } from '@app/contracts';
+import {
+  StartTrialDto,
+  CreateOrderDto,
+  BootstrapAccessDto,
+  ActivateTrialDto,
+  CreateCheckoutDto,
+} from '@app/contracts';
+import { CryptoPayService } from './crypto-pay.service';
 
 @Injectable()
 export class CustomerService {
@@ -11,6 +18,7 @@ export class CustomerService {
     private readonly prisma: PrismaService,
     @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientProxy,
     @Inject('VPN_CONFIG_SERVICE') private readonly vpnConfigClient: ClientProxy,
+    private readonly cryptoPayService: CryptoPayService,
   ) {}
 
   async bootstrapAccess(data: BootstrapAccessDto) {
@@ -30,40 +38,68 @@ export class CustomerService {
   }
 
   async createOrder(data: CreateOrderDto) {
-    const normalizedEmail = data.email?.trim().toLowerCase() || undefined;
-    const normalizedPhone = this.normalizePhone(data.phone) || undefined;
-
-    let customer = await this.prisma.customer.findFirst({
-      where: {
-        OR: [
-          { email: normalizedEmail },
-          { phone: normalizedPhone },
-        ].filter(Boolean),
-      },
+    const checkout = await this.preparePendingOrder({
+      email: data.email,
+      phone: data.phone,
+      planId: data.planId,
     });
 
-    if (!customer) {
-      customer = await this.prisma.customer.create({
+    return checkout.order;
+  }
+
+  async createCheckout(data: CreateCheckoutDto) {
+    const checkout = await this.preparePendingOrder({
+      email: data.email,
+      phone: data.phone,
+      planId: data.planId,
+    });
+
+    if (data.paymentMethod === 'CRYPTO') {
+      const invoice = await this.cryptoPayService.createInvoice({
+        amountRub: checkout.plan.price_rub.toString(),
+        orderRef: checkout.order.order_ref,
+        planLabel: `${checkout.plan.name} • ${checkout.plan.duration_label} • ${checkout.plan.quota_label}`,
+        asset: data.cryptoAsset,
+      });
+
+      await this.prisma.order.update({
+        where: { id: checkout.order.id },
         data: {
-          public_id: await this.generatePublicUserNumber(),
-          email: normalizedEmail,
-          phone: normalizedPhone,
+          payment_ref: `CRYPTO_INVOICE:${invoice.invoice_id}`,
         },
       });
+
+      return {
+        orderRef: checkout.order.order_ref,
+        status: checkout.order.status,
+        amountRub: checkout.plan.price_rub.toString(),
+        paymentMethod: 'CRYPTO',
+        redirectUrl: invoice.bot_invoice_url || invoice.mini_app_invoice_url || invoice.web_app_invoice_url || null,
+        message: 'Crypto invoice created',
+      };
     }
 
-    const orderRef = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const order = await this.prisma.order.create({
+    const paymentBotUsername = process.env.PAYMENT_BOT_USERNAME?.trim();
+    if (!paymentBotUsername) {
+      throw new Error('Payment bot username is not configured');
+    }
+
+    await this.prisma.order.update({
+      where: { id: checkout.order.id },
       data: {
-        order_ref: orderRef,
-        customer_id: customer.id,
-        plan_id: data.planId,
-        amount_rub: data.amountRub,
-        status: OrderStatus.PENDING,
+        payment_ref: 'CARD_MANUAL:INIT',
       },
     });
 
-    return order;
+    const cleanUsername = paymentBotUsername.replace(/^@/, '');
+    return {
+      orderRef: checkout.order.order_ref,
+      status: checkout.order.status,
+      amountRub: checkout.plan.price_rub.toString(),
+      paymentMethod: 'CARD_MANUAL',
+      redirectUrl: `https://t.me/${cleanUsername}?start=card_${checkout.order.order_ref}`,
+      message: 'Continue payment in Telegram',
+    };
   }
 
   async startTrial(data: StartTrialDto) {
@@ -347,6 +383,115 @@ export class CustomerService {
     return { received: true };
   }
 
+  async handleCryptoWebhook(data: { body: any; signature?: string | string[] }) {
+    if (!this.cryptoPayService.isConfigured()) {
+      throw new Error('Crypto Pay API is not configured');
+    }
+
+    if (!this.cryptoPayService.verifyWebhook(data.body, data.signature)) {
+      throw new Error('Invalid Crypto Pay webhook signature');
+    }
+
+    if (data.body?.update_type !== 'invoice_paid') {
+      return { received: true, ignored: true };
+    }
+
+    const payload = data.body?.payload || {};
+    const orderRef =
+      typeof payload?.payload === 'string' && payload.payload.trim().length > 0
+        ? payload.payload.trim()
+        : undefined;
+
+    const invoiceId = payload?.invoice_id;
+    const paidAsset = payload?.paid_asset || payload?.asset || 'UNKNOWN';
+    const paidAmount = payload?.paid_amount || payload?.amount || 'UNKNOWN';
+
+    const result = await this.fulfillOrderByRef(
+      orderRef,
+      `CRYPTO_PAID:${invoiceId}:${paidAsset}:${paidAmount}`,
+    );
+
+    return {
+      received: true,
+      ...result,
+    };
+  }
+
+  async approveManualCardPayment(data: { orderRef: string; paymentRef: string; proofEventId?: string }) {
+    const result = await this.fulfillOrderByRef(data.orderRef, data.paymentRef);
+
+    if (data.proofEventId) {
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: 'CARD_PAYMENT_APPROVED',
+          entity_type: 'ORDER',
+          entity_id: data.orderRef,
+          payload_json: {
+            orderRef: data.orderRef,
+            paymentRef: data.paymentRef,
+            proofEventId: data.proofEventId,
+            processedAt: new Date().toISOString(),
+          } as any,
+        },
+      });
+    }
+
+    return result;
+  }
+
+  async rejectManualCardPayment(data: { orderRef: string; reason?: string }) {
+    const order = await this.prisma.order.findUnique({
+      where: { order_ref: data.orderRef },
+      include: {
+        customer: true,
+        plan: true,
+      },
+    });
+
+    if (!order) {
+      return { success: false, error: 'Order not found' };
+    }
+
+    if (order.status !== OrderStatus.PENDING) {
+      return {
+        success: true,
+        alreadyProcessed: true,
+        orderRef: data.orderRef,
+        customerEmail: order.customer.email,
+        planName: order.plan.name,
+      };
+    }
+
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: OrderStatus.FAILED,
+        payment_ref: `CARD_MANUAL:REJECTED:${Date.now()}`,
+      },
+    });
+
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'CARD_PAYMENT_REJECTED',
+        entity_type: 'ORDER',
+        entity_id: order.order_ref,
+        payload_json: {
+          orderRef: order.order_ref,
+          reason: data.reason || null,
+          processedAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+
+    return {
+      success: true,
+      orderRef: order.order_ref,
+      customerEmail: order.customer.email,
+      planName: order.plan.name,
+      rejected: true,
+    };
+  }
+
   private async fulfillOrderByRef(orderRef: string, paymentRef: string) {
     if (!orderRef) return { success: false, error: 'No order ref' };
 
@@ -377,6 +522,79 @@ export class CustomerService {
       console.error(`Fulfillment failed for order ${order.id}:`, e);
       return { success: false, error: 'Fulfillment triggered but failed' };
     }
+  }
+
+  private async preparePendingOrder(data: { email?: string; phone?: string; planId: string }) {
+    const plan = await this.prisma.plan.findUnique({
+      where: { id: data.planId },
+    });
+
+    if (!plan || !plan.active) {
+      throw new Error('Plan not found or inactive');
+    }
+
+    const normalizedEmail = data.email?.trim().toLowerCase() || undefined;
+    const normalizedPhone = this.normalizePhone(data.phone) || undefined;
+
+    if (!normalizedEmail) {
+      throw new Error('Email is required for payment follow-up');
+    }
+
+    const customer = await this.findOrCreateCustomerByContact(normalizedEmail, normalizedPhone);
+    const orderRef = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const order = await this.prisma.order.create({
+      data: {
+        order_ref: orderRef,
+        customer_id: customer.id,
+        plan_id: plan.id,
+        amount_rub: plan.price_rub,
+        status: OrderStatus.PENDING,
+      },
+    });
+
+    return {
+      customer,
+      plan,
+      order,
+    };
+  }
+
+  private async findOrCreateCustomerByContact(email?: string, phone?: string) {
+    const orConditions = [
+      email ? { email } : null,
+      phone ? { phone } : null,
+    ].filter(Boolean) as Array<{ email?: string; phone?: string }>;
+
+    let customer = orConditions.length
+      ? await this.prisma.customer.findFirst({
+          where: {
+            OR: orConditions,
+          },
+        })
+      : null;
+
+    if (!customer) {
+      customer = await this.prisma.customer.create({
+        data: {
+          public_id: await this.generatePublicUserNumber(),
+          email,
+          phone,
+        },
+      });
+      return customer;
+    }
+
+    if (customer.email !== email || customer.phone !== phone) {
+      customer = await this.prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          email,
+          phone,
+        },
+      });
+    }
+
+    return customer;
   }
 
   private async findOrCreateCustomerByDevice(deviceId: string) {
