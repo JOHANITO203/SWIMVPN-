@@ -458,3 +458,17 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `ConfigRepository` delegates grouped entry extraction to a testable parser boundary.
   - Direct links embedded in JSON/string provider payloads can be extracted without bypassing existing Xray/V2Ray JSON parsing.
   - Regression tests now protect the tokenizer behavior before future parser expansion.
+## [2026-04-23] [Tun2Socks Runtime Config Must Match Upstream Hev Schema]
+- **Decision**: Android full-tunnel runtime generation must emit the upstream `hev-socks5-tunnel` YAML schema instead of a SWIMVPN-specific JSON wrapper.
+- **Why**: The JNI bridge calls `hev_socks5_tunnel_main_from_file` directly. That parser understands `tunnel`, `socks5`, optional `mapdns`, and `misc`; unknown JSON sections can let the native bridge start without a correctly wired data plane.
+- **Impact**:
+  - Full tunnel now writes `tun2socks-main.yml`.
+  - Xray local SOCKS remains the handoff point at `127.0.0.1:10808`.
+  - Future tun2socks tuning must be expressed through documented upstream keys, not custom wrapper metadata.
+## [2026-04-23] [Runtime UI State Uses Persisted Heartbeat Snapshot]
+- **Decision**: Android runtime UI state must reconcile against a persisted, timestamped service snapshot instead of relying only on the in-memory singleton bridge.
+- **Why**: A foreground VPN service can remain active while Compose/accessibility state drifts or misses an in-memory update. The user-facing power button must reflect whether the actual runtime is active, not just the latest UI memory value.
+- **Impact**:
+  - `SwimVpnService` writes runtime status and heartbeat data to `RuntimeStateStore`.
+  - `HomeScreen` reads the snapshot and treats stale active snapshots as disconnected.
+  - Runtime control remains local-only; no backend dependency is introduced.

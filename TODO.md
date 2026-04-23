@@ -312,7 +312,15 @@ otification-bot-service event handoff.
 - Once a supported node parses correctly, verify:
   - selected node -> runtime payload -> Xray launch -> traffic flow
 - Keep improving diagnostics for sessions that connect but do not actually behave correctly.
-- Re-test `FULL_TUNNEL` until it is functionally reliable, even if still slower than `LOCAL_PROXY`.
+- Re-test Android runtime state synchronization on additional devices:
+  - home screen should show `Connected` while Xray/tun2socks/tun0 are active
+  - power button should stop an active runtime even after app background/foreground
+  - stale active runtime snapshots should fall back to `Disconnected`
+- Continue re-testing `FULL_TUNNEL` after the upstream YAML tun2socks fix:
+  - DNS resolution through the VPN
+  - page-load success
+  - byte counters during browsing
+  - comparison against `LOCAL_PROXY`
 - Re-test Android disconnect lifecycle on a real device:
   - connect in `LOCAL_PROXY`
   - disconnect

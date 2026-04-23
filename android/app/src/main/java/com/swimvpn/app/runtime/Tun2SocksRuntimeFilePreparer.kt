@@ -45,7 +45,6 @@ class Tun2SocksRuntimeFilePreparer(
         executableFile.setExecutable(true, true)
 
         val configFile = writeConfigFile(
-            sessionId = sessionId,
             launchSpec = launchSpec,
             sessionsDir = directories.sessionsDir,
             logsDir = directories.logsDir,
@@ -86,7 +85,6 @@ class Tun2SocksRuntimeFilePreparer(
 
         val directories = prepareDirectories(availability.abi, sessionId)
         val configFile = writeConfigFile(
-            sessionId = sessionId,
             launchSpec = launchSpec,
             sessionsDir = directories.sessionsDir,
             logsDir = directories.logsDir,
@@ -135,82 +133,67 @@ class Tun2SocksRuntimeFilePreparer(
     }
 
     private fun writeConfigFile(
-        sessionId: String,
         launchSpec: Tun2SocksLaunchSpec,
         sessionsDir: File,
         logsDir: File,
     ): File {
-        val configFile = File(sessionsDir, "tun2socks-android.json")
+        val configFile = File(sessionsDir, "tun2socks-main.yml")
         val proxyUri = runCatching { URI(launchSpec.proxyUrl) }.getOrNull()
-        val proxyScheme = proxyUri?.scheme?.ifBlank { null } ?: "socks5"
-        val proxyHost = proxyUri?.host
-        val proxyPort = proxyUri?.port?.takeIf { it > 0 }
-        val interfaceLine = launchSpec.interfaceName
-            ?.takeIf { it.isNotBlank() }
-            ?.let { ",\n    \"interface_name\": \"${escapeJson(it)}\"" }
-            ?: ""
-        val mapDnsLine = if (!launchSpec.mapDnsAddress.isNullOrBlank() && launchSpec.mapDnsPort != null) {
+        val proxyHost = proxyUri?.host?.takeIf { it.isNotBlank() } ?: "127.0.0.1"
+        val proxyPort = proxyUri?.port?.takeIf { it > 0 } ?: 10808
+        val tunnelName = launchSpec.interfaceName?.takeIf { it.isNotBlank() } ?: launchSpec.deviceArgument
+        val socksUdpMode = when (launchSpec.udpMode.lowercase()) {
+            "enabled", "udp", "true" -> "udp"
+            else -> "tcp"
+        }
+        val mapDnsBlock = if (!launchSpec.mapDnsAddress.isNullOrBlank() && launchSpec.mapDnsPort != null) {
             """
-            ,
-              "map_dns": {
-                "address": "${escapeJson(launchSpec.mapDnsAddress)}",
-                "port": ${launchSpec.mapDnsPort}
-              }
+
+            mapdns:
+              address: ${quoteYaml(launchSpec.mapDnsAddress)}
+              port: ${launchSpec.mapDnsPort}
+              network: 100.64.0.0
+              netmask: 255.192.0.0
+              cache-size: 10000
             """.trimIndent()
         } else {
             ""
         }
-        val extraArgsJson = launchSpec.extraArgs.joinToString(", ") { "\"${escapeJson(it)}\"" }
-
+        val logLevel = launchSpec.logLevel.lowercase().takeIf { it in setOf("debug", "info", "warn", "error") }
+            ?: "warn"
         configFile.writeText(
             """
-            {
-              "session_id": "${escapeJson(sessionId)}",
-              "proxy": {
-                "url": "${escapeJson(launchSpec.proxyUrl)}",
-                "scheme": "${escapeJson(proxyScheme)}",
-                "host": ${proxyHost?.let { "\"${escapeJson(it)}\"" } ?: "null"},
-                "port": ${proxyPort ?: "null"}
-              },
-              "tunnel": {
-                "device": "${escapeJson(launchSpec.deviceArgument)}",
-                "fd": ${launchSpec.tunFd ?: "null"},
-                "mtu": ${launchSpec.mtu},
-                "ipv4": "${escapeJson(launchSpec.tunnelIpv4)}",
-                "ipv6": "${escapeJson(launchSpec.tunnelIpv6)}"$interfaceLine
-              },
-              "runtime": {
-                "log_level": "${escapeJson(launchSpec.logLevel)}",
-                "udp_mode": "${escapeJson(launchSpec.udpMode)}",
-                "stdout_log": "${escapeJson(File(logsDir, "tun2socks.stdout.log").absolutePath)}",
-                "stderr_log": "${escapeJson(File(logsDir, "tun2socks.stderr.log").absolutePath)}",
-                "exit_state_file": "${escapeJson(File(logsDir, "tun2socks.exit").absolutePath)}"
-              },
-              "android": {
-                "jni_library_name": "${escapeJson(BuildConfig.TUN2SOCKS_SHARED_LIBRARY_NAME)}",
-                "executable_fallback_name": "${escapeJson(BuildConfig.TUN2SOCKS_EXECUTABLE_NAME)}"
-              }$mapDnsLine,
-              "extra_args": [$extraArgsJson]
-            }
+            tunnel:
+              name: ${quoteYaml(tunnelName)}
+              mtu: ${launchSpec.mtu}
+              multi-queue: false
+              ipv4: ${quoteYaml(launchSpec.tunnelIpv4)}
+              ipv6: ${quoteYaml(launchSpec.tunnelIpv6)}
+
+            socks5:
+              address: ${quoteYaml(proxyHost)}
+              port: $proxyPort
+              udp: ${quoteYaml(socksUdpMode)}
+            $mapDnsBlock
+
+            misc:
+              task-stack-size: 86016
+              tcp-buffer-size: 65536
+              udp-recv-buffer-size: 524288
+              udp-copy-buffer-nums: 10
+              connect-timeout: 10000
+              tcp-read-write-timeout: 300000
+              udp-read-write-timeout: 60000
+              log-file: ${quoteYaml(File(logsDir, "tun2socks.stdout.log").absolutePath)}
+              log-level: ${quoteYaml(logLevel)}
             """.trimIndent()
         )
 
         return configFile
     }
 
-    private fun escapeJson(value: String): String {
-        return buildString(value.length + 8) {
-            value.forEach { character ->
-                when (character) {
-                    '\\' -> append("\\\\")
-                    '"' -> append("\\\"")
-                    '\n' -> append("\\n")
-                    '\r' -> append("\\r")
-                    '\t' -> append("\\t")
-                    else -> append(character)
-                }
-            }
-        }
+    private fun quoteYaml(value: String): String {
+        return "'${value.replace("'", "''")}'"
     }
 
     private fun defaultSessionId(): String = "tun2socks-${System.currentTimeMillis()}"

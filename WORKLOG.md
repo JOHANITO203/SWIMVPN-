@@ -1071,3 +1071,36 @@ pm run build PASSED.
 - **Verification**:
   - `cd android && .\gradlew.bat testDebugUnitTest` PASSED.
   - `cd android && .\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android Runtime Audit - Full Tunnel Data Plane]
+- **Status**: DONE
+- **Findings**:
+  - Temporary `TRAFFIC_AUDIT` logs showed Xray starts correctly and exposes local SOCKS `127.0.0.1:10808` plus HTTP `127.0.0.1:10809`.
+  - ADB proxy curls through SOCKS/HTTP succeeded, proving the selected VLESS Reality node and Xray outbound were usable.
+  - Direct full-tunnel traffic previously failed before reaching Xray, especially DNS, which pointed to the Android TUN/tun2socks bridge rather than the provider node.
+  - The generated tun2socks file used an internal JSON shape, while packaged `hev-socks5-tunnel` expects upstream YAML sections: `tunnel`, `socks5`, optional `mapdns`, and `misc`.
+- **Changes**:
+  - Removed all temporary `TRAFFIC_AUDIT` logs from the APK code.
+  - Changed tun2socks runtime generation from `tun2socks-android.json` to upstream-compatible `tun2socks-main.yml`.
+  - Kept MTU `1280` and local Xray proxy ports unchanged.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon testDebugUnitTest` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.
+  - ADB installed the debug APK successfully.
+  - ADB UI-driven full-tunnel test returned `HTTP/1.1 200 OK` for direct `curl -I -L https://example.com`.
+  - ADB SOCKS proxy test also returned `HTTP/1.1 200 OK` through `127.0.0.1:10808`.
+- **Remaining Observation**:
+  - The runtime can be active while the main UI still displays `Disconnected`; this is now a separate state synchronization bug to fix next.
+## [2026-04-23] [Android Runtime State Sync - UI Truth Reconciliation]
+- **Status**: DONE
+- **Changes**:
+  - Added `RuntimeStateStore` as a small persisted runtime snapshot written by `SwimVpnService`.
+  - Service now publishes `STARTING`, `RUNNING`, `STOPPING`, `FAILED`, and `IDLE` states with timestamps.
+  - Added a runtime heartbeat while `FULL_TUNNEL` or `LOCAL_PROXY` is active so stale snapshots expire safely.
+  - `HomeScreen` now reconciles visual state from the runtime snapshot instead of trusting memory-only state.
+  - Power button stop behavior works even after a visual/accessibility state drift.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon testDebugUnitTest assembleDebug` PASSED.
+  - ADB visual screenshot confirmed the home screen displays `Connected` while the runtime store is `RUNNING`.
+  - ADB direct full-tunnel curl to `https://example.com` returned `HTTP/1.1 200 OK`.
+  - ADB stop from the power button changed persisted runtime state back to `IDLE`.
+  - After stop, no `libxray.so` process remained; remaining `:10808` sockets were `TIME_WAIT`, not listeners.

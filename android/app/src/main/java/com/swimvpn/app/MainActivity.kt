@@ -58,10 +58,13 @@ import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.screens.*
 import com.swimvpn.app.ui.theme.*
 import com.swimvpn.app.vpn.RuntimeMode
+import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.ThemeMode
 import com.swimvpn.app.vpn.RuntimeMetrics
+import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -363,10 +366,15 @@ fun HomeScreen(
     val selectedRuntimeMode = data.routingMode
 
     // Lier l'UI au VRAI statut du service VPN Android
-    val vpnState by VpnManager.state.collectAsState()
+    val inMemoryVpnState by VpnManager.state.collectAsState()
+    var vpnState by remember { mutableStateOf(inMemoryVpnState) }
     val bytesIn by VpnManager.bytesIn.collectAsState()
     val bytesOut by VpnManager.bytesOut.collectAsState()
     val errorMessage by VpnManager.errorMessage.collectAsState()
+
+    LaunchedEffect(inMemoryVpnState) {
+        vpnState = inMemoryVpnState
+    }
 
     // Animation pour le bouton Power
     val infiniteTransition = rememberInfiniteTransition(label = "powerPulse")
@@ -381,6 +389,19 @@ fun HomeScreen(
     )
 
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val snapshot = RuntimeStateStore.read(context)
+            VpnManager.reconcileRuntimeSnapshot(snapshot)
+            vpnState = if (snapshot.isFresh()) {
+                vpnStateForRuntimeStatus(snapshot.status)
+            } else {
+                VpnState.DISCONNECTED
+            }
+            delay(1_000)
+        }
+    }
 
     // Notification Permission Request (Android 13+)
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -701,6 +722,16 @@ private fun buildRuntimeDiagnostics(metrics: RuntimeMetrics): String {
     metrics.tun2SocksLogPath?.let { lines += "tun2socks log: $it" }
     metrics.lastError?.let { lines += "Last error: $it" }
     return lines.joinToString("\n")
+}
+
+private fun vpnStateForRuntimeStatus(status: RuntimeStatus): VpnState {
+    return when (status) {
+        RuntimeStatus.IDLE -> VpnState.DISCONNECTED
+        RuntimeStatus.STARTING -> VpnState.CONNECTING
+        RuntimeStatus.RUNNING -> VpnState.CONNECTED
+        RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
+        RuntimeStatus.FAILED -> VpnState.ERROR
+    }
 }
 
 @Composable

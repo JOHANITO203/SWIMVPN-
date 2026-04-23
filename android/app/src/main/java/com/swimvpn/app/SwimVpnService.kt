@@ -25,6 +25,7 @@ import com.swimvpn.app.runtime.Tun2SocksRuntimeFilePreparer
 import com.swimvpn.app.runtime.XrayProcessBridge
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
+import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.VpnManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +41,7 @@ class SwimVpnService : VpnService() {
     private var activeTun2SocksContract: Tun2SocksNativeBridgeContract? = null
     private var activeTun2SocksJob: Job? = null
     private var activeTrafficStatsJob: Job? = null
+    private var activeRuntimeHeartbeatJob: Job? = null
     private var activeStartupJob: Job? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
@@ -116,7 +118,7 @@ class SwimVpnService : VpnService() {
         VpnManager.resetUsage()
         VpnManager.clearError()
         VpnManager.clearRuntimeDiagnostics()
-        VpnManager.updateRuntimeStatus(RuntimeStatus.STARTING)
+        updateRuntimeStatus(RuntimeStatus.STARTING, requestedMode)
 
         activeStartupJob?.cancel()
         activeStartupJob = serviceScope.launch {
@@ -142,7 +144,7 @@ class SwimVpnService : VpnService() {
                 }
             } catch (e: Exception) {
                 Log.e("SwimVpnService", "Error starting VPN", e)
-                VpnManager.setError("Connection failed: ${e.localizedMessage}")
+                setRuntimeError("Connection failed: ${e.localizedMessage}")
                 stopVpn(clearRuntimeState = false)
             } finally {
                 activeStartupJob = null
@@ -219,8 +221,7 @@ class SwimVpnService : VpnService() {
                         preparedRuntime.exitStateFile.writeText("FAILED")
                         Log.e("SwimVpnService", "tun2socks native bridge failed", error)
                         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
-                            VpnManager.setError("tun2socks failed: ${error.localizedMessage}")
-                            VpnManager.updateRuntimeStatus(RuntimeStatus.FAILED)
+                            setRuntimeError("tun2socks failed: ${error.localizedMessage}")
                             stopVpn(clearRuntimeState = false)
                         }
                         return@launch
@@ -229,8 +230,7 @@ class SwimVpnService : VpnService() {
                     preparedRuntime.exitStateFile.writeText(exitCode.toString())
                     if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
                         Log.w("SwimVpnService", "tun2socks exited unexpectedly with code $exitCode")
-                        VpnManager.setError("tun2socks exited with code $exitCode")
-                        VpnManager.updateRuntimeStatus(RuntimeStatus.FAILED)
+                        setRuntimeError("tun2socks exited with code $exitCode")
                         stopVpn(clearRuntimeState = false)
                     }
                 }
@@ -254,7 +254,7 @@ class SwimVpnService : VpnService() {
         VpnManager.markStarted()
         delay(350)
         VpnManager.markHandshake()
-        VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
+        updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.FULL_TUNNEL)
         VpnManager.setRuntimeDiagnostics(
             activeMode = RuntimeMode.FULL_TUNNEL.name,
             xraySessionId = activeXraySessionId,
@@ -262,6 +262,7 @@ class SwimVpnService : VpnService() {
             tun2SocksLogPath = tun2SocksNativePrep?.stderrLogFile?.absolutePath,
         )
         startTrafficStatsPolling()
+        startRuntimeHeartbeat(RuntimeMode.FULL_TUNNEL)
 
         val runtimeMessage = when (tun2SocksAvailability.preferredLaunchMode) {
             Tun2SocksLaunchMode.JNI -> {
@@ -309,11 +310,12 @@ class SwimVpnService : VpnService() {
         )
 
         VpnManager.markHandshake()
-        VpnManager.updateRuntimeStatus(RuntimeStatus.RUNNING)
+        updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.LOCAL_PROXY)
         VpnManager.setRuntimeDiagnostics(
             activeMode = RuntimeMode.LOCAL_PROXY.name,
             xraySessionId = activeXraySessionId,
         )
+        startRuntimeHeartbeat(RuntimeMode.LOCAL_PROXY)
         updateNotification("Local proxy ready: 127.0.0.1:${runtime.ports.socksPort}")
 
         Log.i(
@@ -332,7 +334,7 @@ class SwimVpnService : VpnService() {
         }
 
         if (clearRuntimeState) {
-            VpnManager.updateRuntimeStatus(RuntimeStatus.STOPPING)
+            updateRuntimeStatus(RuntimeStatus.STOPPING, VpnManager.runtimeMode.value)
         }
 
         try {
@@ -349,6 +351,8 @@ class SwimVpnService : VpnService() {
             activeTun2SocksSessionId = null
             activeTrafficStatsJob?.cancel()
             activeTrafficStatsJob = null
+            activeRuntimeHeartbeatJob?.cancel()
+            activeRuntimeHeartbeatJob = null
             activeTun2SocksContract = null
             activeXraySessionId?.let { sessionId ->
                 xrayBridge.stop(sessionId)
@@ -362,7 +366,7 @@ class SwimVpnService : VpnService() {
             vpnInterface = null
             VpnManager.clearRuntimeDiagnostics()
             if (clearRuntimeState) {
-                VpnManager.updateRuntimeStatus(RuntimeStatus.IDLE)
+                updateRuntimeStatus(RuntimeStatus.IDLE, VpnManager.runtimeMode.value)
             }
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -428,6 +432,8 @@ class SwimVpnService : VpnService() {
                 activeTun2SocksSessionId = null
                 activeTrafficStatsJob?.cancel()
                 activeTrafficStatsJob = null
+                activeRuntimeHeartbeatJob?.cancel()
+                activeRuntimeHeartbeatJob = null
                 activeTun2SocksContract = null
                 activeXraySessionId?.let { sessionId ->
                     xrayBridge.stop(sessionId)
@@ -505,11 +511,47 @@ class SwimVpnService : VpnService() {
         }
     }
 
+    private fun startRuntimeHeartbeat(mode: RuntimeMode) {
+        activeRuntimeHeartbeatJob?.cancel()
+        activeRuntimeHeartbeatJob = serviceScope.launch {
+            while (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
+                RuntimeStateStore.write(
+                    context = applicationContext,
+                    status = RuntimeStatus.RUNNING,
+                    mode = mode,
+                    error = null,
+                )
+                delay(2_000)
+            }
+        }
+    }
+
+    private fun updateRuntimeStatus(status: RuntimeStatus, mode: RuntimeMode) {
+        RuntimeStateStore.write(
+            context = applicationContext,
+            status = status,
+            mode = mode,
+            error = VpnManager.errorMessage.value,
+        )
+        VpnManager.updateRuntimeStatus(status)
+    }
+
+    private fun setRuntimeError(message: String) {
+        RuntimeStateStore.write(
+            context = applicationContext,
+            status = RuntimeStatus.FAILED,
+            mode = VpnManager.runtimeMode.value,
+            error = message,
+        )
+        VpnManager.setError(message)
+    }
+
     private fun hasActiveRuntimeResources(): Boolean {
         return activeStartupJob != null ||
             activeTun2SocksJob != null ||
             activeTun2SocksContract != null ||
             activeTrafficStatsJob != null ||
+            activeRuntimeHeartbeatJob != null ||
             activeXraySessionId != null ||
             activeTun2SocksSessionId != null ||
             vpnInterface != null

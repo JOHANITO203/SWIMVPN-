@@ -56,6 +56,33 @@ object VpnManager {
         }
     }
 
+    fun reconcileRuntimeSnapshot(snapshot: RuntimeStateSnapshot) {
+        val effectiveStatus = if (snapshot.isFresh()) {
+            snapshot.status
+        } else {
+            RuntimeStatus.IDLE
+        }
+        val expectedState = stateForRuntimeStatus(effectiveStatus)
+        _runtimeMode.value = snapshot.mode
+        if (_runtimeStatus.value != effectiveStatus || _state.value != expectedState) {
+            updateRuntimeStatus(effectiveStatus)
+        }
+        if (effectiveStatus == RuntimeStatus.FAILED && !snapshot.error.isNullOrBlank()) {
+            _errorMessage.value = snapshot.error
+            _metrics.value = _metrics.value.copy(lastError = snapshot.error)
+        }
+    }
+
+    private fun stateForRuntimeStatus(status: RuntimeStatus): VpnState {
+        return when (status) {
+            RuntimeStatus.IDLE -> VpnState.DISCONNECTED
+            RuntimeStatus.STARTING -> VpnState.CONNECTING
+            RuntimeStatus.RUNNING -> VpnState.CONNECTED
+            RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
+            RuntimeStatus.FAILED -> VpnState.ERROR
+        }
+    }
+
     fun updateState(newState: VpnState) {
         _state.value = newState
         if (newState != VpnState.ERROR) {
