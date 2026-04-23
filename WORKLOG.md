@@ -1161,3 +1161,20 @@ pm run build PASSED.
     - `settings get secure always_on_vpn_app` -> `null`
     - `settings get secure always_on_vpn_lockdown` -> `0`
   - A later ADB re-check could not run because no device was attached at that moment.
+## [2026-04-23] [Android Localization Stability Batch - FR/RU Resource Repair]
+- **Status**: DONE
+- **Changes**:
+  - Rebuilt `values-fr/strings.xml` and `values-ru/strings.xml` in clean UTF-8.
+  - Restored full key parity across `values`, `values-fr`, and `values-ru`.
+  - Added missing localized keys used by the home screen and import flow.
+  - Replaced critical user-facing hardcoded strings in `MainActivity` with `stringResource(...)`.
+  - Replaced critical user-facing hardcoded errors/group labels in `MainViewModel` with localized resource lookups.
+  - Kept runtime/parser/backend scope untouched.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon installDebug` PASSED.
+  - ADB app-locale checks performed on connected Samsung `SM-S916B`:
+    - `cmd locale set-app-locales com.swimvpn.app --locales fr`
+    - `cmd locale set-app-locales com.swimvpn.app --locales ru`
+    - `cmd locale get-app-locales com.swimvpn.app` returned `[ru]` after the Russian pass.
+  - Logcat launch checks in `fr` and `ru` showed no `FATAL EXCEPTION` or `Resources$NotFoundException` from `com.swimvpn.app`.

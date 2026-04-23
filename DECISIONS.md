@@ -496,3 +496,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `SwimVpnService` writes runtime status and heartbeat data to `RuntimeStateStore`.
   - `HomeScreen` reads the snapshot and treats stale active snapshots as disconnected.
   - Runtime control remains local-only; no backend dependency is introduced.
+
+## [2026-04-23] [Android UI Text Must Resolve From Resources, Not Mixed Hardcodes]
+- **Decision**: Critical user-facing Android text must come from string resources with complete key parity across `values`, `values-fr`, and `values-ru`.
+- **Why**: The app had corrupted FR/RU resource files plus visible text still hardcoded in Kotlin. That combination made locale switching unstable and difficult to verify.
+- **Impact**:
+  - Home/runtime/import status text now localizes through Android resources.
+  - FR and RU resource files are treated as full first-class translations, not partial overlays.
+  - Future locale work should add keys to all three language files in the same batch.

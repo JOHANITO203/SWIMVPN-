@@ -371,3 +371,7 @@ otification-bot-service event handoff.
   - provider `https://wb.routerwb.ru/jtz5386jCHkztYRZ` enables Import without preview
   - random text still keeps Import disabled
   - direct supported node link still shows preview and enables Import
+- Continue Android localization cleanup beyond this batch:
+  - audit `ConfigImportScreen` and other remaining screens for user-facing hardcoded strings
+  - keep new string keys synchronized across `values`, `values-fr`, and `values-ru`
+  - re-run a focused ADB locale smoke test after each future UI text batch

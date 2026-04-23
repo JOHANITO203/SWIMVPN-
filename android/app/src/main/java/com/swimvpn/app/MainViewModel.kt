@@ -71,6 +71,7 @@ sealed class AppSideEffect {
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val app = getApplication<Application>()
     private val prefs = PreferencesManager(application)
     private val api = RetrofitClient.apiService
     private val configRepository = ConfigRepository(application)
@@ -86,6 +87,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         initApp()
     }
+
+    private fun s(resId: Int, vararg args: Any): String = app.getString(resId, *args)
 
     private fun initApp() {
         viewModelScope.launch {
@@ -112,19 +115,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val errorBody = e.response()?.errorBody()?.string()
                     Log.e("MainViewModel", "HTTP ${e.code()} bootstrapping access: $errorBody", e)
                     val msg = if (e.code() >= 500) {
-                        getApplication<Application>().getString(R.string.err_server_maintenance, e.code())
+                        s(R.string.err_server_maintenance, e.code())
                     } else {
-                        getApplication<Application>().getString(R.string.err_bootstrap_failed)
+                        s(R.string.err_bootstrap_failed)
                     }
                     _state.value = AppState.Error(msg)
                     return@launch
                 } catch (e: java.net.SocketTimeoutException) {
                     Log.e("MainViewModel", "Timeout bootstrapping access", e)
-                    _state.value = AppState.Error(getApplication<Application>().getString(R.string.err_network_timeout))
+                    _state.value = AppState.Error(s(R.string.err_network_timeout))
                     return@launch
                 } catch (e: Exception) {
                     Log.e("MainViewModel", "API Error bootstrapping access", e)
-                    _state.value = AppState.Error(getApplication<Application>().getString(R.string.err_bootstrap_failed))
+                    _state.value = AppState.Error(s(R.string.err_bootstrap_failed))
                     return@launch
                 }
 
@@ -161,7 +164,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error initApp", e)
-                _state.value = AppState.Error("Error: ${e.localizedMessage}")
+                _state.value = AppState.Error(s(R.string.err_generic, e.localizedMessage ?: "unknown"))
             }
         }
     }
@@ -269,7 +272,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Trial activation failed", e)
                 _state.value = currentState
-                _effect.emit(AppSideEffect.ShowToast("Impossible d'activer l'essai pour le moment"))
+                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_trial_activation)))
             }
         }
     }
@@ -282,7 +285,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val updatedProfile = api.activateCode(ActivateCodeRequest(currentState.profile.userNumber, code))
                 _state.value = currentState.copy(profile = updatedProfile)
             } catch (e: Exception) {
-                _state.value = AppState.Error("Activation failed: ${e.localizedMessage}")
+                _state.value = AppState.Error(s(R.string.err_activation_failed, e.localizedMessage ?: "unknown"))
             }
         }
     }
@@ -304,7 +307,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 Log.e("MainViewModel", "Import failed", e)
                 _state.value = refreshSuccessState(currentState)
                 refreshServerLatency()
-                _effect.emit(AppSideEffect.ShowToast("Configuration imported locally, but profile sync failed"))
+                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_import_sync_failed)))
             }
         }
     }
@@ -323,15 +326,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val response = api.createOrder(request)
                 _effect.emit(
                     AppSideEffect.ShowToast(
-                        getApplication<Application>().getString(
-                            R.string.order_created_pending_payment,
-                            response.orderRef
-                        )
+                        s(R.string.order_created_pending_payment, response.orderRef)
                     )
                 )
                 initApp()
             } catch (e: Exception) {
-                _state.value = AppState.Error("Order creation failed: ${e.localizedMessage}")
+                _state.value = AppState.Error(s(R.string.err_order_creation_failed, e.localizedMessage ?: "unknown"))
             }
         }
     }
@@ -465,18 +465,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             context.startService(intent)
         } else {
             if (server == null || profile == null) {
-                _state.value = AppState.Error("No server or profile available.")
+                _state.value = AppState.Error(s(R.string.err_no_server_profile))
                 return
             }
 
             if (profile.isExpired) {
-                _state.value = AppState.Error("Your subscription has expired. Please upgrade.")
+                _state.value = AppState.Error(s(R.string.err_subscription_expired))
                 return
             }
 
             val runtimeConfig = server.rawConfig ?: profile.subscriptionUrl
             if (runtimeConfig.isNullOrBlank()) {
-                _state.value = AppState.Error("No runtime config available for the selected server.")
+                _state.value = AppState.Error(s(R.string.err_no_runtime_config))
                 return
             }
 
@@ -537,7 +537,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             api.getServers(profile.userNumber)
         } catch (e: Exception) {
             Log.e("MainViewModel", "API Error fetching servers", e)
-            _state.value = AppState.Error("Impossible de charger la liste des serveurs. Verifiez votre connexion et reessayez.")
+            _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
             return null
         }
 
@@ -545,7 +545,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             api.getPlans()
         } catch (e: Exception) {
             Log.e("MainViewModel", "API Error fetching plans", e)
-            _state.value = AppState.Error("Impossible de charger les offres d'abonnement. Verifiez votre connexion et reessayez.")
+            _state.value = AppState.Error(s(R.string.err_fetch_plans_failed))
             return null
         }
 
@@ -578,7 +578,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             server.copy(
                 isPinned = server.id in pinnedIds,
                 groupId = "backend:${currentState.profile.userNumber}",
-                groupName = "Access Servers",
+                groupName = s(R.string.server_group_access),
                 source = "backend",
                 rawConfig = null,
             )
@@ -609,14 +609,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (backendServers.isNotEmpty()) {
             groups += ServerGroup(
                 id = "backend:${profile.userNumber}",
-                title = "Access Servers",
-                subtitle = "${backendServers.size} backend server(s)",
+                title = s(R.string.server_group_access),
+                subtitle = s(R.string.server_group_backend_count, backendServers.size),
                 source = "backend",
                 servers = backendServers
                     .map { server ->
                         server.copy(
                             groupId = "backend:${profile.userNumber}",
-                            groupName = "Access Servers",
+                            groupName = s(R.string.server_group_access),
                             source = "backend",
                             isPinned = server.id in pinnedIds,
                             rawConfig = null,
@@ -638,7 +638,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 groups += ServerGroup(
                     id = group.id,
                     title = group.name,
-                    subtitle = "${importedServers.size} imported server(s)",
+                    subtitle = s(R.string.server_group_imported_count, importedServers.size),
                     source = "imported",
                     servers = importedServers,
                 )

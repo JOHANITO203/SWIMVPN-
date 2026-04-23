@@ -328,14 +328,14 @@ fun SplashScreen() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
                 painter = painterResource(id = R.drawable.swimvpn_logo),
-                contentDescription = "Logo",
+                contentDescription = stringResource(R.string.content_desc_logo),
                 modifier = Modifier
                     .size(240.dp)
                     .scale(scale)
             )
             Spacer(modifier = Modifier.height(48.dp))
             Text(
-                text = "SWIMVPN+",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp
@@ -429,36 +429,38 @@ fun HomeScreen(
     }
 
     val badgeText = when {
-        profile.status == "EXPIRED" -> "EXPIRED"
-        profile.accessType == "TRIAL" -> "TRIAL 3 DAYS"
-        profile.offerCode == "MONTH" -> "MONTH ACTIVE"
-        profile.offerCode == "QUARTER" -> "QUARTER ACTIVE"
-        profile.offerCode == "WEEK" -> "WEEK ACTIVE"
-        else -> "ACCESS ACTIVE"
+        profile.status == "EXPIRED" -> stringResource(R.string.status_expired)
+        profile.accessType == "TRIAL" -> stringResource(R.string.home_badge_trial)
+        profile.offerCode == "MONTH" -> stringResource(R.string.home_badge_month)
+        profile.offerCode == "QUARTER" -> stringResource(R.string.home_badge_quarter)
+        profile.offerCode == "WEEK" -> stringResource(R.string.home_badge_week)
+        else -> stringResource(R.string.home_badge_access)
     }
     val connectionSubtitle = when (vpnState) {
         VpnState.CONNECTED -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
-            "Local proxy ready on 127.0.0.1:10808"
+            stringResource(R.string.home_proxy_ready)
         } else {
-            activeServer?.let { "Connected via ${it.country}, ${it.city}" } ?: "Connected"
+            activeServer?.let {
+                stringResource(R.string.home_connected_via, it.country, it.city)
+            } ?: stringResource(R.string.home_connected)
         }
         VpnState.CONNECTING -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
-            "Starting native local proxy..."
+            stringResource(R.string.home_starting_proxy)
         } else {
-            "Establishing secure tunnel..."
+            stringResource(R.string.home_starting_tunnel)
         }
         VpnState.DISCONNECTING -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
-            "Stopping local proxy..."
+            stringResource(R.string.home_stopping_proxy)
         } else {
-            "Stopping secure tunnel..."
+            stringResource(R.string.home_stopping_tunnel)
         }
-        VpnState.ERROR -> errorMessage ?: "Check your server or imported config."
+        VpnState.ERROR -> errorMessage ?: stringResource(R.string.home_check_server)
         else -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
-            "Tap to start the local Xray proxy"
+            stringResource(R.string.home_tap_start_proxy)
         } else if (activeServer != null) {
-            "Tap to connect using the selected server"
+            stringResource(R.string.home_tap_connect_selected)
         } else {
-            "Select a server or import a config first"
+            stringResource(R.string.home_select_server_first)
         }
     }
 
@@ -479,12 +481,12 @@ fun HomeScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(id = R.drawable.swimvpn_logo),
-                        contentDescription = "Logo",
+                        contentDescription = stringResource(R.string.content_desc_logo),
                         modifier = Modifier.size(40.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "SWIMVPN+",
+                        text = stringResource(R.string.app_name),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Black, 
                             color = Color(0xFF0F172A),
@@ -504,7 +506,7 @@ fun HomeScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person, 
-                        contentDescription = "Profile", 
+                        contentDescription = stringResource(R.string.content_desc_profile), 
                         tint = Color(0xFF475569),
                         modifier = Modifier.size(20.dp)
                     )
@@ -615,7 +617,7 @@ fun HomeScreen(
                     
                     Icon(
                         imageVector = Icons.Rounded.PowerSettingsNew,
-                        contentDescription = "Connect",
+                        contentDescription = stringResource(R.string.content_desc_connect),
                         modifier = Modifier.size(88.dp),
                         tint = when {
                             vpnState == VpnState.CONNECTED -> SwimBlueMain
@@ -708,19 +710,20 @@ fun HomeScreen(
             contentColor = Color.White,
             shape = RoundedCornerShape(28.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Quick actions", modifier = Modifier.size(30.dp))
+            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_quick_actions), modifier = Modifier.size(30.dp))
         }
     }
 }
 
+@Composable
 private fun buildRuntimeDiagnostics(metrics: RuntimeMetrics): String {
     val lines = mutableListOf<String>()
-    metrics.activeMode?.let { lines += "Mode: $it" }
-    metrics.xraySessionId?.let { lines += "Xray session: $it" }
-    metrics.xrayLogPath?.let { lines += "Xray log: $it" }
-    metrics.tun2SocksSessionId?.let { lines += "tun2socks session: $it" }
-    metrics.tun2SocksLogPath?.let { lines += "tun2socks log: $it" }
-    metrics.lastError?.let { lines += "Last error: $it" }
+    metrics.activeMode?.let { lines += stringResource(R.string.runtime_diag_mode, it) }
+    metrics.xraySessionId?.let { lines += stringResource(R.string.runtime_diag_xray_session, it) }
+    metrics.xrayLogPath?.let { lines += stringResource(R.string.runtime_diag_xray_log, it) }
+    metrics.tun2SocksSessionId?.let { lines += stringResource(R.string.runtime_diag_tun2socks_session, it) }
+    metrics.tun2SocksLogPath?.let { lines += stringResource(R.string.runtime_diag_tun2socks_log, it) }
+    metrics.lastError?.let { lines += stringResource(R.string.runtime_diag_last_error, it) }
     return lines.joinToString("\n")
 }
 
@@ -770,7 +773,7 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "SELECTED SERVER",
+                    text = stringResource(R.string.selected_server_title),
                     color = Color(0xFF94A3B8),
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp,
@@ -778,7 +781,7 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (server != null) "${server.country}, ${server.city}" else "No server selected",
+                    text = if (server != null) "${server.country}, ${server.city}" else stringResource(R.string.selected_server_none),
                     color = Color(0xFF0F172A),
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp
@@ -796,7 +799,7 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
                             }
                         }
                     } else {
-                        "Choose an active route before connecting"
+                        stringResource(R.string.selected_server_hint)
                     },
                     color = Color(0xFF64748B),
                     fontWeight = FontWeight.Bold,
@@ -806,7 +809,7 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
 
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = "Open server list",
+                contentDescription = stringResource(R.string.content_desc_open_server_list),
                 tint = Color(0xFF0F172A)
             )
         }
@@ -855,7 +858,7 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
                         currentOnCodeScanned(rawValue)
                     } else {
                         android.widget.Toast
-                            .makeText(context, "QR code is empty", android.widget.Toast.LENGTH_SHORT)
+                            .makeText(context, context.getString(R.string.scanner_empty), android.widget.Toast.LENGTH_SHORT)
                             .show()
                         currentOnClose()
                     }
@@ -872,7 +875,7 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
                     handledResult = true
                     Log.e("QrScannerView", "Google Code Scanner failed", error)
                     android.widget.Toast
-                        .makeText(context, "Scanner unavailable on this device", android.widget.Toast.LENGTH_SHORT)
+                        .makeText(context, context.getString(R.string.scanner_unavailable), android.widget.Toast.LENGTH_SHORT)
                         .show()
                     currentOnClose()
                 }
@@ -887,7 +890,7 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 CircularProgressIndicator(color = SwimBlueMain)
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Opening scanner...", color = Color.White)
+                Text(stringResource(R.string.scanner_opening), color = Color.White)
             }
         }
 
@@ -895,7 +898,7 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
             onClick = onClose,
             modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).background(Color.Black.copy(alpha = 0.3f), CircleShape)
         ) {
-            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.content_desc_close), tint = Color.White)
         }
     }
 }
@@ -904,7 +907,7 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
 fun ErrorScreen(message: String, onRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Warning, contentDescription = "Error", tint = Color.Red, modifier = Modifier.size(64.dp))
+            Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.content_desc_error), tint = Color.Red, modifier = Modifier.size(64.dp))
             Spacer(modifier = Modifier.height(16.dp))
             Text(text = message, color = MaterialTheme.colorScheme.onBackground)
             Spacer(modifier = Modifier.height(16.dp))

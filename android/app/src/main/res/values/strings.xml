@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">SWIMVPN+</string>
 
     <!-- Onboarding -->
@@ -28,6 +28,41 @@
     <string name="upgrade_needed">Upgrade needed</string>
     <string name="label_download">DOWNLOAD</string>
     <string name="label_upload">UPLOAD</string>
+    <string name="home_badge_trial">TRIAL 3 DAYS</string>
+    <string name="home_badge_month">MONTH ACTIVE</string>
+    <string name="home_badge_quarter">QUARTER ACTIVE</string>
+    <string name="home_badge_week">WEEK ACTIVE</string>
+    <string name="home_badge_access">ACCESS ACTIVE</string>
+    <string name="home_proxy_ready">Local proxy ready on 127.0.0.1:10808</string>
+    <string name="home_connected_via">Connected via %1$s, %2$s</string>
+    <string name="home_connected">Connected</string>
+    <string name="home_starting_proxy">Starting native local proxy...</string>
+    <string name="home_starting_tunnel">Establishing secure tunnel...</string>
+    <string name="home_stopping_proxy">Stopping local proxy...</string>
+    <string name="home_stopping_tunnel">Stopping secure tunnel...</string>
+    <string name="home_check_server">Check your server or imported config.</string>
+    <string name="home_tap_start_proxy">Tap to start the local Xray proxy</string>
+    <string name="home_tap_connect_selected">Tap to connect using the selected server</string>
+    <string name="home_select_server_first">Select a server or import a config first</string>
+    <string name="content_desc_profile">Profile</string>
+    <string name="content_desc_connect">Connect</string>
+    <string name="content_desc_logo">Logo</string>
+    <string name="content_desc_quick_actions">Quick actions</string>
+    <string name="content_desc_open_server_list">Open server list</string>
+    <string name="selected_server_title">SELECTED SERVER</string>
+    <string name="selected_server_none">No server selected</string>
+    <string name="selected_server_hint">Choose an active route before connecting</string>
+    <string name="runtime_diag_mode">Mode: %1$s</string>
+    <string name="runtime_diag_xray_session">Xray session: %1$s</string>
+    <string name="runtime_diag_xray_log">Xray log: %1$s</string>
+    <string name="runtime_diag_tun2socks_session">tun2socks session: %1$s</string>
+    <string name="runtime_diag_tun2socks_log">tun2socks log: %1$s</string>
+    <string name="runtime_diag_last_error">Last error: %1$s</string>
+    <string name="scanner_opening">Opening scanner...</string>
+    <string name="scanner_empty">QR code is empty</string>
+    <string name="scanner_unavailable">Scanner unavailable on this device</string>
+    <string name="content_desc_close">Close</string>
+    <string name="content_desc_error">Error</string>
 
     <!-- Import Modal -->
     <string name="import_title">IMPORT ACCESS</string>
@@ -47,6 +82,9 @@
     <!-- Servers -->
     <string name="title_locations">LOCATIONS</string>
     <string name="search_hint">Search location</string>
+    <string name="server_group_access">Access Servers</string>
+    <string name="server_group_backend_count">%1$d backend server(s)</string>
+    <string name="server_group_imported_count">%1$d imported server(s)</string>
 
     <!-- Profile -->
     <string name="title_account">ACCOUNT</string>
@@ -90,6 +128,16 @@
     <string name="err_bootstrap_failed">Failed to load your profile. Check your connection.</string>
     <string name="err_server_maintenance">Server maintenance (HTTP %1$d). Please retry later.</string>
     <string name="err_network_timeout">Network timeout. Please check your internet.</string>
+    <string name="err_generic">Error: %1$s</string>
+    <string name="err_trial_activation">Unable to activate the trial right now.</string>
+    <string name="err_activation_failed">Activation failed: %1$s</string>
+    <string name="err_import_sync_failed">Configuration imported locally, but profile sync failed</string>
+    <string name="err_order_creation_failed">Order creation failed: %1$s</string>
+    <string name="err_no_server_profile">No server or profile available.</string>
+    <string name="err_subscription_expired">Your subscription has expired. Please upgrade.</string>
+    <string name="err_no_runtime_config">No runtime config available for the selected server.</string>
+    <string name="err_fetch_servers_failed">Unable to load the server list. Check your connection and retry.</string>
+    <string name="err_fetch_plans_failed">Unable to load subscription offers. Check your connection and retry.</string>
 
     <string name="profile_trial_id_label">YOUR SWIMVPN+ ID</string>
     <string name="profile_trial_description">Complete your profile to unlock the 3-day trial. We use your device, email, and phone to prevent abuse.</string>
@@ -115,7 +163,7 @@
     <string name="btn_renew">RENEW SUBSCRIPTION</string>
 
     <!-- Subscription -->
-    <string name="sub_title">VPN ACCESS\nPLANS</string>
+    <string name="sub_title">VPN ACCESS&#10;PLANS</string>
     <string name="sub_desc">Choose the real backend offer that matches your traffic and duration needs.</string>
     <string name="title_pricing">PRICING</string>
     <string name="plan_weekly">BRONZE</string>
@@ -137,6 +185,7 @@
     <string name="plan_code_quarter">QUARTER</string>
     <string name="no_plans_available">No active offers are available right now.</string>
     <string name="order_created_pending_payment">Order %1$s created. Payment step is not yet enabled in the app.</string>
+
     <!-- Technical -->
     <string name="title_technical">TECHNICAL</string>
     <string name="btn_reset">RESET</string>
@@ -144,8 +193,8 @@
     <string name="label_language">LANGUAGE</string>
     <string name="desc_language">INTERFACE TRANSLATION</string>
     <string name="lang_en">ENGLISH</string>
-    <string name="lang_fr">FRANCAIS</string>
-    <string name="lang_ru">RUSSKIY</string>
+    <string name="lang_fr">FRENCH</string>
+    <string name="lang_ru">RUSSIAN</string>
     <string name="label_theme">VISUAL THEME</string>
     <string name="desc_theme">APPEARANCE PREFERENCE</string>
     <string name="app_preferences_title">Interface cockpit</string>

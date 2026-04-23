@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">SWIMVPN+</string>
 
     <!-- Onboarding -->
@@ -6,26 +6,69 @@
     <string name="onboarding_start">НАЧАТЬ</string>
     <string name="ob_step1_title">SWIMVPN+</string>
     <string name="ob_step1_desc">Быстрый и безопасный доступ, созданный для полной анонимности.</string>
-    <string name="ob_step2_title">ЭЛЕКТРИЧЕСКАЯ СКОРОСТЬ</string>
+    <string name="ob_step2_title">МАКСИМАЛЬНАЯ СКОРОСТЬ</string>
     <string name="ob_step2_desc">Оптимизированные серверы для стриминга и игр без задержек.</string>
     <string name="ob_step3_title">ВОЕННАЯ БЕЗОПАСНОСТЬ</string>
     <string name="ob_step3_desc">Протоколы VLESS и SSH для обхода любой цензуры.</string>
 
     <!-- Home -->
     <string name="status_expired">ИСТЕКЛО</string>
-    <string name="status_trial">ПРОБНЫЙ ПЕРИОД</string>
-    <string name="status_pro">ПРО АКЦИЯ</string>
+    <string name="status_trial">ПРОБНЫЙ ПЕРИОД АКТИВЕН</string>
+    <string name="status_pro">PRO АКТИВЕН</string>
     <string name="btn_connect">ПОДКЛЮЧИТЬ</string>
     <string name="btn_connect_on">ВКЛ</string>
     <string name="status_connected">Подключено</string>
     <string name="status_disconnected">Отключено</string>
-    <string name="msg_secure_connection">Безопасное соединение установлено</string>
-    <string name="msg_tap_to_connect">Нажмите для подключения</string>
+    <string name="status_connecting">Подключение...</string>
+    <string name="status_disconnecting">Отключение...</string>
+    <string name="status_error">Ошибка подключения</string>
+    <string name="msg_secure_connection">Защищенное соединение установлено</string>
+    <string name="msg_tap_to_connect">Нажмите, чтобы подключиться</string>
     <string name="no_server">НЕТ СЕРВЕРА</string>
     <string name="upgrade_needed">Требуется обновление</string>
+    <string name="label_download">ЗАГРУЗКА</string>
+    <string name="label_upload">ОТПРАВКА</string>
+    <string name="home_badge_trial">ПРОБНЫЙ ПЕРИОД 3 ДНЯ</string>
+    <string name="home_badge_month">МЕСЯЦ АКТИВЕН</string>
+    <string name="home_badge_quarter">КВАРТАЛ АКТИВЕН</string>
+    <string name="home_badge_week">НЕДЕЛЯ АКТИВНА</string>
+    <string name="home_badge_access">ДОСТУП АКТИВЕН</string>
+    <string name="home_proxy_ready">Локальный прокси готов на 127.0.0.1:10808</string>
+    <string name="home_connected_via">Подключено через %1$s, %2$s</string>
+    <string name="home_connected">Подключено</string>
+    <string name="home_starting_proxy">Запуск локального прокси...</string>
+    <string name="home_starting_tunnel">Устанавливается защищенный туннель...</string>
+    <string name="home_stopping_proxy">Остановка локального прокси...</string>
+    <string name="home_stopping_tunnel">Остановка защищенного туннеля...</string>
+    <string name="home_check_server">Проверьте сервер или импортированную конфигурацию.</string>
+    <string name="home_tap_start_proxy">Нажмите, чтобы запустить локальный Xray-прокси</string>
+    <string name="home_tap_connect_selected">Нажмите, чтобы подключиться через выбранный сервер</string>
+    <string name="home_select_server_first">Сначала выберите сервер или импортируйте конфигурацию</string>
+    <string name="content_desc_profile">Профиль</string>
+    <string name="content_desc_connect">Подключить</string>
+    <string name="content_desc_logo">Логотип</string>
+    <string name="content_desc_quick_actions">Быстрые действия</string>
+    <string name="content_desc_open_server_list">Открыть список серверов</string>
+    <string name="selected_server_title">ВЫБРАННЫЙ СЕРВЕР</string>
+    <string name="selected_server_none">Сервер не выбран</string>
+    <string name="selected_server_hint">Выберите активный маршрут перед подключением</string>
+    <string name="runtime_diag_mode">Режим: %1$s</string>
+    <string name="runtime_diag_xray_session">Сессия Xray: %1$s</string>
+    <string name="runtime_diag_xray_log">Лог Xray: %1$s</string>
+    <string name="runtime_diag_tun2socks_session">Сессия tun2socks: %1$s</string>
+    <string name="runtime_diag_tun2socks_log">Лог tun2socks: %1$s</string>
+    <string name="runtime_diag_last_error">Последняя ошибка: %1$s</string>
+    <string name="scanner_opening">Открытие сканера...</string>
+    <string name="scanner_empty">QR-код пуст</string>
+    <string name="scanner_unavailable">Сканер недоступен на этом устройстве</string>
+    <string name="content_desc_close">Закрыть</string>
+    <string name="content_desc_error">Ошибка</string>
 
     <!-- Import Modal -->
     <string name="import_title">ИМПОРТ ДОСТУПА</string>
+    <string name="title_import_method">ВЫБЕРИТЕ СПОСОБ ИМПОРТА</string>
+    <string name="method_qr">СКАНИРОВАТЬ QR-КОД</string>
+    <string name="method_url">ВСТАВИТЬ ССЫЛКУ</string>
     <string name="btn_scan_qr">СКАН QR</string>
     <string name="btn_paste">ВСТАВИТЬ</string>
     <string name="btn_manual">ВРУЧНУЮ</string>
@@ -38,7 +81,10 @@
 
     <!-- Servers -->
     <string name="title_locations">ЛОКАЦИИ</string>
-    <string name="search_hint">Поиск</string>
+    <string name="search_hint">Поиск локации</string>
+    <string name="server_group_access">Серверы доступа</string>
+    <string name="server_group_backend_count">%1$d сервер(ов) backend</string>
+    <string name="server_group_imported_count">%1$d импортирован(ных) сервер(ов)</string>
 
     <!-- Profile -->
     <string name="title_account">АККАУНТ</string>
@@ -47,10 +93,10 @@
     <string name="label_data_traffic">ТРАФИК ДАННЫХ</string>
     <string name="label_unlimited">БЕЗЛИМИТНО</string>
     <string name="label_left">ОСТАЛОСЬ</string>
-    <string name="label_expires_at">СРОК ПОДПИСКИ</string>
+    <string name="label_expires_at">СРОК ДЕЙСТВИЯ ПЛАНА</string>
     <string name="status_active">АКТИВЕН</string>
     <string name="profile_status_label">СТАТУС ДОСТУПА</string>
-    <string name="profile_usage_note">Включает использование аккаунта и текущую сессию на этом устройстве.</string>
+    <string name="profile_usage_note">Включает использование аккаунта и текущую сессию устройства.</string>
     <string name="profile_email_format">Email • %1$s</string>
     <string name="profile_phone_format">Телефон • %1$s</string>
     <string name="profile_contact_missing">Контактные данные пока не заполнены.</string>
@@ -68,34 +114,44 @@
     <string name="profile_status_offer_active">%1$s АКТИВЕН</string>
     <string name="profile_status_inactive">НЕАКТИВЕН</string>
     <string name="label_management">УПРАВЛЕНИЕ</string>
-    <string name="label_plan">Тариф</string>
+    <string name="label_plan">План</string>
     <string name="label_expires">Истекает</string>
     <string name="menu_subscription">Подписка</string>
-    <string name="menu_security">Безопасность</string>
+    <string name="menu_security">Безопасность аккаунта</string>
     <string name="menu_technical">Технические настройки</string>
-    <string name="menu_support">Поддержка и помощь</string>
+    <string name="menu_support">Помощь и поддержка</string>
     <string name="menu_import_access">ИМПОРТ ДОСТУПА</string>
     <string name="btn_retry">ПОВТОРИТЬ</string>
     <string name="menu_signout">Выйти</string>
     <string name="profile_trial_badge">ПРОБНЫЙ ПЕРИОД 3 ДНЯ</string>
 
-    <string name="err_bootstrap_failed">Ошибка загрузки профиля. Проверьте соединение.</string>
-    <string name="err_server_maintenance">Техработы на сервере (HTTP %1$d). Повторите позже.</string>
-    <string name="err_network_timeout">Превышено время ожидания. Проверьте интернет.</string>
+    <string name="err_bootstrap_failed">Не удалось загрузить профиль. Проверьте подключение.</string>
+    <string name="err_server_maintenance">Технические работы на сервере (HTTP %1$d). Повторите позже.</string>
+    <string name="err_network_timeout">Превышено время ожидания сети. Проверьте интернет.</string>
+    <string name="err_generic">Ошибка: %1$s</string>
+    <string name="err_trial_activation">Сейчас не удалось активировать пробный период.</string>
+    <string name="err_activation_failed">Ошибка активации: %1$s</string>
+    <string name="err_import_sync_failed">Конфигурация импортирована локально, но синхронизация профиля не удалась</string>
+    <string name="err_order_creation_failed">Ошибка создания заказа: %1$s</string>
+    <string name="err_no_server_profile">Нет доступного сервера или профиля.</string>
+    <string name="err_subscription_expired">Срок действия вашей подписки истек. Пожалуйста, обновите ее.</string>
+    <string name="err_no_runtime_config">Для выбранного сервера нет runtime-конфигурации.</string>
+    <string name="err_fetch_servers_failed">Не удалось загрузить список серверов. Проверьте соединение и повторите попытку.</string>
+    <string name="err_fetch_plans_failed">Не удалось загрузить тарифы. Проверьте соединение и повторите попытку.</string>
 
     <string name="profile_trial_id_label">ВАШ ID SWIMVPN+</string>
-    <string name="profile_trial_description">Заполните профиль, чтобы активировать пробный период на 3 дня. Мы используем ваше устройство, email и телефон для защиты от злоупотреблений.</string>
+    <string name="profile_trial_description">Заполните профиль, чтобы открыть пробный период на 3 дня. Мы используем устройство, email и телефон для защиты от злоупотреблений.</string>
     <string name="profile_email_label">Email</string>
     <string name="profile_phone_label">Номер телефона</string>
-    <string name="profile_activate_trial">Активировать 3-дневный пробный период</string>
-    <string name="profile_trial_eligible_note">Пробный период активируется один раз после заполнения профиля.</string>
+    <string name="profile_activate_trial">Активировать пробный период на 3 дня</string>
+    <string name="profile_trial_eligible_note">Пробный период можно активировать только один раз после заполнения профиля.</string>
     <string name="profile_trial_ineligible_note">Пробный период уже использован для этого устройства или этих контактов.</string>
 
     <!-- Support -->
-    <string name="support_title">ПОДДЕРЖКА И ПОМОЩЬ</string>
+    <string name="support_title">ПОМОЩЬ И ПОДДЕРЖКА</string>
     <string name="support_faq_title">FAQ</string>
     <string name="faq_connect_title">Как подключиться?</string>
-    <string name="faq_connect_desc">Выберите активный сервер или импортируйте корректную конфигурацию доступа, затем нажмите центральную кнопку «ВКЛ», чтобы запустить защищенный туннель.</string>
+    <string name="faq_connect_desc">Выберите активный сервер или импортируйте корректную конфигурацию доступа, затем нажмите центральную кнопку "ВКЛ", чтобы запустить защищенный туннель.</string>
     <string name="faq_import_title">Как импортировать доступ?</string>
     <string name="faq_import_desc">Откройте Import Access через кнопку + на главном экране или из профиля, затем вставьте, отсканируйте или введите исходную конфигурацию.</string>
     <string name="support_contact_title">СВЯЗАТЬСЯ С НАМИ</string>
@@ -104,10 +160,10 @@
     <string name="support_telegram_bot">Telegram-бот поддержки</string>
     <string name="support_telegram_handle">@SWIMVPNSUPPORTADMINBOT</string>
     <string name="support_telegram_username">SWIMVPNSUPPORTADMINBOT</string>
-    <string name="btn_renew">ОБНОВИТЬ ПОДПИСКУ</string>
+    <string name="btn_renew">ПРОДЛИТЬ ПОДПИСКУ</string>
 
     <!-- Subscription -->
-    <string name="sub_title">ПЛАНЫ\nVPN ДОСТУПА</string>
+    <string name="sub_title">ПЛАНЫ&#10;VPN ДОСТУПА</string>
     <string name="sub_desc">Выберите реальное backend-предложение под ваш трафик и срок доступа.</string>
     <string name="title_pricing">ЦЕНЫ</string>
     <string name="plan_weekly">BRONZE</string>
@@ -122,51 +178,52 @@
     <string name="feature_2">Доступ VLESS с сохранением исходной конфигурации</string>
     <string name="feature_3">Импорт и управление доступом прямо в приложении</string>
     <string name="feature_4">Отслеживаемый жизненный цикл заказа, связанный с профилем</string>
-    <string name="btn_upgrade">ПОДПИСАТЬСЯ СЕЙЧАС</string>
+    <string name="btn_upgrade">ПОДКЛЮЧИТЬ СЕЙЧАС</string>
     <string name="btn_create_order">СОЗДАТЬ ЗАКАЗ</string>
     <string name="plan_code_week">НЕДЕЛЯ</string>
     <string name="plan_code_month">МЕСЯЦ</string>
     <string name="plan_code_quarter">КВАРТАЛ</string>
     <string name="no_plans_available">Сейчас нет активных предложений.</string>
-    <string name="order_created_pending_payment">Заказ %1$s создан. Шаг оплаты еще не включен в приложении.</string>
+    <string name="order_created_pending_payment">Заказ %1$s создан. Этап оплаты пока не включен в приложении.</string>
+
     <!-- Technical -->
-    <string name="title_technical">TEKHNICHESKIE</string>
-    <string name="btn_reset">SBROSIT\'</string>
-    <string name="section_app">PRILOZHENIE</string>
-    <string name="label_language">YAZYK</string>
-    <string name="desc_language">PEREVOD INTERFEISA</string>
-    <string name="lang_en">ENGLISH</string>
-    <string name="lang_fr">FRANCAIS</string>
-    <string name="lang_ru">RUSSKIY</string>
-    <string name="label_theme">VIZUALNAYA TEMA</string>
-    <string name="desc_theme">PREDPOCHTENIE OFORMLENIYA</string>
-    <string name="app_preferences_title">Interfeys cockpit</string>
-    <string name="app_preferences_desc">Yazyk i tema ostayutsya nastroykami prilozheniya i ne menyayut VPN runtime.</string>
-    <string name="theme_system">SISTEMA</string>
-    <string name="theme_light">SVETLAYA</string>
-    <string name="theme_dark">TEMNAYA</string>
-    <string name="section_routing">REZHIM MARSHRUTIZATSII</string>
-    <string name="label_routing">MARSHRUTIZATSIYA</string>
-    <string name="routing_mode_full_tunnel">TUNNEL\'</string>
-    <string name="routing_mode_local_proxy">PROKSI</string>
-    <string name="routing_mode_split_tunnel">CHASTICHNYY TUNNEL\'</string>
-    <string name="routing_badge_recommended">REKOMENDUETSYA</string>
-    <string name="routing_badge_tunneling">TUNNELING</string>
-    <string name="routing_runtime_desc">Proksi - samyy bystryy rekomenduemyy put. Tunnel\' nuzhen dlya polnogo sistemnogo marshruta.</string>
-    <string name="tunnel_title">VPN Tunnel (Rekomenduetsya)</string>
-    <string name="tunnel_desc">Marshrutiziruet ves\' trafik ustroystva.</string>
-    <string name="proxy_title">Tol\'ko lokal\'nyy proksi</string>
-    <string name="proxy_desc">Tol\'ko dlya konkretnykh prilozheniy.</string>
-    <string name="section_connectivity">SVYAZ\'</string>
-    <string name="auto_connect">Avtopodklyuchenie</string>
-    <string name="desc_boot">PREDPOCHTENIE PRI ZAPUSKE</string>
+    <string name="title_technical">ТЕХНИЧЕСКИЕ НАСТРОЙКИ</string>
+    <string name="btn_reset">СБРОСИТЬ</string>
+    <string name="section_app">ПРИЛОЖЕНИЕ</string>
+    <string name="label_language">ЯЗЫК</string>
+    <string name="desc_language">ПЕРЕВОД ИНТЕРФЕЙСА</string>
+    <string name="lang_en">АНГЛИЙСКИЙ</string>
+    <string name="lang_fr">ФРАНЦУЗСКИЙ</string>
+    <string name="lang_ru">РУССКИЙ</string>
+    <string name="label_theme">ВИЗУАЛЬНАЯ ТЕМА</string>
+    <string name="desc_theme">ПРЕДПОЧТЕНИЕ ОФОРМЛЕНИЯ</string>
+    <string name="app_preferences_title">Кокпит интерфейса</string>
+    <string name="app_preferences_desc">Язык и визуальная тема остаются настройками продукта и не изменяют VPN runtime.</string>
+    <string name="theme_system">СИСТЕМА</string>
+    <string name="theme_light">СВЕТЛАЯ</string>
+    <string name="theme_dark">ТЕМНАЯ</string>
+    <string name="section_routing">РЕЖИМ МАРШРУТИЗАЦИИ</string>
+    <string name="label_routing">МАРШРУТИЗАЦИЯ</string>
+    <string name="routing_mode_full_tunnel">ТУННЕЛЬ</string>
+    <string name="routing_mode_local_proxy">ПРОКСИ</string>
+    <string name="routing_mode_split_tunnel">ЧАСТИЧНЫЙ ТУННЕЛЬ</string>
+    <string name="routing_badge_recommended">РЕКОМЕНДУЕТСЯ</string>
+    <string name="routing_badge_tunneling">ТУННЕЛИРОВАНИЕ</string>
+    <string name="routing_runtime_desc">Прокси — самый быстрый рекомендуемый путь. Туннель захватывает весь трафик устройства, когда нужен полный системный маршрут.</string>
+    <string name="tunnel_title">VPN-туннель (Рекомендуется)</string>
+    <string name="tunnel_desc">Безопасно маршрутизирует весь трафик устройства.</string>
+    <string name="proxy_title">Только локальный прокси</string>
+    <string name="proxy_desc">Маршрутизирует только выбранные приложения или расширения.</string>
+    <string name="section_connectivity">ПОДКЛЮЧЕНИЕ</string>
+    <string name="auto_connect">Автоподключение</string>
+    <string name="desc_boot">ПАРАМЕТР ЗАПУСКА</string>
     <string name="kill_switch">Kill Switch</string>
-    <string name="kill_switch_desc">Nastroyte postoyannyy VPN i blokirovku v sistemnykh nastroykakh Android.</string>
+    <string name="kill_switch_desc">Настройте постоянный VPN и режим блокировки в системных настройках Android.</string>
+    <string name="kill_switch_desc_always_on">Для SWIMVPN+ включен always-on. Android будет стараться держать этот VPN готовым.</string>
+    <string name="kill_switch_desc_lockdown">Включен lockdown. Android блокирует трафик вне VPN, пока туннель недоступен.</string>
     <string name="kill_switch_system_chip">ANDROID</string>
-    <string name="kill_switch_desc_always_on">Dlya SWIMVPN+ vklyuchen always-on. Android budet starat\'sya derzhat\' etot VPN gotovym.</string>
-    <string name="kill_switch_desc_lockdown">Vklyuchen lockdown. Android blokiruet trafik mimo etogo VPN, poka tunnel\' nedostupen.</string>
-    <string name="kill_switch_chip_system">SISTEMA</string>
+    <string name="kill_switch_chip_system">СИСТЕМА</string>
     <string name="kill_switch_chip_always_on">ALWAYS-ON</string>
     <string name="kill_switch_chip_lockdown">LOCKDOWN</string>
-    <string name="btn_save">SOKHRANIT\' VSE NASTROYKI</string>
+    <string name="btn_save">СОХРАНИТЬ ВСЕ НАСТРОЙКИ</string>
 </resources>
