@@ -9,6 +9,21 @@
   - The visible latency remains the user-facing quality indicator; no extra quality score is added in the MVP UI.
   - Active routing indicators continue to reflect real runtime state, not selection alone.
 
+## [2026-04-23] [Auto-Connect Must Persist The Last Runnable Payload]
+- **Decision**: Persist the last runnable VPN payload locally and use it for boot/package-replace auto-connect restoration.
+- **Why**: `autoConnect` should be more than an in-app toggle. The app needs a concrete restart path that does not depend on reconstructing the VPN launch payload from volatile UI state.
+- **Impact**:
+  - The app now stores the last successful launch payload (`host`, `port`, `protocol`, `runtimeConfig`, `runtimeMode`).
+  - A boot receiver can restore the VPN directly after `BOOT_COMPLETED` or `MY_PACKAGE_REPLACED` when `autoConnect` is enabled.
+  - Sign-out clears the stored payload so stale sessions are not restored for a different user context.
+
+## [2026-04-23] [Kill Switch Remains Android-System-Managed, But Status Should Be Visible]
+- **Decision**: Keep kill switch management in Android system settings, but surface a more honest status chip in-app using Android secure settings when readable.
+- **Why**: The user needs a truthful indication of whether SWIMVPN+ is merely available, configured as Always-on, or in Lockdown mode, without pretending the app owns those controls directly.
+- **Impact**:
+  - The Technical screen now distinguishes `SYSTEM`, `ALWAYS-ON`, and `LOCKDOWN`.
+  - The screen still opens Android VPN settings for the actual control surface.
+
 ## [2026-04-22] [Expose Only Runtime Modes That Actually Exist]
 - **Decision**: In the first VPN core batch, expose only `FULL_TUNNEL` as an honest supported runtime mode in the Android app UI.
 - **Why**: The repository already had a persisted `PROXY` preference in settings, but no real proxy runtime behind it. Leaving it visible would continue to mislead the user about what the app can actually execute.

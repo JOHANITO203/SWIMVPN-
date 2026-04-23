@@ -2,12 +2,14 @@ package com.swimvpn.app
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.provider.Settings
 import android.util.Log
 import android.net.VpnService
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.data.local.PreferencesManager
+import com.swimvpn.app.data.local.AutoConnectPayload
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ActivateCodeRequest
 import com.swimvpn.app.data.network.ActivateTrialRequest
@@ -230,6 +232,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             lastAutoConnectSignature = null
             prefs.saveUserNumber("NEW_USER")
             prefs.setOnboardingDone(false)
+            prefs.clearAutoConnectPayload()
             initApp()
         }
     }
@@ -407,6 +410,51 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         toggleVpn(context, server, profile)
     }
 
+    fun maybeRestoreAutoConnectFromBoot(context: Context) {
+        viewModelScope.launch {
+            val currentState = _state.value as? AppState.Success ?: return@launch
+            if (!currentState.autoConnect) return@launch
+
+            val vpnState = com.swimvpn.app.vpn.VpnManager.state.value
+            if (vpnState != com.swimvpn.app.vpn.VpnState.DISCONNECTED && vpnState != com.swimvpn.app.vpn.VpnState.ERROR) {
+                return@launch
+            }
+
+            val payload = prefs.getAutoConnectPayload() ?: return@launch
+            if (payload.runtimeMode == RuntimeMode.FULL_TUNNEL && VpnService.prepare(context) != null) {
+                return@launch
+            }
+
+            val currentServer = currentState.activeServer
+            val currentConfig = currentServer?.rawConfig ?: currentState.profile.subscriptionUrl
+            if (currentServer != null &&
+                currentServer.host == payload.host &&
+                currentServer.port == payload.port &&
+                currentConfig == payload.runtimeConfig &&
+                currentState.routingMode == payload.runtimeMode
+            ) {
+                maybeAutoConnect(context, currentState)
+                return@launch
+            }
+
+            val restoreIntent = Intent(context, SwimVpnService::class.java).apply {
+                action = SwimVpnService.ACTION_START
+                putExtra(SwimVpnService.EXTRA_SERVER_HOST, payload.host)
+                putExtra(SwimVpnService.EXTRA_SERVER_PORT, payload.port)
+                putExtra(SwimVpnService.EXTRA_PROTOCOL, payload.protocol)
+                putExtra(SwimVpnService.EXTRA_URL, payload.runtimeConfig)
+                putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, payload.runtimeMode.name)
+            }
+            context.startService(restoreIntent)
+            lastAutoConnectSignature = listOf(
+                currentState.profile.userNumber,
+                payload.host,
+                payload.port.toString(),
+                payload.runtimeConfig,
+            ).joinToString(":")
+        }
+    }
+
     fun toggleVpn(context: android.content.Context, server: ServerNode?, profile: AccessProfileResponse?) {
         val currentState = com.swimvpn.app.vpn.VpnManager.state.value
 
@@ -426,21 +474,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return
             }
 
-            val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
-                action = SwimVpnService.ACTION_START
-                putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
-                putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
-                putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
-                putExtra(SwimVpnService.EXTRA_URL, server.rawConfig ?: profile.subscriptionUrl)
-                putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
-
-                val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
-                val usedBytes = profile.totalConsumedBytes()
-
-                putExtra(SwimVpnService.EXTRA_DATA_LIMIT, limitBytes)
-                putExtra(SwimVpnService.EXTRA_DATA_USED, usedBytes)
+            val runtimeConfig = server.rawConfig ?: profile.subscriptionUrl
+            if (runtimeConfig.isNullOrBlank()) {
+                _state.value = AppState.Error("No runtime config available for the selected server.")
+                return
             }
-            context.startService(intent)
+
+            viewModelScope.launch {
+                prefs.saveAutoConnectPayload(
+                    AutoConnectPayload(
+                        host = server.host,
+                        port = server.port,
+                        protocol = server.protocol,
+                        runtimeConfig = runtimeConfig,
+                        runtimeMode = RuntimeMode.fromPersisted(currentStateRoutingModeName()),
+                    )
+                )
+
+                val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
+                    action = SwimVpnService.ACTION_START
+                    putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
+                    putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
+                    putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
+                    putExtra(SwimVpnService.EXTRA_URL, runtimeConfig)
+                    putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
+
+                    val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
+                    val usedBytes = profile.totalConsumedBytes()
+
+                    putExtra(SwimVpnService.EXTRA_DATA_LIMIT, limitBytes)
+                    putExtra(SwimVpnService.EXTRA_DATA_USED, usedBytes)
+                }
+                context.startService(intent)
+            }
         }
     }
 

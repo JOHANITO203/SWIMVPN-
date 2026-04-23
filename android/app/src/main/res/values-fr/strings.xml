@@ -157,6 +157,11 @@
     <string name="desc_boot">PREFERENCE AU DEMARRAGE</string>
     <string name="kill_switch">Kill Switch</string>
     <string name="kill_switch_desc">Configurez le VPN permanent et le verrouillage dans les reglages Android.</string>
+    <string name="kill_switch_desc_always_on">Le mode VPN permanent est actif pour SWIMVPN+. Android essaie de garder ce VPN disponible.</string>
+    <string name="kill_switch_desc_lockdown">Le verrouillage est actif. Android bloque le trafic hors VPN tant que le tunnel n\'est pas disponible.</string>
     <string name="kill_switch_system_chip">ANDROID</string>
+    <string name="kill_switch_chip_system">SYSTEME</string>
+    <string name="kill_switch_chip_always_on">TOUJOURS ACTIF</string>
+    <string name="kill_switch_chip_lockdown">VERROUILLAGE</string>
     <string name="btn_save">ENREGISTRER LES PREFERENCES</string>
 </resources>

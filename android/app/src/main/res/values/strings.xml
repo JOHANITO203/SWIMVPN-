@@ -170,6 +170,11 @@
     <string name="desc_boot">STARTUP PREFERENCE</string>
     <string name="kill_switch">Kill Switch</string>
     <string name="kill_switch_desc">Configure always-on VPN and lockdown in Android system settings.</string>
+    <string name="kill_switch_desc_always_on">Always-on is enabled for SWIMVPN+. Android will try to keep this VPN ready.</string>
+    <string name="kill_switch_desc_lockdown">Lockdown is enabled. Android blocks traffic outside this VPN until the tunnel is available.</string>
     <string name="kill_switch_system_chip">ANDROID</string>
+    <string name="kill_switch_chip_system">SYSTEM</string>
+    <string name="kill_switch_chip_always_on">ALWAYS-ON</string>
+    <string name="kill_switch_chip_lockdown">LOCKDOWN</string>
     <string name="btn_save">SAVE ALL PREFERENCES</string>
 </resources>

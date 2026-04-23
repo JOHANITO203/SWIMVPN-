@@ -63,6 +63,14 @@ private const val LEGACY_PROXY_MODE = "PROXY"
 private const val LEGACY_TUNNEL_MODE = "TUNNEL"
 private const val FULL_TUNNEL_MODE = "FULL_TUNNEL"
 private const val LOCAL_PROXY_MODE = "LOCAL_PROXY"
+private const val ALWAYS_ON_VPN_APP_KEY = "always_on_vpn_app"
+private const val ALWAYS_ON_VPN_LOCKDOWN_KEY = "always_on_vpn_lockdown"
+
+private enum class KillSwitchStatus {
+    SYSTEM,
+    ALWAYS_ON,
+    LOCKDOWN,
+}
 
 @Composable
 fun TechnicalSettingsScreen(
@@ -84,6 +92,7 @@ fun TechnicalSettingsScreen(
     var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
     var showThemeMenu by rememberSaveable { mutableStateOf(false) }
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
+    val killSwitchStatus = readKillSwitchStatus(context)
 
     Column(
         modifier = Modifier
@@ -189,8 +198,8 @@ fun TechnicalSettingsScreen(
                 SettingsRowWithChip(
                     icon = Icons.Outlined.Security,
                     title = stringResource(R.string.kill_switch),
-                    subtitle = stringResource(R.string.kill_switch_desc),
-                    chipText = stringResource(R.string.kill_switch_system_chip),
+                    subtitle = killSwitchStatusSubtitle(killSwitchStatus),
+                    chipText = killSwitchStatusChip(killSwitchStatus),
                     onClick = {
                         val intent = Intent(Settings.ACTION_VPN_SETTINGS).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -639,6 +648,40 @@ private fun normalizeThemeMode(themeMode: String): String =
         AppThemePreference.DARK -> AppThemePreference.DARK
         else -> AppThemePreference.SYSTEM
     }
+
+private fun readKillSwitchStatus(context: android.content.Context): KillSwitchStatus {
+    val alwaysOnPackage = Settings.Secure.getString(
+        context.contentResolver,
+        ALWAYS_ON_VPN_APP_KEY
+    )
+    val lockdownEnabled = runCatching {
+        Settings.Secure.getInt(context.contentResolver, ALWAYS_ON_VPN_LOCKDOWN_KEY, 0) == 1
+    }.getOrDefault(false)
+
+    return when {
+        alwaysOnPackage == context.packageName && lockdownEnabled -> KillSwitchStatus.LOCKDOWN
+        alwaysOnPackage == context.packageName -> KillSwitchStatus.ALWAYS_ON
+        else -> KillSwitchStatus.SYSTEM
+    }
+}
+
+@Composable
+private fun killSwitchStatusChip(status: KillSwitchStatus): String {
+    return when (status) {
+        KillSwitchStatus.SYSTEM -> stringResource(R.string.kill_switch_chip_system)
+        KillSwitchStatus.ALWAYS_ON -> stringResource(R.string.kill_switch_chip_always_on)
+        KillSwitchStatus.LOCKDOWN -> stringResource(R.string.kill_switch_chip_lockdown)
+    }
+}
+
+@Composable
+private fun killSwitchStatusSubtitle(status: KillSwitchStatus): String {
+    return when (status) {
+        KillSwitchStatus.SYSTEM -> stringResource(R.string.kill_switch_desc)
+        KillSwitchStatus.ALWAYS_ON -> stringResource(R.string.kill_switch_desc_always_on)
+        KillSwitchStatus.LOCKDOWN -> stringResource(R.string.kill_switch_desc_lockdown)
+    }
+}
 
 @Composable
 fun SectionTitle(icon: ImageVector, title: String) {

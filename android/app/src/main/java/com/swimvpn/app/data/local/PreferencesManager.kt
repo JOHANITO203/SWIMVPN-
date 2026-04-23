@@ -4,15 +4,25 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "swimvpn_prefs")
+
+data class AutoConnectPayload(
+    val host: String,
+    val port: Int,
+    val protocol: String,
+    val runtimeConfig: String,
+    val runtimeMode: RuntimeMode,
+)
 
 class PreferencesManager(private val context: Context) {
     companion object {
@@ -26,6 +36,11 @@ class PreferencesManager(private val context: Context) {
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SELECTED_SERVER_ID_KEY = stringPreferencesKey("selected_server_id")
         val PINNED_SERVER_IDS_KEY = stringSetPreferencesKey("pinned_server_ids")
+        val LAST_RUNTIME_HOST_KEY = stringPreferencesKey("last_runtime_host")
+        val LAST_RUNTIME_PORT_KEY = intPreferencesKey("last_runtime_port")
+        val LAST_RUNTIME_PROTOCOL_KEY = stringPreferencesKey("last_runtime_protocol")
+        val LAST_RUNTIME_CONFIG_KEY = stringPreferencesKey("last_runtime_config")
+        val LAST_RUNTIME_MODE_KEY = stringPreferencesKey("last_runtime_mode")
     }
 
     val userNumberFlow: Flow<String?> = context.dataStore.data
@@ -126,5 +141,42 @@ class PreferencesManager(private val context: Context) {
             }
         }
         return updated
+    }
+
+    suspend fun saveAutoConnectPayload(payload: AutoConnectPayload) {
+        context.dataStore.edit { preferences ->
+            preferences[LAST_RUNTIME_HOST_KEY] = payload.host
+            preferences[LAST_RUNTIME_PORT_KEY] = payload.port
+            preferences[LAST_RUNTIME_PROTOCOL_KEY] = payload.protocol
+            preferences[LAST_RUNTIME_CONFIG_KEY] = payload.runtimeConfig
+            preferences[LAST_RUNTIME_MODE_KEY] = payload.runtimeMode.name
+        }
+    }
+
+    suspend fun getAutoConnectPayload(): AutoConnectPayload? {
+        val preferences = context.dataStore.data.map { it }.firstOrNull() ?: return null
+        val host = preferences[LAST_RUNTIME_HOST_KEY] ?: return null
+        val port = preferences[LAST_RUNTIME_PORT_KEY] ?: return null
+        val protocol = preferences[LAST_RUNTIME_PROTOCOL_KEY] ?: return null
+        val runtimeConfig = preferences[LAST_RUNTIME_CONFIG_KEY] ?: return null
+        val runtimeMode = RuntimeMode.fromPersisted(preferences[LAST_RUNTIME_MODE_KEY])
+        if (runtimeConfig.isBlank()) return null
+        return AutoConnectPayload(
+            host = host,
+            port = port,
+            protocol = protocol,
+            runtimeConfig = runtimeConfig,
+            runtimeMode = runtimeMode,
+        )
+    }
+
+    suspend fun clearAutoConnectPayload() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(LAST_RUNTIME_HOST_KEY)
+            preferences.remove(LAST_RUNTIME_PORT_KEY)
+            preferences.remove(LAST_RUNTIME_PROTOCOL_KEY)
+            preferences.remove(LAST_RUNTIME_CONFIG_KEY)
+            preferences.remove(LAST_RUNTIME_MODE_KEY)
+        }
     }
 }

@@ -163,5 +163,10 @@
     <string name="kill_switch">Kill Switch</string>
     <string name="kill_switch_desc">Nastroyte postoyannyy VPN i blokirovku v sistemnykh nastroykakh Android.</string>
     <string name="kill_switch_system_chip">ANDROID</string>
+    <string name="kill_switch_desc_always_on">Dlya SWIMVPN+ vklyuchen always-on. Android budet starat\'sya derzhat\' etot VPN gotovym.</string>
+    <string name="kill_switch_desc_lockdown">Vklyuchen lockdown. Android blokiruet trafik mimo etogo VPN, poka tunnel\' nedostupen.</string>
+    <string name="kill_switch_chip_system">SISTEMA</string>
+    <string name="kill_switch_chip_always_on">ALWAYS-ON</string>
+    <string name="kill_switch_chip_lockdown">LOCKDOWN</string>
     <string name="btn_save">SOKHRANIT\' VSE NASTROYKI</string>
 </resources>

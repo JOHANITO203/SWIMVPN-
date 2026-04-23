@@ -1143,3 +1143,21 @@ pm run build PASSED.
   - Updated `C:\Users\Lenovo\Downloads\PLAN.md` with accomplished runtime/parser work and the new Proxy-first direction.
 - **Verification**:
   - Pending Android build verification in this batch.
+## [2026-04-23] [Android Phase 3-A - Persistent Auto-Connect And Honest Kill Switch Status]
+- **Status**: DONE
+- **Changes**:
+  - Added persistent storage for the last runnable VPN launch payload in `PreferencesManager`.
+  - Updated `MainViewModel` to save the launch payload before starting the VPN and to clear it on sign-out.
+  - Added `AutoConnectBootReceiver` for `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`.
+  - Boot restore skips `FULL_TUNNEL` when Android VPN permission still requires user approval.
+  - Technical settings now read Android secure settings to distinguish:
+    - `SYSTEM`
+    - `ALWAYS-ON`
+    - `LOCKDOWN`
+  - The kill-switch tile remains a shortcut to Android VPN settings, but the chip/subtitle are now more truthful.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.
+  - Direct device check performed earlier in the batch returned:
+    - `settings get secure always_on_vpn_app` -> `null`
+    - `settings get secure always_on_vpn_lockdown` -> `0`
+  - A later ADB re-check could not run because no device was attached at that moment.

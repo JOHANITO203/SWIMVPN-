@@ -129,7 +129,7 @@ fun AppNavigation(viewModel: MainViewModel) {
     LaunchedEffect(state) {
         when (val currentState = state) {
             is AppState.Success -> {
-                viewModel.maybeAutoConnect(context, currentState)
+                viewModel.maybeRestoreAutoConnectFromBoot(context)
                 if (!currentState.isOnboardingDone) {
                     navController.navigate("onboarding") { popUpTo(0) }
                 } else {
