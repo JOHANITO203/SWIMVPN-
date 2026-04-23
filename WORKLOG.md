@@ -1053,7 +1053,10 @@ pm run build PASSED.
   - Strengthened Base64 subscription decoding for standard, URL-safe, padded, unpadded, and newline-wrapped payloads.
   - Added subscription payload scoring so direct supported node links are preferred over opaque JSON arrays when providers return different content per User-Agent.
   - Added a defensive decode pass immediately before grouped entry splitting so raw Base64 subscriptions cannot fall through as a single unsupported config.
+  - Fixed grouped link splitting so `ss://` is not falsely detected inside `vless://`.
+  - Used temporary ADB diagnostics to confirm the provider resolves to 11 VLESS Reality entries, then removed payload-shape logging from the APK code.
   - Kept remote subscription imports inside the existing grouped server import pipeline.
   - Preserved unsupported Happ encrypted payload behavior; no third-party protected format bypass was added.
 - **Verification**:
   - `cd android && .\gradlew.bat assembleDebug` PASSED.
+  - ADB import test for `https://wb.routerwb.ru/jtz5386jCHkztYRZ` imported 11 server(s) into the locations list.

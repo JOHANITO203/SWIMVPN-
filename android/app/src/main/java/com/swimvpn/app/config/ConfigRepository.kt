@@ -337,7 +337,7 @@ class ConfigRepository(private val context: Context) {
         }
 
         val normalized = trimmed.replace("\r", "\n")
-        val pattern = Regex("(?i)(?=(vless|vmess|trojan|ss|hy2|hysteria2|hysteria|tuic|socks5|socks|wg|wireguard)://)")
+        val pattern = Regex("(?i)(?<![A-Za-z0-9+.-])(?=(vless|vmess|trojan|ss|hy2|hysteria2|hysteria|tuic|socks5|socks|wg|wireguard)://)")
         val matches = pattern.findAll(normalized).toList()
         if (matches.isEmpty()) {
             return listOf(trimmed)
@@ -360,7 +360,8 @@ class ConfigRepository(private val context: Context) {
             return trimmed
         }
 
-        return decodeSubscriptionBase64(trimmed)?.trim() ?: trimmed
+        val decoded = decodeSubscriptionBase64(trimmed)?.trim()
+        return decoded ?: trimmed
     }
 
     private fun deriveBundleName(profiles: List<SwimVpnProfile>): String {
