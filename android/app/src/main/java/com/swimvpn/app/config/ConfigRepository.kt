@@ -329,7 +329,7 @@ class ConfigRepository(private val context: Context) {
     }
     
     private fun splitConfigEntries(input: String): List<String> {
-        val trimmed = input.trim()
+        val trimmed = normalizeImportPayloadForSplitting(input).trim()
         if (trimmed.isBlank()) return emptyList()
 
         if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
@@ -352,6 +352,15 @@ class ConfigRepository(private val context: Context) {
             val end = if (index + 1 < matches.size) matches[index + 1].range.first else normalized.length
             normalized.substring(start, end).trim().takeIf { it.isNotBlank() }
         }
+    }
+
+    private fun normalizeImportPayloadForSplitting(input: String): String {
+        val trimmed = input.trim()
+        if (trimmed.isBlank() || containsSupportedEntry(trimmed) || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            return trimmed
+        }
+
+        return decodeSubscriptionBase64(trimmed)?.trim() ?: trimmed
     }
 
     private fun deriveBundleName(profiles: List<SwimVpnProfile>): String {

@@ -1052,6 +1052,7 @@ pm run build PASSED.
 - **Changes**:
   - Strengthened Base64 subscription decoding for standard, URL-safe, padded, unpadded, and newline-wrapped payloads.
   - Added subscription payload scoring so direct supported node links are preferred over opaque JSON arrays when providers return different content per User-Agent.
+  - Added a defensive decode pass immediately before grouped entry splitting so raw Base64 subscriptions cannot fall through as a single unsupported config.
   - Kept remote subscription imports inside the existing grouped server import pipeline.
   - Preserved unsupported Happ encrypted payload behavior; no third-party protected format bypass was added.
 - **Verification**:
