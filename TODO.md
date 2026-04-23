@@ -177,6 +177,9 @@ otification-bot-service event handoff.
   - `vmess://` URL-safe / no-padding Base64 payloads
   - `ss://` base64 + bracketed IPv6 variants
   - JSON payloads where the first outbound is not the usable tunnel
+- Re-test Android import/parser behavior against real-world decorated tags:
+  - `trojan://` links with emoji / brackets / mixed encoded fragment text
+  - `vless://` links with non-trivial fragment labels
 - If production still returns `500`, collect runtime logs from:
   - gateway-service
   - store-engine-service

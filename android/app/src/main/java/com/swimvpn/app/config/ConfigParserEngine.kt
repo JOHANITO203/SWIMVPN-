@@ -7,7 +7,6 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import java.net.URI
 import java.net.URLDecoder
 
 /**
@@ -54,28 +53,12 @@ object ConfigParserEngine {
         val warnings = mutableListOf<String>()
         
         try {
-            // Parse URI components
-            val uri = URI.create(url)
-            
-            // Extract user info (UUID)
-            val userInfo = uri.userInfo
-            val userId = if (userInfo != null) {
-                if (userInfo.contains("?")) {
-                    userInfo.substringBefore("?")
-                } else {
-                    userInfo
-                }
-            } else {
-                ""
-            }
-            
-            // Extract host and port
-            val host = uri.host ?: return ParseResult(null, listOf("Missing host in VLESS URL"), warnings)
-            val port = uri.port.takeIf { it != -1 } ?: 443
-            
-            // Parse query parameters
-            val query = uri.query?.let { parseQueryParams(it) } ?: emptyMap()
-            val fragment = uri.fragment?.let { URLDecoder.decode(it, "UTF-8") }
+            val parsed = parseStructuredUrl(url, "vless://")
+            val userId = parsed.userInfo
+            val host = parsed.host ?: return ParseResult(null, listOf("Missing host in VLESS URL"), warnings)
+            val port = parsed.port ?: 443
+            val query = parsed.query?.let { parseQueryParams(it) } ?: emptyMap()
+            val fragment = parsed.fragment
             
             // Determine transport and security
             val (transport, security, _) = parseTransportAndSecurity(query)
@@ -255,13 +238,12 @@ object ConfigParserEngine {
         val warnings = mutableListOf<String>()
         
         try {
-            val uri = URI.create(url)
-            val userInfo = uri.userInfo ?: return ParseResult(null, listOf("Missing password in Trojan URL"), warnings)
-            val host = uri.host ?: return ParseResult(null, listOf("Missing host in Trojan URL"), warnings)
-            val port = uri.port.takeIf { it != -1 } ?: 443
-            
-            val query = uri.query?.let { parseQueryParams(it) } ?: emptyMap()
-            val fragment = uri.fragment?.let { URLDecoder.decode(it, "UTF-8") }
+            val parsed = parseStructuredUrl(url, "trojan://")
+            val userInfo = parsed.userInfo ?: return ParseResult(null, listOf("Missing password in Trojan URL"), warnings)
+            val host = parsed.host ?: return ParseResult(null, listOf("Missing host in Trojan URL"), warnings)
+            val port = parsed.port ?: 443
+            val query = parsed.query?.let { parseQueryParams(it) } ?: emptyMap()
+            val fragment = parsed.fragment
             
             val (transport, security, _) = parseTransportAndSecurity(query)
             
@@ -954,6 +936,40 @@ object ConfigParserEngine {
                trimmed.startsWith('[') && trimmed.endsWith(']')
     }
 
+    private data class ParsedStructuredUrl(
+        val userInfo: String?,
+        val host: String?,
+        val port: Int?,
+        val query: String?,
+        val fragment: String?,
+    )
+
+    private fun parseStructuredUrl(rawUrl: String, prefix: String): ParsedStructuredUrl {
+        val withoutScheme = rawUrl.removePrefix(prefix)
+        val fragment = withoutScheme.substringAfter('#', "")
+            .takeIf { it.isNotBlank() }
+            ?.let { URLDecoder.decode(it, "UTF-8") }
+        val withoutFragment = withoutScheme.substringBefore('#')
+        val query = withoutFragment.substringAfter('?', "")
+            .takeIf { it.isNotBlank() }
+        val authority = withoutFragment.substringBefore('?')
+
+        val atIndex = authority.lastIndexOf('@')
+        val userInfo = authority.substringBeforeLast('@', "")
+            .takeIf { atIndex != -1 }
+            ?.takeIf { it.isNotBlank() }
+        val hostPortPart = if (atIndex != -1) authority.substring(atIndex + 1) else authority
+        val (host, port) = parseHostAndPortWithDefault(hostPortPart)
+
+        return ParsedStructuredUrl(
+            userInfo = userInfo,
+            host = host,
+            port = port,
+            query = query,
+            fragment = fragment,
+        )
+    }
+
     private fun decodeBase64Flexible(input: String): String {
         val normalized = input.trim()
             .replace('-', '+')
@@ -997,6 +1013,39 @@ object ConfigParserEngine {
         val host = trimmed.substring(0, colonIndex)
         val port = trimmed.substring(colonIndex + 1).toIntOrNull() ?: return null
         return host to port
+    }
+
+    private fun parseHostAndPortWithDefault(input: String): Pair<String?, Int?> {
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) {
+            return null to null
+        }
+
+        if (trimmed.startsWith("[")) {
+            val endBracket = trimmed.indexOf(']')
+            if (endBracket == -1) {
+                return trimmed.removePrefix("[").ifBlank { null } to null
+            }
+            val host = trimmed.substring(1, endBracket).ifBlank { null }
+            val remainder = trimmed.substring(endBracket + 1)
+            val port = remainder.removePrefix(":").takeIf { it.isNotBlank() }?.toIntOrNull()
+            return host to port
+        }
+
+        val colonIndex = trimmed.lastIndexOf(':')
+        if (colonIndex == -1) {
+            return trimmed to null
+        }
+
+        val host = trimmed.substring(0, colonIndex).ifBlank { null }
+        val portPart = trimmed.substring(colonIndex + 1)
+        val port = portPart.toIntOrNull()
+
+        return if (port != null) {
+            host to port
+        } else {
+            trimmed to null
+        }
     }
 
     private fun parseCsv(input: String?): List<String> {

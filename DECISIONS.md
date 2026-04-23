@@ -326,3 +326,14 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Impact**:
   - The parser now tolerates more transport aliases, Base64 variants, IPv6 forms, and JSON outbound layouts within the supported scope.
   - The app can reject unsupported ecosystems more honestly later without also failing on common valid variants of its declared supported formats.
+## [2026-04-23] [Use Tolerant Manual URL Parsing For Real-World VLESS/Trojan Links]
+- **Decision**: Parse `vless://` and `trojan://` links with a tolerant manual URL splitter instead of relying on strict JVM URI parsing.
+- **Why**: Real subscription/config links frequently contain decorated fragments, emojis, brackets, spaces, or partially encoded tags that are acceptable to VPN clients but brittle under strict generic URI parsing.
+- **Impact**:
+  - The Android app preserves the meaningful parts of those links:
+    - authority
+    - userinfo
+    - host/port
+    - query
+    - fragment
+  - Import reliability improves without pretending to support new protocols outside the declared scope.

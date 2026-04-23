@@ -773,3 +773,15 @@ pm run build PASSED.
     - Improved JSON parsing so the Android app can now pick the first supported outbound instead of assuming the first array item is always the VPN tunnel.
 - **Verification**:
     - `android\\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android VPN Batch - Tolerant Trojan/VLESS URL Parsing]
+- **Status**: DONE
+- **Changes**:
+    - Removed the fragile dependency on strict `URI.create(...)` parsing for `vless://` and `trojan://` links.
+    - Added a tolerant structured URL parser that preserves:
+      - decorated fragments/tags
+      - raw query strings
+      - bracketed IPv6 hosts
+      - userinfo/password values
+    - This specifically hardens import of real-world links whose fragment contains characters that strict URI parsing often rejects.
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug` PASSED.
