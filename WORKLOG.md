@@ -749,3 +749,27 @@ pm run build PASSED.
     - Kept the change narrowly scoped to parser/runtime payload truth without changing backend contracts.
 - **Verification**:
     - `android\\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android VPN Batch - Supported Link Parser Hardening]
+- **Status**: DONE
+- **Changes**:
+    - Hardened the Android parser for the already supported formats:
+      - `vless://`
+      - `vmess://`
+      - `trojan://`
+      - `ss://`
+      - JSON Xray/V2Ray
+    - Added tolerant transport alias handling:
+      - `raw` -> `TCP`
+      - `httpupgrade` / `xhttp` / `splithttp` -> `HTTP2`
+    - Made `VMess` Base64 decoding more tolerant to URL-safe and no-padding variants.
+    - Improved `Trojan` parsing for advanced real-world variants:
+      - preserves `Reality` fields
+      - preserves `TCP` header settings
+      - preserves `ALPN` and `fingerprint`
+    - Improved `Shadowsocks` parsing for:
+      - legacy/base64 variants
+      - bracketed IPv6 hosts
+      - query/fragment-safe parsing
+    - Improved JSON parsing so the Android app can now pick the first supported outbound instead of assuming the first array item is always the VPN tunnel.
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug` PASSED.

@@ -3,7 +3,10 @@ package com.swimvpn.app.config
 import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
+import com.google.gson.JsonArray
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import java.net.URI
 import java.net.URLDecoder
 
@@ -98,11 +101,11 @@ object ConfigParserEngine {
                         spiderX = query["spx"]
                     )
                 } else null,
-                tlsSettings = if (security == SecurityMode.TLS) {
+                tlsSettings = if (security == SecurityMode.TLS || security == SecurityMode.REALITY) {
                     TlsSettings(
                         sni = query["sni"] ?: host,
                         allowInsecure = query["allowInsecure"]?.toBoolean() ?: false,
-                        alpn = query["alpn"]?.split(",") ?: emptyList(),
+                        alpn = parseCsv(query["alpn"]),
                         fingerprint = query["fp"]
                     )
                 } else null,
@@ -149,7 +152,7 @@ object ConfigParserEngine {
         try {
             // Extract Base64 part
             val base64Part = url.removePrefix("vmess://")
-            val decoded = String(Base64.decode(base64Part, Base64.DEFAULT))
+            val decoded = decodeBase64Flexible(base64Part)
             
             // Parse JSON
             val json = gson.fromJson(decoded, Map::class.java)
@@ -160,18 +163,15 @@ object ConfigParserEngine {
             val id = json["id"] as? String ?: return ParseResult(null, listOf("Missing user ID in VMess config"), warnings)
             val net = json["net"] as? String ?: "tcp"
             val tls = json["tls"] as? String ?: "none"
-            val hostHeader = (json["host"] as? String)?.takeIf { it.isNotBlank() }
+            val hostHeader = extractHostHeader(json["host"])
             val path = (json["path"] as? String)?.takeIf { it.isNotBlank() }
             val serviceName = (json["serviceName"] as? String)?.takeIf { it.isNotBlank() }
             val sni = (json["sni"] as? String)?.takeIf { it.isNotBlank() }
                 ?: (json["serverName"] as? String)?.takeIf { it.isNotBlank() }
             val fingerprint = (json["fp"] as? String)?.takeIf { it.isNotBlank() }
-            val alpn = (json["alpn"] as? String)
-                ?.split(",")
-                ?.map { it.trim() }
-                ?.filter { it.isNotBlank() }
-                ?: emptyList()
-            val headerType = (json["type"] as? String)?.takeIf { it.isNotBlank() }
+            val alpn = extractAlpn(json["alpn"])
+            val headerType = (json["headerType"] as? String)?.takeIf { it.isNotBlank() }
+                ?: (json["type"] as? String)?.takeIf { it.isNotBlank() && it.lowercase() !in setOf("tcp", "ws", "grpc", "kcp", "quic", "h2", "http") }
             
             // Map to our models
             val transport = when (net.lowercase()) {
@@ -202,7 +202,13 @@ object ConfigParserEngine {
                 securityMode = security,
                 address = add,
                 port = port,
-                realitySettings = null,
+                realitySettings = if (security == SecurityMode.REALITY) {
+                    RealitySettings(
+                        publicKey = (json["pbk"] as? String) ?: "",
+                        shortId = (json["sid"] as? String) ?: "",
+                        spiderX = json["spx"] as? String,
+                    )
+                } else null,
                 tlsSettings = if (security == SecurityMode.TLS || security == SecurityMode.REALITY) {
                     TlsSettings(
                         sni = sni ?: hostHeader ?: add,
@@ -271,18 +277,33 @@ object ConfigParserEngine {
                 securityMode = security,
                 address = host,
                 port = port,
-                realitySettings = null,
-                tlsSettings = TlsSettings(
-                    sni = query["sni"] ?: host,
-                    allowInsecure = query["allowInsecure"]?.toBoolean() ?: false
-                ),
+                realitySettings = if (security == SecurityMode.REALITY) {
+                    RealitySettings(
+                        publicKey = query["pbk"] ?: "",
+                        shortId = query["sid"] ?: "",
+                        spiderX = query["spx"],
+                    )
+                } else null,
+                tlsSettings = if (security == SecurityMode.TLS || security == SecurityMode.REALITY) {
+                    TlsSettings(
+                        sni = query["sni"] ?: host,
+                        allowInsecure = query["allowInsecure"]?.toBoolean() ?: false,
+                        alpn = parseCsv(query["alpn"]),
+                        fingerprint = query["fp"],
+                    )
+                } else null,
                 websocketSettings = if (transport == Transport.WEBSOCKET) {
                     WebsocketSettings(
                         path = query["path"] ?: "/",
                         host = query["host"] ?: host
                     )
                 } else null,
-                tcpSettings = null,
+                tcpSettings = if (transport == Transport.TCP) {
+                    TcpSettings(
+                        headerType = query["headerType"] ?: "none",
+                        host = query["host"],
+                    )
+                } else null,
                 grpcSettings = if (transport == Transport.GRPC) {
                     GrpcSettings(
                         serviceName = query["serviceName"] ?: "",
@@ -309,40 +330,38 @@ object ConfigParserEngine {
         val warnings = mutableListOf<String>()
         
         try {
-            // Handle base64 encoded format
             val raw = url.removePrefix("ss://")
-            val decoded = if (raw.contains("@")) {
-                raw // Plain format
+            val fragment = raw.substringAfter('#', "")
+                .takeIf { it.isNotBlank() }
+                ?.let { URLDecoder.decode(it, "UTF-8") }
+            val withoutFragment = raw.substringBefore('#')
+            val withoutQuery = withoutFragment.substringBefore('?')
+
+            val decodedCore = if (withoutQuery.contains("@")) {
+                withoutQuery
             } else {
-                // Base64 encoded format
-                String(Base64.decode(raw, Base64.NO_PADDING or Base64.URL_SAFE or Base64.NO_WRAP))
+                decodeBase64Flexible(withoutQuery)
             }
-            
-            val atIndex = decoded.indexOf('@')
+
+            val atIndex = decodedCore.lastIndexOf('@')
             if (atIndex == -1) {
                 return ParseResult(null, listOf("Invalid Shadowsocks format"), warnings)
             }
-            
-            val methodPassword = decoded.substring(0, atIndex)
-            val hostPort = decoded.substring(atIndex + 1)
-            
+
+            val methodPassword = decodedCore.substring(0, atIndex)
+            val hostPort = decodedCore.substring(atIndex + 1)
+
             val colonIndex = methodPassword.indexOf(':')
             if (colonIndex == -1) {
                 return ParseResult(null, listOf("Invalid method:password format"), warnings)
             }
-            
+
             val method = methodPassword.substring(0, colonIndex)
             val password = methodPassword.substring(colonIndex + 1)
-            
-            val hostPortParts = hostPort.split(':')
-            if (hostPortParts.size != 2) {
-                return ParseResult(null, listOf("Invalid host:port format"), warnings)
-            }
-            
-            val host = hostPortParts[0]
-            val port = hostPortParts[1].toIntOrNull() ?: return ParseResult(null, listOf("Invalid port"), warnings)
-            
-            val displayName = "Shadowsocks: $host"
+            val (host, port) = parseHostAndPort(hostPort)
+                ?: return ParseResult(null, listOf("Invalid host:port format"), warnings)
+
+            val displayName = fragment ?: "Shadowsocks: $host"
             val displaySubtitle = "Port: $port, Method: $method"
             
             val profile = SwimVpnProfile(
@@ -380,36 +399,28 @@ object ConfigParserEngine {
         val warnings = mutableListOf<String>()
         
         return try {
-            // Parse the JSON string into a map
-            val json = gson.fromJson(jsonString, Map::class.java)
-            
-            // Check if this is an Xray/V2Ray configuration
-            val outbounds = json["outbounds"] as? List<*>
-            if (outbounds.isNullOrEmpty()) {
-                return ParseResult(null, listOf("No outbounds found in JSON configuration"), warnings)
-            }
-            
-            // Take the first outbound (typically the main VPN connection)
-            val firstOutbound = outbounds[0] as? Map<*, *>
-            if (firstOutbound == null) {
-                return ParseResult(null, listOf("Invalid outbound format"), warnings)
-            }
-            
-            val protocol = firstOutbound["protocol"] as? String ?: return ParseResult(
-                null, 
-                listOf("Missing protocol in outbound configuration"), 
+            val root = JsonParser.parseString(jsonString)
+            val firstOutbound = extractPrimaryOutbound(root)
+                ?: return ParseResult(null, listOf("No supported outbound found in JSON configuration"), warnings)
+
+            val outbound = gson.fromJson(firstOutbound, Map::class.java) as? Map<*, *>
+                ?: return ParseResult(null, listOf("Invalid outbound format"), warnings)
+
+            val protocol = outbound["protocol"] as? String ?: return ParseResult(
+                null,
+                listOf("Missing protocol in outbound configuration"),
                 warnings
             )
-            
-            val settings = firstOutbound["settings"] as? Map<*, *>
-            val streamSettings = firstOutbound["streamSettings"] as? Map<*, *>
+
+            val settings = outbound["settings"] as? Map<*, *>
+            val streamSettings = outbound["streamSettings"] as? Map<*, *>
             
             // Parse based on protocol
             when (protocol.lowercase()) {
-                "vless" -> parseVlessJsonConfig(firstOutbound, settings, streamSettings, sourceType, warnings, jsonString)
-                "vmess" -> parseVmessJsonConfig(firstOutbound, settings, streamSettings, sourceType, warnings, jsonString)
-                "trojan" -> parseTrojanJsonConfig(firstOutbound, settings, streamSettings, sourceType, warnings, jsonString)
-                "shadowsocks" -> parseShadowsocksJsonConfig(firstOutbound, settings, streamSettings, sourceType, warnings, jsonString)
+                "vless" -> parseVlessJsonConfig(outbound, settings, streamSettings, sourceType, warnings, jsonString)
+                "vmess" -> parseVmessJsonConfig(outbound, settings, streamSettings, sourceType, warnings, jsonString)
+                "trojan" -> parseTrojanJsonConfig(outbound, settings, streamSettings, sourceType, warnings, jsonString)
+                "shadowsocks" -> parseShadowsocksJsonConfig(outbound, settings, streamSettings, sourceType, warnings, jsonString)
                 else -> ParseResult(
                     null, 
                     listOf("Unsupported protocol '$protocol' in JSON configuration"), 
@@ -757,12 +768,16 @@ object ConfigParserEngine {
             }
             
             // Trojan always uses TLS
-            val securityMode = SecurityMode.TLS
+            val securityMode = when (securityStr.lowercase()) {
+                "reality" -> SecurityMode.REALITY
+                "xtls" -> SecurityMode.XTLS
+                else -> SecurityMode.TLS
+            }
             
             // Parse TLS settings
             var grpcSettings: GrpcSettings? = null
             var tlsSettings: TlsSettings? = null
-            if (securityMode == SecurityMode.TLS) {
+            if (securityMode == SecurityMode.TLS || securityMode == SecurityMode.REALITY) {
                 val tlsSettingsMap = streamSettings?.get("tlsSettings") as? Map<*, *>
                 tlsSettings = TlsSettings(
                     sni = tlsSettingsMap?.get("serverName") as? String ?: address,
@@ -770,6 +785,16 @@ object ConfigParserEngine {
                     alpn = (tlsSettingsMap?.get("alpn") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                     fingerprint = tlsSettingsMap?.get("fingerprint") as? String
                 )
+            }
+            val realitySettings = if (securityMode == SecurityMode.REALITY) {
+                val realitySettingsMap = streamSettings?.get("realitySettings") as? Map<*, *>
+                RealitySettings(
+                    publicKey = realitySettingsMap?.get("publicKey") as? String ?: "",
+                    shortId = realitySettingsMap?.get("shortId") as? String ?: "",
+                    spiderX = realitySettingsMap?.get("spiderX") as? String,
+                )
+            } else {
+                null
             }
             if (transport == Transport.GRPC) {
                 val grpcSettingsMap = streamSettings?.get("grpcSettings") as? Map<*, *>
@@ -791,6 +816,7 @@ object ConfigParserEngine {
                 securityMode = securityMode,
                 address = address,
                 port = port,
+                realitySettings = realitySettings,
                 tlsSettings = tlsSettings,
                 grpcSettings = grpcSettings,
                 password = password,
@@ -889,10 +915,10 @@ object ConfigParserEngine {
         val security = query["security"] ?: "none"
         
         val transport = when (type.lowercase()) {
-            "tcp" -> Transport.TCP
+            "tcp", "raw" -> Transport.TCP
             "ws", "websocket" -> Transport.WEBSOCKET
             "grpc" -> Transport.GRPC
-            "http", "h2" -> Transport.HTTP2
+            "http", "h2", "httpupgrade", "xhttp", "splithttp" -> Transport.HTTP2
             "kcp" -> Transport.KCP
             "quic" -> Transport.QUIC
             else -> Transport.UNKNOWN
@@ -926,5 +952,107 @@ object ConfigParserEngine {
         val trimmed = input.trim()
         return trimmed.startsWith('{') && trimmed.endsWith('}') ||
                trimmed.startsWith('[') && trimmed.endsWith(']')
+    }
+
+    private fun decodeBase64Flexible(input: String): String {
+        val normalized = input.trim()
+            .replace('-', '+')
+            .replace('_', '/')
+            .let { value ->
+                val padding = (4 - value.length % 4) % 4
+                value + "=".repeat(padding)
+            }
+
+        val strategies = listOf(
+            Base64.DEFAULT,
+            Base64.NO_WRAP,
+            Base64.NO_PADDING or Base64.NO_WRAP,
+            Base64.NO_PADDING or Base64.NO_WRAP or Base64.URL_SAFE,
+        )
+
+        for (flags in strategies) {
+            try {
+                return String(Base64.decode(normalized, flags))
+            } catch (_: IllegalArgumentException) {
+                // try next strategy
+            }
+        }
+
+        throw IllegalArgumentException("Invalid Base64 payload")
+    }
+
+    private fun parseHostAndPort(input: String): Pair<String, Int>? {
+        val trimmed = input.trim()
+        if (trimmed.startsWith("[")) {
+            val endBracket = trimmed.indexOf(']')
+            if (endBracket == -1) return null
+            val host = trimmed.substring(1, endBracket)
+            val portPart = trimmed.substring(endBracket + 1).removePrefix(":")
+            val port = portPart.toIntOrNull() ?: return null
+            return host to port
+        }
+
+        val colonIndex = trimmed.lastIndexOf(':')
+        if (colonIndex == -1) return null
+        val host = trimmed.substring(0, colonIndex)
+        val port = trimmed.substring(colonIndex + 1).toIntOrNull() ?: return null
+        return host to port
+    }
+
+    private fun parseCsv(input: String?): List<String> {
+        return input
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?: emptyList()
+    }
+
+    private fun extractHostHeader(value: Any?): String? {
+        return when (value) {
+            is String -> value.takeIf { it.isNotBlank() }
+            is List<*> -> value.filterIsInstance<String>().firstOrNull { it.isNotBlank() }
+            else -> null
+        }
+    }
+
+    private fun extractAlpn(value: Any?): List<String> {
+        return when (value) {
+            is String -> parseCsv(value)
+            is List<*> -> value.filterIsInstance<String>().map { it.trim() }.filter { it.isNotBlank() }
+            else -> emptyList()
+        }
+    }
+
+    private fun extractPrimaryOutbound(root: JsonElement): JsonObject? {
+        return when {
+            root.isJsonObject -> extractPrimaryOutboundFromObject(root.asJsonObject)
+            root.isJsonArray -> extractPrimaryOutboundFromArray(root.asJsonArray)
+            else -> null
+        }
+    }
+
+    private fun extractPrimaryOutboundFromObject(root: JsonObject): JsonObject? {
+        if (root.has("protocol") && root.has("settings")) {
+            return root
+        }
+
+        val outbounds = root.getAsJsonArray("outbounds") ?: return null
+        return outbounds
+            .mapNotNull { element -> element.takeIf { it.isJsonObject }?.asJsonObject }
+            .firstOrNull { outbound ->
+                val protocol = outbound.get("protocol")?.asString?.lowercase()
+                protocol in setOf("vless", "vmess", "trojan", "shadowsocks")
+            }
+    }
+
+    private fun extractPrimaryOutboundFromArray(array: JsonArray): JsonObject? {
+        return array
+            .mapNotNull { element ->
+                when {
+                    element.isJsonObject -> extractPrimaryOutboundFromObject(element.asJsonObject)
+                    else -> null
+                }
+            }
+            .firstOrNull()
     }
 }

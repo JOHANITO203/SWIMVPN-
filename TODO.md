@@ -172,6 +172,11 @@ otification-bot-service event handoff.
   - validate a real `vless://...type=grpc&serviceName=...` inventory config on device
   - confirm the runtime now carries `grpcSettings.serviceName`
   - capture the next device/logcat signal if the tunnel still fails after parser preservation
+- Re-test Android import/parser behavior against real-world variants inside the supported scope:
+  - `trojan://` with `raw` alias and `Reality`
+  - `vmess://` URL-safe / no-padding Base64 payloads
+  - `ss://` base64 + bracketed IPv6 variants
+  - JSON payloads where the first outbound is not the usable tunnel
 - If production still returns `500`, collect runtime logs from:
   - gateway-service
   - store-engine-service

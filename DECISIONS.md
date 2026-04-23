@@ -320,3 +320,9 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `ConfigParserEngine` now materializes `grpcSettings` from URL and JSON inputs.
   - `VMess` URL parsing also preserves more runtime-critical fields instead of dropping them silently.
   - Phase 2-C now advances on real parser/runtime truth rather than continuing to debug packaging symptoms that are already resolved.
+## [2026-04-23] [Strengthen Existing Link Formats Before Adding New Protocols]
+- **Decision**: In Phase 2-C, prioritize hardening the already-supported config ecosystems (`vless://`, `vmess://`, `trojan://`, `ss://`, JSON Xray/V2Ray) before introducing unsupported protocols like `hy2://`.
+- **Why**: Real device testing showed that the current pain is not only “missing protocols”, but also brittle handling of real-world variants inside the protocols we already claim to support. It is more honest and more useful to make supported formats robust first.
+- **Impact**:
+  - The parser now tolerates more transport aliases, Base64 variants, IPv6 forms, and JSON outbound layouts within the supported scope.
+  - The app can reject unsupported ecosystems more honestly later without also failing on common valid variants of its declared supported formats.
