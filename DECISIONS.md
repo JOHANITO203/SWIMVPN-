@@ -290,3 +290,12 @@ otification-bot-service with Resend API for transactional delivery emails.
     - migrate
     - seed
     - service startup
+## [2026-04-23] [Gateway Must Join Dockploy Network For Public Domains]
+- **Decision**: `gateway-service` must join the external `dokploy-network` and expose explicit Traefik labels for `api.swimvpn.pro` and `admin.swimvpn.pro`.
+- **Why**: The backend was healthy, DNS was correct, but the global Dockploy Traefik container lived on `dokploy-network` while the application gateway only lived on `swimvpn-private`. Without a shared network and explicit routers, public traffic could not reach the backend.
+- **Impact**:
+  - `gateway-service` now joins both:
+    - `swimvpn-private`
+    - `dokploy-network`
+  - Public routing is expressed explicitly in compose through Traefik labels.
+  - Internal services remain private and are not exposed to the shared reverse-proxy network.

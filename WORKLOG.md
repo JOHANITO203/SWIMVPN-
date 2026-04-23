@@ -699,3 +699,13 @@ pm run build PASSED.
 - **Verification**:
     - `backend\\npm run build` PASSED.
     - `docker compose config` PASSED.
+## [2026-04-23] [Ops Batch - Dockploy Proxy Network Exposure For Gateway]
+- **Status**: DONE
+- **Changes**:
+    - Attached `gateway-service` to the external `dokploy-network` used by the global Dockploy Traefik proxy.
+    - Added explicit Traefik labels on `gateway-service` for:
+      - `api.swimvpn.pro`
+      - `admin.swimvpn.pro`
+    - Kept all internal services private on `swimvpn-private`; only the public gateway joins the shared proxy network.
+- **Verification**:
+    - `docker compose config` PASSED.

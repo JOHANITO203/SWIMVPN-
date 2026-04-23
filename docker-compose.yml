@@ -2,6 +2,9 @@ networks:
   private:
     driver: bridge
     name: swimvpn-private
+  dokploy-public:
+    external: true
+    name: dokploy-network
 
 volumes:
   swimvpn-pgdata:
@@ -295,4 +298,20 @@ services:
     cpus: "0.30"
     networks:
       - private
+      - dokploy-public
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "dokploy-network"
+      traefik.http.routers.swimvpn-api.rule: "Host(`api.swimvpn.pro`)"
+      traefik.http.routers.swimvpn-api.entrypoints: "websecure"
+      traefik.http.routers.swimvpn-api.tls: "true"
+      traefik.http.routers.swimvpn-api.tls.certresolver: "letsencrypt"
+      traefik.http.routers.swimvpn-api.service: "swimvpn-api"
+      traefik.http.services.swimvpn-api.loadbalancer.server.port: "3000"
+      traefik.http.routers.swimvpn-admin.rule: "Host(`admin.swimvpn.pro`)"
+      traefik.http.routers.swimvpn-admin.entrypoints: "websecure"
+      traefik.http.routers.swimvpn-admin.tls: "true"
+      traefik.http.routers.swimvpn-admin.tls.certresolver: "letsencrypt"
+      traefik.http.routers.swimvpn-admin.service: "swimvpn-admin"
+      traefik.http.services.swimvpn-admin.loadbalancer.server.port: "3000"
 

@@ -157,6 +157,7 @@ otification-bot-service event handoff.
   - `scripts/ops/prisma-rollout.sh` for subsequent normal rollouts
 - Execute the exact Dockploy runbook now that it is documented in `DEPLOYMENT_GUIDE.md`.
 - Re-run `scripts/ops/prisma-rollout.sh --baseline` on Dockploy after the seed stability fix (`--transpile-only` + `256m` seed container).
+- Redeploy after attaching `gateway-service` to `dokploy-network` and adding explicit Traefik labels for `api.swimvpn.pro` / `admin.swimvpn.pro`.
 - After rollout, re-test public backend endpoints:
   - `GET /api/v1/store/plans`
   - `POST /api/v1/access/bootstrap`
@@ -173,4 +174,3 @@ otification-bot-service event handoff.
   - `android/wrapper/`
 - Keep `android/.gradle-user-home/` out of commits permanently; it is now intentionally ignored by Git.
 - If `android/.gradle-user-home/` reappears later, treat it as disposable local cache and delete it after the build/debug batch instead of trying to version it.
-
