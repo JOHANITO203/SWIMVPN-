@@ -690,3 +690,12 @@ pm run build PASSED.
 - **Verification**:
     - `backend\\npm run build` PASSED.
     - `docker compose config` PASSED.
+## [2026-04-23] [Ops Batch - Prisma Seed Linux Stability Fix]
+- **Status**: DONE
+- **Changes**:
+    - Reduced Prisma seed runtime overhead on Linux/Dockploy by switching the seed command to `ts-node --transpile-only`.
+    - Increased `prisma-seed` memory allowance in root compose from `128m` to `256m` to avoid `SIGKILL` during rollout.
+    - Kept the seed logic and rollout order unchanged; this batch only hardens execution stability.
+- **Verification**:
+    - `backend\\npm run build` PASSED.
+    - `docker compose config` PASSED.

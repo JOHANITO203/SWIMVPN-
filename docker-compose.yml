@@ -58,7 +58,7 @@ services:
       prisma-migrate:
         condition: service_completed_successfully
     restart: "no"
-    mem_limit: 128m
+    mem_limit: 256m
     cpus: "0.20"
     networks:
       - private
