@@ -187,7 +187,8 @@ otification-bot-service (TCP 3006) for deterministic post-purchase delivery only
     - Implemented Telegram admin notifications with structured order data and delivery action buttons.
     - Implemented SMTP transactional email sender (from SWIMVPN+ Support <support@swimvpn.pro>) with static RU/EN templates.
     - Added language fallback logic: default RU, fallback EN, optional payload language override.
-    - Added TCP handlers: process_post_purchase_delivery, esend_delivery_email, get_delivery_status.
+    - Added TCP handlers: process_post_purchase_delivery, 
+esend_delivery_email, get_delivery_status.
     - Added Telegram admin commands: /order, /status, /resend, /help (enabled via optional NOTIFICATION_BOT_TOKEN).
     - Integrated inventory-delivery-service to emit post-purchase delivery payload for paid orders.
     - Added service documentation with example payloads and resend-ready notes.
@@ -232,7 +233,8 @@ px ts-node apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts PA
     - Added explicit ADMIN_JWT_SECRET wiring to dmin-control-service and removed fallback hardcoded JWT secret from app module.
     - Migrated 
 otification-bot-service email sender from SMTP (
-odemailer) to Resend API (esend).
+odemailer) to Resend API (
+esend).
     - Added Resend runtime env contract: RESEND_API_KEY, MAILER_FROM_EMAIL, MAILER_FROM_NAME.
     - Updated root/backend .env.example files accordingly.
     - Updated notification service README environment contract to Resend.
@@ -969,4 +971,23 @@ pm run build PASSED.
 - **Verification**:
   - `cd backend && npm run lint` PASSED.
   - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Android Parser Batch - Preserve Modern Link Metadata]
+- **Status**: DONE
+- **Changes**:
+  - Added canonical `flow` preservation for VLESS/Reality and JSON VLESS profiles.
+  - Passed preserved VLESS `flow` into Xray runtime payload generation.
+  - Added tolerant insecure flag parsing for `allowInsecure`, `insecure`, `tlsInsecure`, and `skip-cert-verify`.
+  - Preserved advanced metadata such as `fragment`, `noises`, `serverDescription`, `packetEncoding`, `mux`, and Hysteria2-style fields for diagnostics.
+  - Kept Hysteria2/TUIC/SOCKS/WireGuard recognized as unsupported runtime schemes while exposing detected diagnostic metadata in warnings.
+- **Verification**:
+  - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Android Import UX Batch - Silent Unsupported Format Diagnostics]
+- **Status**: DONE
+- **Changes**:
+  - Mixed imports now keep recognized-but-unsupported runtime formats out of visible success warnings when supported servers are imported.
+  - Added silent diagnostic fields to successful import results for skipped unsupported formats.
+  - Preserved explicit failure when a payload contains no supported importable server.
+  - Updated import success toasts to report the number of servers imported from manual, clipboard, or QR flows.
+- **Verification**:
   - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.

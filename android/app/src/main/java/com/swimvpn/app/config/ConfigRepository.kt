@@ -357,16 +357,24 @@ class ConfigRepository(private val context: Context) {
         val entries = splitConfigEntries(resolution.payload)
         val existingProfiles = getAllProfiles()
         val warnings = resolution.warnings.toMutableList()
+        val silentWarnings = mutableListOf<String>()
         val errors = mutableListOf<String>()
         val importedProfiles = mutableListOf<SwimVpnProfile>()
         val duplicateEntries = mutableListOf<String>()
+        var skippedUnsupportedEntries = 0
         val bundleId = if (entries.size > 1) UUID.randomUUID().toString() else null
 
         entries.forEachIndexed { index, entry ->
             val parseResult = ConfigParserEngine.parseConfig(entry, sourceType)
             if (!parseResult.isValid) {
-                errors += parseResult.errors
-                warnings += parseResult.warnings
+                if (parseResult.isRecognizedUnsupportedRuntimeFormat()) {
+                    skippedUnsupportedEntries += 1
+                    silentWarnings += parseResult.errors
+                    silentWarnings += parseResult.warnings
+                } else {
+                    errors += parseResult.errors
+                    warnings += parseResult.warnings
+                }
                 return@forEachIndexed
             }
 
@@ -393,8 +401,14 @@ class ConfigRepository(private val context: Context) {
                 )
             } else {
                 ImportResult.Error(
-                    errors = errors.ifEmpty { listOf("No supported server could be imported") },
-                    warnings = warnings,
+                    errors = errors.ifEmpty {
+                        if (skippedUnsupportedEntries > 0) {
+                            listOf("No supported server could be imported yet")
+                        } else {
+                            listOf("No supported server could be imported")
+                        }
+                    },
+                    warnings = warnings + silentWarnings,
                 )
             }
         }
@@ -425,7 +439,15 @@ class ConfigRepository(private val context: Context) {
             importedProfiles = finalizedProfiles,
             importedCount = finalizedProfiles.size,
             warnings = warnings,
+            silentWarnings = silentWarnings,
+            skippedUnsupportedCount = skippedUnsupportedEntries,
         )
+    }
+
+    private fun ParseResult.isRecognizedUnsupportedRuntimeFormat(): Boolean {
+        return errors.any { error ->
+            error.contains("recognized but not supported", ignoreCase = true)
+        }
     }
 
     private suspend fun fetchSubscriptionPayload(url: String): SubscriptionFetchResult = withContext(Dispatchers.IO) {
@@ -658,7 +680,9 @@ sealed class ImportResult {
         val profile: SwimVpnProfile,
         val importedProfiles: List<SwimVpnProfile> = listOf(profile),
         val importedCount: Int = importedProfiles.size,
-        val warnings: List<String> = emptyList()
+        val warnings: List<String> = emptyList(),
+        val silentWarnings: List<String> = emptyList(),
+        val skippedUnsupportedCount: Int = 0,
     ) : ImportResult()
     
     data class Duplicate(

@@ -42,6 +42,7 @@ data class SwimVpnProfile(
     val userId: String? = null,               // VLESS/VMess user ID
     val password: String? = null,             // Trojan/Shadowsocks password
     val method: String? = null,               // Shadowsocks method
+    val flow: String? = null,                 // VLESS/XTLS/Reality flow, e.g. xtls-rprx-vision
     
     // Display
     val displayName: String,
@@ -53,6 +54,7 @@ data class SwimVpnProfile(
     
     // Runtime
     val normalizedRuntimeConfig: String? = null,
+    val advancedSettings: Map<String, String> = emptyMap(),
     
     // Metadata
     val importedAt: Long = System.currentTimeMillis(),

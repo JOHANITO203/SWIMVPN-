@@ -234,6 +234,9 @@ otification-bot-service event handoff.
   - coherent group
   - individually activable nodes
 - Re-test the newly hardened parser cases specifically:
+  - `vless://` / JSON VLESS with `flow=xtls-rprx-vision`
+  - links using `insecure=1`, `allowInsecure=1`, `tlsInsecure=1`, or `skip-cert-verify=1`
+  - links containing preserved-but-not-runtime-verified `fragment` / `noises`
   - `vmess://` with `net=grpc` where `path` must become `serviceName`
   - `vless://` / `trojan://` / JSON configs using:
     - `http`
@@ -322,3 +325,8 @@ otification-bot-service event handoff.
   - `LOCAL_PROXY`
   - `FULL_TUNNEL`
 - Use latency, byte counters, and diagnostics before making further tuning choices.
+- Re-test mixed import UX:
+  - supported-only payload shows a positive imported-count success message
+  - supported + recognized unsupported payload imports supported servers without noisy warnings
+  - recognized unsupported-only payload fails clearly with no fake success
+  - duplicate-only payload still reports duplicate

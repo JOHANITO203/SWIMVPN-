@@ -478,7 +478,7 @@ object TunnelRuntimeAdapter {
                             add(JsonObject().apply {
                                 addProperty("id", profile.userId)
                                 addProperty("encryption", "none")
-                                addProperty("flow", "")
+                                addProperty("flow", profile.flow ?: "")
                             })
                         })
                     })

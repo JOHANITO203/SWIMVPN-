@@ -51,6 +51,10 @@ object ConfigNormalizationEngine {
         if (profile.address.isBlank()) {
             validationErrors.add("Missing server address")
         }
+
+        if (profile.advancedSettings.keys.any { it.equals("fragment", ignoreCase = true) || it.equals("noises", ignoreCase = true) || it.equals("noise", ignoreCase = true) }) {
+            validationWarnings.add("Advanced DPI metadata is preserved, but fragment/noises runtime support is not verified yet")
+        }
         
         if (profile.port <= 0 || profile.port > 65535) {
             validationErrors.add("Invalid port number: ${profile.port}")
@@ -314,6 +318,9 @@ object ConfigNormalizationEngine {
                 appendLine("      \"users\": [{")
                 appendLine("        \"id\": \"${profile.userId}\",")
                 appendLine("        \"encryption\": \"none\"")
+                profile.flow?.takeIf { it.isNotBlank() }?.let { flow ->
+                    appendLine("        ,\"flow\": \"$flow\"")
+                }
                 appendLine("      }]")
                 appendLine("    }]")
                 appendLine("  },")

@@ -37,11 +37,7 @@ object ConfigParserEngine {
                 trimmed.startsWith("vmess://") -> parseVmessUrl(trimmed, sourceType)
                 trimmed.startsWith("trojan://") -> parseTrojanUrl(trimmed, sourceType)
                 trimmed.startsWith("ss://") -> parseShadowsocksUrl(trimmed, sourceType)
-                isRecognizedUnsupportedModernScheme(trimmed) -> ParseResult(
-                    null,
-                    listOf("${modernSchemeLabel(trimmed)} configuration is recognized but not supported by the current runtime yet"),
-                    emptyList(),
-                )
+                isRecognizedUnsupportedModernScheme(trimmed) -> parseUnsupportedModernConfig(trimmed)
                 isJsonConfig(trimmed) -> parseJsonConfig(trimmed, sourceType)
                 else -> ParseResult(null, listOf("Unsupported configuration format"), emptyList())
             }
@@ -64,6 +60,7 @@ object ConfigParserEngine {
             val port = parsed.port ?: 443
             val query = parsed.query?.let { parseQueryParams(it) } ?: emptyMap()
             val fragment = parsed.fragment
+            val flow = query["flow"]?.takeIf { it.isNotBlank() }
             
             // Determine transport and security
             val (transport, security, _) = parseTransportAndSecurity(query)
@@ -92,7 +89,7 @@ object ConfigParserEngine {
                 tlsSettings = if (security == SecurityMode.TLS || security == SecurityMode.REALITY) {
                     TlsSettings(
                         sni = query["sni"] ?: host,
-                        allowInsecure = query["allowInsecure"]?.toBoolean() ?: false,
+                        allowInsecure = parseBooleanFlag(query, "allowInsecure", "insecure", "tlsInsecure", "skip-cert-verify"),
                         alpn = parseCsv(query["alpn"]),
                         fingerprint = query["fp"]
                     )
@@ -124,8 +121,10 @@ object ConfigParserEngine {
                     )
                 } else null,
                 userId = userId,
+                flow = flow,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
+                advancedSettings = extractAdvancedSettings(query),
                 parseWarnings = warnings
             )
             
@@ -164,6 +163,7 @@ object ConfigParserEngine {
                 ?: (json["serverName"] as? String)?.takeIf { it.isNotBlank() }
             val fingerprint = (json["fp"] as? String)?.takeIf { it.isNotBlank() }
             val alpn = extractAlpn(json["alpn"])
+            val flow = (json["flow"] as? String)?.takeIf { it.isNotBlank() }
             val headerType = (json["headerType"] as? String)?.takeIf { it.isNotBlank() }
                 ?: (json["type"] as? String)?.takeIf { it.isNotBlank() && it.lowercase() !in setOf("tcp", "ws", "grpc", "kcp", "quic", "h2", "http") }
             
@@ -207,7 +207,7 @@ object ConfigParserEngine {
                 tlsSettings = if (security == SecurityMode.TLS || security == SecurityMode.REALITY) {
                     TlsSettings(
                         sni = sni ?: hostHeader ?: add,
-                        allowInsecure = false,
+                        allowInsecure = parseBooleanFlag(json, "allowInsecure", "insecure", "tlsInsecure", "skip-cert-verify"),
                         alpn = alpn,
                         fingerprint = fingerprint,
                     )
@@ -236,8 +236,10 @@ object ConfigParserEngine {
                     )
                 } else null,
                 userId = id,
+                flow = flow,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
+                advancedSettings = extractAdvancedSettings(json),
                 parseWarnings = warnings
             )
             
@@ -286,7 +288,7 @@ object ConfigParserEngine {
                 tlsSettings = if (security == SecurityMode.TLS || security == SecurityMode.REALITY) {
                     TlsSettings(
                         sni = query["sni"] ?: host,
-                        allowInsecure = query["allowInsecure"]?.toBoolean() ?: false,
+                        allowInsecure = parseBooleanFlag(query, "allowInsecure", "insecure", "tlsInsecure", "skip-cert-verify"),
                         alpn = parseCsv(query["alpn"]),
                         fingerprint = query["fp"],
                     )
@@ -317,6 +319,7 @@ object ConfigParserEngine {
                 password = userInfo,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
+                advancedSettings = extractAdvancedSettings(query),
                 parseWarnings = warnings
             )
             
@@ -478,6 +481,7 @@ object ConfigParserEngine {
                 listOf("Missing user ID in VLESS configuration"), 
                 warnings
             )
+            val flow = extractString(users["flow"]) ?: extractString(outbound["flow"]) ?: extractString(settings?.get("flow"))
             
             // Parse transport and security from streamSettings
             val transportStr = streamSettings?.get("network") as? String ?: "tcp"
@@ -553,7 +557,7 @@ object ConfigParserEngine {
                     val tlsSettingsMap = streamSettings?.get("tlsSettings") as? Map<*, *>
                     tlsSettings = TlsSettings(
                         sni = tlsSettingsMap?.get("serverName") as? String ?: address,
-                        allowInsecure = tlsSettingsMap?.get("allowInsecure") as? Boolean ?: false,
+                        allowInsecure = parseBooleanFlag(tlsSettingsMap, "allowInsecure", "insecure", "tlsInsecure", "skip-cert-verify"),
                         alpn = (tlsSettingsMap?.get("alpn") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         fingerprint = tlsSettingsMap?.get("fingerprint") as? String
                     )
@@ -587,8 +591,10 @@ object ConfigParserEngine {
                 tcpSettings = tcpSettings,
                 grpcSettings = grpcSettings,
                 userId = userId,
+                flow = flow,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
+                advancedSettings = extractAdvancedSettings(streamSettings),
                 parseWarnings = warnings
             )
             
@@ -709,7 +715,7 @@ object ConfigParserEngine {
                     val tlsSettingsMap = streamSettings?.get("tlsSettings") as? Map<*, *>
                     tlsSettings = TlsSettings(
                         sni = tlsSettingsMap?.get("serverName") as? String ?: address,
-                        allowInsecure = tlsSettingsMap?.get("allowInsecure") as? Boolean ?: false,
+                        allowInsecure = parseBooleanFlag(tlsSettingsMap, "allowInsecure", "insecure", "tlsInsecure", "skip-cert-verify"),
                         alpn = (tlsSettingsMap?.get("alpn") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         fingerprint = tlsSettingsMap?.get("fingerprint") as? String
                     )
@@ -745,6 +751,7 @@ object ConfigParserEngine {
                 userId = userId,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
+                advancedSettings = extractAdvancedSettings(streamSettings),
                 parseWarnings = warnings
             )
             
@@ -817,7 +824,7 @@ object ConfigParserEngine {
                 val tlsSettingsMap = streamSettings?.get("tlsSettings") as? Map<*, *>
                 tlsSettings = TlsSettings(
                     sni = tlsSettingsMap?.get("serverName") as? String ?: address,
-                    allowInsecure = tlsSettingsMap?.get("allowInsecure") as? Boolean ?: false,
+                    allowInsecure = parseBooleanFlag(tlsSettingsMap, "allowInsecure", "insecure", "tlsInsecure", "skip-cert-verify"),
                     alpn = (tlsSettingsMap?.get("alpn") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                     fingerprint = tlsSettingsMap?.get("fingerprint") as? String
                 )
@@ -869,6 +876,7 @@ object ConfigParserEngine {
                 password = password,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
+                advancedSettings = extractAdvancedSettings(streamSettings),
                 parseWarnings = warnings
             )
             
@@ -1142,6 +1150,83 @@ object ConfigParserEngine {
             ?.map { it.trim() }
             ?.filter { it.isNotBlank() }
             ?: emptyList()
+    }
+
+    private fun parseBooleanFlag(values: Map<*, *>?, vararg keys: String): Boolean {
+        if (values == null) return false
+        for (key in keys) {
+            val value = values[key] ?: values.entries.firstOrNull {
+                it.key?.toString()?.equals(key, ignoreCase = true) == true
+            }?.value ?: continue
+            return when (value) {
+                is Boolean -> value
+                is Number -> value.toInt() != 0
+                is String -> value.equals("true", ignoreCase = true) ||
+                    value == "1" ||
+                    value.equals("yes", ignoreCase = true) ||
+                    value.equals("y", ignoreCase = true)
+                else -> false
+            }
+        }
+        return false
+    }
+
+    private fun extractString(value: Any?): String? {
+        return when (value) {
+            is String -> value.takeIf { it.isNotBlank() }
+            is Number -> value.toString()
+            is Boolean -> value.toString()
+            else -> null
+        }
+    }
+
+    private fun extractAdvancedSettings(values: Map<*, *>?): Map<String, String> {
+        if (values == null) return emptyMap()
+        val keys = setOf(
+            "fragment",
+            "noises",
+            "noise",
+            "serverDescription",
+            "packetEncoding",
+            "mux",
+            "smux",
+            "mport",
+            "mportHopInt",
+            "port",
+            "obfs",
+            "obfs-password",
+            "auth",
+        )
+        return values.entries.mapNotNull { (rawKey, rawValue) ->
+            val key = rawKey?.toString() ?: return@mapNotNull null
+            val matched = keys.firstOrNull { it.equals(key, ignoreCase = true) } ?: return@mapNotNull null
+            val value = when (rawValue) {
+                is String -> rawValue
+                is Number, is Boolean -> rawValue.toString()
+                is List<*> -> rawValue.joinToString(",") { it.toString() }
+                is Map<*, *> -> gson.toJson(rawValue)
+                else -> rawValue?.toString()
+            }?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            matched to value
+        }.toMap()
+    }
+
+    private fun parseUnsupportedModernConfig(input: String): ParseResult {
+        val warnings = mutableListOf<String>()
+        val label = modernSchemeLabel(input)
+        val parsedQuery = runCatching {
+            val query = input.substringAfter('?', "").substringBefore('#').takeIf { it.isNotBlank() }
+            query?.let { parseQueryParams(it) } ?: emptyMap()
+        }.getOrDefault(emptyMap())
+        val metadata = extractAdvancedSettings(parsedQuery)
+        if (metadata.isNotEmpty()) {
+            warnings += "$label metadata preserved for diagnostics only: ${metadata.keys.sorted().joinToString(", ")}"
+        }
+        return ParseResult(
+            null,
+            listOf("$label configuration is recognized but not supported by the current runtime yet"),
+            warnings,
+        )
     }
 
     private fun isRecognizedUnsupportedModernScheme(input: String): Boolean {

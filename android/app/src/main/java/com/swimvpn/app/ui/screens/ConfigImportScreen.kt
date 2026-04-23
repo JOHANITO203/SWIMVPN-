@@ -329,7 +329,7 @@ fun ConfigImportScreen(
                             @Suppress("UNUSED_VALUE")
                             showImportDialog = false
                             onImportToProfile(text)
-                            showToast("Configuration imported successfully")
+                            showToast(formatImportSuccessMessage(result.importedCount))
                         }
                         is com.swimvpn.app.config.ImportResult.Error -> {
                             showToast("Import error: ${result.errors.firstOrNull() ?: "Unknown error"}")
@@ -364,7 +364,7 @@ fun ConfigImportScreen(
                                 importedProfiles = configRepository.getAllProfiles()
                                 onImportToProfile(content)
                                 onDismissClipboardSheet()
-                                showToast("Configuration imported from clipboard")
+                                showToast(formatImportSuccessMessage(result.importedCount, "from clipboard"))
                             }
                             is com.swimvpn.app.config.ImportResult.Error -> {
                                 showToast("Clipboard import error: ${result.errors.firstOrNull() ?: "Unknown error"}")
@@ -397,7 +397,7 @@ fun ConfigImportScreen(
                                 importedProfiles = configRepository.getAllProfiles()
                                 onImportToProfile(qrText)
                                 onCloseQrScanner()
-                                showToast("Configuration imported from QR code")
+                                showToast(formatImportSuccessMessage(result.importedCount, "from QR code"))
                             }
                             is com.swimvpn.app.config.ImportResult.Error -> {
                                 showToast("QR import error: ${result.errors.firstOrNull() ?: "Unknown error"}")
@@ -422,4 +422,10 @@ fun ConfigImportScreen(
             null
         }
     }
+}
+
+private fun formatImportSuccessMessage(importedCount: Int, sourceLabel: String? = null): String {
+    val itemLabel = if (importedCount == 1) "server" else "servers"
+    val sourceSuffix = sourceLabel?.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
+    return "Imported $importedCount $itemLabel$sourceSuffix successfully"
 }

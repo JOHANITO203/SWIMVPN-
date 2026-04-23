@@ -377,6 +377,8 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `VMess gRPC` now keeps a usable `serviceName` via `path` fallback when needed.
   - `HTTP2`-family transports now preserve `path/host` metadata through the canonical profile.
   - `Shadowsocks` plugin metadata is preserved in the canonical profile with an explicit warning when runtime support is still incomplete.
+  - VLESS/Reality `flow` is preserved and passed to runtime.
+  - DPI-related `fragment/noises` metadata is preserved with a warning until runtime support is verified.
 ## [2026-04-23] [VPN Stop Must Clean Runtime Resources Even When State Is Desynced]
 - **Decision**: Android VPN shutdown must be resource-driven, not only state-driven.
 - **Why**: A stop request can arrive while runtime startup is still in flight or after `VpnManager` has already drifted to `IDLE/STOPPING`. In that case, relying only on UI/runtime state allows Xray to survive and keep local ports occupied after disconnect.
@@ -442,3 +444,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Customer service owns access/device validation.
   - VPN config engine owns crypt1 decrypt/decompress logic.
   - Android receives only the resolved raw config payload after backend authorization.
+## [2026-04-23] [Mixed Imports Prefer Positive Supported Results]
+- **Decision**: When a pasted payload contains both supported servers and recognized-but-unsupported modern formats, the app should import the supported servers and keep unsupported-format details as silent diagnostics.
+- **Why**: Users need a positive, understandable result when useful servers were imported. Unsupported Hysteria2/TUIC/SOCKS/WireGuard-style entries are product/runtime gaps, not client-facing failures when other entries succeeded.
+- **Impact**:
+  - Supported entries remain importable from mixed subscriptions.
+  - Unsupported recognized entries are retained for diagnostics without polluting the success UI.
+  - If no supported server is importable, the import still fails clearly.
