@@ -1293,3 +1293,12 @@ pm run build PASSED.
   - Preserved the current runtime/session counters and backend quota truth without inventing new analytics logic.
 - **Verification**:
   - `cd android && .\\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+## [2026-04-24] [Subscription UI Cleanup + Measured Quota Progress]
+- **Status**: DONE
+- **Changes**:
+  - Removed explanatory subtexts from subscription payment cards, connectivity controls, and app-preferences tiles.
+  - Removed the extra analytics commentary and dropped the device-session traffic block from the profile screen.
+  - Replaced the analytics area with a single measured-quota progress view built from backend `dataUsedBytes` and plan quota.
+  - Kept the progress bar reserved for measured subscription consumption only, so it can later drive access cut-off and renewal control without mixing in local session counters.
+- **Verification**:
+  - `cd android && .\\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.

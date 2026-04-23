@@ -433,3 +433,12 @@ otification-bot-service event handoff.
   - add a server-side usage source of truth
   - populate `dataUsedBytes` with real measured values
   - then reintroduce a true global usage progress view
+
+## [2026-04-24] Backend Quota + Device Enforcement Follow-up
+- Add a real backend usage source of truth for sold subscriptions and imported supplier links.
+- Populate `dataUsedBytes` with measured subscription consumption only.
+- Enforce plan quota exhaustion as a strict access rule.
+- Model supplier capacity explicitly:
+  - large supplier links can expose `1000 GB`
+  - each such source can be split across at most `5` different users in SWIMVPN
+- Track those `5` user allocations server-side so Telegram or the Android app never becomes the source of truth.

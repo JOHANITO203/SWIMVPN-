@@ -172,60 +172,121 @@ const Atmosphere = () => (
 
 const InteractiveGlobe = () => {
   const pointsRef = useRef<THREE.Points>(null);
-  const particleCount = 75000; // Balanced for pixel-perfect clarity
+  const [geometryData, setGeometryData] = useState<{ positions: Float32Array, colors: Float32Array } | null>(null);
 
-  const [{ initialPositions, initialSizes, initialColors }] = useState(() => {
-    const pos = new Float32Array(particleCount * 3);
-    const siz = new Float32Array(particleCount);
-    const col = new Float32Array(particleCount * 3);
+  useEffect(() => {
+    let mounted = true;
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    // Landmask: Oceans are light/white, Continents are dark/black
+    img.src = "https://unpkg.com/three-globe/example/img/earth-water.png";
 
-    for (let i = 0; i < particleCount; i++) {
-      const phi = Math.acos(-1 + (2 * i) / particleCount);
-      const theta = Math.sqrt(particleCount * Math.PI) * phi;
-      pos[i * 3] = GLOBE_RADIUS * Math.cos(theta) * Math.sin(phi);
-      pos[i * 3 + 1] = GLOBE_RADIUS * Math.sin(theta) * Math.sin(phi);
-      pos[i * 3 + 2] = GLOBE_RADIUS * Math.cos(phi);
+    img.onload = () => {
+      if (!mounted) return;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
 
-      // Uniform empty sphere (no continents)
-      siz[i] = 0.003;
-      col[i*3] = 30/255; col[i*3+1] = 41/255; col[i*3+2] = 59/255; // Slate 800
-    }
-    return { initialPositions: pos, initialSizes: siz, initialColors: col };
-  });
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      const targetLandParticles = 240000;
+      const positions = [];
+      const colors = [];
+
+      // The Earth's land surface is ~29% of its total surface.
+      // To get EXACTLY 240,000 points on land, we evaluate points sequentially on a very dense full sphere
+      const evaluateCount = 850000;
+
+      for (let i = 0; i < evaluateCount; i++) {
+        // Fibonacci sphere distribution for perfectly even sampling
+        const phi = Math.acos(-1 + (2 * i) / evaluateCount);
+        const theta = Math.sqrt(evaluateCount * Math.PI) * phi;
+
+        const x = GLOBE_RADIUS * Math.cos(theta) * Math.sin(phi);
+        const y = GLOBE_RADIUS * Math.sin(theta) * Math.sin(phi);
+        const z = GLOBE_RADIUS * Math.cos(phi);
+
+        // Convert to UV coordinates to check the image map
+        const lat = Math.asin(y / GLOBE_RADIUS);
+        const lon = Math.atan2(z, x);
+
+        const u = 0.5 + lon / (2 * Math.PI);
+        const v = 0.5 - lat / Math.PI;
+
+        const px = Math.max(0, Math.min(Math.floor(u * img.width), img.width - 1));
+        const py = Math.max(0, Math.min(Math.floor(v * img.height), img.height - 1));
+        const index = (py * img.width + px) * 4;
+
+        // In earth-water.png, land is black (< 128) and water is white (> 128)
+        const isLand = imgData.data[index] < 128;
+
+        if (isLand) {
+          positions.push(x, y, z);
+          // Electric blue color for land pixels
+          colors.push(46/255, 144/255, 250/255);
+
+          // Stop calculating once we hit exactly 240,000 micro-pixels on land!
+          if (positions.length / 3 >= targetLandParticles) {
+            break;
+          }
+        }
+      }
+
+      setGeometryData({
+        positions: new Float32Array(positions),
+        colors: new Float32Array(colors)
+      });
+    };
+
+    return () => { mounted = false; };
+  }, []);
+
+  if (!geometryData) {
+    // Show a faint wireframe sphere while calculating the 240,000 pixels
+    return (
+      <group>
+        <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.8} rotateSpeed={0.6} />
+        <mesh>
+          <sphereGeometry args={[GLOBE_RADIUS * 0.98, 32, 32]} />
+          <meshBasicMaterial color={BRAND.primary} wireframe transparent opacity={0.05} />
+        </mesh>
+        <Atmosphere />
+      </group>
+    );
+  }
 
   return (
     <group>
       <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.8} rotateSpeed={0.6} />
       <points ref={pointsRef}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={particleCount} array={initialPositions} itemSize={3} />
-          <bufferAttribute attach="attributes-size" count={particleCount} array={initialSizes} itemSize={1} />
-          <bufferAttribute attach="attributes-color" count={particleCount} array={initialColors} itemSize={3} />
+          <bufferAttribute attach="attributes-position" count={geometryData.positions.length / 3} array={geometryData.positions} itemSize={3} />
+          <bufferAttribute attach="attributes-color" count={geometryData.colors.length / 3} array={geometryData.colors} itemSize={3} />
         </bufferGeometry>
         <shaderMaterial
           transparent
           vertexColors
-          uniforms={{ opacity: { value: 0.85 } }}
+          uniforms={{ opacity: { value: 0.95 } }}
           vertexShader={`
-            attribute float size;
             attribute vec3 color;
             varying vec3 vColor;
-            varying float vSize;
             void main() {
-              vSize = size;
               vColor = color;
               vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-              gl_PointSize = size * (300.0 / -mvPosition.z);
+              // Micro pixel size to form the continents purely from dots
+              gl_PointSize = 0.009 * (300.0 / -mvPosition.z);
               gl_Position = projectionMatrix * mvPosition;
             }
           `}
           fragmentShader={`
             uniform float opacity;
             varying vec3 vColor;
-            varying float vSize;
             void main() {
-              // Removed circular discard to render perfect sharp pixel squares
-              gl_FragColor = vec4(vColor, opacity * 1.2);
+              // Sharp square pixel
+              gl_FragColor = vec4(vColor, opacity);
             }
           `}
           blending={THREE.AdditiveBlending}

@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -156,25 +155,16 @@ fun SubscriptionScreen(
             PaymentMethodCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.payment_method_card),
-                subtitle = stringResource(R.string.payment_method_card_desc),
                 isSelected = selectedPaymentMethod == "CARD_MANUAL",
                 onClick = { selectedPaymentMethod = "CARD_MANUAL" }
             )
             PaymentMethodCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.payment_method_crypto),
-                subtitle = stringResource(R.string.payment_method_crypto_desc),
                 isSelected = selectedPaymentMethod == "CRYPTO",
                 onClick = { selectedPaymentMethod = "CRYPTO" }
             )
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        FeatureItem(stringResource(R.string.feature_1))
-        FeatureItem(stringResource(R.string.feature_2))
-        FeatureItem(stringResource(R.string.feature_3))
-        FeatureItem(stringResource(R.string.feature_4))
 
         Spacer(modifier = Modifier.height(48.dp))
 
@@ -204,7 +194,6 @@ fun SubscriptionScreen(
 private fun PaymentMethodCard(
     modifier: Modifier = Modifier,
     title: String,
-    subtitle: String,
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -222,20 +211,14 @@ private fun PaymentMethodCard(
             )
     ) {
         Column(
-            modifier = Modifier.padding(18.dp)
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = title,
                 color = SwimNavyMouth,
                 fontWeight = FontWeight.Black,
-                fontSize = 14.sp,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = subtitle,
-                color = Color(0xFF64748B),
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                fontSize = 14.sp
             )
         }
     }
@@ -313,27 +296,6 @@ fun PlanCard(
                 Text(stringResource(R.string.label_traffic), color = Color(0xFF64748B), fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
-    }
-}
-
-@Composable
-fun FeatureItem(text: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .background(SwimBlueMain.copy(alpha = 0.1f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = SwimBlueMain, modifier = Modifier.size(16.dp))
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(text, color = SwimNavyMouth, fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
 }
 

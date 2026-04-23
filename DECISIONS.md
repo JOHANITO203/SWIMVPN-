@@ -568,3 +568,10 @@ otification-bot-service with Resend API for transactional delivery emails.
     - synced access status/expiry
   - Product wording no longer overstates analytics maturity.
   - Future server-side usage analytics can be added later without undoing this UI truthfulness baseline.
+## [2026-04-24] [Subscription Progress Must Follow Measured Backend Usage Only]
+- **Decision**: The subscription progress bar must be driven only by measured backend usage (`dataUsedBytes`) against the sold plan quota, never by ad-hoc local session traffic.
+- **Why**: This bar is intended to become a business control surface for cut-off, renewal decisions, and quota enforcement. Mixing runtime session counters into it would make the value visually active but operationally false.
+- **Impact**:
+  - The profile screen now shows a quota progress bar that is reserved for real measured subscription consumption.
+  - Until backend usage collection exists, the progress stays at zero instead of inventing fake depletion.
+  - The next backend batch must introduce strict usage and device-allocation rules before this bar becomes an enforcement tool.

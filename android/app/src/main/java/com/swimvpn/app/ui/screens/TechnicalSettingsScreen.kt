@@ -199,7 +199,6 @@ fun TechnicalSettingsScreen(
                 SettingsRowWithSwitch(
                     icon = Icons.Outlined.PowerSettingsNew,
                     title = stringResource(R.string.auto_connect),
-                    subtitle = stringResource(R.string.desc_boot),
                     checked = autoConnect,
                     onCheckedChange = onAutoConnectChange
                 )
@@ -207,7 +206,6 @@ fun TechnicalSettingsScreen(
                 SettingsRowWithChip(
                     icon = Icons.Outlined.Security,
                     title = stringResource(R.string.kill_switch),
-                    subtitle = killSwitchStatusSubtitle(killSwitchStatus),
                     chipText = killSwitchStatusChip(killSwitchStatus),
                     enabled = externalActionsArmed,
                     onClick = {
@@ -290,20 +288,12 @@ private fun AppPreferencesPanel(
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp
             )
-            Text(
-                text = stringResource(R.string.app_preferences_desc),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
-                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
             Box {
                 AppPreferenceTile(
                     icon = Icons.Outlined.Language,
                     title = stringResource(R.string.label_language),
-                    subtitle = stringResource(R.string.desc_language),
                     chipText = languageChipLabel(language),
                     onClick = { onLanguageMenuChange(true) }
                 )
@@ -334,7 +324,6 @@ private fun AppPreferencesPanel(
                 AppPreferenceTile(
                     icon = Icons.Outlined.Palette,
                     title = stringResource(R.string.label_theme),
-                    subtitle = stringResource(R.string.desc_theme),
                     chipText = themeChipLabel(selectedThemeMode),
                     onClick = { onThemeMenuChange(true) }
                 )
@@ -366,7 +355,6 @@ private fun AppPreferencesPanel(
 private fun AppPreferenceTile(
     icon: ImageVector,
     title: String,
-    subtitle: String,
     chipText: String,
     onClick: () -> Unit,
 ) {
@@ -402,13 +390,6 @@ private fun AppPreferenceTile(
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp
-                    )
-                    Text(
-                        text = subtitle,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp,
-                        letterSpacing = 0.4.sp
                     )
                 }
             }
@@ -510,18 +491,6 @@ private fun RoutingControlPanel(
             fontSize = 13.sp,
             letterSpacing = 0.8.sp
         )
-        Text(
-            text = routingStatusText(
-                selectedMode = normalizedSelectedMode,
-                activeMode = normalizedActiveMode,
-                runtimeStatus = runtimeStatus,
-            ),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 11.sp,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-
         Spacer(modifier = Modifier.height(18.dp))
 
         Row(
@@ -546,14 +515,6 @@ private fun RoutingControlPanel(
             )
         }
 
-        Text(
-            text = stringResource(R.string.routing_runtime_desc),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium,
-            fontSize = 10.sp,
-            lineHeight = 14.sp,
-            modifier = Modifier.padding(top = 14.dp)
-        )
     }
 }
 
@@ -628,24 +589,6 @@ private fun RoutingModeButton(
     }
 }
 
-@Composable
-private fun routingStatusText(
-    selectedMode: String,
-    activeMode: String?,
-    runtimeStatus: String,
-): String {
-    return when (runtimeStatus.uppercase()) {
-        "RUNNING" -> {
-            val label = activeMode?.let { routingChipLabel(it) } ?: routingChipLabel(selectedMode)
-            "$label ACTIVE"
-        }
-        "STARTING" -> "${routingChipLabel(selectedMode)} STARTING"
-        "STOPPING" -> "${routingChipLabel(selectedMode)} STOPPING"
-        "FAILED" -> "${routingChipLabel(selectedMode)} NEEDS ATTENTION"
-        else -> "${routingChipLabel(selectedMode)} SELECTED"
-    }
-}
-
 private fun normalizeRoutingMode(mode: String): String =
     when (mode.uppercase()) {
         LEGACY_PROXY_MODE, LOCAL_PROXY_MODE -> LOCAL_PROXY_MODE
@@ -685,15 +628,6 @@ private fun killSwitchStatusChip(status: KillSwitchStatus): String {
 }
 
 @Composable
-private fun killSwitchStatusSubtitle(status: KillSwitchStatus): String {
-    return when (status) {
-        KillSwitchStatus.SYSTEM -> stringResource(R.string.kill_switch_desc)
-        KillSwitchStatus.ALWAYS_ON -> stringResource(R.string.kill_switch_desc_always_on)
-        KillSwitchStatus.LOCKDOWN -> stringResource(R.string.kill_switch_desc_lockdown)
-    }
-}
-
-@Composable
 fun SectionTitle(icon: ImageVector, title: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -715,7 +649,6 @@ fun SectionTitle(icon: ImageVector, title: String) {
 fun SettingsRowWithChip(
     icon: ImageVector,
     title: String,
-    subtitle: String,
     chipText: String,
     onClick: () -> Unit,
     enabled: Boolean = true
@@ -747,13 +680,6 @@ fun SettingsRowWithChip(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp
                 )
-                Text(
-                    text = subtitle,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp,
-                    letterSpacing = 0.5.sp
-                )
             }
         }
         Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp)) {
@@ -772,7 +698,6 @@ fun SettingsRowWithChip(
 fun SettingsRowWithSwitch(
     icon: ImageVector,
     title: String,
-    subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
@@ -799,13 +724,6 @@ fun SettingsRowWithSwitch(
                     fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp
-                )
-                Text(
-                    text = subtitle,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp,
-                    letterSpacing = 0.5.sp
                 )
             }
         }
