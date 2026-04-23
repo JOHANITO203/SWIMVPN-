@@ -75,6 +75,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
+      SWIMVPN_CRYPT1_KEY_BASE64: ${SWIMVPN_CRYPT1_KEY_BASE64:-}
     depends_on:
       db:
         condition: service_healthy

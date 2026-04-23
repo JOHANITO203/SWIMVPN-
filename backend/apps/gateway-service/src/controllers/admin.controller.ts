@@ -4,7 +4,10 @@ import { AdminGuard } from '../admin.guard';
 
 @Controller('admin')
 export class AdminController {
-  constructor(@Inject('ADMIN_SERVICE') private readonly adminClient: ClientProxy) {}
+  constructor(
+    @Inject('ADMIN_SERVICE') private readonly adminClient: ClientProxy,
+    @Inject('VPN_CONFIG_SERVICE') private readonly vpnConfigClient: ClientProxy,
+  ) {}
 
   @Post('login')
   login(@Body() data: any) {
@@ -27,6 +30,12 @@ export class AdminController {
   @Post('import')
   importConfigs(@Body() data: any, @Req() req: any) {
     return this.adminClient.send({ cmd: 'trigger_import' }, { ...data, adminId: req.admin.id });
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('crypt-import')
+  generateCryptImport(@Body() data: any) {
+    return this.vpnConfigClient.send({ cmd: 'generate_swim_crypt_import' }, data);
   }
 
   @UseGuards(AdminGuard)

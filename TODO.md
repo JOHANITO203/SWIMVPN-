@@ -264,8 +264,40 @@ otification-bot-service event handoff.
   - Base64 subscription content
   - plain multi-link subscription content
 - Keep out of current parser scope until explicitly selected:
-  - Happ `crypt3/crypt4/crypt5` decryption
+  - Happ `crypt3/crypt4/crypt5` import using an authorized provider key/format
   - Happ routing profile import
+- Keep Happ encrypted links as explicit aborts until resolution is real:
+  - no fake preview
+  - no partial import
+  - no claiming support without usable payload
+- Prefer for real-world Happ-compatible imports today:
+  - plain provider `https://...` subscription URLs
+  - `happ://add/https://...` wrappers
+  - unencrypted standard node links such as `vless://`, `vmess://`, `trojan://`, `ss://`, or JSON Xray/V2Ray
+- Re-test backend/admin generation for SWIMVPN-owned encrypted imports:
+  - configure `SWIMVPN_CRYPT1_KEY_BASE64`
+  - call authenticated `POST /api/v1/admin/crypt-import`
+  - confirm generated `swimvpn://crypt1/...` links are not decryptable inside the APK
+- Add backend-side client resolution for SWIMVPN encrypted imports:
+  - authenticated/device-bound endpoint for `swimvpn://crypt1/...`
+  - backend decrypts and returns allowed runtime/import payload
+  - add replay/expiry controls before broad release
+- Next secure-link backend step:
+  - persist generated-link audit metadata if we expose this beyond admin tooling
+  - plan key IDs / key rotation for `crypt2`
+- Re-test modern unsupported protocol recognition in mixed subscriptions:
+  - `hy2://`
+  - `hysteria2://`
+  - `hysteria://`
+  - `tuic://`
+  - `socks://`
+  - `socks5://`
+  - `wg://`
+  - `wireguard://`
+- Do not start engine work for those protocols until we explicitly choose a runtime strategy:
+  - Xray-only where possible
+  - sing-box core
+  - separate protocol-specific core
 
 ### Priority 2 - Engine / Runtime Completion
 - Once a supported node parses correctly, verify:

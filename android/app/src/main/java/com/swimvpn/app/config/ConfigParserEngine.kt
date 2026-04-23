@@ -37,6 +37,11 @@ object ConfigParserEngine {
                 trimmed.startsWith("vmess://") -> parseVmessUrl(trimmed, sourceType)
                 trimmed.startsWith("trojan://") -> parseTrojanUrl(trimmed, sourceType)
                 trimmed.startsWith("ss://") -> parseShadowsocksUrl(trimmed, sourceType)
+                isRecognizedUnsupportedModernScheme(trimmed) -> ParseResult(
+                    null,
+                    listOf("${modernSchemeLabel(trimmed)} configuration is recognized but not supported by the current runtime yet"),
+                    emptyList(),
+                )
                 isJsonConfig(trimmed) -> parseJsonConfig(trimmed, sourceType)
                 else -> ParseResult(null, listOf("Unsupported configuration format"), emptyList())
             }
@@ -1137,6 +1142,27 @@ object ConfigParserEngine {
             ?.map { it.trim() }
             ?.filter { it.isNotBlank() }
             ?: emptyList()
+    }
+
+    private fun isRecognizedUnsupportedModernScheme(input: String): Boolean {
+        return unsupportedModernScheme(input) != null
+    }
+
+    private fun modernSchemeLabel(input: String): String {
+        return when (unsupportedModernScheme(input)) {
+            "hy2", "hysteria2", "hysteria" -> "Hysteria2"
+            "tuic" -> "TUIC"
+            "socks", "socks5" -> "SOCKS"
+            "wg", "wireguard" -> "WireGuard"
+            else -> "Modern VPN"
+        }
+    }
+
+    private fun unsupportedModernScheme(input: String): String? {
+        val scheme = input.substringBefore("://", "").lowercase()
+        return scheme.takeIf {
+            it in setOf("hy2", "hysteria2", "hysteria", "tuic", "socks", "socks5", "wg", "wireguard")
+        }
     }
 
     private fun extractHostHeader(value: Any?): String? {

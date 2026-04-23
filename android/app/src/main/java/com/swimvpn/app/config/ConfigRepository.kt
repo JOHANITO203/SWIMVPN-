@@ -75,13 +75,21 @@ class ConfigRepository(private val context: Context) {
                 }
                 is ResolvedImportInput.HappEncryptedSubscription -> {
                     return ImportResult.Error(
-                        errors = listOf("Recognized Happ encrypted subscription deep link, but encrypted Happ subscription import is not implemented yet"),
+                        errors = listOf(buildHappEncryptedSubscriptionMessage(resolution.version)),
                         warnings = resolution.warnings,
                     )
                 }
                 is ResolvedImportInput.HappRoutingDeepLink -> {
                     return ImportResult.Error(
                         errors = listOf("Recognized Happ routing deep link, but Happ routing profile import is not implemented yet"),
+                        warnings = resolution.warnings,
+                    )
+                }
+                is ResolvedImportInput.SwimEncryptedPayload -> {
+                    return ImportResult.Error(
+                        errors = listOf(
+                            "Recognized SWIMVPN crypt1 payload, but crypt1 resolution must be performed by the backend so no decryption key is exposed in the APK",
+                        ),
                         warnings = resolution.warnings,
                     )
                 }
@@ -245,6 +253,10 @@ class ConfigRepository(private val context: Context) {
         if (!isLikelyVpnConfig(trimmed)) {
             return ClipboardCheckResult.NotVpnConfig
         }
+
+        if (isUnsupportedEncryptedHappDeepLink(trimmed)) {
+            return ClipboardCheckResult.InvalidConfig
+        }
         
         val preview = previewConfig(trimmed)
         if (preview == null) {
@@ -289,7 +301,7 @@ class ConfigRepository(private val context: Context) {
         }
 
         val normalized = trimmed.replace("\r", "\n")
-        val pattern = Regex("(?i)(?=(vless|vmess|trojan|ss)://)")
+        val pattern = Regex("(?i)(?=(vless|vmess|trojan|ss|hy2|hysteria2|hysteria|tuic|socks5|socks|wg|wireguard)://)")
         val matches = pattern.findAll(normalized).toList()
         if (matches.isEmpty()) {
             return listOf(trimmed)
@@ -453,7 +465,7 @@ class ConfigRepository(private val context: Context) {
     }
 
     private fun containsSupportedEntry(input: String): Boolean {
-        return Regex("(?i)(vless|vmess|trojan|ss)://").containsMatchIn(input)
+        return Regex("(?i)(vless|vmess|trojan|ss|hy2|hysteria2|hysteria|tuic|socks5|socks|wg|wireguard)://").containsMatchIn(input)
     }
 
     private fun decodeSubscriptionBase64(input: String): String? {
@@ -479,6 +491,14 @@ class ConfigRepository(private val context: Context) {
         }
 
         val lowercase = trimmed.lowercase()
+
+        if (lowercase.startsWith("swimvpn://crypt1/")) {
+            return ResolvedImportInput.SwimEncryptedPayload(
+                payload = trimmed.substring("swimvpn://crypt1/".length),
+                version = "crypt1",
+                warnings = listOf("Recognized SWIMVPN crypt1 encrypted import payload"),
+            )
+        }
 
         if (lowercase.startsWith("happ://add/")) {
             val wrapped = URLDecoder.decode(trimmed.removePrefix("happ://add/"), "UTF-8").trim()
@@ -509,7 +529,8 @@ class ConfigRepository(private val context: Context) {
             }
             return ResolvedImportInput.HappEncryptedSubscription(
                 payload = trimmed,
-                warnings = listOf("Recognized Happ encrypted subscription deep link: $version"),
+                version = version,
+                warnings = listOf(happEncryptedSubscriptionWarning(version)),
             )
         }
 
@@ -532,6 +553,32 @@ class ConfigRepository(private val context: Context) {
         }
 
         return ResolvedImportInput.DirectConfig(payload = trimmed)
+    }
+
+    private fun isUnsupportedEncryptedHappDeepLink(input: String): Boolean {
+        val lowercase = input.trim().lowercase()
+        return lowercase.startsWith("happ://crypt3/") ||
+            lowercase.startsWith("happ://crypt4/") ||
+            lowercase.startsWith("happ://crypt5/")
+    }
+
+    private fun happEncryptedSubscriptionWarning(version: String): String {
+        return when (version) {
+            "crypt5" -> "Recognized Happ crypt5 encrypted subscription deep link (current/preferred Happ format)"
+            "crypt4" -> "Recognized Happ crypt4 encrypted subscription deep link (legacy Happ format)"
+            "crypt3" -> "Recognized Happ crypt3 encrypted subscription deep link (legacy Happ format)"
+            else -> "Recognized Happ encrypted subscription deep link"
+        }
+    }
+
+    private fun buildHappEncryptedSubscriptionMessage(version: String): String {
+        val label = when (version) {
+            "crypt5" -> "Happ crypt5 encrypted subscription"
+            "crypt4" -> "Happ crypt4 encrypted subscription"
+            "crypt3" -> "Happ crypt3 encrypted subscription"
+            else -> "Happ encrypted subscription"
+        }
+        return "$label is recognized, but SWIMVPN cannot import Happ-protected encrypted subscription links without an authorized provider key/format. Import the original https subscription URL, a happ://add/https://... wrapper, or unencrypted node links such as vless://, vmess://, trojan://, ss://, or JSON Xray/V2Ray."
     }
 }
 
@@ -558,8 +605,15 @@ private sealed class ResolvedImportInput {
         val warnings: List<String> = emptyList(),
     ) : ResolvedImportInput()
 
+    data class SwimEncryptedPayload(
+        val payload: String,
+        val version: String,
+        val warnings: List<String> = emptyList(),
+    ) : ResolvedImportInput()
+
     data class HappEncryptedSubscription(
         val payload: String,
+        val version: String,
         val warnings: List<String> = emptyList(),
     ) : ResolvedImportInput()
 

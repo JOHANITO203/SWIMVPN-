@@ -547,6 +547,15 @@ object ConfigNormalizationEngine {
             trimmed.startsWith("vmess://") -> true
             trimmed.startsWith("trojan://") -> true
             trimmed.startsWith("ss://") -> true
+            trimmed.startsWith("hy2://", ignoreCase = true) -> true
+            trimmed.startsWith("hysteria2://", ignoreCase = true) -> true
+            trimmed.startsWith("hysteria://", ignoreCase = true) -> true
+            trimmed.startsWith("tuic://", ignoreCase = true) -> true
+            trimmed.startsWith("socks://", ignoreCase = true) -> true
+            trimmed.startsWith("socks5://", ignoreCase = true) -> true
+            trimmed.startsWith("wg://", ignoreCase = true) -> true
+            trimmed.startsWith("wireguard://", ignoreCase = true) -> true
+            trimmed.startsWith("swimvpn://crypt1/", ignoreCase = true) -> true
             trimmed.startsWith("happ://", ignoreCase = true) -> true
             trimmed.startsWith("https://", ignoreCase = true) -> true
             trimmed.startsWith("http://", ignoreCase = true) -> true

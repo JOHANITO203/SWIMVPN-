@@ -399,3 +399,39 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Base64 subscription payloads are decoded before splitting into node links.
   - Fetched nodes become normal imported grouped servers.
   - Encrypted Happ subscriptions remain classified separately until their crypto format is implemented.
+## [2026-04-23] [Modern Protocol Schemes Should Be Recognized Before Runtime Support]
+- **Decision**: The parser should recognize modern subscription schemes such as Hysteria2, TUIC, SOCKS, and WireGuard, but must mark them unsupported until the engine can actually execute them.
+- **Why**: Public subscriptions frequently mix supported and unsupported protocols. If the parser cannot identify unsupported schemes, it either hides useful feedback or pollutes neighboring supported entries. If it pretends they are connectable, it misleads the product.
+- **Impact**:
+  - Mixed subscriptions are split more accurately.
+  - Users receive protocol-specific unsupported messages.
+  - Engine/runtime work remains a separate, explicit future milestone.
+## [2026-04-23] [Happ Crypt Links Require Authorized Format Before Import]
+- **Decision**: Happ `crypt5` is classified as the current/preferred encrypted Happ subscription format, while `crypt3` and `crypt4` are classified as legacy encrypted formats. The app must not attempt to import encrypted Happ links without an authorized provider key/format.
+- **Why**: Parser truth should recognize what the user pasted, but encrypted third-party subscription wrappers are access-control boundaries. Supporting them safely requires a legitimate format/key path, not reverse-engineering or bypassing another client.
+- **Impact**:
+  - Happ encrypted links now produce version-specific warnings and actionable import guidance.
+  - Standard subscription URLs and `happ://add/https://...` wrappers remain the supported import path.
+  - Future encrypted import work must be implemented as an authorized provider adapter.
+  - Happ encrypted links are not treated as previewable/importable while their payload cannot be resolved.
+## [2026-04-23] [SWIMVPN Encrypted Imports Start With Versioned Crypt1]
+- **Decision**: SWIMVPN-owned encrypted imports start with `swimvpn://crypt1/<payload>`, using AES-256-GCM and a 12-byte nonce prefixed to ciphertext.
+- **Why**: We need a versioned format we control before revisiting third-party encrypted wrappers. Versioning lets us rotate or replace the format later without breaking old import handling.
+- **Impact**:
+  - Android can recognize and decode SWIMVPN `crypt1` payloads when `SWIMVPN_CRYPT1_KEY_BASE64` is configured.
+  - Decrypted plaintext is optionally GZIP-unpacked and then passed through the existing parser/import pipeline.
+  - This is an MVP import-protection mechanism; hardcoded app keys are not treated as perfect DRM and should be rotated through release/build channels later.
+## [2026-04-23] [Backend Owns SWIMVPN Crypt Link Generation]
+- **Decision**: SWIMVPN `crypt1` link generation belongs in `vpn-config-engine-service`, exposed through the authenticated admin gateway route `POST /api/v1/admin/crypt-import`.
+- **Why**: The backend is the controlled authority for inventory/config handling. Keeping encryption generation server-side avoids distributing generation logic broadly and lets the admin/backend layer control keys, compression, and future rotation.
+- **Impact**:
+  - The backend generates `swimvpn://crypt1/...` links with AES-256-GCM and random per-link nonce.
+  - `SWIMVPN_CRYPT1_KEY_BASE64` is configured through environment variables, not committed source.
+  - Android remains a decoder/importer for generated links, not the authority that mints them.
+## [2026-04-23] [Do Not Ship SWIMVPN Crypt1 Decryption Keys In Android APK]
+- **Decision**: Android must recognize `swimvpn://crypt1/...` but must not include the `crypt1` AES key or perform offline decryption.
+- **Why**: Any symmetric key embedded in an APK can be extracted. To improve protection, crypt payload resolution must move server-side where keys can be protected, rotated, and audited.
+- **Impact**:
+  - Android no longer exposes `SWIMVPN_CRYPT1_KEY_BASE64` through BuildConfig.
+  - Offline `crypt1` import is intentionally blocked until backend resolution is wired.
+  - The backend generator remains valid, but the next step is a client-safe resolution endpoint rather than APK-side decrypt.

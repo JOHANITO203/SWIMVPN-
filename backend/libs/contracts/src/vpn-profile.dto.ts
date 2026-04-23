@@ -5,3 +5,11 @@ export class ParseConfigDto {
   @IsNotEmpty()
   rawConfig: string;
 }
+
+export class GenerateSwimCryptImportDto {
+  @IsString()
+  @IsNotEmpty()
+  rawConfig: string;
+
+  compress?: boolean;
+}

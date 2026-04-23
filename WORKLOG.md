@@ -888,3 +888,73 @@ pm run build PASSED.
   - Preserved the existing direct-node import path and still keeps Happ encrypted/routing links as explicitly recognized but not implemented.
 - **Verification**:
   - `android\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Android Parser Batch - Recognize Modern Unsupported Protocol Schemes]
+- **Status**: DONE
+- **Changes**:
+  - Added explicit recognition for modern VPN schemes that appear in public subscriptions but are not supported by the current Xray runtime path yet:
+    - `hy2://`
+    - `hysteria2://`
+    - `hysteria://`
+    - `tuic://`
+    - `socks://`
+    - `socks5://`
+    - `wg://`
+    - `wireguard://`
+  - Extended subscription splitting so those links are isolated instead of being glued to neighboring supported entries.
+  - Parser now returns protocol-specific unsupported messages rather than a generic unknown-format error.
+  - Mixed subscriptions can still import supported entries while reporting unsupported modern entries separately.
+- **Verification**:
+  - `android\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Android Parser Batch - Happ Crypt Version Classification]
+- **Status**: DONE
+- **Changes**:
+  - Added version-aware classification for Happ encrypted subscription deep links.
+  - Treats `happ://crypt5/...` as the current/preferred Happ encrypted subscription format.
+  - Treats `happ://crypt3/...` and `happ://crypt4/...` as legacy Happ encrypted subscription formats.
+  - Replaced the generic encrypted-subscription error with an actionable message that directs users toward original `https://` subscriptions, `happ://add/https://...` wrappers, or unencrypted standard node links.
+  - Documented that Happ encrypted imports require an authorized provider key/format before implementation.
+- **Verification**:
+  - First root-level wrapper invocation failed because the repository root is not the Gradle project root.
+  - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Android Parser Batch - SWIMVPN Crypt1 Import Format]
+- **Status**: DONE
+- **Changes**:
+  - Added recognition for SWIMVPN-owned encrypted imports using `swimvpn://crypt1/<payload>`.
+  - Added `SWIMVPN_CRYPT1_KEY_BASE64` as a Gradle/BuildConfig-controlled AES-256 key.
+  - Added AES-256-GCM decrypt support with 12-byte nonce prefixed to ciphertext.
+  - Added optional GZIP unpacking after decrypt so compact subscription payloads can be supported later.
+  - Reused the existing direct/grouped import pipeline after decrypt so raw config handling and parser rules stay centralized.
+- **Verification**:
+  - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Backend Batch - SWIMVPN Crypt1 Link Generator]
+- **Status**: DONE
+- **Changes**:
+  - Added backend DTO for SWIMVPN encrypted import generation.
+  - Added `vpn-config-engine-service` generator for `swimvpn://crypt1/<payload>`.
+  - Uses `SWIMVPN_CRYPT1_KEY_BASE64`, AES-256-GCM, random 12-byte nonce, and base64url output.
+  - Supports optional GZIP compression before encryption.
+  - Exposed generation through authenticated admin gateway route `POST /api/v1/admin/crypt-import`.
+  - Added environment placeholders to backend and deployment compose files.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+## [2026-04-23] [Android Security Batch - Remove APK Crypt1 Secret]
+- **Status**: DONE
+- **Changes**:
+  - Removed Android `SWIMVPN_CRYPT1_KEY_BASE64` BuildConfig wiring.
+  - Removed APK-side AES-GCM `crypt1` decrypt implementation.
+  - Kept `swimvpn://crypt1/...` recognition so the app can provide explicit feedback instead of treating the link as unknown.
+  - Android now blocks offline crypt1 import and states that backend-side resolution is required to avoid exposing a decryption key in the APK.
+  - Documented the next secure path: device/auth-bound backend resolution endpoint.
+- **Verification**:
+  - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.
+  - `rg "SWIMVPN_CRYPT1_KEY_BASE64|swimCrypt1KeyBase64|SwimCryptImportCodec|Cipher|AES/GCM|decryptCrypt1" android src -S` returned no matches.
+## [2026-04-23] [Android Parser Batch - Abort Unresolved Happ Crypt Imports]
+- **Status**: DONE
+- **Changes**:
+  - Kept explicit recognition for `happ://crypt3/...`, `happ://crypt4/...`, and `happ://crypt5/...`.
+  - Prevented encrypted Happ links from becoming clipboard-previewable/importable when their payload cannot be resolved.
+  - Preserved the explicit import error explaining that Happ-protected encrypted links require an authorized provider key/format.
+  - Documented that unsupported encrypted Happ links must fail closed instead of producing fake partial imports.
+- **Verification**:
+  - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.

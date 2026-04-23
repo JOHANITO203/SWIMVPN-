@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SwimVpnProfile, VpnProtocol } from '@app/contracts';
+import * as crypto from 'crypto';
+import * as zlib from 'zlib';
 import * as net from 'net';
 
 export interface ConfigPipelineResult {
@@ -30,8 +32,18 @@ export interface ConfigPipelineResult {
   };
 }
 
+export interface SwimCryptImportResult {
+  version: 'crypt1';
+  link: string;
+  compressed: boolean;
+  plaintextBytes: number;
+  envelopeBytes: number;
+}
+
 @Injectable()
 export class VpnConfigService {
+  private static readonly CRYPT1_NONCE_BYTES = 12;
+
   parse(raw: string): SwimVpnProfile {
     try {
       const pipeline = this.processPipeline(raw);
@@ -251,6 +263,56 @@ export class VpnConfigService {
 
       socket.connect(profile.port, profile.address);
     });
+  }
+
+  generateSwimCryptImport(data: { rawConfig: string; compress?: boolean }): SwimCryptImportResult {
+    const key = this.getCrypt1Key();
+    const ingested = this.ingest(data.rawConfig);
+    if (!ingested) {
+      throw new Error('rawConfig is required');
+    }
+
+    const plain = Buffer.from(ingested, 'utf8');
+    const payload = data.compress ? zlib.gzipSync(plain) : plain;
+    const nonce = crypto.randomBytes(VpnConfigService.CRYPT1_NONCE_BYTES);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, nonce);
+    const ciphertext = Buffer.concat([cipher.update(payload), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    const envelope = Buffer.concat([nonce, ciphertext, authTag]);
+
+    return {
+      version: 'crypt1',
+      link: `swimvpn://crypt1/${this.toBase64Url(envelope)}`,
+      compressed: Boolean(data.compress),
+      plaintextBytes: plain.length,
+      envelopeBytes: envelope.length,
+    };
+  }
+
+  private getCrypt1Key(): Buffer {
+    const raw = process.env.SWIMVPN_CRYPT1_KEY_BASE64?.trim();
+    if (!raw) {
+      throw new Error('SWIMVPN_CRYPT1_KEY_BASE64 is not configured');
+    }
+
+    const key = Buffer.from(this.fromBase64Url(raw), 'base64');
+    if (key.length !== 32) {
+      throw new Error('SWIMVPN_CRYPT1_KEY_BASE64 must decode to 32 bytes for AES-256-GCM');
+    }
+    return key;
+  }
+
+  private toBase64Url(value: Buffer): string {
+    return value
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  }
+
+  private fromBase64Url(value: string): string {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    return normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
   }
 
   private invalid(raw: string, msg: string): SwimVpnProfile {
