@@ -232,7 +232,8 @@ fun ImportConfigDialog(
     onImport: (String) -> Unit,
     onTextChange: (String) -> Unit,
     initialText: String = "",
-    preview: ConfigPreview? = null
+    preview: ConfigPreview? = null,
+    canImport: Boolean = preview?.validationStatus == ValidationStatus.VALID || preview?.validationStatus == ValidationStatus.WARNING,
 ) {
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss
@@ -285,7 +286,7 @@ fun ImportConfigDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = { onImport(initialText) },
-                        enabled = initialText.isNotBlank() && (preview?.validationStatus == ValidationStatus.VALID || preview?.validationStatus == ValidationStatus.WARNING)
+                        enabled = initialText.isNotBlank() && canImport
                     ) {
                         Text("Import")
                     }

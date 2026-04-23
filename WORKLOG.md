@@ -1038,3 +1038,12 @@ pm run build PASSED.
   - Verified the provider sample URL returns Base64 `vless://` entries with the v2rayNG-compatible User-Agent.
 - **Verification**:
   - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Android Import UX Batch - Enable Subscription URL Imports Without Preview]
+- **Status**: DONE
+- **Changes**:
+  - Added lightweight import-attempt eligibility for recognized remote subscription URLs.
+  - Manual import dialog no longer requires a local preview before enabling import for subscription URLs.
+  - Kept direct config validation preview behavior for node links.
+  - Kept unsupported Happ crypt/routing links blocked from manual import attempts.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.

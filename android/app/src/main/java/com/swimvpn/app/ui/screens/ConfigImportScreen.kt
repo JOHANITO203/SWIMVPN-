@@ -344,7 +344,8 @@ fun ConfigImportScreen(
                 importText = text
             },
             initialText = importText,
-            preview = importPreview
+            preview = importPreview,
+            canImport = configRepository.canAttemptImport(importText),
         )
     }
     

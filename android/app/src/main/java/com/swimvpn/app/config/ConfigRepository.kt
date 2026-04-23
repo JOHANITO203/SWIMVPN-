@@ -258,6 +258,23 @@ class ConfigRepository(private val context: Context) {
     fun isLikelyVpnConfig(input: String): Boolean {
         return ConfigNormalizationEngine.isLikelyVpnConfig(input)
     }
+
+    fun canAttemptImport(input: String): Boolean {
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) {
+            return false
+        }
+
+        return when (val resolution = resolveImportInput(trimmed)) {
+            is ResolvedImportInput.SubscriptionUrl,
+            is ResolvedImportInput.SwimEncryptedPayload -> true
+            is ResolvedImportInput.DirectConfig -> previewConfig(resolution.payload)?.let { preview ->
+                preview.validationStatus == ValidationStatus.VALID || preview.validationStatus == ValidationStatus.WARNING
+            } ?: false
+            is ResolvedImportInput.HappEncryptedSubscription,
+            is ResolvedImportInput.HappRoutingDeepLink -> false
+        }
+    }
     
     /**
      * Check clipboard content for potential VPN configurations

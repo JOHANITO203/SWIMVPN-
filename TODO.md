@@ -350,3 +350,7 @@ otification-bot-service event handoff.
   - expect fallback to v2rayNG-compatible User-Agent
   - expect Base64 decode into grouped `vless://` imported servers
   - confirm imported VLESS Reality nodes appear in the server catalog
+- Re-test manual import button activation:
+  - provider `https://wb.routerwb.ru/jtz5386jCHkztYRZ` enables Import without preview
+  - random text still keeps Import disabled
+  - direct supported node link still shows preview and enables Import
