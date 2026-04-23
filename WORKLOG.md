@@ -785,3 +785,14 @@ pm run build PASSED.
     - This specifically hardens import of real-world links whose fragment contains characters that strict URI parsing often rejects.
 - **Verification**:
     - `android\\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android VPN Batch - Imported Server Groups In Profile Server Catalog]
+- **Status**: DONE
+- **Changes**:
+  - Added support for treating one imported payload as a group of multiple VPN server entries instead of forcing everything into a single imported profile.
+  - `ConfigRepository` now splits multi-link imports (`vless://`, `vmess://`, `trojan://`, `ss://`) into multiple normalized profiles, stores bundle metadata, and derives imported profile groups.
+  - Import preview now warns when one pasted payload contains multiple server entries.
+  - `MainViewModel` now merges backend servers and imported server groups into one connection catalog while preserving a grouped representation for the servers page.
+  - Imported servers can now be selected as active connection targets and provide their own raw config to `SwimVpnService` instead of always falling back to the backend subscription URL.
+  - Added local pinning for servers and exposed grouped sections on the servers page so multiple imported groups can coexist with backend-provided access servers.
+- **Verification**:
+  - `android\gradlew.bat assembleDebug` PASSED.

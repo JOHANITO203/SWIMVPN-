@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.ThemeMode
@@ -24,6 +25,7 @@ class PreferencesManager(private val context: Context) {
         val LANGUAGE_KEY = stringPreferencesKey("language") // "en", "fr", "ru"
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SELECTED_SERVER_ID_KEY = stringPreferencesKey("selected_server_id")
+        val PINNED_SERVER_IDS_KEY = stringSetPreferencesKey("pinned_server_ids")
     }
 
     val userNumberFlow: Flow<String?> = context.dataStore.data
@@ -55,6 +57,9 @@ class PreferencesManager(private val context: Context) {
 
     val selectedServerIdFlow: Flow<String?> = context.dataStore.data
         .map { preferences -> preferences[SELECTED_SERVER_ID_KEY] }
+
+    val pinnedServerIdsFlow: Flow<Set<String>> = context.dataStore.data
+        .map { preferences -> preferences[PINNED_SERVER_IDS_KEY] ?: emptySet() }
 
     suspend fun saveUserNumber(userNumber: String) {
         context.dataStore.edit { preferences -> preferences[USER_NUMBER_KEY] = userNumber }
@@ -97,5 +102,29 @@ class PreferencesManager(private val context: Context) {
                 preferences[SELECTED_SERVER_ID_KEY] = serverId
             }
         }
+    }
+
+    suspend fun setPinnedServerIds(serverIds: Set<String>) {
+        context.dataStore.edit { preferences ->
+            if (serverIds.isEmpty()) {
+                preferences.remove(PINNED_SERVER_IDS_KEY)
+            } else {
+                preferences[PINNED_SERVER_IDS_KEY] = serverIds
+            }
+        }
+    }
+
+    suspend fun togglePinnedServerId(serverId: String): Set<String> {
+        var updated = emptySet<String>()
+        context.dataStore.edit { preferences ->
+            val current = preferences[PINNED_SERVER_IDS_KEY] ?: emptySet()
+            updated = if (serverId in current) current - serverId else current + serverId
+            if (updated.isEmpty()) {
+                preferences.remove(PINNED_SERVER_IDS_KEY)
+            } else {
+                preferences[PINNED_SERVER_IDS_KEY] = updated
+            }
+        }
+        return updated
     }
 }

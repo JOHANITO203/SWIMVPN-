@@ -17,6 +17,9 @@ data class SwimVpnProfile(
     val sourceType: SourceType,
     val rawConfig: String,                    // Original config preserved intact
     val sourceFormat: SourceFormat,
+    val sourceBundleId: String? = null,
+    val sourceBundleName: String? = null,
+    val sourceBundleOrder: Int = 0,
     
     // Protocol Classification
     val protocol: Protocol,
@@ -180,3 +183,9 @@ enum class ValidationStatus {
     ERROR,
     UNKNOWN
 }
+
+data class ImportedProfileGroup(
+    val id: String,
+    val name: String,
+    val profiles: List<SwimVpnProfile>,
+)

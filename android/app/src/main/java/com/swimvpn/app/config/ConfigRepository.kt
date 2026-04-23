@@ -41,44 +41,77 @@ class ConfigRepository(private val context: Context) {
      */
     suspend fun importConfig(input: String, sourceType: SourceType = SourceType.MANUAL_ENTRY): ImportResult {
         return try {
-            // Parse the configuration
-            val parseResult = ConfigParserEngine.parseConfig(input, sourceType)
-            
-            if (!parseResult.isValid) {
-                return ImportResult.Error(
-                    errors = parseResult.errors,
-                    warnings = parseResult.warnings
-                )
-            }
-            
-            // Normalize the profile
-            val normalizedProfile = ConfigNormalizationEngine.normalizeProfile(parseResult)
-            
-            if (normalizedProfile == null) {
-                return ImportResult.Error(
-                    errors = listOf("Failed to normalize configuration"),
-                    warnings = parseResult.warnings
-                )
-            }
-            
-            // Check for duplicates
+            val entries = splitConfigEntries(input)
             val existingProfiles = getAllProfiles()
-            val isDuplicate = checkDuplicate(normalizedProfile, existingProfiles)
-            
-            if (isDuplicate) {
-                return ImportResult.Duplicate(
-                    warnings = listOf("This configuration appears to be a duplicate")
+            val warnings = mutableListOf<String>()
+            val errors = mutableListOf<String>()
+            val importedProfiles = mutableListOf<SwimVpnProfile>()
+            val duplicateEntries = mutableListOf<String>()
+            val bundleId = if (entries.size > 1) UUID.randomUUID().toString() else null
+
+            entries.forEachIndexed { index, entry ->
+                val parseResult = ConfigParserEngine.parseConfig(entry, sourceType)
+                if (!parseResult.isValid) {
+                    errors += parseResult.errors
+                    warnings += parseResult.warnings
+                    return@forEachIndexed
+                }
+
+                val normalizedProfile = ConfigNormalizationEngine.normalizeProfile(parseResult)
+                if (normalizedProfile == null) {
+                    errors += "Failed to normalize configuration ${index + 1}"
+                    warnings += parseResult.warnings
+                    return@forEachIndexed
+                }
+
+                if (checkDuplicate(normalizedProfile, existingProfiles + importedProfiles)) {
+                    duplicateEntries += normalizedProfile.displayName
+                    return@forEachIndexed
+                }
+
+                importedProfiles += normalizedProfile
+                warnings += parseResult.warnings
+            }
+
+            if (importedProfiles.isEmpty()) {
+                return if (duplicateEntries.isNotEmpty() && errors.isEmpty()) {
+                    ImportResult.Duplicate(
+                        warnings = listOf("This configuration appears to be a duplicate")
+                    )
+                } else {
+                    ImportResult.Error(
+                        errors = errors.ifEmpty { listOf("No supported server could be imported") },
+                        warnings = warnings,
+                    )
+                }
+            }
+
+            val bundleName = deriveBundleName(importedProfiles)
+            val finalizedProfiles = importedProfiles.mapIndexed { index, profile ->
+                profile.copy(
+                    sourceBundleId = bundleId ?: profile.id,
+                    sourceBundleName = if (entries.size > 1) bundleName else profile.displayName,
+                    sourceBundleOrder = index,
                 )
             }
-            
-            val updatedProfiles = existingProfiles + normalizedProfile
+
+            if (errors.isNotEmpty()) {
+                warnings += "Imported ${finalizedProfiles.size} server(s), but ${errors.size} entrie(s) could not be parsed"
+            }
+            if (duplicateEntries.isNotEmpty()) {
+                warnings += "${duplicateEntries.size} duplicate entrie(s) were ignored"
+            }
+
+            val updatedProfiles = existingProfiles + finalizedProfiles
             saveProfiles(updatedProfiles)
-            
-            Log.i(TAG, "Successfully imported ${normalizedProfile.protocol} configuration")
-            
+
+            Log.i(TAG, "Successfully imported ${finalizedProfiles.size} configuration(s)")
+
             ImportResult.Success(
-                profile = normalizedProfile,
-                warnings = parseResult.warnings
+                profile = finalizedProfiles.first(),
+                importedProfiles = finalizedProfiles,
+                importedCount = finalizedProfiles.size,
+                warnings = warnings,
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error importing configuration", e)
@@ -107,6 +140,25 @@ class ConfigRepository(private val context: Context) {
             emptyList()
         }
     }
+
+    suspend fun getImportedProfileGroups(): List<ImportedProfileGroup> {
+        val profiles = getAllProfiles()
+        if (profiles.isEmpty()) return emptyList()
+
+        return profiles
+            .groupBy { it.sourceBundleId ?: it.id }
+            .values
+            .map { groupedProfiles ->
+                val sorted = groupedProfiles.sortedBy { it.sourceBundleOrder }
+                val first = sorted.first()
+                ImportedProfileGroup(
+                    id = first.sourceBundleId ?: first.id,
+                    name = first.sourceBundleName ?: first.displayName,
+                    profiles = sorted,
+                )
+            }
+            .sortedByDescending { group -> group.profiles.maxOfOrNull { it.importedAt } ?: 0L }
+    }
     
 
     
@@ -133,8 +185,7 @@ class ConfigRepository(private val context: Context) {
      */
     suspend fun setActiveProfile(profile: SwimVpnProfile) {
         try {
-            // Update last used timestamp - would need to save updated profile
-            val profileId = generateProfileId(profile)
+            val profileId = profile.id
             
             context.dataStore.edit { preferences ->
                 preferences[ACTIVE_PROFILE_ID_KEY] = profileId
@@ -169,13 +220,26 @@ class ConfigRepository(private val context: Context) {
      */
     fun previewConfig(input: String): ConfigPreview? {
         return try {
-            val parseResult = ConfigParserEngine.parseConfig(input)
+            val entries = splitConfigEntries(input)
+            if (entries.isEmpty()) {
+                return null
+            }
+
+            val parseResult = ConfigParserEngine.parseConfig(entries.first())
             if (!parseResult.isValid) {
                 return null
             }
             
             val profile = parseResult.profile!!
-            ConfigNormalizationEngine.generatePreview(profile)
+            val preview = ConfigNormalizationEngine.generatePreview(profile)
+            if (entries.size == 1) {
+                preview
+            } else {
+                preview.copy(
+                    warnings = preview.warnings + "${entries.size - 1} additional server(s) detected in this import group",
+                    summary = "${preview.summary} • group size ${entries.size}",
+                )
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error generating preview", e)
             null
@@ -237,10 +301,43 @@ class ConfigRepository(private val context: Context) {
         }
     }
     
-    private fun generateProfileId(profile: SwimVpnProfile): String {
-        // Generate a unique ID based on profile properties
-        val base = "${profile.protocol}:${profile.address}:${profile.port}:${profile.userId ?: profile.password ?: ""}"
-        return UUID.nameUUIDFromBytes(base.toByteArray()).toString()
+    private fun splitConfigEntries(input: String): List<String> {
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) return emptyList()
+
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            return listOf(trimmed)
+        }
+
+        val normalized = trimmed.replace("\r", "\n")
+        val pattern = Regex("(?i)(?=(vless|vmess|trojan|ss)://)")
+        val matches = pattern.findAll(normalized).toList()
+        if (matches.isEmpty()) {
+            return listOf(trimmed)
+        }
+
+        if (matches.size == 1) {
+            return listOf(trimmed)
+        }
+
+        return matches.mapIndexedNotNull { index, match ->
+            val start = match.range.first
+            val end = if (index + 1 < matches.size) matches[index + 1].range.first else normalized.length
+            normalized.substring(start, end).trim().takeIf { it.isNotBlank() }
+        }
+    }
+
+    private fun deriveBundleName(profiles: List<SwimVpnProfile>): String {
+        if (profiles.size == 1) {
+            return profiles.first().displayName
+        }
+
+        val firstName = profiles.first().displayName.takeIf { it.isNotBlank() }
+        return if (firstName != null) {
+            "$firstName +${profiles.size - 1}"
+        } else {
+            "Imported group (${profiles.size})"
+        }
     }
 }
 
@@ -250,6 +347,8 @@ class ConfigRepository(private val context: Context) {
 sealed class ImportResult {
     data class Success(
         val profile: SwimVpnProfile,
+        val importedProfiles: List<SwimVpnProfile> = listOf(profile),
+        val importedCount: Int = importedProfiles.size,
         val warnings: List<String> = emptyList()
     ) : ImportResult()
     

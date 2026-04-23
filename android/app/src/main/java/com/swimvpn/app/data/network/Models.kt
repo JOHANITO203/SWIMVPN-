@@ -94,5 +94,18 @@ data class ServerNode(
     val planScope: String,
     val countryCode: String? = null,
     val load: Int = 0,
-    val ping: Int = 0
+    val ping: Int = 0,
+    val groupId: String? = null,
+    val groupName: String? = null,
+    val rawConfig: String? = null,
+    val source: String? = null,
+    val isPinned: Boolean = false,
+)
+
+data class ServerGroup(
+    val id: String,
+    val title: String,
+    val subtitle: String? = null,
+    val source: String,
+    val servers: List<ServerNode>,
 )

@@ -14,7 +14,12 @@ import com.swimvpn.app.data.network.ActivateTrialRequest
 import com.swimvpn.app.data.network.BootstrapAccessRequest
 import com.swimvpn.app.data.network.ImportSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
+import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerNode
+import com.swimvpn.app.config.ConfigRepository
+import com.swimvpn.app.config.ImportedProfileGroup
+import com.swimvpn.app.config.SecurityMode
+import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.ThemeMode
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -43,6 +48,7 @@ sealed class AppState {
     data class Success(
         val profile: AccessProfileResponse,
         val servers: List<ServerNode>,
+        val serverGroups: List<ServerGroup>,
         val plans: List<com.swimvpn.app.data.model.Plan>,
         val isOnboardingDone: Boolean,
         val routingMode: RuntimeMode,
@@ -64,6 +70,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = PreferencesManager(application)
     private val api = RetrofitClient.apiService
+    private val configRepository = ConfigRepository(application)
 
     private val _state = MutableStateFlow<AppState>(AppState.Loading)
     val state: StateFlow<AppState> = _state.asStateFlow()
@@ -285,10 +292,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 )
 
-                _state.value = currentState.copy(profile = updatedProfile)
+                _state.value = refreshSuccessState(currentState.copy(profile = updatedProfile))
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Import failed", e)
-                _state.value = currentState
+                _state.value = refreshSuccessState(currentState)
                 _effect.emit(AppSideEffect.ShowToast("Configuration imported locally, but profile sync failed"))
             }
         }
@@ -326,8 +333,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             prefs.setSelectedServerId(server.id)
             val current = _state.value
             if (current is AppState.Success) {
-                _state.value = current.copy(activeServer = server)
+                _state.value = current.copy(
+                    activeServer = server,
+                    servers = current.servers.map { it.copy(isPinned = it.isPinned) },
+                )
             }
+        }
+    }
+
+    fun selectImportedProfile(profile: SwimVpnProfile) {
+        viewModelScope.launch {
+            val current = _state.value as? AppState.Success ?: return@launch
+            val targetId = importedServerId(profile)
+            prefs.setSelectedServerId(targetId)
+            _state.value = refreshSuccessState(current)
+        }
+    }
+
+    fun toggleServerPin(server: ServerNode) {
+        viewModelScope.launch {
+            val current = _state.value as? AppState.Success ?: return@launch
+            prefs.togglePinnedServerId(server.id)
+            _state.value = refreshSuccessState(current)
         }
     }
 
@@ -340,14 +367,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (successState.routingMode == RuntimeMode.FULL_TUNNEL && VpnService.prepare(context) != null) return
         val server = successState.activeServer ?: return
         val profile = successState.profile
-        if (profile.isExpired || profile.subscriptionUrl.isNullOrBlank()) return
+        val runtimeConfig = server.rawConfig ?: profile.subscriptionUrl
+        if (profile.isExpired || runtimeConfig.isNullOrBlank()) return
 
         val vpnState = com.swimvpn.app.vpn.VpnManager.state.value
         if (vpnState != com.swimvpn.app.vpn.VpnState.DISCONNECTED && vpnState != com.swimvpn.app.vpn.VpnState.ERROR) {
             return
         }
 
-        val signature = listOf(profile.userNumber, server.id, profile.subscriptionUrl).joinToString(":")
+        val signature = listOf(profile.userNumber, server.id, runtimeConfig).joinToString(":")
         if (lastAutoConnectSignature == signature) return
 
         lastAutoConnectSignature = signature
@@ -378,7 +406,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
                 putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
                 putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
-                putExtra(SwimVpnService.EXTRA_URL, profile.subscriptionUrl)
+                putExtra(SwimVpnService.EXTRA_URL, server.rawConfig ?: profile.subscriptionUrl)
                 putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
 
                 val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
@@ -414,7 +442,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         language: String,
         themeMode: ThemeMode,
     ): AppState.Success? {
-        val servers = try {
+        val backendServers = try {
             api.getServers(profile.userNumber)
         } catch (e: Exception) {
             Log.e("MainViewModel", "API Error fetching servers", e)
@@ -430,12 +458,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return null
         }
 
+        val pinnedIds = prefs.pinnedServerIdsFlow.first()
+        val importedGroups = configRepository.getImportedProfileGroups()
+        val serverGroups = buildServerGroups(profile, backendServers, importedGroups, pinnedIds)
+        val servers = serverGroups.flatMap { it.servers }
         val savedServerId = prefs.selectedServerIdFlow.first()
         val activeServer = servers.find { it.id == savedServerId } ?: servers.firstOrNull()
 
         return AppState.Success(
             profile = profile,
             servers = servers,
+            serverGroups = serverGroups,
             plans = plans,
             isOnboardingDone = isOnboardingDone,
             routingMode = routingMode,
@@ -445,4 +478,112 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             activeServer = activeServer,
         )
     }
+
+    private suspend fun refreshSuccessState(currentState: AppState.Success): AppState.Success {
+        val pinnedIds = prefs.pinnedServerIdsFlow.first()
+        val importedGroups = configRepository.getImportedProfileGroups()
+        val backendGroup = currentState.serverGroups.firstOrNull { it.source == "backend" }
+        val backendServers = backendGroup?.servers?.map { server ->
+            server.copy(
+                isPinned = server.id in pinnedIds,
+                groupId = "backend:${currentState.profile.userNumber}",
+                groupName = "Access Servers",
+                source = "backend",
+                rawConfig = null,
+            )
+        } ?: currentState.servers.filter { it.source != "imported" }.map { it.copy(isPinned = it.id in pinnedIds) }
+
+        val serverGroups = buildServerGroups(currentState.profile, backendServers, importedGroups, pinnedIds)
+        val servers = serverGroups.flatMap { it.servers }
+        val savedServerId = prefs.selectedServerIdFlow.first()
+        val activeServer = servers.find { it.id == savedServerId }
+            ?: servers.find { it.id == currentState.activeServer?.id }
+            ?: servers.firstOrNull()
+
+        return currentState.copy(
+            servers = servers,
+            serverGroups = serverGroups,
+            activeServer = activeServer,
+        )
+    }
+
+    private fun buildServerGroups(
+        profile: AccessProfileResponse,
+        backendServers: List<ServerNode>,
+        importedGroups: List<ImportedProfileGroup>,
+        pinnedIds: Set<String>,
+    ): List<ServerGroup> {
+        val groups = mutableListOf<ServerGroup>()
+
+        if (backendServers.isNotEmpty()) {
+            groups += ServerGroup(
+                id = "backend:${profile.userNumber}",
+                title = "Access Servers",
+                subtitle = "${backendServers.size} backend server(s)",
+                source = "backend",
+                servers = backendServers
+                    .map { server ->
+                        server.copy(
+                            groupId = "backend:${profile.userNumber}",
+                            groupName = "Access Servers",
+                            source = "backend",
+                            isPinned = server.id in pinnedIds,
+                            rawConfig = null,
+                        )
+                    }
+                    .sortedWith(compareByDescending<ServerNode> { it.isPinned }.thenBy { it.country }.thenBy { it.city }),
+            )
+        }
+
+        importedGroups.forEach { group ->
+            val importedServers = group.profiles.map { importedProfile ->
+                importedProfile.toImportedServerNode(
+                    groupName = group.name,
+                    isPinned = importedServerId(importedProfile) in pinnedIds,
+                )
+            }.sortedWith(compareByDescending<ServerNode> { it.isPinned }.thenBy { it.city })
+
+            if (importedServers.isNotEmpty()) {
+                groups += ServerGroup(
+                    id = group.id,
+                    title = group.name,
+                    subtitle = "${importedServers.size} imported server(s)",
+                    source = "imported",
+                    servers = importedServers,
+                )
+            }
+        }
+
+        return groups
+    }
+
+    private fun SwimVpnProfile.toImportedServerNode(
+        groupName: String,
+        isPinned: Boolean,
+    ): ServerNode {
+        return ServerNode(
+            id = importedServerId(this),
+            country = groupName,
+            city = displayName,
+            host = address,
+            port = port,
+            protocol = protocol.name.lowercase(),
+            tags = listOfNotNull(
+                "imported",
+                transport.name.lowercase(),
+                securityMode.name.lowercase().takeIf { it != SecurityMode.NONE.name.lowercase() },
+            ),
+            planScope = "imported",
+            countryCode = null,
+            load = 0,
+            ping = 0,
+            groupId = sourceBundleId ?: id,
+            groupName = groupName,
+            rawConfig = rawConfig,
+            source = "imported",
+            isPinned = isPinned,
+        )
+    }
+
+    private fun importedServerId(profile: SwimVpnProfile): String = "imported:${profile.id}"
 }

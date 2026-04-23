@@ -337,3 +337,11 @@ otification-bot-service with Resend API for transactional delivery emails.
     - query
     - fragment
   - Import reliability improves without pretending to support new protocols outside the declared scope.
+## [2026-04-23] [Imported VPN Payloads Must Become Grouped Selectable Servers]
+- **Decision**: Treat imported multi-link VPN payloads as grouped server catalogs, not as one oversized pseudo-profile.
+- **Why**: Real-world imports can contain several usable nodes. Keeping them collapsed into one `SwimVpnProfile` blocks the product behavior the app needs: browse, select, pin, and activate one server among several imported nodes.
+- **Impact**:
+  - Imported profiles now carry bundle metadata so the app can reconstruct source groups.
+  - The connection server catalog is now a merge of backend access servers and locally imported groups.
+  - Server selection can target imported nodes directly, and runtime launch uses the selected server's raw config when present.
+  - The servers page can host multiple groups without inventing new backend services or changing PostgreSQL truth.

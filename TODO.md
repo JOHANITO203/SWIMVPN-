@@ -192,3 +192,11 @@ otification-bot-service event handoff.
   - `android/wrapper/`
 - Keep `android/.gradle-user-home/` out of commits permanently; it is now intentionally ignored by Git.
 - If `android/.gradle-user-home/` reappears later, treat it as disposable local cache and delete it after the build/debug batch instead of trying to version it.
+- Re-test Android grouped imports on device:
+  - import a payload containing multiple `trojan://` links
+  - confirm the servers page shows a dedicated imported group with multiple selectable nodes
+  - confirm pinning persists across app restart
+  - confirm selecting an imported node starts the VPN with that node's raw config instead of the backend profile URL
+- Re-test mixed catalog behavior:
+  - backend access servers and imported groups should coexist on the servers page
+  - the active selection should restore correctly from saved preferences

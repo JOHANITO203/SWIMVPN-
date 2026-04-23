@@ -162,10 +162,18 @@ fun AppNavigation(viewModel: MainViewModel) {
         }
         composable("servers") { 
             val data = state as? AppState.Success ?: return@composable
-            ServersScreen(servers = data.servers, onBack = { navController.popBackStack() }, onSelectServer = { server ->
-                viewModel.selectServer(server)
-                navController.popBackStack()
-            }) 
+            ServersScreen(
+                serverGroups = data.serverGroups,
+                activeServerId = data.activeServer?.id,
+                onBack = { navController.popBackStack() },
+                onSelectServer = { server ->
+                    viewModel.selectServer(server)
+                    navController.popBackStack()
+                },
+                onTogglePinServer = { server ->
+                    viewModel.toggleServerPin(server)
+                }
+            ) 
         }
         composable("profile") { 
             when (val currentState = state) {
@@ -213,7 +221,7 @@ fun AppNavigation(viewModel: MainViewModel) {
                 configRepository = ConfigRepository(context),
                 onBack = { navController.popBackStack() },
                 onProfileSelected = { profile ->
-                    // TODO: Implement profile selection for VPN connection
+                    viewModel.selectImportedProfile(profile)
                 },
                 onImportToProfile = { rawConfig ->
                     viewModel.importVless(rawConfig)
