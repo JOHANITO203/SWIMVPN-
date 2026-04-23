@@ -377,3 +377,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `VMess gRPC` now keeps a usable `serviceName` via `path` fallback when needed.
   - `HTTP2`-family transports now preserve `path/host` metadata through the canonical profile.
   - `Shadowsocks` plugin metadata is preserved in the canonical profile with an explicit warning when runtime support is still incomplete.
+## [2026-04-23] [VPN Stop Must Clean Runtime Resources Even When State Is Desynced]
+- **Decision**: Android VPN shutdown must be resource-driven, not only state-driven.
+- **Why**: A stop request can arrive while runtime startup is still in flight or after `VpnManager` has already drifted to `IDLE/STOPPING`. In that case, relying only on UI/runtime state allows Xray to survive and keep local ports occupied after disconnect.
+- **Impact**:
+  - `SwimVpnService` now cancels in-flight startup before cleanup.
+  - shutdown no longer early-returns if active runtime resources still exist.
+  - orphaned Xray processes are defensively reaped with `stopAll()` during cleanup.

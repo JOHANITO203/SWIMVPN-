@@ -40,6 +40,7 @@ class SwimVpnService : VpnService() {
     private var activeTun2SocksContract: Tun2SocksNativeBridgeContract? = null
     private var activeTun2SocksJob: Job? = null
     private var activeTrafficStatsJob: Job? = null
+    private var activeStartupJob: Job? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val xrayBridge by lazy { XrayProcessBridge(applicationContext) }
@@ -117,7 +118,8 @@ class SwimVpnService : VpnService() {
         VpnManager.clearRuntimeDiagnostics()
         VpnManager.updateRuntimeStatus(RuntimeStatus.STARTING)
 
-        serviceScope.launch {
+        activeStartupJob?.cancel()
+        activeStartupJob = serviceScope.launch {
             try {
                 val runtime = rawConfig?.takeIf { it.isNotBlank() }?.let {
                     TunnelRuntimeAdapter.prepareRuntimeFromRawConfig(
@@ -142,6 +144,8 @@ class SwimVpnService : VpnService() {
                 Log.e("SwimVpnService", "Error starting VPN", e)
                 VpnManager.setError("Connection failed: ${e.localizedMessage}")
                 stopVpn(clearRuntimeState = false)
+            } finally {
+                activeStartupJob = null
             }
         }
     }
@@ -319,7 +323,8 @@ class SwimVpnService : VpnService() {
     }
 
     private fun stopVpn(clearRuntimeState: Boolean = true) {
-        if (clearRuntimeState &&
+        if (!hasActiveRuntimeResources() &&
+            clearRuntimeState &&
             (VpnManager.runtimeStatus.value == RuntimeStatus.IDLE ||
                 VpnManager.runtimeStatus.value == RuntimeStatus.STOPPING)
         ) {
@@ -331,6 +336,8 @@ class SwimVpnService : VpnService() {
         }
 
         try {
+            activeStartupJob?.cancel()
+            activeStartupJob = null
             activeTun2SocksContract?.let { contract ->
                 runCatching { Tun2SocksNativeBridge.stop(contract) }
                     .onFailure { error ->
@@ -347,6 +354,7 @@ class SwimVpnService : VpnService() {
                 xrayBridge.stop(sessionId)
             }
             activeXraySessionId = null
+            xrayBridge.stopAll()
             vpnInterface?.close()
         } catch (e: Exception) {
             Log.e("SwimVpnService", "Error closing VPN interface", e)
@@ -407,6 +415,8 @@ class SwimVpnService : VpnService() {
             stopVpn()
         } else {
             try {
+                activeStartupJob?.cancel()
+                activeStartupJob = null
                 activeTun2SocksContract?.let { contract ->
                     runCatching { Tun2SocksNativeBridge.stop(contract) }
                         .onFailure { error ->
@@ -423,6 +433,7 @@ class SwimVpnService : VpnService() {
                     xrayBridge.stop(sessionId)
                 }
                 activeXraySessionId = null
+                xrayBridge.stopAll()
                 vpnInterface?.close()
             } catch (e: Exception) {
                 Log.e("SwimVpnService", "Error closing VPN interface during failure cleanup", e)
@@ -492,5 +503,15 @@ class SwimVpnService : VpnService() {
                 delay(1000)
             }
         }
+    }
+
+    private fun hasActiveRuntimeResources(): Boolean {
+        return activeStartupJob != null ||
+            activeTun2SocksJob != null ||
+            activeTun2SocksContract != null ||
+            activeTrafficStatsJob != null ||
+            activeXraySessionId != null ||
+            activeTun2SocksSessionId != null ||
+            vpnInterface != null
     }
 }

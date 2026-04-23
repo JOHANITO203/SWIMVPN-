@@ -849,3 +849,12 @@ pm run build PASSED.
   - Added an explicit warning when `Shadowsocks` plugin metadata is preserved but runtime support is not yet fully verified, so parser truth improves without pretending engine completeness.
 - **Verification**:
   - `android\\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android Engine Batch - Reliable Stop And Port Release]
+- **Status**: DONE
+- **Changes**:
+  - Hardened `SwimVpnService` shutdown so stop is now idempotent even if UI/runtime state is already desynchronized.
+  - Added cancellation of any in-flight startup coroutine before shutdown so a session cannot finish booting after the user already requested disconnect.
+  - Added defensive `xrayBridge.stopAll()` cleanup after targeted session shutdown to avoid orphaned Xray processes keeping local ports occupied.
+  - Stop now refuses to early-return when runtime resources are still active, even if `VpnManager` already says `IDLE` or `STOPPING`.
+- **Verification**:
+  - `android\\gradlew.bat --no-daemon assembleDebug` PASSED.

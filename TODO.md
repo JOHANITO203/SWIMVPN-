@@ -251,6 +251,12 @@ otification-bot-service event handoff.
   - selected node -> runtime payload -> Xray launch -> traffic flow
 - Keep improving diagnostics for sessions that connect but do not actually behave correctly.
 - Re-test `FULL_TUNNEL` until it is functionally reliable, even if still slower than `LOCAL_PROXY`.
+- Re-test Android disconnect lifecycle on a real device:
+  - connect in `LOCAL_PROXY`
+  - disconnect
+  - fully close the app
+  - confirm no local Xray port remains occupied for other VPN apps
+  - repeat the same flow during `CONNECTING` to confirm startup cancellation works
 
 ### Priority 3 - Performance
 - Only after parser and engine truth are stable, continue performance comparison between:
