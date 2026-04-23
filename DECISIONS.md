@@ -313,3 +313,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `useLegacyPackaging` is enabled for `jniLibs`.
   - the app manifest explicitly requests native library extraction.
   - `RuntimeFilePreparer` now uses `nativeLibraryDir` first as the true runtime path, with APK extraction kept only as a secondary fallback.
+## [2026-04-23] [Android Parser Must Preserve Runtime-Critical gRPC Parameters]
+- **Decision**: The Android config pipeline must preserve runtime-critical `gRPC` fields, especially `serviceName`, inside the canonical profile instead of treating `GRPC` as transport-only metadata.
+- **Why**: The device/runtime path had already moved past packaging and execution blockers, but `gRPC` configs were still being parsed into incomplete profiles. That caused `TunnelRuntimeAdapter` to emit Xray runtime documents with `network=grpc` and missing `grpcSettings.serviceName`, which is not a viable runtime payload.
+- **Impact**:
+  - `ConfigParserEngine` now materializes `grpcSettings` from URL and JSON inputs.
+  - `VMess` URL parsing also preserves more runtime-critical fields instead of dropping them silently.
+  - Phase 2-C now advances on real parser/runtime truth rather than continuing to debug packaging symptoms that are already resolved.

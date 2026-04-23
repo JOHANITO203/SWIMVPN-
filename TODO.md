@@ -168,6 +168,10 @@ otification-bot-service event handoff.
 - Re-test the Android VPN engine after enabling extracted native libraries:
   - confirm the old `Cannot run program .../no_backup/.../bin/xray` error is gone
   - capture the next runtime/logcat signal if connection still fails
+- Re-test the Android VPN engine after the parser/runtime payload gRPC fix:
+  - validate a real `vless://...type=grpc&serviceName=...` inventory config on device
+  - confirm the runtime now carries `grpcSettings.serviceName`
+  - capture the next device/logcat signal if the tunnel still fails after parser preservation
 - If production still returns `500`, collect runtime logs from:
   - gateway-service
   - store-engine-service

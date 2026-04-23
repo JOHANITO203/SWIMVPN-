@@ -121,7 +121,12 @@ object ConfigParserEngine {
                         host = query["host"]
                     )
                 } else null,
-                grpcSettings = null,
+                grpcSettings = if (transport == Transport.GRPC) {
+                    GrpcSettings(
+                        serviceName = query["serviceName"] ?: "",
+                        mode = query["mode"] ?: "gun",
+                    )
+                } else null,
                 userId = userId,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
@@ -155,6 +160,18 @@ object ConfigParserEngine {
             val id = json["id"] as? String ?: return ParseResult(null, listOf("Missing user ID in VMess config"), warnings)
             val net = json["net"] as? String ?: "tcp"
             val tls = json["tls"] as? String ?: "none"
+            val hostHeader = (json["host"] as? String)?.takeIf { it.isNotBlank() }
+            val path = (json["path"] as? String)?.takeIf { it.isNotBlank() }
+            val serviceName = (json["serviceName"] as? String)?.takeIf { it.isNotBlank() }
+            val sni = (json["sni"] as? String)?.takeIf { it.isNotBlank() }
+                ?: (json["serverName"] as? String)?.takeIf { it.isNotBlank() }
+            val fingerprint = (json["fp"] as? String)?.takeIf { it.isNotBlank() }
+            val alpn = (json["alpn"] as? String)
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?: emptyList()
+            val headerType = (json["type"] as? String)?.takeIf { it.isNotBlank() }
             
             // Map to our models
             val transport = when (net.lowercase()) {
@@ -186,10 +203,32 @@ object ConfigParserEngine {
                 address = add,
                 port = port,
                 realitySettings = null,
-                tlsSettings = null,
-                websocketSettings = null,
-                tcpSettings = null,
-                grpcSettings = null,
+                tlsSettings = if (security == SecurityMode.TLS || security == SecurityMode.REALITY) {
+                    TlsSettings(
+                        sni = sni ?: hostHeader ?: add,
+                        allowInsecure = false,
+                        alpn = alpn,
+                        fingerprint = fingerprint,
+                    )
+                } else null,
+                websocketSettings = if (transport == Transport.WEBSOCKET) {
+                    WebsocketSettings(
+                        path = path ?: "/",
+                        host = hostHeader,
+                    )
+                } else null,
+                tcpSettings = if (transport == Transport.TCP && headerType != null) {
+                    TcpSettings(
+                        headerType = headerType,
+                        host = hostHeader,
+                    )
+                } else null,
+                grpcSettings = if (transport == Transport.GRPC) {
+                    GrpcSettings(
+                        serviceName = serviceName ?: "",
+                        mode = "gun",
+                    )
+                } else null,
                 userId = id,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
@@ -244,7 +283,12 @@ object ConfigParserEngine {
                     )
                 } else null,
                 tcpSettings = null,
-                grpcSettings = null,
+                grpcSettings = if (transport == Transport.GRPC) {
+                    GrpcSettings(
+                        serviceName = query["serviceName"] ?: "",
+                        mode = query["mode"] ?: "gun",
+                    )
+                } else null,
                 password = userInfo,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
@@ -441,6 +485,7 @@ object ConfigParserEngine {
             var tcpSettings: TcpSettings? = null
             var tlsSettings: TlsSettings? = null
             var realitySettings: RealitySettings? = null
+            var grpcSettings: GrpcSettings? = null
             
             when (transport) {
                 Transport.WEBSOCKET -> {
@@ -457,6 +502,13 @@ object ConfigParserEngine {
                     tcpSettings = TcpSettings(
                         headerType = header?.get("type") as? String ?: "none",
                         host = header?.get("host") as? String
+                    )
+                }
+                Transport.GRPC -> {
+                    val grpcSettingsMap = streamSettings?.get("grpcSettings") as? Map<*, *>
+                    grpcSettings = GrpcSettings(
+                        serviceName = grpcSettingsMap?.get("serviceName") as? String ?: "",
+                        mode = if ((grpcSettingsMap?.get("multiMode") as? Boolean) == true) "multi" else "gun",
                     )
                 }
                 else -> { /* Other transports not yet fully implemented */ }
@@ -500,6 +552,7 @@ object ConfigParserEngine {
                 tlsSettings = tlsSettings,
                 websocketSettings = websocketSettings,
                 tcpSettings = tcpSettings,
+                grpcSettings = grpcSettings,
                 userId = userId,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
@@ -576,6 +629,7 @@ object ConfigParserEngine {
             var tcpSettings: TcpSettings? = null
             var tlsSettings: TlsSettings? = null
             var realitySettings: RealitySettings? = null
+            var grpcSettings: GrpcSettings? = null
             
             when (transport) {
                 Transport.WEBSOCKET -> {
@@ -592,6 +646,13 @@ object ConfigParserEngine {
                     tcpSettings = TcpSettings(
                         headerType = header?.get("type") as? String ?: "none",
                         host = header?.get("host") as? String
+                    )
+                }
+                Transport.GRPC -> {
+                    val grpcSettingsMap = streamSettings?.get("grpcSettings") as? Map<*, *>
+                    grpcSettings = GrpcSettings(
+                        serviceName = grpcSettingsMap?.get("serviceName") as? String ?: "",
+                        mode = if ((grpcSettingsMap?.get("multiMode") as? Boolean) == true) "multi" else "gun",
                     )
                 }
                 else -> { /* Other transports */ }
@@ -634,6 +695,7 @@ object ConfigParserEngine {
                 tlsSettings = tlsSettings,
                 websocketSettings = websocketSettings,
                 tcpSettings = tcpSettings,
+                grpcSettings = grpcSettings,
                 userId = userId,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,
@@ -698,6 +760,7 @@ object ConfigParserEngine {
             val securityMode = SecurityMode.TLS
             
             // Parse TLS settings
+            var grpcSettings: GrpcSettings? = null
             var tlsSettings: TlsSettings? = null
             if (securityMode == SecurityMode.TLS) {
                 val tlsSettingsMap = streamSettings?.get("tlsSettings") as? Map<*, *>
@@ -708,7 +771,14 @@ object ConfigParserEngine {
                     fingerprint = tlsSettingsMap?.get("fingerprint") as? String
                 )
             }
-            
+            if (transport == Transport.GRPC) {
+                val grpcSettingsMap = streamSettings?.get("grpcSettings") as? Map<*, *>
+                grpcSettings = GrpcSettings(
+                    serviceName = grpcSettingsMap?.get("serviceName") as? String ?: "",
+                    mode = if ((grpcSettingsMap?.get("multiMode") as? Boolean) == true) "multi" else "gun",
+                )
+            }
+
             val displayName = outbound["tag"] as? String ?: "Trojan: $address"
             val displaySubtitle = buildSubtitle(transport, securityMode, port)
             
@@ -722,6 +792,7 @@ object ConfigParserEngine {
                 address = address,
                 port = port,
                 tlsSettings = tlsSettings,
+                grpcSettings = grpcSettings,
                 password = password,
                 displayName = displayName,
                 displaySubtitle = displaySubtitle,

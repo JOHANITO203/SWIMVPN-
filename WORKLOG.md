@@ -727,3 +727,25 @@ pm run build PASSED.
     - Updated `RuntimeFilePreparer` to execute Xray directly from `nativeLibraryDir` when available instead of copying it into `no_backup/...`, which real devices refused to execute.
 - **Verification**:
     - `android\\gradlew.bat assembleDebug` PASSED.
+## [2026-04-23] [Android VPN Batch - Parser gRPC Runtime Payload Preservation]
+- **Status**: DONE
+- **Changes**:
+    - Fixed Android parser/runtime handoff so `gRPC` configs no longer lose `serviceName` during parsing.
+    - Extended `ConfigParserEngine` URL parsing for:
+      - `VLESS`
+      - `VMess`
+      - `Trojan`
+      so `grpcSettings` are populated when the raw config carries `serviceName`.
+    - Extended JSON config parsing for:
+      - `VLESS`
+      - `VMess`
+      - `Trojan`
+      so `streamSettings.grpcSettings` is preserved into the canonical Android profile.
+    - Improved `VMess` URL parsing so runtime-relevant fields are no longer dropped silently:
+      - `ws path/host`
+      - `grpc serviceName`
+      - `tls sni/alpn/fingerprint`
+      - `tcp headerType/host`
+    - Kept the change narrowly scoped to parser/runtime payload truth without changing backend contracts.
+- **Verification**:
+    - `android\\gradlew.bat assembleDebug` PASSED.
