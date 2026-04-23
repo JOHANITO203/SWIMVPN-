@@ -330,3 +330,14 @@ otification-bot-service event handoff.
   - supported + recognized unsupported payload imports supported servers without noisy warnings
   - recognized unsupported-only payload fails clearly with no fake success
   - duplicate-only payload still reports duplicate
+- Follow-up from ADB runtime smoke check:
+  - while connected, capture tun2socks stdout/stderr/exit files if they are created
+  - verify whether the JNI bridge is truly moving packets or only Xray is alive
+  - run a controlled page-load test while sampling `/proc/net/dev` for `tun0`
+  - if `tun0` counters barely move, inspect `SwimVpnService` tun2socks launch/JNI status path next
+- Re-test technical connectivity routing panel on device:
+  - idle full tunnel selected shows neutral selected tunnel state
+  - idle local proxy selected shows neutral selected proxy state
+  - running full tunnel shows green tunnel indicator only
+  - running local proxy shows green proxy indicator only
+  - switching mode while disconnected persists the choice

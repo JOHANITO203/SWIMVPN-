@@ -247,6 +247,7 @@ fun AppNavigation(viewModel: MainViewModel) {
         }
         composable("technical") {
             val metrics by VpnManager.metrics.collectAsState()
+            val runtimeStatus by VpnManager.runtimeStatus.collectAsState()
             val routingMode = when (val currentState = state) {
                 is AppState.Success -> currentState.routingMode
                 is AppState.TrialSetup -> currentState.routingMode
@@ -281,6 +282,8 @@ fun AppNavigation(viewModel: MainViewModel) {
                 themeMode = themeMode.name,
                 onThemeModeChange = { viewModel.setThemeMode(ThemeMode.fromPersisted(it)) },
                 runtimeDiagnostics = buildRuntimeDiagnostics(metrics),
+                runtimeStatus = runtimeStatus.name,
+                activeRuntimeMode = metrics.activeMode,
                 onBack = { navController.popBackStack() }
             )
         }

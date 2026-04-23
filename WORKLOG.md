@@ -991,3 +991,27 @@ pm run build PASSED.
   - Updated import success toasts to report the number of servers imported from manual, clipboard, or QR flows.
 - **Verification**:
   - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [ADB Runtime Diagnostic - Device Engine Smoke Check]
+- **Status**: DONE
+- **Findings**:
+  - Device connected: Samsung SM-S916B, Android 16, ABI `arm64-v8a`.
+  - Installed app package is `com.swimvpn.app`, debug/test build `1.0`.
+  - App process is running and Xray process `libxray.so` is active.
+  - Xray starts successfully from the generated runtime config.
+  - Runtime config exposes local SOCKS `127.0.0.1:10808` and HTTP `127.0.0.1:10809` inbounds.
+  - Active outbound observed as `trojan` toward `159.195.6.151`.
+  - Full tunnel interface `tun0` is up with MTU `1280` and default routing through `tun0`.
+  - `tun0` byte counters move slightly, but throughput still needs an intentional traffic test.
+  - No Xray stderr errors were observed; Xray stdout only showed startup/deprecation warnings.
+- **Next Diagnostic Focus**:
+  - Confirm tun2socks JNI bridge runtime status and logs during active browsing.
+  - Compare `LOCAL_PROXY` vs `FULL_TUNNEL` on the same selected node.
+## [2026-04-23] [Android UI Batch - Routing Mode Status Panel]
+- **Status**: DONE
+- **Changes**:
+  - Replaced the connectivity routing dropdown row with a centered routing control panel.
+  - Added separate Tunnel and Proxy route buttons with neutral inactive state and green active indicators.
+  - Passed runtime status and active runtime mode into the technical settings screen so the UI can distinguish selected routing from active routing.
+  - Kept existing persistence and runtime mode change callbacks unchanged.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.

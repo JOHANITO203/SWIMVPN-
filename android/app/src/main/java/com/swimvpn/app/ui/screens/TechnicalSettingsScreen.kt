@@ -76,10 +76,11 @@ fun TechnicalSettingsScreen(
     themeMode: String = AppThemePreference.SYSTEM,
     onThemeModeChange: (String) -> Unit = {},
     runtimeDiagnostics: String = "",
+    runtimeStatus: String = "IDLE",
+    activeRuntimeMode: String? = null,
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    var showRoutingMenu by rememberSaveable { mutableStateOf(false) }
     var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
     var showThemeMenu by rememberSaveable { mutableStateOf(false) }
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
@@ -227,30 +228,12 @@ fun TechnicalSettingsScreen(
                 .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
         ) {
             Column {
-                Box {
-                    SettingsRowWithChip(
-                        icon = Icons.Outlined.AccountTree,
-                        title = stringResource(R.string.label_routing),
-                        subtitle = stringResource(R.string.routing_runtime_desc),
-                        chipText = routingChipLabel(routingMode),
-                        onClick = { showRoutingMenu = true },
-                    )
-
-                    DropdownMenu(
-                        expanded = showRoutingMenu,
-                        onDismissRequest = { showRoutingMenu = false },
-                        modifier = Modifier.background(Color.White)
-                    ) {
-                        RoutingMenuItem(stringResource(R.string.routing_mode_full_tunnel)) {
-                            onRoutingModeChange(FULL_TUNNEL_MODE)
-                            showRoutingMenu = false
-                        }
-                        RoutingMenuItem(stringResource(R.string.routing_mode_local_proxy)) {
-                            onRoutingModeChange(LOCAL_PROXY_MODE)
-                            showRoutingMenu = false
-                        }
-                    }
-                }
+                RoutingControlPanel(
+                    selectedMode = routingMode,
+                    runtimeStatus = runtimeStatus,
+                    activeRuntimeMode = activeRuntimeMode,
+                    onRoutingModeChange = onRoutingModeChange,
+                )
                 HorizontalDivider(color = Color(0xFFF1F5F9))
                 SettingsRowWithSwitch(
                     icon = Icons.Outlined.PowerSettingsNew,
@@ -337,14 +320,6 @@ private fun ThemeMenuItem(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RoutingMenuItem(label: String, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(text = label, fontWeight = FontWeight.Bold) },
-        onClick = onClick
-    )
-}
-
-@Composable
 private fun languageChipLabel(language: String): String =
     when (language.lowercase()) {
         "fr" -> stringResource(R.string.lang_fr)
@@ -367,6 +342,176 @@ private fun routingChipLabel(routingMode: String): String =
         "LOCAL_PROXY" -> stringResource(R.string.routing_mode_local_proxy)
         "SPLIT_TUNNEL" -> stringResource(R.string.routing_mode_split_tunnel)
         else -> stringResource(R.string.routing_mode_full_tunnel)
+    }
+
+@Composable
+private fun RoutingControlPanel(
+    selectedMode: String,
+    runtimeStatus: String,
+    activeRuntimeMode: String?,
+    onRoutingModeChange: (String) -> Unit,
+) {
+    val normalizedSelectedMode = normalizeRoutingMode(selectedMode)
+    val normalizedActiveMode = activeRuntimeMode?.let { normalizeRoutingMode(it) }
+    val isRunning = runtimeStatus.equals("RUNNING", ignoreCase = true)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(58.dp)
+                .background(Color(0xFFEFF6FF), CircleShape)
+                .border(1.dp, Color(0xFFBFDBFE), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.AccountTree,
+                contentDescription = null,
+                tint = ElectricBlue,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Text(
+            text = stringResource(R.string.label_routing),
+            fontWeight = FontWeight.Black,
+            color = Color(0xFF0F172A),
+            fontSize = 13.sp,
+            letterSpacing = 0.8.sp
+        )
+        Text(
+            text = routingStatusText(
+                selectedMode = normalizedSelectedMode,
+                activeMode = normalizedActiveMode,
+                runtimeStatus = runtimeStatus,
+            ),
+            color = Color(0xFF64748B),
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 11.sp,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            RoutingModeButton(
+                label = stringResource(R.string.routing_mode_full_tunnel),
+                selected = normalizedSelectedMode == FULL_TUNNEL_MODE,
+                active = isRunning && normalizedActiveMode == FULL_TUNNEL_MODE,
+                modifier = Modifier.weight(1f),
+                onClick = { onRoutingModeChange(FULL_TUNNEL_MODE) }
+            )
+            RoutingModeButton(
+                label = stringResource(R.string.routing_mode_local_proxy),
+                selected = normalizedSelectedMode == LOCAL_PROXY_MODE,
+                active = isRunning && normalizedActiveMode == LOCAL_PROXY_MODE,
+                modifier = Modifier.weight(1f),
+                onClick = { onRoutingModeChange(LOCAL_PROXY_MODE) }
+            )
+        }
+
+        Text(
+            text = stringResource(R.string.routing_runtime_desc),
+            color = Color(0xFF94A3B8),
+            fontWeight = FontWeight.Medium,
+            fontSize = 10.sp,
+            lineHeight = 14.sp,
+            modifier = Modifier.padding(top = 14.dp)
+        )
+    }
+}
+
+@Composable
+private fun RoutingModeButton(
+    label: String,
+    selected: Boolean,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val borderColor = when {
+        active -> Color(0xFF22C55E)
+        selected -> ElectricBlue
+        else -> Color(0xFFE2E8F0)
+    }
+    val backgroundColor = when {
+        active -> Color(0xFFF0FDF4)
+        selected -> Color(0xFFEFF6FF)
+        else -> Color(0xFFF8FAFC)
+    }
+    val textColor = when {
+        active -> Color(0xFF166534)
+        selected -> Color(0xFF0F172A)
+        else -> Color(0xFF94A3B8)
+    }
+    val dotColor = if (active) Color(0xFF22C55E) else Color(0xFFCBD5E1)
+
+    Surface(
+        modifier = modifier
+            .height(58.dp)
+            .border(1.dp, borderColor, RoundedCornerShape(18.dp))
+            .clickable { onClick() },
+        color = backgroundColor,
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .background(dotColor, CircleShape)
+                    .border(
+                        width = if (active) 2.dp else 1.dp,
+                        color = if (active) Color(0xFFBBF7D0) else Color.White,
+                        shape = CircleShape
+                    )
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                color = textColor,
+                fontWeight = FontWeight.Black,
+                fontSize = 11.sp,
+                letterSpacing = 0.4.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun routingStatusText(
+    selectedMode: String,
+    activeMode: String?,
+    runtimeStatus: String,
+): String {
+    return when (runtimeStatus.uppercase()) {
+        "RUNNING" -> {
+            val label = activeMode?.let { routingChipLabel(it) } ?: routingChipLabel(selectedMode)
+            "$label ACTIVE"
+        }
+        "STARTING" -> "${routingChipLabel(selectedMode)} STARTING"
+        "STOPPING" -> "${routingChipLabel(selectedMode)} STOPPING"
+        "FAILED" -> "${routingChipLabel(selectedMode)} NEEDS ATTENTION"
+        else -> "${routingChipLabel(selectedMode)} SELECTED"
+    }
+}
+
+private fun normalizeRoutingMode(mode: String): String =
+    when (mode.uppercase()) {
+        LEGACY_PROXY_MODE, LOCAL_PROXY_MODE -> LOCAL_PROXY_MODE
+        else -> FULL_TUNNEL_MODE
     }
 
 private fun normalizeThemeMode(themeMode: String): String =
