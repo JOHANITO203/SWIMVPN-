@@ -96,7 +96,14 @@
     <string name="label_expires_at">PLAN EXPIRES</string>
     <string name="status_active">ACTIVE</string>
     <string name="profile_status_label">ACCESS STATUS</string>
-    <string name="profile_usage_note">Includes account usage plus the current device session.</string>
+    <string name="profile_usage_note">Quota and expiry are accurate. Global subscription usage is not yet measured server-side.</string>
+    <string name="profile_session_usage_note">Shows traffic measured during the current device session only.</string>
+    <string name="profile_metric_plan_quota">PLAN QUOTA</string>
+    <string name="profile_metric_plan_quota_desc">Backend quota attached to your active offer.</string>
+    <string name="profile_metric_session_usage">THIS SESSION</string>
+    <string name="profile_metric_access_status">ACCESS STATUS</string>
+    <string name="profile_metric_access_status_desc">Subscription status and expiry are synced from your active access.</string>
+    <string name="profile_metric_access_status_expired">Your active access is expired until a new paid or trial access is activated.</string>
     <string name="profile_email_format">Email • %1$s</string>
     <string name="profile_phone_format">Phone • %1$s</string>
     <string name="profile_contact_missing">No contact details on file yet.</string>

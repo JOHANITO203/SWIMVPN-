@@ -426,3 +426,10 @@ otification-bot-service event handoff.
   - admin approve/reject callbacks
   - crypto invoice creation + webhook callback
 - Add a future admin UI for payment review only if Telegram review becomes insufficient.
+
+## [2026-04-24] Subscription Analytics Follow-up
+- Keep the current UI wording honest until a real backend usage source exists.
+- If subscription-wide consumption is needed later:
+  - add a server-side usage source of truth
+  - populate `dataUsedBytes` with real measured values
+  - then reintroduce a true global usage progress view

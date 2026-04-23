@@ -96,7 +96,14 @@
     <string name="label_expires_at">СРОК ДЕЙСТВИЯ ПЛАНА</string>
     <string name="status_active">АКТИВЕН</string>
     <string name="profile_status_label">СТАТУС ДОСТУПА</string>
-    <string name="profile_usage_note">Включает использование аккаунта и текущую сессию устройства.</string>
+    <string name="profile_usage_note">Квота и срок действия отображаются честно. Общий расход подписки пока не измеряется на сервере.</string>
+    <string name="profile_session_usage_note">Показывает только трафик, измеренный в текущей сессии на этом устройстве.</string>
+    <string name="profile_metric_plan_quota">КВОТА ПЛАНА</string>
+    <string name="profile_metric_plan_quota_desc">Backend-квота, привязанная к вашему активному предложению.</string>
+    <string name="profile_metric_session_usage">ЭТА СЕССИЯ</string>
+    <string name="profile_metric_access_status">СТАТУС ДОСТУПА</string>
+    <string name="profile_metric_access_status_desc">Статус и срок действия берутся из вашего активного доступа.</string>
+    <string name="profile_metric_access_status_expired">Ваш активный доступ истёк до активации нового платного или пробного доступа.</string>
     <string name="profile_email_format">Email • %1$s</string>
     <string name="profile_phone_format">Телефон • %1$s</string>
     <string name="profile_contact_missing">Контактные данные пока не заполнены.</string>

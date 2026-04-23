@@ -61,6 +61,7 @@ fun ProfileScreen(
     val badgeColor = profileBadgeColor(profile)
     val badgeBackground = profileBadgeBackground(profile)
     val totalUsageNote = stringResource(R.string.profile_usage_note)
+    val sessionUsageNote = stringResource(R.string.profile_session_usage_note)
     val expiryString = profile.effectiveExpiryAt
     val statusText = profileStatusText(profile, context)
     val expirationText = calculateRemainingTime(
@@ -187,53 +188,46 @@ fun ProfileScreen(
                 .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                // Data Usage Section
                 val isTrial = profile.accessType == "TRIAL"
-                val remainingBytes = profile.remainingBytes(bytesIn, bytesOut)
                 val hasMeasuredLimit = profile.hasMeasuredLimit
-                val progress = profile.consumedPercentage(bytesIn, bytesOut)
-                
+                val sessionBytes = bytesIn + bytesOut
+                val quotaValue = if (hasMeasuredLimit) formatBytes(profile.dataLimitBytes) else stringResource(R.string.label_unlimited)
                 val statusColor = when {
                     isTrial -> SwimBlueMain
-                    progress > 0.9f -> Color(0xFFEF4444) // Red
-                    progress > 0.7f -> Color(0xFFF59E0B) // Orange
-                    else -> Color(0xFF22C55E) // Green
+                    profile.isExpired -> Color(0xFFEF4444)
+                    else -> Color(0xFF22C55E)
                 }
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text(stringResource(R.string.label_data_traffic), fontWeight = FontWeight.Bold, color = Color(0xFF475569), fontSize = 12.sp, letterSpacing = 0.5.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Rounded.Bolt, contentDescription = null, tint = SwimBlueMain, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                if (!hasMeasuredLimit) stringResource(R.string.label_unlimited) else "${formatBytes(remainingBytes)} ${stringResource(R.string.label_left)}",
-                                fontWeight = FontWeight.Black,
-                                color = SwimNavyMouth,
-                                fontSize = 18.sp
-                            )
-                        }
-                    }
-                    if (hasMeasuredLimit) {
-                        Text(
-                            String.format(Locale.US, "%.0f%%", progress * 100),
-                            fontWeight = FontWeight.Black,
-                            color = statusColor,
-                            fontSize = 18.sp
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                LinearProgressIndicator(
-                    progress = { if (hasMeasuredLimit) progress else 0f },
-                    modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape),
-                    color = statusColor,
-                    trackColor = Color(0xFFF1F5F9)
+                AnalyticsMetricCard(
+                    title = stringResource(R.string.profile_metric_plan_quota),
+                    value = quotaValue,
+                    subtitle = stringResource(R.string.profile_metric_plan_quota_desc),
+                    accent = SwimBlueMain,
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                AnalyticsMetricCard(
+                    title = stringResource(R.string.profile_metric_session_usage),
+                    value = formatBytes(sessionBytes),
+                    subtitle = sessionUsageNote,
+                    accent = Color(0xFFF59E0B),
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                AnalyticsMetricCard(
+                    title = stringResource(R.string.profile_metric_access_status),
+                    value = statusText,
+                    subtitle = if (profile.isExpired) {
+                        stringResource(R.string.profile_metric_access_status_expired)
+                    } else {
+                        stringResource(R.string.profile_metric_access_status_desc)
+                    },
+                    accent = statusColor,
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = totalUsageNote,
                     color = Color(0xFF94A3B8),
@@ -326,6 +320,55 @@ fun ProfileScreen(
         }
         
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun AnalyticsMetricCard(
+    title: String,
+    value: String,
+    subtitle: String,
+    accent: Color,
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF475569),
+                fontSize = 12.sp,
+                letterSpacing = 0.5.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(accent, CircleShape)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = value,
+                    fontWeight = FontWeight.Black,
+                    color = SwimNavyMouth,
+                    fontSize = 20.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = subtitle,
+                color = Color(0xFF64748B),
+                fontSize = 12.sp,
+                lineHeight = 16.sp
+            )
+        }
     }
 }
 

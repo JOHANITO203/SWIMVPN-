@@ -174,7 +174,6 @@ const InteractiveGlobe = () => {
   const pointsRef = useRef<THREE.Points>(null);
   const particleCount = 75000; // Balanced for pixel-perfect clarity
 
-  // 1. Instant Math Fallback
   const [{ initialPositions, initialSizes, initialColors }] = useState(() => {
     const pos = new Float32Array(particleCount * 3);
     const siz = new Float32Array(particleCount);
@@ -187,90 +186,12 @@ const InteractiveGlobe = () => {
       pos[i * 3 + 1] = GLOBE_RADIUS * Math.sin(theta) * Math.sin(phi);
       pos[i * 3 + 2] = GLOBE_RADIUS * Math.cos(phi);
 
-      const lat = 90 - (phi * 180) / Math.PI;
-      const lon = ((theta * 180) / Math.PI) % 360 - 180;
-      const n = Math.sin(lat * 0.2) * Math.cos(lon * 0.2) + Math.sin(lat * 0.5) * Math.sin(lon * 0.5);
-
-      const isLand = (
-        (lat > 15 && lat < 75 && lon > -165 + n*5 && lon < -50 + n*5) ||
-        (lat > -55 && lat < 15 && lon > -85 + n*5 && lon < -35 + n*5) ||
-        (lat > 35 && lat < 70 && lon > -10 + n*5 && lon < 40 + n*5) ||
-        (lat > -35 && lat < 35 && lon > -20 + n*5 && lon < 50 + n*5) ||
-        (lat > 5 && lat < 75 && lon > 40 + n*5 && lon < 180 + n*5) ||
-        (lat > -45 && lat < -10 && lon > 110 + n*5 && lon < 155 + n*5)
-      );
-
-      siz[i] = isLand ? 0.016 : 0.001; // Larger squares for land, tiny for water
-      if (isLand) {
-        col[i*3] = 46/255; col[i*3+1] = 144/255; col[i*3+2] = 250/255; // Primary Blue
-      } else {
-        col[i*3] = 15/255; col[i*3+1] = 23/255;  col[i*3+2] = 42/255;
-      }
+      // Uniform empty sphere (no continents)
+      siz[i] = 0.003;
+      col[i*3] = 30/255; col[i*3+1] = 41/255; col[i*3+2] = 59/255; // Slate 800
     }
     return { initialPositions: pos, initialSizes: siz, initialColors: col };
   });
-
-  const [sizes, setSizes] = useState(initialSizes);
-  const [colors, setColors] = useState(initialColors);
-
-  // 2. High-Res Image Mapping (Pixel-Perfect)
-  useEffect(() => {
-    let mounted = true;
-    fetch("https://unpkg.com/three-globe/example/img/earth-water.png")
-      .then(res => res.blob())
-      .then(blob => {
-        if (!mounted) return;
-        const img = new Image();
-        img.onload = () => {
-          if (!mounted) return;
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width; canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-
-          ctx.drawImage(img, 0, 0);
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-          const newSizes = new Float32Array(particleCount);
-          const newColors = new Float32Array(particleCount * 3);
-
-          for (let i = 0; i < particleCount; i++) {
-            const x = initialPositions[i * 3];
-            const y = initialPositions[i * 3 + 1];
-            const z = initialPositions[i * 3 + 2];
-
-            const lat = Math.asin(y / GLOBE_RADIUS);
-            const lon = Math.atan2(z, x);
-
-            const u = 0.5 + lon / (2 * Math.PI);
-            const v = 0.5 - lat / Math.PI;
-
-            const px = Math.max(0, Math.min(Math.floor(u * img.width), img.width - 1));
-            const py = Math.max(0, Math.min(Math.floor(v * img.height), img.height - 1));
-            const index = (py * img.width + px) * 4;
-
-            const isLand = imgData.data[index] < 128;
-
-            newSizes[i] = isLand ? 0.018 : 0.001; // High contrast: big land pixels, nearly invisible water
-            if (isLand) {
-                newColors[i*3] = 46/255; newColors[i*3+1] = 144/255; newColors[i*3+2] = 250/255;
-            } else {
-                newColors[i*3] = 15/255; newColors[i*3+1] = 23/255;  newColors[i*3+2] = 42/255;
-            }
-          }
-
-          setSizes(newSizes);
-          setColors(newColors);
-
-          if (pointsRef.current) {
-            pointsRef.current.geometry.setAttribute('size', new THREE.BufferAttribute(newSizes, 1));
-            pointsRef.current.geometry.setAttribute('color', new THREE.BufferAttribute(newColors, 3));
-          }
-        };
-        img.src = URL.createObjectURL(blob);
-      }).catch(() => console.warn("Using math map fallback."));
-    return () => { mounted = false; };
-  }, [initialPositions]);
 
   return (
     <group>
@@ -278,8 +199,8 @@ const InteractiveGlobe = () => {
       <points ref={pointsRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={particleCount} array={initialPositions} itemSize={3} />
-          <bufferAttribute attach="attributes-size" count={particleCount} array={sizes} itemSize={1} />
-          <bufferAttribute attach="attributes-color" count={particleCount} array={colors} itemSize={3} />
+          <bufferAttribute attach="attributes-size" count={particleCount} array={initialSizes} itemSize={1} />
+          <bufferAttribute attach="attributes-color" count={particleCount} array={initialColors} itemSize={3} />
         </bufferGeometry>
         <shaderMaterial
           transparent

@@ -558,3 +558,13 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Checkout pricing now comes from PostgreSQL plan truth, not the Android client.
   - Manual payment proof and review are logged through `AdminEvent` while `Order` remains the payment truth anchor.
   - Existing inventory fulfillment and delivery email flows remain the final post-payment path.
+## [2026-04-24] [Do Not Pretend Session Traffic Equals Subscription-Wide Analytics]
+- **Decision**: The profile analytics UI must separate quota truth and current-session traffic instead of presenting them as one global subscription-usage metric.
+- **Why**: The backend profile still returns `dataUsedBytes = 0`, so the app cannot honestly claim that it knows full subscription consumption across time/devices. The only reliable traffic counter currently available in the product is the local runtime session on this device.
+- **Impact**:
+  - The profile screen now presents:
+    - backend plan quota
+    - current device session usage
+    - synced access status/expiry
+  - Product wording no longer overstates analytics maturity.
+  - Future server-side usage analytics can be added later without undoing this UI truthfulness baseline.

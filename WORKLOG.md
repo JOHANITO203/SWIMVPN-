@@ -1281,3 +1281,15 @@ pm run build PASSED.
   - `cd backend && npm run lint` PASSED.
   - `cd backend && npm run build:all` PASSED.
   - `cd android && .\\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+## [2026-04-24] [Honest Subscription Analytics UI Refactor]
+- **Status**: DONE
+- **Changes**:
+  - Refactored the profile analytics card to stop implying that SWIMVPN already has full backend subscription usage metrics.
+  - Split the old mixed analytics block into clearer product sections:
+    - plan quota
+    - current device session usage
+    - access status
+  - Reworded the supporting copy to explicitly state that quota and expiry are reliable, while total subscription usage is not yet measured server-side.
+  - Preserved the current runtime/session counters and backend quota truth without inventing new analytics logic.
+- **Verification**:
+  - `cd android && .\\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
