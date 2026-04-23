@@ -504,3 +504,42 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Home/runtime/import status text now localizes through Android resources.
   - FR and RU resource files are treated as full first-class translations, not partial overlays.
   - Future locale work should add keys to all three language files in the same batch.
+## [2026-04-23] [Apply App Locale Outside Compose Recomposition]
+- **Decision**: Android app locale changes must be applied once at activity startup and on explicit user language changes, not from a Compose LaunchedEffect tied to a continuously collected preference flow.
+- **Why**: The previous approach let DataStore locale state and AppCompatDelegate locale state race during activity recreation, causing repeated MainActivity restart loops and black-screen flicker.
+- **Impact**:
+  - MainActivity now applies the persisted locale before setContent.
+  - Technical settings still change language immediately, but through an explicit callback instead of a recomposition loop.
+  - Future locale work should keep a single source-of-truth flow and avoid calling setApplicationLocales(...) from reactive UI loops.
+## [2026-04-23] [Technical Screen External Actions Must Be Debounced On Entry]
+- **Decision**: External actions from the Android technical screen must be briefly disabled during screen entry.
+- **Why**: Investigation showed no app crash, but repeated involvement of com.android.settings after entering the technical screen. The most credible cause is an accidental click-through into the kill-switch/settings shortcut during navigation.
+- **Impact**:
+  - The kill-switch shortcut remains available, but only after a short entry delay.
+  - Screen-entry navigation becomes safer without changing the screen architecture.
+  - If more click-through cases appear later, the same pattern can be extended to other external-action tiles.
+## [2026-04-23] [Prefer Explicit IPv4 DNS For The Current Android Tunnel Path]
+- **Decision**: Use an explicit shared IPv4 resolver set and prefer IPv4 resolution in the current Android tunnel runtime.
+- **Why**: The app's present full-tunnel path is validated mainly as an IPv4 data plane (`VpnService` + `tun2socks` + Xray). Leaving DNS/routing too generic increases the risk of "connected but page never finishes loading" cases when resolution or fallback drifts toward paths the tunnel is not consistently carrying.
+- **Impact**:
+  - Xray DNS now uses `UseIPv4`.
+  - Routing now uses `IPIfNonMatch` instead of `AsIs`.
+  - Android `VpnService` and Xray share one explicit IPv4 resolver baseline.
+  - This is a stabilization decision, not a claim of full split-tunnel or advanced dual-stack support.
+## [2026-04-23] [Tunnel Is The Normal User Mode; Proxy Is Advanced/Manual]
+- **Decision**: Present `Tunnel` as the normal recommended user mode and `Proxy` as an advanced/manual mode.
+- **Why**: Live ADB auditing confirmed that `LOCAL_PROXY` works as a real local proxy path, but that does not make it the default whole-device browsing experience for ordinary users.
+- **Impact**:
+  - Product wording now favors `Tunnel` for normal usage.
+  - `Proxy` remains available, but is described more honestly as a manual or proxy-aware path.
+  - The runtime engine is preserved; only the product contract and guidance are corrected in this batch.
+## [2026-04-23] [Proxy Keeps Its Earlier Xray DNS/Routing Policy]
+- **Decision**: Keep `LOCAL_PROXY` on its earlier Xray DNS/routing profile while allowing `FULL_TUNNEL` to keep the newer tunnel-oriented hardening policy.
+- **Why**: The user's positive proxy validation happened before the shared DNS/routing hardening batch. Since that batch changed the shared Xray runtime for both modes, restoring proxy confidence requires a proxy-specific rollback instead of a global tunnel rollback.
+- **Impact**:
+  - `LOCAL_PROXY` now uses:
+    - `UseIP`
+    - `AsIs`
+    - DNS `1.1.1.1` + `8.8.8.8`
+  - `FULL_TUNNEL` keeps the newer policy for tunnel behavior.
+  - The shared runtime generator is now mode-aware rather than forcing one policy onto both paths.

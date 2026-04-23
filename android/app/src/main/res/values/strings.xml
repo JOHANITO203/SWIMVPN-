@@ -33,7 +33,7 @@
     <string name="home_badge_quarter">QUARTER ACTIVE</string>
     <string name="home_badge_week">WEEK ACTIVE</string>
     <string name="home_badge_access">ACCESS ACTIVE</string>
-    <string name="home_proxy_ready">Local proxy ready on 127.0.0.1:10808</string>
+    <string name="home_proxy_ready">Local proxy ready for manual or proxy-aware apps</string>
     <string name="home_connected_via">Connected via %1$s, %2$s</string>
     <string name="home_connected">Connected</string>
     <string name="home_starting_proxy">Starting native local proxy...</string>
@@ -41,7 +41,7 @@
     <string name="home_stopping_proxy">Stopping local proxy...</string>
     <string name="home_stopping_tunnel">Stopping secure tunnel...</string>
     <string name="home_check_server">Check your server or imported config.</string>
-    <string name="home_tap_start_proxy">Tap to start the local Xray proxy</string>
+    <string name="home_tap_start_proxy">Tap to start the local proxy for manual use</string>
     <string name="home_tap_connect_selected">Tap to connect using the selected server</string>
     <string name="home_select_server_first">Select a server or import a config first</string>
     <string name="content_desc_profile">Profile</string>
@@ -209,11 +209,12 @@
     <string name="routing_mode_split_tunnel">SPLIT TUNNEL</string>
     <string name="routing_badge_recommended">RECOMMENDED</string>
     <string name="routing_badge_tunneling">TUNNELING</string>
-    <string name="routing_runtime_desc">Proxy is the fastest recommended path. Tunnel captures the whole device when you need full-system routing.</string>
+    <string name="routing_badge_advanced">ADVANCED</string>
+    <string name="routing_runtime_desc">Tunnel is the normal mode for apps and browsing. Proxy is for manual or proxy-aware usage.</string>
     <string name="tunnel_title">VPN Tunnel (Recommended)</string>
     <string name="tunnel_desc">Routes all device traffic securely.</string>
     <string name="proxy_title">Local Proxy Only</string>
-    <string name="proxy_desc">Only routes specific apps or browser plugins.</string>
+    <string name="proxy_desc">For manual setup or proxy-aware apps only.</string>
     <string name="section_connectivity">CONNECTIVITY</string>
     <string name="auto_connect">Auto-Connect</string>
     <string name="desc_boot">STARTUP PREFERENCE</string>

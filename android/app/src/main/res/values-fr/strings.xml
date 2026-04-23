@@ -33,7 +33,7 @@
     <string name="home_badge_quarter">TRIMESTRE ACTIF</string>
     <string name="home_badge_week">SEMAINE ACTIVE</string>
     <string name="home_badge_access">ACCÈS ACTIF</string>
-    <string name="home_proxy_ready">Proxy local prêt sur 127.0.0.1:10808</string>
+    <string name="home_proxy_ready">Proxy local prêt pour usage manuel ou apps compatibles proxy</string>
     <string name="home_connected_via">Connecté via %1$s, %2$s</string>
     <string name="home_connected">Connecté</string>
     <string name="home_starting_proxy">Démarrage du proxy local natif...</string>
@@ -41,7 +41,7 @@
     <string name="home_stopping_proxy">Arrêt du proxy local...</string>
     <string name="home_stopping_tunnel">Arrêt du tunnel sécurisé...</string>
     <string name="home_check_server">Vérifiez votre serveur ou votre configuration importée.</string>
-    <string name="home_tap_start_proxy">Touchez pour démarrer le proxy Xray local</string>
+    <string name="home_tap_start_proxy">Touchez pour démarrer le proxy local en usage manuel</string>
     <string name="home_tap_connect_selected">Touchez pour vous connecter avec le serveur sélectionné</string>
     <string name="home_select_server_first">Sélectionnez un serveur ou importez d’abord une configuration</string>
     <string name="content_desc_profile">Profil</string>
@@ -209,11 +209,12 @@
     <string name="routing_mode_split_tunnel">TUNNEL PARTIEL</string>
     <string name="routing_badge_recommended">RECOMMANDÉ</string>
     <string name="routing_badge_tunneling">TUNNELISATION</string>
-    <string name="routing_runtime_desc">Proxy est le chemin recommandé et le plus rapide. Tunnel capture tout l’appareil quand vous avez besoin d’un routage système complet.</string>
+    <string name="routing_badge_advanced">AVANCÉ</string>
+    <string name="routing_runtime_desc">Tunnel est le mode normal pour les apps et la navigation. Proxy sert à un usage manuel ou aux apps compatibles proxy.</string>
     <string name="tunnel_title">Tunnel VPN (Recommandé)</string>
     <string name="tunnel_desc">Route tout le trafic de l’appareil de manière sécurisée.</string>
     <string name="proxy_title">Proxy local uniquement</string>
-    <string name="proxy_desc">Route uniquement les applications ou extensions ciblées.</string>
+    <string name="proxy_desc">Pour configuration manuelle ou apps compatibles proxy uniquement.</string>
     <string name="section_connectivity">CONNECTIVITÉ</string>
     <string name="auto_connect">Connexion automatique</string>
     <string name="desc_boot">PRÉFÉRENCE AU DÉMARRAGE</string>

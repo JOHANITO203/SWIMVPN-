@@ -66,11 +66,19 @@ import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val prefs = PreferencesManager(this)
+        val persistedLanguage = runBlocking {
+            prefs.languageFlow.first()
+        }
+        applyLocale(persistedLanguage)
         super.onCreate(savedInstanceState)
         
         lifecycleScope.launch {
@@ -89,8 +97,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
         setContent {
-            val prefs = remember { PreferencesManager(this@MainActivity) }
-            val language by prefs.languageFlow.collectAsState(initial = "en")
             val themeMode by prefs.themeModeFlow.collectAsState(initial = ThemeMode.SYSTEM)
             val systemDark = isSystemInDarkTheme()
             val darkTheme = when (themeMode) {
@@ -99,29 +105,40 @@ class MainActivity : AppCompatActivity() {
                 ThemeMode.LIGHT -> false
             }
 
-            LaunchedEffect(language) {
-                applyLocale(language)
-            }
-
             SwimVpnTheme(darkTheme = darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavigation(viewModel)
+                    AppNavigation(
+                        viewModel = viewModel,
+                        onApplyLocale = ::applyLocale,
+                    )
                 }
             }
         }
     }
 
     private fun applyLocale(langCode: String) {
-        val appLocale: LocaleListCompat = LocaleListCompat.forLanguageTags(langCode)
-        AppCompatDelegate.setApplicationLocales(appLocale)
+        val normalizedLanguage = langCode.trim().ifEmpty { "en" }
+        val targetLocales: LocaleListCompat = LocaleListCompat.forLanguageTags(normalizedLanguage)
+        val currentLocales = AppCompatDelegate.getApplicationLocales()
+        val currentPrimaryLanguage = currentLocales[0]?.language?.lowercase(Locale.ROOT).orEmpty()
+        val targetPrimaryLanguage = targetLocales[0]?.language?.lowercase(Locale.ROOT).orEmpty()
+
+        if (currentPrimaryLanguage == targetPrimaryLanguage) {
+            return
+        }
+
+        AppCompatDelegate.setApplicationLocales(targetLocales)
     }
 }
 
 @Composable
-fun AppNavigation(viewModel: MainViewModel) {
+fun AppNavigation(
+    viewModel: MainViewModel,
+    onApplyLocale: (String) -> Unit,
+) {
     val state by viewModel.state.collectAsState()
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -281,7 +298,10 @@ fun AppNavigation(viewModel: MainViewModel) {
                 language = language,
                 onRoutingModeChange = { viewModel.setRoutingMode(it) },
                 onAutoConnectChange = { viewModel.setAutoConnect(it) },
-                onLanguageChange = { viewModel.setLanguage(it) },
+                onLanguageChange = {
+                    viewModel.setLanguage(it)
+                    onApplyLocale(it)
+                },
                 themeMode = themeMode.name,
                 onThemeModeChange = { viewModel.setThemeMode(ThemeMode.fromPersisted(it)) },
                 runtimeDiagnostics = buildRuntimeDiagnostics(metrics),

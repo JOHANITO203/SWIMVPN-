@@ -1,82 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, monospace;
-
-  /* Refined Light Theme - Midnight Blue base */
-  --color-minimal-bg: #F2F4F7;
-  --color-minimal-surface: #FFFFFF;
-  --color-minimal-primary: #101828;
   --color-minimal-accent: #2E90FA;
-  --color-minimal-success: #15B097;
-  --color-minimal-text: #101828;
-  --color-minimal-text-secondary: #475467;
-  --color-minimal-text-muted: #98A2B3;
-  --color-minimal-text-bold: #101828;
-  --color-minimal-border: #EAECF0;
-  --color-minimal-trial-bg: #FFFAEB;
-  --color-minimal-trial-text: #B54708;
-
-  /* Refined Dark Theme - Graphite/Midnight base */
-  --color-dark-bg: #0F172A;
-  --color-dark-surface: #1E293B;
-  --color-dark-primary: #38BDF8;
-  --color-dark-accent: #38BDF8;
-  --color-dark-text: #F8FAFC;
-  --color-dark-text-secondary: #94A3B8;
-  --color-dark-text-muted: #475569;
-  --color-dark-text-bold: #F8FAFC;
-  --color-dark-border: #334155;
-  --color-dark-trial-bg: #1e1b4b;
-  --color-dark-trial-text: #70e2ff;
 }
 
-@layer base {
-  body {
-    @apply bg-minimal-bg text-minimal-text font-sans antialiased transition-colors duration-500;
-  }
+:root {
+  background-color: white;
+  color: #0f172a;
 }
 
-.dark body {
-  @apply bg-dark-bg text-dark-text;
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background-color: white;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Theme Utilities */
-.app-bg { @apply bg-minimal-bg dark:bg-dark-bg transition-all duration-500; }
-.app-surface { @apply bg-minimal-surface dark:bg-dark-surface transition-all duration-500; }
-.app-card { 
-  @apply bg-minimal-surface dark:bg-dark-surface border-2 border-minimal-border dark:border-dark-border transition-all duration-500;
-  box-shadow: 0 4px 20px -2px rgba(16, 24, 40, 0.05);
-}
-.dark .app-card {
-  box-shadow: none;
-  border-color: rgba(51, 65, 85, 0.5);
+/* Brutalist Stroke Text for Light Theme */
+.stroke-text {
+  -webkit-text-stroke: 1.5px #0f172a;
+  color: transparent;
 }
 
-.app-text { @apply text-minimal-text dark:text-dark-text transition-all duration-500; }
-.app-text-secondary { @apply text-minimal-text-secondary dark:text-dark-text-secondary transition-all duration-500; }
-.app-text-muted { @apply text-minimal-text-muted dark:text-dark-text-muted transition-all duration-500; }
-.app-text-bold { @apply text-minimal-text-bold dark:text-dark-text-bold transition-all duration-500; }
-.app-border { @apply border-minimal-border dark:border-dark-border transition-all duration-500; }
-.app-heading { @apply text-minimal-text-bold dark:text-dark-text-bold font-black tracking-tight; }
-
-.app-btn-primary { 
-  @apply bg-minimal-accent dark:bg-dark-accent text-white dark:text-dark-bg font-black uppercase tracking-widest text-[10px] transition-all active:scale-95 shadow-lg shadow-minimal-accent/20 dark:shadow-none; 
-}
-.app-btn-secondary { 
-  @apply bg-minimal-bg dark:bg-dark-surface text-minimal-text dark:text-dark-text font-black uppercase tracking-widest text-[10px] transition-all border-2 border-minimal-border dark:border-dark-border active:scale-95 shadow-sm dark:shadow-none; 
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
-.app-input {
-  @apply w-full bg-minimal-bg dark:bg-dark-bg border-2 border-minimal-border dark:border-dark-border p-5 rounded-[1.5rem] outline-none focus:border-minimal-accent dark:focus:border-dark-accent transition-all text-sm font-bold placeholder:text-minimal-text-muted dark:placeholder:text-dark-text-muted;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
 }
 
-.app-toggle-bg { @apply bg-minimal-border dark:bg-dark-border; }
-.app-toggle-bg-active { @apply bg-minimal-accent dark:bg-dark-accent; }
-.app-toggle-knob { @apply bg-white dark:bg-dark-bg shadow-md; }
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
 
-.app-select {
-  @apply appearance-none bg-minimal-bg dark:bg-dark-bg px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-minimal-text-bold dark:text-dark-text-bold outline-none cursor-pointer border-2 border-transparent focus:border-minimal-accent/30 dark:focus:border-dark-accent/30 transition-all shadow-sm;
+::-webkit-scrollbar-thumb {
+  background: #2E90FA;
+  border-radius: 10px;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
 }

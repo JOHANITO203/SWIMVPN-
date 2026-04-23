@@ -127,6 +127,7 @@ class SwimVpnService : VpnService() {
                     TunnelRuntimeAdapter.prepareRuntimeFromRawConfig(
                         rawConfig = it,
                         sourceType = SourceType.BACKEND_API,
+                        runtimeMode = requestedMode,
                     ).getOrElse { error ->
                         throw IllegalStateException(
                             "Invalid runtime config: ${error.localizedMessage}",
@@ -167,9 +168,11 @@ class SwimVpnService : VpnService() {
             .setSession("SWIMVPN+ (${runtime.profile.displayName})")
             .addAddress("10.0.0.2", 24)
             .addRoute("0.0.0.0", 0)
-            .addDnsServer("8.8.8.8")
-            .addDnsServer("1.1.1.1")
             .setMtu(DEFAULT_VPN_MTU)
+
+        TunnelRuntimeAdapter.DEFAULT_IPV4_DNS_SERVERS.forEach { dns ->
+            builder.addDnsServer(dns)
+        }
 
         try {
             builder.addDisallowedApplication(packageName)

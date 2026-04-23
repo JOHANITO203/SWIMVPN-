@@ -1098,7 +1098,7 @@ export default function App() {
   };
 
 const LoadingScreen = () => (
-  <div className="h-screen w-screen app-surface flex flex-col items-center justify-center p-8 transition-colors duration-500">
+  <div className="h-full w-full app-surface flex flex-col items-center justify-center p-8 transition-colors duration-500">
     <motion.div 
       animate={{ scale: [1, 1.05, 1] }}
       transition={{ repeat: Infinity, duration: 2.5 }}
@@ -1121,9 +1121,10 @@ const LoadingScreen = () => (
   if (loading) return <LoadingScreen />;
 
   return (
-    <div className="h-screen w-screen app-bg flex items-center justify-center font-sans overflow-hidden transition-all duration-300">
+    <div className="h-full w-full app-bg flex items-center justify-center font-sans overflow-hidden transition-all duration-300">
       {/* Phone Frame */}
       <div className="relative w-full max-w-[390px] aspect-[9/19.5] max-h-[844px] app-surface rounded-[3.5rem] border-[10px] app-border shadow-[0_20px_60px_rgba(0,0,0,0.1)] dark:shadow-none overflow-hidden scale-90 sm:scale-100">
+
         {/* Status Bar */}
         <div className="absolute top-0 left-0 w-full h-10 flex justify-between items-center px-10 z-50 pointer-events-none">
           <span className="text-[12px] font-bold app-text">12:30</span>

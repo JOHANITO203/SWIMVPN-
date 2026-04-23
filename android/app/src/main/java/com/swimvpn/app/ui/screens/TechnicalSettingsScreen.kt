@@ -42,6 +42,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
 import com.swimvpn.app.ui.theme.AppThemePreference
 import com.swimvpn.app.ui.theme.ElectricBlue
+import kotlinx.coroutines.delay
 
 private const val LEGACY_PROXY_MODE = "PROXY"
 private const val LEGACY_TUNNEL_MODE = "TUNNEL"
@@ -92,7 +94,14 @@ fun TechnicalSettingsScreen(
     var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
     var showThemeMenu by rememberSaveable { mutableStateOf(false) }
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
+    var externalActionsArmed by rememberSaveable { mutableStateOf(false) }
     val killSwitchStatus = readKillSwitchStatus(context)
+
+    LaunchedEffect(Unit) {
+        externalActionsArmed = false
+        delay(600)
+        externalActionsArmed = true
+    }
 
     Column(
         modifier = Modifier
@@ -200,6 +209,7 @@ fun TechnicalSettingsScreen(
                     title = stringResource(R.string.kill_switch),
                     subtitle = killSwitchStatusSubtitle(killSwitchStatus),
                     chipText = killSwitchStatusChip(killSwitchStatus),
+                    enabled = externalActionsArmed,
                     onClick = {
                         val intent = Intent(Settings.ACTION_VPN_SETTINGS).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -520,7 +530,7 @@ private fun RoutingControlPanel(
         ) {
             RoutingModeButton(
                 label = stringResource(R.string.routing_mode_full_tunnel),
-                badge = stringResource(R.string.routing_badge_tunneling),
+                badge = stringResource(R.string.routing_badge_recommended),
                 selected = normalizedSelectedMode == FULL_TUNNEL_MODE,
                 active = isRunning && normalizedActiveMode == FULL_TUNNEL_MODE,
                 modifier = Modifier.weight(1f),
@@ -528,7 +538,7 @@ private fun RoutingControlPanel(
             )
             RoutingModeButton(
                 label = stringResource(R.string.routing_mode_local_proxy),
-                badge = stringResource(R.string.routing_badge_recommended),
+                badge = stringResource(R.string.routing_badge_advanced),
                 selected = normalizedSelectedMode == LOCAL_PROXY_MODE,
                 active = isRunning && normalizedActiveMode == LOCAL_PROXY_MODE,
                 modifier = Modifier.weight(1f),

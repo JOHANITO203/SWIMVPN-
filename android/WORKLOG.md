@@ -132,3 +132,15 @@
 ### Next Steps:
 - Deploy to an Android 15 device/emulator to verify 16 KB alignment at runtime.
 - Check Logcat for the detailed HTTP 500 error body to identify the root cause on the server (e.g., database mismatch, missing `deviceId` record).
+
+## 2026-04-23 [SwimVPN+ Landing Page]
+- **Status**: DONE
+- **Changes**:
+  - Implemented the 'SwimVPN+' high-tech brutalist landing page in src/LandingPage.tsx.
+  - Configured @react-three/fiber Interactive Pixel Globe with 5000 points.
+  - Setup multi-layer parallax using motion/react useScroll and useTransform.
+  - Rendered App.tsx mockup seamlessly within a rotating 3D phone frame container.
+  - Set src/main.tsx entry point to the new Landing Page.
+- **Verification**:
+  - Code compiles, npm run lint passes (ignoring backend alias errors).
+

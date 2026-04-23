@@ -8,6 +8,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.swimvpn.app.SwimVpnService
+import com.swimvpn.app.vpn.RuntimeMode
 
 /**
  * Tunnel Runtime Adapter Engine
@@ -24,6 +25,16 @@ object TunnelRuntimeAdapter {
     private const val DEFAULT_SOCKS_PORT = 10808
     private const val DEFAULT_HTTP_PORT = 10809
     private const val DEFAULT_DNS_PORT = 1053
+    private val LEGACY_PROXY_DNS_SERVERS: List<String> = listOf(
+        "1.1.1.1",
+        "8.8.8.8",
+    )
+    val DEFAULT_IPV4_DNS_SERVERS: List<String> = listOf(
+        "1.1.1.1",
+        "1.0.0.1",
+        "8.8.8.8",
+        "8.8.4.4",
+    )
 
     private val gson = GsonBuilder()
         .disableHtmlEscaping()
@@ -44,9 +55,16 @@ object TunnelRuntimeAdapter {
         val summary: String,
     )
 
+    private data class RuntimeNetworkPolicy(
+        val dnsServers: List<String>,
+        val queryStrategy: String,
+        val domainStrategy: String,
+    )
+
     fun prepareRuntimeFromRawConfig(
         rawConfig: String,
         sourceType: SourceType = SourceType.BACKEND_API,
+        runtimeMode: RuntimeMode = RuntimeMode.FULL_TUNNEL,
     ): Result<RuntimePreparationResult> {
         val parseResult = ConfigParserEngine.parseConfig(rawConfig, sourceType)
         if (!parseResult.isValid) {
@@ -61,7 +79,7 @@ object TunnelRuntimeAdapter {
             return Result.failure(IllegalStateException(support.second))
         }
 
-        val runtimeDocument = generateXrayRuntimeDocument(normalized)
+        val runtimeDocument = generateXrayRuntimeDocument(normalized, runtimeMode)
             ?: return Result.failure(IllegalStateException("Runtime config generation failed"))
 
         return Result.success(
@@ -79,19 +97,23 @@ object TunnelRuntimeAdapter {
      * Public API for the native rollout: produce a complete Xray runtime document
      * from a normalized profile while preserving raw config on the profile.
      */
-    fun generateXrayRuntimeDocument(profile: SwimVpnProfile): JsonObject? {
+    fun generateXrayRuntimeDocument(
+        profile: SwimVpnProfile,
+        runtimeMode: RuntimeMode = RuntimeMode.FULL_TUNNEL,
+    ): JsonObject? {
         return try {
+            val networkPolicy = policyForMode(runtimeMode)
             val parsedConfig = parseRuntimeConfig(profile.normalizedRuntimeConfig)
             when {
                 parsedConfig != null && parsedConfig.has("outbounds") -> {
-                    augmentFullDocument(parsedConfig.deepCopy())
+                    augmentFullDocument(parsedConfig.deepCopy(), networkPolicy)
                 }
                 parsedConfig != null && parsedConfig.has("protocol") -> {
-                    wrapOutboundIntoRuntime(parsedConfig.deepCopy())
+                    wrapOutboundIntoRuntime(parsedConfig.deepCopy(), networkPolicy)
                 }
                 else -> {
                     val outbound = createOutboundFromProfile(profile) ?: return null
-                    wrapOutboundIntoRuntime(outbound)
+                    wrapOutboundIntoRuntime(outbound, networkPolicy)
                 }
             }
         } catch (e: Exception) {
@@ -282,24 +304,30 @@ object TunnelRuntimeAdapter {
         }
     }
 
-    private fun wrapOutboundIntoRuntime(primaryOutbound: JsonObject): JsonObject {
+    private fun wrapOutboundIntoRuntime(
+        primaryOutbound: JsonObject,
+        networkPolicy: RuntimeNetworkPolicy,
+    ): JsonObject {
         val document = JsonObject()
         document.add("log", buildLogSection())
-        document.add("dns", buildDnsSection())
+        document.add("dns", buildDnsSection(networkPolicy))
         document.add("policy", buildPolicySection())
         document.add("stats", JsonObject())
         document.add("inbounds", buildStandardInbounds())
         document.add("outbounds", buildStandardOutbounds(primaryOutbound))
-        document.add("routing", buildRoutingSection())
+        document.add("routing", buildRoutingSection(networkPolicy))
         return document
     }
 
-    private fun augmentFullDocument(document: JsonObject): JsonObject {
+    private fun augmentFullDocument(
+        document: JsonObject,
+        networkPolicy: RuntimeNetworkPolicy,
+    ): JsonObject {
         if (!document.has("log")) {
             document.add("log", buildLogSection())
         }
         if (!document.has("dns")) {
-            document.add("dns", buildDnsSection())
+            document.add("dns", buildDnsSection(networkPolicy))
         }
         if (!document.has("policy")) {
             document.add("policy", buildPolicySection())
@@ -324,7 +352,7 @@ object TunnelRuntimeAdapter {
         }
 
         if (outbounds.size() == 0) {
-            return wrapOutboundIntoRuntime(buildDirectOutbound())
+            return wrapOutboundIntoRuntime(buildDirectOutbound(), networkPolicy)
         }
 
         val primaryOutbound = outbounds.firstOrNull()?.asJsonObject ?: buildDirectOutbound()
@@ -335,7 +363,7 @@ object TunnelRuntimeAdapter {
         document.add("outbounds", outbounds)
 
         if (!document.has("routing")) {
-            document.add("routing", buildRoutingSection())
+            document.add("routing", buildRoutingSection(networkPolicy))
         }
 
         return document
@@ -427,12 +455,11 @@ object TunnelRuntimeAdapter {
         }
     }
 
-    private fun buildDnsSection(): JsonObject {
+    private fun buildDnsSection(networkPolicy: RuntimeNetworkPolicy): JsonObject {
         return JsonObject().apply {
-            addProperty("queryStrategy", "UseIP")
+            addProperty("queryStrategy", networkPolicy.queryStrategy)
             add("servers", JsonArray().apply {
-                add("1.1.1.1")
-                add("8.8.8.8")
+                networkPolicy.dnsServers.forEach { add(it) }
             })
         }
     }
@@ -458,10 +485,27 @@ object TunnelRuntimeAdapter {
         }
     }
 
-    private fun buildRoutingSection(): JsonObject {
+    private fun buildRoutingSection(networkPolicy: RuntimeNetworkPolicy): JsonObject {
         return JsonObject().apply {
-            addProperty("domainStrategy", "AsIs")
+            addProperty("domainStrategy", networkPolicy.domainStrategy)
             add("rules", JsonArray())
+        }
+    }
+
+    private fun policyForMode(runtimeMode: RuntimeMode): RuntimeNetworkPolicy {
+        return when (runtimeMode) {
+            RuntimeMode.LOCAL_PROXY -> RuntimeNetworkPolicy(
+                dnsServers = LEGACY_PROXY_DNS_SERVERS,
+                queryStrategy = "UseIP",
+                domainStrategy = "AsIs",
+            )
+            RuntimeMode.FULL_TUNNEL,
+            RuntimeMode.SPLIT_TUNNEL,
+            -> RuntimeNetworkPolicy(
+                dnsServers = DEFAULT_IPV4_DNS_SERVERS,
+                queryStrategy = "UseIPv4",
+                domainStrategy = "IPIfNonMatch",
+            )
         }
     }
 

@@ -38,7 +38,7 @@
             android:exported="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="swimvpn_foreground_vpn_runtime" />
+                android:value="vpn_core_logic_tunneling" />
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>

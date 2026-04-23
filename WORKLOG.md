@@ -1178,3 +1178,70 @@ pm run build PASSED.
     - `cmd locale set-app-locales com.swimvpn.app --locales ru`
     - `cmd locale get-app-locales com.swimvpn.app` returned `[ru]` after the Russian pass.
   - Logcat launch checks in `fr` and `ru` showed no `FATAL EXCEPTION` or `Resources$NotFoundException` from `com.swimvpn.app`.
+## [2026-04-23] [Android Locale Flicker Fix - Startup Locale Apply Moved Out Of Compose]
+- **Status**: DONE
+- **Changes**:
+  - Moved locale application out of the Compose setContent collection loop in MainActivity.
+  - Applied the persisted app language once at activity startup before setContent.
+  - Kept runtime theme collection in Compose, but made language changes explicit through the technical settings callback.
+  - Preserved the existing PreferencesManager language persistence and app state model.
+- **Verification**:
+  - cd android && .\gradlew.bat --no-daemon assembleDebug installDebug PASSED.
+  - ADB restart-loop regression check on connected Samsung SM-S916B:
+    - cmd locale set-app-locales com.swimvpn.app --locales fr --delegate false
+    - force-stop + launcher restart
+    - RestartCount=0
+    - FatalCount=0
+  - App locale remained r after launch.
+## [2026-04-23] [Technical Screen Guard Against Immediate External Settings Launch]
+- **Status**: DONE
+- **Changes**:
+  - Added a short arming delay on TechnicalSettingsScreen before the kill-switch/settings shortcut becomes clickable.
+  - Kept the kill-switch tile behavior intact after the guard delay.
+  - Left routing, auto-connect, and theme/language logic unchanged in this batch.
+- **Verification**:
+  - cd android && .\gradlew.bat --no-daemon assembleDebug installDebug PASSED.
+  - No FATAL EXCEPTION or app-side Java crash was observed during the technical-screen investigation.
+  - Logs showed com.android.settings activity involvement, supporting the accidental external-settings-launch hypothesis.
+## [2026-04-23] [Android DNS/Routing Hardening - IPv4 Resolver Baseline]
+- **Status**: DONE
+- **Changes**:
+  - Centralized the default tunnel DNS set into a shared IPv4-only baseline:
+    - `1.1.1.1`
+    - `1.0.0.1`
+    - `8.8.8.8`
+    - `8.8.4.4`
+  - Reused that same DNS list in both:
+    - Xray runtime generation
+    - Android `VpnService.Builder`
+  - Changed Xray DNS `queryStrategy` from `UseIP` to `UseIPv4`.
+  - Changed routing `domainStrategy` from `AsIs` to `IPIfNonMatch`.
+  - Kept MTU, runtime modes, parser behavior, and UI untouched in this batch.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon assembleDebug` PASSED.
+  - Reviewed generated diff to confirm the change stayed limited to DNS/routing runtime policy.
+## [2026-04-23] [Android Product Wording Correction - Tunnel Normal Mode, Proxy Advanced]
+- **Status**: DONE
+- **Changes**:
+  - Audited the recent runtime journal against live ADB behavior on device.
+  - Confirmed `LOCAL_PROXY` is operational as a local proxy path, but should not be presented as the normal whole-device browsing mode.
+  - Reassigned the visible `Recommended` badge to `Tunnel`.
+  - Reassigned `Proxy` to an advanced/manual badge and wording.
+  - Updated home and technical copy in EN/FR/RU to explain `Proxy` as a manual or proxy-aware path.
+  - Kept the runtime engine unchanged in this batch.
+- **Verification**:
+  - Live ADB audit confirmed local listeners on `127.0.0.1:10808` and `127.0.0.1:10809`.
+  - Live forwarded proxy checks returned `HTTP 200` through both HTTP and SOCKS proxy paths.
+## [2026-04-23] [Android Proxy Runtime Rollback - Restore Pre-Hardening Policy]
+- **Status**: DONE
+- **Changes**:
+  - Confirmed the post-positive-comment runtime delta was still active in shared Xray DNS/routing generation.
+  - Made runtime network policy mode-aware.
+  - Restored `LOCAL_PROXY` to its earlier Xray network policy:
+    - DNS servers: `1.1.1.1`, `8.8.8.8`
+    - `queryStrategy = UseIP`
+    - `domainStrategy = AsIs`
+  - Kept `FULL_TUNNEL` on the newer tunnel-specific policy introduced by the hardening batch.
+  - Left Android `VpnService` tunnel DNS configuration unchanged.
+- **Verification**:
+  - Diff review confirmed the rollback targets `LOCAL_PROXY` only.

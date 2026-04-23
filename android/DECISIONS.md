@@ -13,3 +13,9 @@
 ## Native Library Packaging
 - **Decision**: `useLegacyPackaging false`.
 - **Reason**: Needed to store `.so` files uncompressed and aligned in the APK.
+
+## 2026-04-23: Frontend Landing Page
+- **Decision:** Integrate a high-tech brutalist landing page at the React project root using Three.js and Framer Motion.
+- **Context:** User requested a premium landing page for SwimVPN+ showcasing a 3D globe and interactive mobile mockup.
+- **Consequences:** Adds @react-three/fiber to the frontend bundle. Reuses the existing App.tsx as an embedded 3D component (Mockup Flottant) to ensure accurate UI previewing.
+
