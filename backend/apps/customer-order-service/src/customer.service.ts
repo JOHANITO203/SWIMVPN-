@@ -10,6 +10,7 @@ export class CustomerService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientProxy,
+    @Inject('VPN_CONFIG_SERVICE') private readonly vpnConfigClient: ClientProxy,
   ) {}
 
   async bootstrapAccess(data: BootstrapAccessDto) {
@@ -249,6 +250,37 @@ export class CustomerService {
     }
 
     return this.getProfile(customer.public_id);
+  }
+
+  async resolveCryptSubscription(data: { userNumber: string; deviceId: string; encryptedLink: string }) {
+    const customer = await this.prisma.customer.findUnique({
+      where: { public_id: data.userNumber },
+    });
+
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    if (!customer.device_id || customer.device_id !== data.deviceId) {
+      throw new Error('Device is not authorized for this customer');
+    }
+
+    const profile = await this.getProfile(customer.public_id);
+    if (profile.status !== 'ACTIVE') {
+      throw new Error('Active access is required to resolve encrypted subscription payloads');
+    }
+
+    const encryptedLink = data.encryptedLink?.trim();
+    if (!encryptedLink?.toLowerCase().startsWith('swimvpn://crypt1/')) {
+      throw new Error('Unsupported encrypted subscription format');
+    }
+
+    return firstValueFrom(
+      this.vpnConfigClient.send(
+        { cmd: 'resolve_swim_crypt_import' },
+        { encryptedLink },
+      ),
+    );
   }
 
   async activateCode(data: { userNumber: string; code: string }) {

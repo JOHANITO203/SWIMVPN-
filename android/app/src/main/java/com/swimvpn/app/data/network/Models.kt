@@ -78,6 +78,18 @@ data class ImportSubscriptionRequest(
     val subscriptionUrl: String
 )
 
+data class ResolveCryptSubscriptionRequest(
+    val userNumber: String,
+    val deviceId: String,
+    val encryptedLink: String
+)
+
+data class ResolveCryptSubscriptionResponse(
+    val version: String,
+    val rawConfig: String,
+    val compressed: Boolean
+)
+
 data class ActivateCodeRequest(
     val userNumber: String,
     val code: String

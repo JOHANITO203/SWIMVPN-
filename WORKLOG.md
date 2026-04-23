@@ -958,3 +958,15 @@ pm run build PASSED.
   - Documented that unsupported encrypted Happ links must fail closed instead of producing fake partial imports.
 - **Verification**:
   - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.
+## [2026-04-23] [Backend/Android Batch - Device-Bound SWIMVPN Crypt1 Resolution]
+- **Status**: DONE
+- **Changes**:
+  - Added backend crypt1 resolution in `vpn-config-engine-service`.
+  - Added customer-service authorization gate requiring `userNumber`, matching `deviceId`, and active access before decrypting.
+  - Added gateway endpoint `POST /api/v1/subscription/resolve-crypt`.
+  - Android now sends `swimvpn://crypt1/...` to the backend resolver and imports the returned raw payload through the existing parser pipeline.
+  - Kept crypt1 keys out of the Android APK.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\\gradlew.bat --no-daemon assembleDebug` PASSED.

@@ -37,6 +37,11 @@ export class CustomerController {
     return this.customerService.importSubscription(data);
   }
 
+  @MessagePattern({ cmd: 'resolve_crypt_subscription' })
+  async resolveCryptSubscription(@Payload() data: { userNumber: string; deviceId: string; encryptedLink: string }) {
+    return this.customerService.resolveCryptSubscription(data);
+  }
+
   @MessagePattern({ cmd: 'activate_code' })
   async activateCode(@Payload() data: { userNumber: string; code: string }) {
     return this.customerService.activateCode(data);

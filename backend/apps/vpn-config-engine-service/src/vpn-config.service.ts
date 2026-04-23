@@ -40,9 +40,16 @@ export interface SwimCryptImportResult {
   envelopeBytes: number;
 }
 
+export interface ResolvedSwimCryptImportResult {
+  version: 'crypt1';
+  rawConfig: string;
+  compressed: boolean;
+}
+
 @Injectable()
 export class VpnConfigService {
   private static readonly CRYPT1_NONCE_BYTES = 12;
+  private static readonly CRYPT1_AUTH_TAG_BYTES = 16;
 
   parse(raw: string): SwimVpnProfile {
     try {
@@ -289,6 +296,34 @@ export class VpnConfigService {
     };
   }
 
+  resolveSwimCryptImport(data: { encryptedLink: string }): ResolvedSwimCryptImportResult {
+    const key = this.getCrypt1Key();
+    const payload = this.extractCrypt1Payload(data.encryptedLink);
+    const envelope = Buffer.from(this.fromBase64Url(payload), 'base64');
+    const minEnvelopeBytes = VpnConfigService.CRYPT1_NONCE_BYTES + VpnConfigService.CRYPT1_AUTH_TAG_BYTES + 1;
+    if (envelope.length < minEnvelopeBytes) {
+      throw new Error('SWIMVPN crypt1 payload is too short');
+    }
+
+    const nonce = envelope.subarray(0, VpnConfigService.CRYPT1_NONCE_BYTES);
+    const authTag = envelope.subarray(envelope.length - VpnConfigService.CRYPT1_AUTH_TAG_BYTES);
+    const ciphertext = envelope.subarray(
+      VpnConfigService.CRYPT1_NONCE_BYTES,
+      envelope.length - VpnConfigService.CRYPT1_AUTH_TAG_BYTES,
+    );
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce);
+    decipher.setAuthTag(authTag);
+    const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    const compressed = this.isGzip(plain);
+    const unpacked = compressed ? zlib.gunzipSync(plain) : plain;
+
+    return {
+      version: 'crypt1',
+      rawConfig: unpacked.toString('utf8').trim(),
+      compressed,
+    };
+  }
+
   private getCrypt1Key(): Buffer {
     const raw = process.env.SWIMVPN_CRYPT1_KEY_BASE64?.trim();
     if (!raw) {
@@ -313,6 +348,19 @@ export class VpnConfigService {
   private fromBase64Url(value: string): string {
     const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
     return normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+  }
+
+  private extractCrypt1Payload(value: string): string {
+    const trimmed = value.trim();
+    const prefix = 'swimvpn://crypt1/';
+    if (trimmed.toLowerCase().startsWith(prefix)) {
+      return trimmed.slice(prefix.length);
+    }
+    return trimmed;
+  }
+
+  private isGzip(value: Buffer): boolean {
+    return value.length >= 2 && value[0] === 0x1f && value[1] === 0x8b;
   }
 
   private invalid(raw: string, msg: string): SwimVpnProfile {

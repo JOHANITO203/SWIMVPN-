@@ -16,6 +16,14 @@ import { CustomerService } from './customer.service';
           port: 3002
         },
       },
+      {
+        name: 'VPN_CONFIG_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.VPN_CONFIG_SERVICE_HOST || '127.0.0.1',
+          port: 3004
+        },
+      },
     ]),
   ],
   controllers: [CustomerController],

@@ -13,3 +13,9 @@ export class GenerateSwimCryptImportDto {
 
   compress?: boolean;
 }
+
+export class ResolveSwimCryptImportDto {
+  @IsString()
+  @IsNotEmpty()
+  encryptedLink: string;
+}

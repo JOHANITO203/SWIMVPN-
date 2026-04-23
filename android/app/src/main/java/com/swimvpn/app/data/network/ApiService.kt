@@ -25,6 +25,9 @@ interface ApiService {
     @POST("api/v1/subscription/import")
     suspend fun importSubscription(@Body request: ImportSubscriptionRequest): AccessProfileResponse
 
+    @POST("api/v1/subscription/resolve-crypt")
+    suspend fun resolveCryptSubscription(@Body request: ResolveCryptSubscriptionRequest): ResolveCryptSubscriptionResponse
+
     @POST("api/v1/subscription/activate-code")
     suspend fun activateCode(@Body request: ActivateCodeRequest): AccessProfileResponse
 

@@ -433,5 +433,12 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Why**: Any symmetric key embedded in an APK can be extracted. To improve protection, crypt payload resolution must move server-side where keys can be protected, rotated, and audited.
 - **Impact**:
   - Android no longer exposes `SWIMVPN_CRYPT1_KEY_BASE64` through BuildConfig.
-  - Offline `crypt1` import is intentionally blocked until backend resolution is wired.
-  - The backend generator remains valid, but the next step is a client-safe resolution endpoint rather than APK-side decrypt.
+  - Offline `crypt1` import is intentionally blocked.
+  - The backend generator remains valid, and Android must use backend-side resolution rather than APK-side decrypt.
+## [2026-04-23] [SWIMVPN Crypt1 Resolution Is Device-Bound Server-Side]
+- **Decision**: `swimvpn://crypt1/...` payloads are resolved through `POST /api/v1/subscription/resolve-crypt`, which validates `userNumber`, `deviceId`, and active access before decrypting.
+- **Why**: This keeps cryptographic keys out of the APK while still allowing legitimate users to import protected SWIMVPN payloads.
+- **Impact**:
+  - Customer service owns access/device validation.
+  - VPN config engine owns crypt1 decrypt/decompress logic.
+  - Android receives only the resolved raw config payload after backend authorization.

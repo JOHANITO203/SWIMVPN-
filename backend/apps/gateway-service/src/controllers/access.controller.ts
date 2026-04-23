@@ -63,6 +63,11 @@ export class AccessController {
     return this.customerClient.send({ cmd: 'import_subscription' }, data);
   }
 
+  @Post('subscription/resolve-crypt')
+  async resolveCryptSubscription(@Body() data: any) {
+    return this.customerClient.send({ cmd: 'resolve_crypt_subscription' }, data);
+  }
+
   @Post('subscription/activate-code')
   async activateCode(@Body() data: any) {
     return this.customerClient.send({ cmd: 'activate_code' }, data);

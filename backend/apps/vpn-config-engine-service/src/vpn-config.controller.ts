@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import { ConfigPipelineResult, SwimCryptImportResult, VpnConfigService } from './vpn-config.service';
-import { GenerateSwimCryptImportDto, ParseConfigDto, SwimVpnProfile } from '@app/contracts';
+import { ConfigPipelineResult, ResolvedSwimCryptImportResult, SwimCryptImportResult, VpnConfigService } from './vpn-config.service';
+import { GenerateSwimCryptImportDto, ParseConfigDto, ResolveSwimCryptImportDto, SwimVpnProfile } from '@app/contracts';
 
 @Controller()
 export class VpnConfigController {
@@ -25,5 +25,10 @@ export class VpnConfigController {
   @MessagePattern({ cmd: 'generate_swim_crypt_import' })
   async generateSwimCryptImport(@Payload() data: GenerateSwimCryptImportDto): Promise<SwimCryptImportResult> {
     return this.vpnConfigService.generateSwimCryptImport(data);
+  }
+
+  @MessagePattern({ cmd: 'resolve_swim_crypt_import' })
+  async resolveSwimCryptImport(@Payload() data: ResolveSwimCryptImportDto): Promise<ResolvedSwimCryptImportResult> {
+    return this.vpnConfigService.resolveSwimCryptImport(data);
   }
 }

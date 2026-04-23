@@ -278,10 +278,16 @@ otification-bot-service event handoff.
   - configure `SWIMVPN_CRYPT1_KEY_BASE64`
   - call authenticated `POST /api/v1/admin/crypt-import`
   - confirm generated `swimvpn://crypt1/...` links are not decryptable inside the APK
-- Add backend-side client resolution for SWIMVPN encrypted imports:
-  - authenticated/device-bound endpoint for `swimvpn://crypt1/...`
-  - backend decrypts and returns allowed runtime/import payload
-  - add replay/expiry controls before broad release
+- Re-test backend-side client resolution for SWIMVPN encrypted imports:
+  - `POST /api/v1/subscription/resolve-crypt`
+  - valid `userNumber + deviceId + ACTIVE` access succeeds
+  - mismatched device fails
+  - inactive/expired access fails
+  - Android imports resolved payload into the grouped server catalog
+- Add replay/expiry controls before broad release:
+  - payload issue timestamp
+  - optional one-time token or nonce tracking
+  - key id for future `crypt2`
 - Next secure-link backend step:
   - persist generated-link audit metadata if we expose this beyond admin tooling
   - plan key IDs / key rotation for `crypt2`

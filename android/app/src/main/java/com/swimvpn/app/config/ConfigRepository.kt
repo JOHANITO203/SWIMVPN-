@@ -1,6 +1,7 @@
 package com.swimvpn.app.config
 
 import android.content.Context
+import android.provider.Settings
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -9,6 +10,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.swimvpn.app.data.local.PreferencesManager
+import com.swimvpn.app.data.network.ResolveCryptSubscriptionRequest
+import com.swimvpn.app.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -32,6 +36,8 @@ class ConfigRepository(private val context: Context) {
     
     private val TAG = "ConfigRepository"
     private val gson = Gson()
+    private val api = RetrofitClient.apiService
+    private val prefs = PreferencesManager(context)
     private val subscriptionClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -86,11 +92,24 @@ class ConfigRepository(private val context: Context) {
                     )
                 }
                 is ResolvedImportInput.SwimEncryptedPayload -> {
-                    return ImportResult.Error(
-                        errors = listOf(
-                            "Recognized SWIMVPN crypt1 payload, but crypt1 resolution must be performed by the backend so no decryption key is exposed in the APK",
+                    val userNumber = prefs.userNumberFlow.first()
+                        ?: return ImportResult.Error(
+                            errors = listOf("Recognized SWIMVPN crypt1 payload, but no local user profile is available for backend resolution"),
+                            warnings = resolution.warnings,
+                        )
+                    val resolved = api.resolveCryptSubscription(
+                        ResolveCryptSubscriptionRequest(
+                            userNumber = userNumber,
+                            deviceId = getDeviceId(),
+                            encryptedLink = resolution.encryptedLink,
                         ),
-                        warnings = resolution.warnings,
+                    )
+                    processResolvedImport(
+                        resolution = ResolvedImportInput.DirectConfig(
+                            payload = resolved.rawConfig,
+                            warnings = resolution.warnings + "Resolved SWIMVPN crypt1 payload via backend",
+                        ),
+                        sourceType = sourceType,
                     )
                 }
                 is ResolvedImportInput.DirectConfig -> processResolvedImport(resolution, sourceType)
@@ -494,7 +513,7 @@ class ConfigRepository(private val context: Context) {
 
         if (lowercase.startsWith("swimvpn://crypt1/")) {
             return ResolvedImportInput.SwimEncryptedPayload(
-                payload = trimmed.substring("swimvpn://crypt1/".length),
+                encryptedLink = trimmed,
                 version = "crypt1",
                 warnings = listOf("Recognized SWIMVPN crypt1 encrypted import payload"),
             )
@@ -562,6 +581,14 @@ class ConfigRepository(private val context: Context) {
             lowercase.startsWith("happ://crypt5/")
     }
 
+    @android.annotation.SuppressLint("HardwareIds")
+    private fun getDeviceId(): String {
+        return Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ANDROID_ID,
+        ) ?: "unknown_device_id"
+    }
+
     private fun happEncryptedSubscriptionWarning(version: String): String {
         return when (version) {
             "crypt5" -> "Recognized Happ crypt5 encrypted subscription deep link (current/preferred Happ format)"
@@ -606,7 +633,7 @@ private sealed class ResolvedImportInput {
     ) : ResolvedImportInput()
 
     data class SwimEncryptedPayload(
-        val payload: String,
+        val encryptedLink: String,
         val version: String,
         val warnings: List<String> = emptyList(),
     ) : ResolvedImportInput()
