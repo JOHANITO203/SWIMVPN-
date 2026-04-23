@@ -1104,3 +1104,42 @@ pm run build PASSED.
   - ADB direct full-tunnel curl to `https://example.com` returned `HTTP/1.1 200 OK`.
   - ADB stop from the power button changed persisted runtime state back to `IDLE`.
   - After stop, no `libxray.so` process remained; remaining `:10808` sockets were `TIME_WAIT`, not listeners.
+## [2026-04-23] [Android ADB Precision Runtime Test - Current Imported VLESS Node]
+- **Status**: DONE
+- **Scope**:
+  - Ran a no-code ADB verification pass on device `SM-S916B` / Android `16`.
+  - Tested the currently selected imported VLESS node `158.160.196.185`, shown in app as roughly `17ms`.
+  - Focused on runtime truth, local proxy listeners, TUN state, and real HTTPS timings.
+- **Findings While Connected**:
+  - Runtime state store reported `status=RUNNING`, `mode=FULL_TUNNEL`.
+  - `libxray.so` was running.
+  - Local Xray listeners were active on `127.0.0.1:10808` and `127.0.0.1:10809`.
+  - `tun0` was active with MTU `1280` and address `10.0.0.2/24`.
+  - Full-tunnel HTTPS requests succeeded:
+    - `https://example.com`: HTTP `200`, total `1.278s`.
+    - `https://www.cloudflare.com/cdn-cgi/trace`: HTTP `200`, total `0.882s`.
+    - `https://www.google.com/generate_204`: HTTP `204`, total `0.844s`.
+    - `https://www.apple.com/library/test/success.html`: HTTP `200`, total `0.793s`.
+  - Local proxy path remained faster:
+    - SOCKS `127.0.0.1:10808` to `example.com`: HTTP `200`, total `0.408s`.
+    - HTTP proxy `127.0.0.1:10809` to `example.com`: HTTP `200`, total `0.311s`.
+- **Stop Verification**:
+  - First stop tap landed while the app was on the locations screen and did not stop the runtime.
+  - Second center power tap returned runtime state to `IDLE`.
+  - Final cleanup check showed no `libxray.so`, no `10808/10809` listeners, and no `tun0`.
+- **Conclusion**:
+  - The current node and local Xray runtime are usable; the app is passing traffic.
+  - Full tunnel is functional but slower than the direct local proxy path, which matches expected `VpnService + tun2socks` overhead.
+  - Remaining speed complaints should be investigated with per-node quality testing and data-plane throughput measurement rather than parser changes.
+## [2026-04-23] [Android Technical UI - Proxy Recommended And Real Theme Direction]
+- **Status**: DONE
+- **Changes**:
+  - Shortened visible routing labels to `Tunnel` and `Proxy`.
+  - Added a `Recommended` badge to Proxy and a `Tunneling` badge to Tunnel.
+  - Kept green active indicators for the runtime mode that is actually running.
+  - Refactored the Application section into a more polished cockpit-style card while preserving Language and Visual Theme icons.
+  - Started replacing light-only hardcoded technical-screen colors with Material color scheme tokens.
+  - Strengthened the app theme palettes so `System`, `Light`, and `Dark` produce genuinely distinct surfaces.
+  - Updated `C:\Users\Lenovo\Downloads\PLAN.md` with accomplished runtime/parser work and the new Proxy-first direction.
+- **Verification**:
+  - Pending Android build verification in this batch.

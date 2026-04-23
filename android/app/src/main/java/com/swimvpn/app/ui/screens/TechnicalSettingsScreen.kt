@@ -88,7 +88,7 @@ fun TechnicalSettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(24.dp)
     ) {
@@ -96,14 +96,14 @@ fun TechnicalSettingsScreen(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = null,
-                    tint = Color(0xFF0F172A)
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
@@ -111,7 +111,7 @@ fun TechnicalSettingsScreen(
                 text = stringResource(R.string.title_technical),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Black,
-                    color = Color(0xFF0F172A)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -145,76 +145,19 @@ fun TechnicalSettingsScreen(
 
         SectionTitle(icon = Icons.Outlined.Language, title = stringResource(R.string.section_app))
         Spacer(modifier = Modifier.height(12.dp))
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
-        ) {
-            Column {
-                Box {
-                    SettingsRowWithChip(
-                        icon = Icons.Outlined.Language,
-                        title = stringResource(R.string.label_language),
-                        subtitle = stringResource(R.string.desc_language),
-                        chipText = languageChipLabel(language),
-                        onClick = { showLanguageMenu = true }
-                    )
-
-                    DropdownMenu(
-                        expanded = showLanguageMenu,
-                        onDismissRequest = { showLanguageMenu = false },
-                        modifier = Modifier.background(Color.White)
-                    ) {
-                        LanguageMenuItem(stringResource(R.string.lang_en)) {
-                            onLanguageChange("en")
-                            showLanguageMenu = false
-                        }
-                        LanguageMenuItem(stringResource(R.string.lang_fr)) {
-                            onLanguageChange("fr")
-                            showLanguageMenu = false
-                        }
-                        LanguageMenuItem(stringResource(R.string.lang_ru)) {
-                            onLanguageChange("ru")
-                            showLanguageMenu = false
-                        }
-                    }
-                }
-                HorizontalDivider(color = Color(0xFFF1F5F9))
-                Box {
-                    SettingsRowWithChip(
-                        icon = Icons.Outlined.Palette,
-                        title = stringResource(R.string.label_theme),
-                        subtitle = stringResource(R.string.desc_theme),
-                        chipText = themeChipLabel(selectedThemeMode),
-                        onClick = { showThemeMenu = true }
-                    )
-
-                    DropdownMenu(
-                        expanded = showThemeMenu,
-                        onDismissRequest = { showThemeMenu = false },
-                        modifier = Modifier.background(Color.White)
-                    ) {
-                        ThemeMenuItem(stringResource(R.string.theme_system)) {
-                            selectedThemeMode = AppThemePreference.SYSTEM
-                            onThemeModeChange(AppThemePreference.SYSTEM)
-                            showThemeMenu = false
-                        }
-                        ThemeMenuItem(stringResource(R.string.theme_light)) {
-                            selectedThemeMode = AppThemePreference.LIGHT
-                            onThemeModeChange(AppThemePreference.LIGHT)
-                            showThemeMenu = false
-                        }
-                        ThemeMenuItem(stringResource(R.string.theme_dark)) {
-                            selectedThemeMode = AppThemePreference.DARK
-                            onThemeModeChange(AppThemePreference.DARK)
-                            showThemeMenu = false
-                        }
-                    }
-                }
-            }
-        }
+        AppPreferencesPanel(
+            language = language,
+            selectedThemeMode = selectedThemeMode,
+            showLanguageMenu = showLanguageMenu,
+            showThemeMenu = showThemeMenu,
+            onLanguageMenuChange = { showLanguageMenu = it },
+            onThemeMenuChange = { showThemeMenu = it },
+            onLanguageChange = onLanguageChange,
+            onThemeSelected = {
+                selectedThemeMode = it
+                onThemeModeChange(it)
+            },
+        )
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -222,10 +165,10 @@ fun TechnicalSettingsScreen(
         Spacer(modifier = Modifier.height(12.dp))
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
         ) {
             Column {
                 RoutingControlPanel(
@@ -234,7 +177,7 @@ fun TechnicalSettingsScreen(
                     activeRuntimeMode = activeRuntimeMode,
                     onRoutingModeChange = onRoutingModeChange,
                 )
-                HorizontalDivider(color = Color(0xFFF1F5F9))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsRowWithSwitch(
                     icon = Icons.Outlined.PowerSettingsNew,
                     title = stringResource(R.string.auto_connect),
@@ -242,7 +185,7 @@ fun TechnicalSettingsScreen(
                     checked = autoConnect,
                     onCheckedChange = onAutoConnectChange
                 )
-                HorizontalDivider(color = Color(0xFFF1F5F9))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 SettingsRowWithChip(
                     icon = Icons.Outlined.Security,
                     title = stringResource(R.string.kill_switch),
@@ -265,15 +208,15 @@ fun TechnicalSettingsScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
             ) {
                 Text(
                     text = runtimeDiagnostics,
                     modifier = Modifier.padding(24.dp),
-                    color = Color(0xFF0F172A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 12.sp,
                     lineHeight = 18.sp,
                     fontWeight = FontWeight.Medium
@@ -300,6 +243,169 @@ fun TechnicalSettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun AppPreferencesPanel(
+    language: String,
+    selectedThemeMode: String,
+    showLanguageMenu: Boolean,
+    showThemeMenu: Boolean,
+    onLanguageMenuChange: (Boolean) -> Unit,
+    onThemeMenuChange: (Boolean) -> Unit,
+    onLanguageChange: (String) -> Unit,
+    onThemeSelected: (String) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(28.dp))
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                text = stringResource(R.string.app_preferences_title),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Black,
+                fontSize = 16.sp
+            )
+            Text(
+                text = stringResource(R.string.app_preferences_desc),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+            )
+
+            Box {
+                AppPreferenceTile(
+                    icon = Icons.Outlined.Language,
+                    title = stringResource(R.string.label_language),
+                    subtitle = stringResource(R.string.desc_language),
+                    chipText = languageChipLabel(language),
+                    onClick = { onLanguageMenuChange(true) }
+                )
+
+                DropdownMenu(
+                    expanded = showLanguageMenu,
+                    onDismissRequest = { onLanguageMenuChange(false) },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    LanguageMenuItem(stringResource(R.string.lang_en)) {
+                        onLanguageChange("en")
+                        onLanguageMenuChange(false)
+                    }
+                    LanguageMenuItem(stringResource(R.string.lang_fr)) {
+                        onLanguageChange("fr")
+                        onLanguageMenuChange(false)
+                    }
+                    LanguageMenuItem(stringResource(R.string.lang_ru)) {
+                        onLanguageChange("ru")
+                        onLanguageMenuChange(false)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Box {
+                AppPreferenceTile(
+                    icon = Icons.Outlined.Palette,
+                    title = stringResource(R.string.label_theme),
+                    subtitle = stringResource(R.string.desc_theme),
+                    chipText = themeChipLabel(selectedThemeMode),
+                    onClick = { onThemeMenuChange(true) }
+                )
+
+                DropdownMenu(
+                    expanded = showThemeMenu,
+                    onDismissRequest = { onThemeMenuChange(false) },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    ThemeMenuItem(stringResource(R.string.theme_system)) {
+                        onThemeSelected(AppThemePreference.SYSTEM)
+                        onThemeMenuChange(false)
+                    }
+                    ThemeMenuItem(stringResource(R.string.theme_light)) {
+                        onThemeSelected(AppThemePreference.LIGHT)
+                        onThemeMenuChange(false)
+                    }
+                    ThemeMenuItem(stringResource(R.string.theme_dark)) {
+                        onThemeSelected(AppThemePreference.DARK)
+                        onThemeMenuChange(false)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppPreferenceTile(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    chipText: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
+            .clickable { onClick() },
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column {
+                    Text(
+                        text = title,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = subtitle,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp,
+                        letterSpacing = 0.4.sp
+                    )
+                }
+            }
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Text(
+                    text = chipText,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontSize = 10.sp
+                )
+            }
+        }
     }
 }
 
@@ -364,14 +470,14 @@ private fun RoutingControlPanel(
         Box(
             modifier = Modifier
                 .size(58.dp)
-                .background(Color(0xFFEFF6FF), CircleShape)
-                .border(1.dp, Color(0xFFBFDBFE), CircleShape),
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.AccountTree,
                 contentDescription = null,
-                tint = ElectricBlue,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -381,7 +487,7 @@ private fun RoutingControlPanel(
         Text(
             text = stringResource(R.string.label_routing),
             fontWeight = FontWeight.Black,
-            color = Color(0xFF0F172A),
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 13.sp,
             letterSpacing = 0.8.sp
         )
@@ -391,7 +497,7 @@ private fun RoutingControlPanel(
                 activeMode = normalizedActiveMode,
                 runtimeStatus = runtimeStatus,
             ),
-            color = Color(0xFF64748B),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.SemiBold,
             fontSize = 11.sp,
             modifier = Modifier.padding(top = 4.dp)
@@ -405,6 +511,7 @@ private fun RoutingControlPanel(
         ) {
             RoutingModeButton(
                 label = stringResource(R.string.routing_mode_full_tunnel),
+                badge = stringResource(R.string.routing_badge_tunneling),
                 selected = normalizedSelectedMode == FULL_TUNNEL_MODE,
                 active = isRunning && normalizedActiveMode == FULL_TUNNEL_MODE,
                 modifier = Modifier.weight(1f),
@@ -412,6 +519,7 @@ private fun RoutingControlPanel(
             )
             RoutingModeButton(
                 label = stringResource(R.string.routing_mode_local_proxy),
+                badge = stringResource(R.string.routing_badge_recommended),
                 selected = normalizedSelectedMode == LOCAL_PROXY_MODE,
                 active = isRunning && normalizedActiveMode == LOCAL_PROXY_MODE,
                 modifier = Modifier.weight(1f),
@@ -421,7 +529,7 @@ private fun RoutingControlPanel(
 
         Text(
             text = stringResource(R.string.routing_runtime_desc),
-            color = Color(0xFF94A3B8),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium,
             fontSize = 10.sp,
             lineHeight = 14.sp,
@@ -433,6 +541,7 @@ private fun RoutingControlPanel(
 @Composable
 private fun RoutingModeButton(
     label: String,
+    badge: String,
     selected: Boolean,
     active: Boolean,
     modifier: Modifier = Modifier,
@@ -440,51 +549,61 @@ private fun RoutingModeButton(
 ) {
     val borderColor = when {
         active -> Color(0xFF22C55E)
-        selected -> ElectricBlue
-        else -> Color(0xFFE2E8F0)
+        selected -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.outlineVariant
     }
     val backgroundColor = when {
         active -> Color(0xFFF0FDF4)
-        selected -> Color(0xFFEFF6FF)
-        else -> Color(0xFFF8FAFC)
+        selected -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceContainer
     }
     val textColor = when {
         active -> Color(0xFF166534)
-        selected -> Color(0xFF0F172A)
-        else -> Color(0xFF94A3B8)
+        selected -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val dotColor = if (active) Color(0xFF22C55E) else Color(0xFFCBD5E1)
 
     Surface(
         modifier = modifier
-            .height(58.dp)
+            .height(72.dp)
             .border(1.dp, borderColor, RoundedCornerShape(18.dp))
             .clickable { onClick() },
         color = backgroundColor,
         shape = RoundedCornerShape(18.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .background(dotColor, CircleShape)
-                    .border(
-                        width = if (active) 2.dp else 1.dp,
-                        color = if (active) Color(0xFFBBF7D0) else Color.White,
-                        shape = CircleShape
-                    )
-            )
-            Spacer(modifier = Modifier.width(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(dotColor, CircleShape)
+                        .border(
+                            width = if (active) 2.dp else 1.dp,
+                            color = if (active) Color(0xFFBBF7D0) else MaterialTheme.colorScheme.surface,
+                            shape = CircleShape
+                        )
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = label,
+                    color = textColor,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 12.sp,
+                    letterSpacing = 0.4.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = label,
-                color = textColor,
-                fontWeight = FontWeight.Black,
-                fontSize = 11.sp,
-                letterSpacing = 0.4.sp
+                text = badge,
+                color = if (active) Color(0xFF166534) else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
+                letterSpacing = 0.5.sp
             )
         }
     }
@@ -527,12 +646,12 @@ fun SectionTitle(icon: ImageVector, title: String) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(horizontal = 8.dp)
     ) {
-        Icon(icon, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(16.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF94A3B8),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 10.sp,
             letterSpacing = 1.sp
         )
@@ -562,34 +681,34 @@ fun SettingsRowWithChip(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color(0xFFF1F5F9), CircleShape),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = Color(0xFF0F172A))
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
                     text = title,
                     fontWeight = FontWeight.Black,
-                    color = Color(0xFF0F172A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp
                 )
                 Text(
                     text = subtitle,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp,
                     letterSpacing = 0.5.sp
                 )
             }
         }
-        Surface(color = Color(0xFFF1F5F9), shape = RoundedCornerShape(12.dp)) {
+        Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp)) {
             Text(
                 text = chipText,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 10.sp
             )
         }
@@ -615,23 +734,23 @@ fun SettingsRowWithSwitch(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color(0xFFF1F5F9), CircleShape),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, tint = Color(0xFF0F172A))
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(
                     text = title,
                     fontWeight = FontWeight.Black,
-                    color = Color(0xFF0F172A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 14.sp
                 )
                 Text(
                     text = subtitle,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp,
                     letterSpacing = 0.5.sp
                 )

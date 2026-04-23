@@ -1,10 +1,10 @@
 # TODO
 
 ## Now
-- Start VPN core batch 2:
-  - package prebuilt native runtime artifacts
-  - replace prepared-runtime placeholder with real native tunnel execution
-  - keep `FULL_TUNNEL` as the only exposed mode until the execution path is truly live
+- Continue Android VPN core maturity from the now-live runtime baseline:
+  - extend true routing/system integration after validated `FULL_TUNNEL` and `LOCAL_PROXY`
+  - prioritize split-tunnel, DNS handling, auto-connect truth, and kill-switch honesty
+  - keep `Proxy` as the recommended user-facing mode and `Tunnel` as the full-device mode
 - Set up Docker Compose networking logic to replace `0.0.0.0` with proper service names.
 
 ## Next
@@ -74,7 +74,9 @@ otification-bot-service event handoff.
 
 ## Android Follow-up
 - In Android Studio: install the rebuilt APK on the affected device and confirm startup crash is resolved after scanner migration + Retrofit base URL fix.
-- Re-test on device after the AppCompat theme fix.
+- Re-test on device after the Technical screen theme refactor and confirm `System`, `Light`, and `Dark` visibly differ.
+- Verify the new `Proxy` recommended badge and `Tunnel` tunneling badge on the Technical screen.
+- Extend Material theme token cleanup beyond the Technical screen to other light-only hardcoded screens.
 - Re-run Android Studio's 16 KB APK compatibility check and confirm the old `libimage_processing_util_jni.so` warning is gone.
 - If startup still crashes, collect `adb logcat` for the first fatal exception before making any broader Android changes.
 - If production must support non-GMS devices later, evaluate a separate fallback scanner path as an explicit future task.

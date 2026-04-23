@@ -31,37 +31,55 @@ val ElectricBlue = Color(0xFF4A9ED7) // Alias pour compatibilité
 val RedAlert = Color(0xFFEF4444)
 
 // Light Palette cohérente avec le logo
-val BgLight = Color(0xFFF8FBFE)
+val BgLight = Color(0xFFF4F8FB)
 val CardLight = Color(0xFFFFFFFF)
 val TextLight = Color(0xFF0A3151) // Utilisation du Navy pour le texte
 val TextSecondaryLight = Color(0xFF64748B)
 
 // Dark Palette
-val BgDark = Color(0xFF051626)
-val CardDark = Color(0xFF0A2239)
-val TextDark = Color(0xFFE2E8F0)
-val TextSecondaryDark = Color(0xFF94A3B8)
+val BgDark = Color(0xFF04111F)
+val CardDark = Color(0xFF0B2034)
+val TextDark = Color(0xFFE8F3FB)
+val TextSecondaryDark = Color(0xFF9FB5C8)
 
 private val LightColorScheme = lightColorScheme(
     primary = SwimBlueMain,
+    primaryContainer = Color(0xFFD8EEFB),
     background = BgLight,
     surface = CardLight,
+    surfaceContainer = Color(0xFFFFFFFF),
+    surfaceContainerHigh = Color(0xFFEAF4FA),
     onPrimary = Color.White,
     onBackground = TextLight,
     onSurface = TextLight,
     surfaceVariant = Color(0xFFEBF5FF),
-    onSurfaceVariant = TextSecondaryLight
+    onSurfaceVariant = TextSecondaryLight,
+    outline = Color(0xFFD9E6EE),
+    outlineVariant = Color(0xFFE7EEF4),
+    secondary = Color(0xFF0F766E),
+    secondaryContainer = Color(0xFFDDF8F3),
+    onSecondaryContainer = Color(0xFF0F3E3A),
+    error = RedAlert
 )
 
 private val DarkColorScheme = darkColorScheme(
     primary = ElectricBlue,
+    primaryContainer = Color(0xFF123D5C),
     background = BgDark,
     surface = CardDark,
+    surfaceContainer = Color(0xFF102A42),
+    surfaceContainerHigh = Color(0xFF153650),
     onPrimary = Color.White,
     onBackground = TextDark,
     onSurface = TextDark,
-    surfaceVariant = BgDark,
-    onSurfaceVariant = TextSecondaryDark
+    surfaceVariant = Color(0xFF122A41),
+    onSurfaceVariant = TextSecondaryDark,
+    outline = Color(0xFF24455E),
+    outlineVariant = Color(0xFF183248),
+    secondary = Color(0xFF5EEAD4),
+    secondaryContainer = Color(0xFF134E4A),
+    onSecondaryContainer = Color(0xFFD8FFFA),
+    error = Color(0xFFF87171)
 )
 
 // --- TYPOGRAPHY ---
@@ -102,7 +120,9 @@ fun SwimVpnTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

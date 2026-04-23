@@ -1,5 +1,14 @@
 # DECISIONS
 
+## [2026-04-23] [Connectivity UI Direction - Proxy Recommended, Tunnel System Routing]
+- **Decision**: Expose the runtime modes with short product labels: `Proxy` and `Tunnel`.
+- **Why**: ADB measurements showed local proxy is faster than full tunnel on the tested imported VLESS node, while full tunnel remains useful for full-device routing.
+- **Impact**:
+  - `Proxy` is presented as the recommended mode.
+  - `Tunnel` is presented as the full-device tunneling mode.
+  - The visible latency remains the user-facing quality indicator; no extra quality score is added in the MVP UI.
+  - Active routing indicators continue to reflect real runtime state, not selection alone.
+
 ## [2026-04-22] [Expose Only Runtime Modes That Actually Exist]
 - **Decision**: In the first VPN core batch, expose only `FULL_TUNNEL` as an honest supported runtime mode in the Android app UI.
 - **Why**: The repository already had a persisted `PROXY` preference in settings, but no real proxy runtime behind it. Leaving it visible would continue to mislead the user about what the app can actually execute.
