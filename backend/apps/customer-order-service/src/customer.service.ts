@@ -221,7 +221,7 @@ export class CustomerService {
     const isTrialOrder =
       latestOrder?.payment_ref === 'TRIAL:3D' || latestOrder?.order_ref.startsWith('TRIAL-');
     const accessType = latestOrder ? (isTrialOrder ? 'TRIAL' : 'PAID') : 'NONE';
-    const offerCode = latestOrder?.plan.code || null;
+    const offerCode = latestOrder && !isTrialOrder ? latestOrder.plan.code : null;
     const subscriptionExpiresAt = this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder);
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
     const quotaLabel =

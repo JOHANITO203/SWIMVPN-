@@ -472,3 +472,8 @@ otification-bot-service event handoff.
 - Re-test the VPS checkout flow and inspect gateway/customer-service logs if `HTTP 500` still appears after redeploy.
 - Localize the new payment-confirmation modal strings cleanly for FR/RU after the current ASCII-safe unblock.
 - Decide the business shape of a future paid weekly offer instead of reusing the internal trial plan.
+
+## [2026-04-24] VPS Checkout Debug Follow-up
+- Redeploy the updated backend services on the VPS, then re-test `/api/v1/orders/checkout` because the public endpoint still returns `Internal server error` in the current deployment.
+- Capture gateway-service and customer-order-service logs on the VPS during a payment attempt if the error persists after redeploy.
+- Reinstall/update the Android app build on the phone after backend redeploy to verify that the subscription page and profile no longer show stale trial/week labels.

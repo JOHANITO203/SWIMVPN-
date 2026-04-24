@@ -47,6 +47,7 @@ import com.swimvpn.app.R
 import com.swimvpn.app.data.model.Plan
 import com.swimvpn.app.ui.theme.SwimBlueMain
 import com.swimvpn.app.ui.theme.SwimNavyMouth
+import java.math.BigDecimal
 import java.math.RoundingMode
 
 @Composable
@@ -56,7 +57,12 @@ fun SubscriptionScreen(
     onCheckoutClick: (planId: String, paymentMethod: String) -> Unit,
     onBack: () -> Unit = {}
 ) {
-    var selectedPlanId by remember { mutableStateOf(plans.firstOrNull()?.id ?: "") }
+    val visiblePlans = remember(plans) {
+        plans.filter { plan ->
+            plan.priceRub.toBigDecimalOrNull()?.compareTo(BigDecimal.ZERO) == 1
+        }
+    }
+    var selectedPlanId by remember(visiblePlans) { mutableStateOf(visiblePlans.firstOrNull()?.id ?: "") }
     var selectedPaymentMethod by remember { mutableStateOf("CARD_MANUAL") }
     var showEmailConfirmation by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -108,7 +114,7 @@ fun SubscriptionScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        plans.forEach { plan ->
+        visiblePlans.forEach { plan ->
             val badgeColor = when (plan.code) {
                 "WEEK" -> Color(0xFFCD7F32)
                 "MONTH" -> Color(0xFF94A3B8)
@@ -129,7 +135,7 @@ fun SubscriptionScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        if (plans.isEmpty()) {
+        if (visiblePlans.isEmpty()) {
             Text(
                 text = stringResource(R.string.no_plans_available),
                 modifier = Modifier

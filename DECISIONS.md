@@ -615,3 +615,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - The app shows a lightweight confirm/cancel modal before creating checkout.
   - Backend checkout errors for missing email are now surfaced more honestly.
   - The payment contract is explicit at the moment of action, not hidden in prior onboarding state.
+
+## [2026-04-24] [Trial Profiles Must Not Masquerade As Weekly Paid Offers]
+- **Decision**: Trial profiles must not expose a paid-offer code in API/UI state, even if the internal plan category uses `WEEK` for inventory grouping.
+- **Why**: The user-facing meaning of a trial is different from a paid weekly offer. Reusing `WEEK` at the profile surface creates false status, confusing analytics, and misleading subscription labels.
+- **Impact**:
+  - Trial account cards stop showing `Offer • WEEK`.
+  - A future paid weekly offer can still exist independently.
+  - Internal inventory grouping can remain separate from public subscription meaning.

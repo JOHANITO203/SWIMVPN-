@@ -160,7 +160,7 @@ fun ProfileScreen(
                         Text(line, color = Color(0xFF64748B), fontSize = 14.sp)
                     }
                 }
-                profile.offerCode?.takeIf { it.isNotBlank() }?.let { offerCode ->
+                profile.offerCode?.takeIf { it.isNotBlank() && profile.accessType != "TRIAL" }?.let { offerCode ->
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = stringResource(R.string.profile_offer_format, offerCode),
@@ -229,7 +229,7 @@ fun ProfileScreen(
                     }
                     if (hasMeasuredLimit) {
                         Text(
-                            text = String.format(Locale.US, "%.0f%%", progress * 100),
+                            text = formatUsagePercentage(progress),
                             fontWeight = FontWeight.Black,
                             color = statusColor,
                             fontSize = 18.sp
@@ -256,11 +256,11 @@ fun ProfileScreen(
                 ) {
                     UsageStat(
                         title = stringResource(R.string.profile_metric_used),
-                        value = formatBytes(measuredUsedBytes)
+                        value = formatQuotaBytes(measuredUsedBytes)
                     )
                     UsageStat(
                         title = stringResource(R.string.label_left),
-                        value = if (hasMeasuredLimit) formatBytes(remainingBytes) else stringResource(R.string.label_unlimited)
+                        value = if (hasMeasuredLimit) formatQuotaBytes(remainingBytes) else stringResource(R.string.label_unlimited)
                     )
                 }
 
@@ -578,8 +578,29 @@ private fun profileBadgeBackground(profile: AccessProfileResponse): Color =
         "TRIAL_AVAILABLE" -> Color(0xFFEFF6FF)
         "EXPIRED" -> Color(0xFFFEF2F2)
         "ACTIVE" -> if (profile.accessType == "TRIAL") Color(0xFFEFF6FF) else Color(0xFFF0FDF4)
-        else -> Color(0xFFF8FAFC)
+      else -> Color(0xFFF8FAFC)
+  }
+
+private fun formatUsagePercentage(progress: Float): String {
+    if (progress <= 0f) return "0%"
+    val percentage = progress * 100f
+    return when {
+        percentage < 0.1f -> "<0.1%"
+        percentage < 1f -> String.format(Locale.US, "%.1f%%", percentage)
+        else -> String.format(Locale.US, "%.0f%%", percentage)
     }
+}
+
+private fun formatQuotaBytes(bytes: Long): String {
+    if (bytes <= 0L) return "0 B"
+    val gb = 1024.0 * 1024.0 * 1024.0
+    val mb = 1024.0 * 1024.0
+    return when {
+        bytes >= gb -> String.format(Locale.US, "%.2f GB", bytes / gb)
+        bytes >= mb -> String.format(Locale.US, "%.1f MB", bytes / mb)
+        else -> formatBytes(bytes)
+    }
+}
 
 @Composable
 fun ManagementRow(icon: ImageVector, title: String, onClick: () -> Unit) {

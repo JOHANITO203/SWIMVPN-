@@ -1373,3 +1373,19 @@ pm run build PASSED.
   - `cd backend && npm run build:all` PASSED.
   - `cd backend && npm run prisma:seed` PASSED.
   - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
+## [2026-04-24] [Trial Profile Cleanup + Small-Usage Analytics Readability]
+- **Status**: DONE
+- **Changes**:
+  - Stopped exposing `offerCode` for trial profiles so the account card no longer labels a trial as `WEEK`.
+  - Added a client-side safeguard to hide free plans from the subscription page even if an outdated backend still returns them.
+  - Improved quota analytics readability for tiny usage values by:
+    - using a more honest percentage display (`<0.1%`, `0.1%`, etc.)
+    - showing quota bytes with finer precision for used/remaining values.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+- **Observed production note**:
+  - Public API `GET /api/v1/access/SW-P8BYQD` still currently returns `accessType=TRIAL` plus `offerCode=WEEK` until the VPS backend is redeployed.
+  - Public API `POST /api/v1/orders/checkout` still currently responds with `{"message":"Internal server error"}` on the VPS path that was tested.
