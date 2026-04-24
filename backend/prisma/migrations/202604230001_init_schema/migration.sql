@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "PlanCategory" AS ENUM ('WEEK', 'MONTH', 'QUARTER');
 
 -- CreateEnum

@@ -17,5 +17,7 @@ export class TriggerImportDto {
   category: PlanCategory;
   configs: string[];
   batchName?: string;
+  sourceQuotaGb?: number;
+  maxUsersPerConfig?: number;
   adminId: string;
 }

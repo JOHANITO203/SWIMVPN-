@@ -575,3 +575,27 @@ otification-bot-service with Resend API for transactional delivery emails.
   - The profile screen now shows a quota progress bar that is reserved for real measured subscription consumption.
   - Until backend usage collection exists, the progress stays at zero instead of inventing fake depletion.
   - The next backend batch must introduce strict usage and device-allocation rules before this bar becomes an enforcement tool.
+## [2026-04-24] [Shared Supplier Links Are Source-Level Assets With Strict User Caps]
+- **Decision**: Supplier links with large pooled traffic must be modeled as source-level backend assets that can be allocated to multiple distinct customers up to a hard cap, instead of being treated as one-order one-config forever.
+- **Why**: Your supplier links are not ordinary single-user configs. They carry large shared traffic pools (typically `1000 GB`) and are allowed to serve at most `5` different users in SWIMVPN. That rule must live in PostgreSQL and inventory fulfillment, not in Telegram or in the Android client.
+- **Impact**:
+  - Inventory now has source-level quota fields and a strict max distinct-customer allocation count.
+  - Order assignments now carry measured usage bytes per customer allocation.
+  - Profile usage can now come from backend assignment truth instead of a fake hardcoded zero.
+  - Quota exhaustion is now part of backend access-state resolution.
+
+## [2026-04-24] [First Usage Producer Must Stay Explicit And Low-Frequency]
+- **Decision**: The first measured-usage producer will report bytes only on explicit manual VPN stop, not as a background sync loop.
+- **Why**: We need real quota truth to start feeding the subscription progress bar, but we do not yet have a durable continuous telemetry design. Reporting at manual stop gives a first business-safe signal without inventing a noisy or fragile background system.
+- **Impact**:
+  - Backend `dataUsedBytes` can start moving from Android runtime truth.
+  - Profile refresh after stop keeps the UI aligned with PostgreSQL truth.
+  - Continuous usage synchronization remains a follow-up batch, not an accidental side effect of this implementation.
+
+## [2026-04-24] [Apply Dependent Prisma Migrations Sequentially On Fresh Local Databases]
+- **Decision**: On a fresh local database, the initial schema and follow-up quota migration must be executed and resolved strictly in sequence, never in parallel.
+- **Why**: The quota migration depends on base tables such as `InventoryItem`. Parallel execution can produce false negatives and an incoherent `_prisma_migrations` history.
+- **Impact**:
+  - Local environment setup is now deterministic.
+  - Future migration recovery on blank databases should start with `202604230001_init_schema` before any follow-up migration.
+  - This avoids a misleading state where Prisma history says “applied” while SQL never actually ran.

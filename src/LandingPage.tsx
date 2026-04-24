@@ -44,14 +44,16 @@ const SharkLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
 // ============================================================================
 // 3D ECOSYSTEM: CYBER-GEOGRAPHIC GLOBE
 // ============================================================================
-const latLonToVector3 = (lat: number, lon: number, R: number) => {
+const latLonToVector3 = (lat: number, lon: number, radius: number) => {
+  // 3. Conversion Géodésique (Lat/Lon vers 3D)
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lon + 180) * (Math.PI / 180);
-  return new THREE.Vector3(
-    -(R * Math.sin(phi) * Math.cos(theta)),
-    R * Math.cos(phi),
-    R * Math.sin(phi) * Math.sin(theta)
-  );
+
+  const x = -(radius * Math.sin(phi) * Math.cos(theta));
+  const z = radius * Math.sin(phi) * Math.sin(theta);
+  const y = radius * Math.cos(phi);
+
+  return new THREE.Vector3(x, y, z);
 };
 
 const CityMarkers = () => {
@@ -124,9 +126,12 @@ const ConnectionArcs = ({ cities }: { cities: THREE.Vector3[] }) => {
   for (let i = 0; i < cities.length; i++) {
     const start = cities[i];
     const end = cities[(i + 1) % cities.length];
-    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+
+    // 4. Algorithme des Flux (Courbes de Bézier 3D)
+    const mid = new THREE.Vector3().lerpVectors(start, end, 0.5);
     const distance = start.distanceTo(end);
-    mid.normalize().multiplyScalar(GLOBE_RADIUS + distance * 0.4);
+    mid.normalize().multiplyScalar(GLOBE_RADIUS * (1 + distance * 0.15));
+
     arcs.push(new THREE.QuadraticBezierCurve3(start, mid, end));
   }
 
@@ -151,7 +156,9 @@ const DataPacket = ({ curve, delay, opacity }: { curve: THREE.QuadraticBezierCur
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     if (meshRef.current) {
-      const t = ((state.clock.elapsedTime * 0.5) + delay) % 1;
+      // 4. Interpolation temporelle (Flux)
+      const vitesse = 0.5;
+      const t = ((state.clock.elapsedTime * vitesse) + delay) % 1;
       meshRef.current.position.copy(curve.getPoint(t));
     }
   });
@@ -172,80 +179,82 @@ const Atmosphere = () => (
 
 const InteractiveGlobe = () => {
   const pointsRef = useRef<THREE.Points>(null);
-  const [geometryData, setGeometryData] = useState<{ positions: Float32Array, colors: Float32Array } | null>(null);
+  const [geometryData, setGeometryData] = useState<{ positions: Float32Array, colors: Float32Array, sizes: Float32Array } | null>(null);
 
   useEffect(() => {
     let mounted = true;
     const img = new Image();
     img.crossOrigin = "Anonymous";
-    // Landmask: Oceans are light/white, Continents are dark/black
     img.src = "https://unpkg.com/three-globe/example/img/earth-water.png";
 
     img.onload = () => {
       if (!mounted) return;
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      // Forcing internal scale for texture raycasting (Canvas Invisible)
+      canvas.width = 1024;
+      canvas.height = 512;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) return;
 
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, 1024, 512);
+      const imgData = ctx.getImageData(0, 0, 1024, 512).data;
 
-      const targetLandParticles = 240000;
-      const positions = [];
-      const colors = [];
+      const particleCount = 240000;
 
-      // The Earth's land surface is ~29% of its total surface.
-      // To get EXACTLY 240,000 points on land, we evaluate points sequentially on a very dense full sphere
-      const evaluateCount = 850000;
+      // 5. Optimisation du Rendu (GPGPU-like via arrays)
+      const positions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
+      const sizes = new Float32Array(particleCount);
 
-      for (let i = 0; i < evaluateCount; i++) {
-        // Fibonacci sphere distribution for perfectly even sampling
-        const phi = Math.acos(-1 + (2 * i) / evaluateCount);
-        const theta = Math.sqrt(evaluateCount * Math.PI) * phi;
+      // 1. Distribution Équidistante (Spirale de Fibonacci)
+      const offset = 2 / particleCount;
+      const increment = Math.PI * (3 - Math.sqrt(5));
 
-        const x = GLOBE_RADIUS * Math.cos(theta) * Math.sin(phi);
-        const y = GLOBE_RADIUS * Math.sin(theta) * Math.sin(phi);
-        const z = GLOBE_RADIUS * Math.cos(phi);
+      for (let i = 0; i < particleCount; i++) {
+        const y = ((i * offset) - 1) + (offset / 2);
+        const r = Math.sqrt(1 - Math.pow(y, 2));
+        const phi = i * increment;
 
-        // Convert to UV coordinates to check the image map
-        const lat = Math.asin(y / GLOBE_RADIUS);
+        const x = Math.cos(phi) * r;
+        const z = Math.sin(phi) * r;
+
+        positions[i*3] = x * GLOBE_RADIUS;
+        positions[i*3+1] = y * GLOBE_RADIUS;
+        positions[i*3+2] = z * GLOBE_RADIUS;
+
+        // 2. Le Masquage des Continents (Raycasting de Texture)
+        const lat = Math.asin(y);
         const lon = Math.atan2(z, x);
 
         const u = 0.5 + lon / (2 * Math.PI);
         const v = 0.5 - lat / Math.PI;
 
-        const px = Math.max(0, Math.min(Math.floor(u * img.width), img.width - 1));
-        const py = Math.max(0, Math.min(Math.floor(v * img.height), img.height - 1));
-        const index = (py * img.width + px) * 4;
+        const px = Math.max(0, Math.min(Math.floor(u * 1024), 1023));
+        const py = Math.max(0, Math.min(Math.floor(v * 512), 511));
 
-        // In earth-water.png, land is black (< 128) and water is white (> 128)
-        const isLand = imgData.data[index] < 128;
+        const dataIndex = (py * 1024 + px) * 4;
+
+        // Note: the external texture has dark land (0) and light water (255)
+        // We invert brightness here so that 'gris clair -> Continent' logic applies correctly
+        const brightness = 255 - imgData[dataIndex];
+        const isLand = brightness > 50;
 
         if (isLand) {
-          positions.push(x, y, z);
-          // Electric blue color for land pixels
-          colors.push(46/255, 144/255, 250/255);
-
-          // Stop calculating once we hit exactly 240,000 micro-pixels on land!
-          if (positions.length / 3 >= targetLandParticles) {
-            break;
-          }
+          colors[i*3] = 46/255; colors[i*3+1] = 144/255; colors[i*3+2] = 250/255; // Cyan / Primary
+          sizes[i] = 0.010; // Stronger presence for continents
+        } else {
+          colors[i*3] = 15/255; colors[i*3+1] = 23/255; colors[i*3+2] = 42/255; // Dark blue for ocean
+          sizes[i] = 0.003; // Tiny size for ocean points
         }
       }
 
-      setGeometryData({
-        positions: new Float32Array(positions),
-        colors: new Float32Array(colors)
-      });
+      setGeometryData({ positions, colors, sizes });
     };
 
     return () => { mounted = false; };
   }, []);
 
   if (!geometryData) {
-    // Show a faint wireframe sphere while calculating the 240,000 pixels
     return (
       <group>
         <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.8} rotateSpeed={0.6} />
@@ -261,10 +270,12 @@ const InteractiveGlobe = () => {
   return (
     <group>
       <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.8} rotateSpeed={0.6} />
+      {/* 5. Optimisation du Rendu : Single Draw Call */}
       <points ref={pointsRef}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={geometryData.positions.length / 3} array={geometryData.positions} itemSize={3} />
-          <bufferAttribute attach="attributes-color" count={geometryData.colors.length / 3} array={geometryData.colors} itemSize={3} />
+          <bufferAttribute attach="attributes-position" count={240000} array={geometryData.positions} itemSize={3} />
+          <bufferAttribute attach="attributes-color" count={240000} array={geometryData.colors} itemSize={3} />
+          <bufferAttribute attach="attributes-size" count={240000} array={geometryData.sizes} itemSize={1} />
         </bufferGeometry>
         <shaderMaterial
           transparent
@@ -272,12 +283,12 @@ const InteractiveGlobe = () => {
           uniforms={{ opacity: { value: 0.95 } }}
           vertexShader={`
             attribute vec3 color;
+            attribute float size;
             varying vec3 vColor;
             void main() {
               vColor = color;
               vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-              // Micro pixel size to form the continents purely from dots
-              gl_PointSize = 0.009 * (300.0 / -mvPosition.z);
+              gl_PointSize = size * (300.0 / -mvPosition.z);
               gl_Position = projectionMatrix * mvPosition;
             }
           `}
@@ -285,7 +296,6 @@ const InteractiveGlobe = () => {
             uniform float opacity;
             varying vec3 vColor;
             void main() {
-              // Sharp square pixel
               gl_FragColor = vec4(vColor, opacity);
             }
           `}

@@ -73,6 +73,11 @@ export class AccessController {
     return this.customerClient.send({ cmd: 'activate_code' }, data);
   }
 
+  @Post('subscription/usage')
+  async reportUsage(@Body() data: any) {
+    return this.customerClient.send({ cmd: 'report_usage' }, data);
+  }
+
   @Get('servers')
   async getServers(@Headers('x-user-number') userNumber: string) {
     return this.storeClient.send({ cmd: 'get_servers' }, { userNumber });

@@ -8,6 +8,7 @@ import {
   ActivateTrialDto,
   CreateCheckoutDto,
   CryptoWebhookDto,
+  ReportUsageDto,
 } from '@app/contracts';
 
 @Controller()
@@ -57,6 +58,11 @@ export class CustomerController {
   @MessagePattern({ cmd: 'activate_code' })
   async activateCode(@Payload() data: { userNumber: string; code: string }) {
     return this.customerService.activateCode(data);
+  }
+
+  @MessagePattern({ cmd: 'report_usage' })
+  async reportUsage(@Payload() data: ReportUsageDto) {
+    return this.customerService.reportUsage(data);
   }
 
   @MessagePattern({ cmd: 'handle_stripe_webhook' })

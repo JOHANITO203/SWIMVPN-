@@ -442,3 +442,28 @@ otification-bot-service event handoff.
   - large supplier links can expose `1000 GB`
   - each such source can be split across at most `5` different users in SWIMVPN
 - Track those `5` user allocations server-side so Telegram or the Android app never becomes the source of truth.
+
+## [2026-04-24] Quota Enforcement Follow-up
+- Apply the manual migration `backend/prisma/migrations/20260424093000_shared_quota_usage_foundation/migration.sql` on the target database if `prisma migrate dev` remains blocked by the local schema-engine issue.
+- Add the producer for `record_assignment_usage` so measured usage actually flows into `dataUsedBytes` during runtime.
+- Decide the final operational trigger for usage updates:
+  - app runtime reports
+  - backend worker/provider sync
+  - or admin/manual reconciliation
+- Add admin visibility for:
+  - source remaining quota
+  - distinct users already consuming the source
+  - sources close to the `5 users` cap or near quota exhaustion
+
+## [2026-04-24] Usage Producer Follow-up
+- Start the local PostgreSQL instance or target database, then apply and resolve migration `20260424093000_shared_quota_usage_foundation`.
+- Add a second usage-report trigger beyond manual stop if product validation shows it is needed:
+  - app resume/foreground reconciliation
+  - graceful service shutdown callback
+  - or trusted backend/provider reconciliation
+- Validate end-to-end that stopping VPN updates `dataUsedBytes` and reduces the subscription quota progress bar in the Android profile screen.
+
+## [2026-04-24] Local Usage Flow Validation
+- Seed or verify a local fulfilled order + assignment, then test that `POST /api/v1/subscription/usage` updates `dataUsedBytes` as expected.
+- Run the Android app against the local/backend target, generate traffic, stop VPN manually, and verify the profile quota progress decreases.
+- If manual-stop reporting feels too sparse in product tests, add the next safe trigger without introducing a background spam loop.

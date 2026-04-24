@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsArray, IsOptional, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsString, IsArray, IsOptional, IsEnum, IsInt, Min } from 'class-validator';
 import { PlanCategory } from '@prisma/client';
 
 export class ImportConfigsDto {
@@ -13,10 +13,30 @@ export class ImportConfigsDto {
   @IsString()
   @IsOptional()
   batchName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  sourceQuotaGb?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxUsersPerConfig?: number;
 }
 
 export class FulfillOrderDto {
   @IsString()
   @IsNotEmpty()
   orderId: string;
+}
+
+export class RecordUsageDto {
+  @IsString()
+  @IsNotEmpty()
+  orderRef: string;
+
+  @IsString()
+  @IsNotEmpty()
+  measuredUsedBytes: string;
 }

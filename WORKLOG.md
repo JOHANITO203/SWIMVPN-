@@ -1302,3 +1302,61 @@ pm run build PASSED.
   - Kept the progress bar reserved for measured subscription consumption only, so it can later drive access cut-off and renewal control without mixing in local session counters.
 - **Verification**:
   - `cd android && .\\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+## [2026-04-24] [Backend Quota + Shared Source Enforcement Foundation]
+- **Status**: DONE
+- **Changes**:
+  - Extended inventory/source truth to support shared supplier links with measured source quota and max distinct customer allocations.
+  - Extended `OrderAssignment` into a real per-customer allocation record with measured usage bytes.
+  - Updated fulfillment to allow source sharing up to a strict distinct-customer limit instead of treating every imported config as single-use only.
+  - Added backend usage-recording logic that updates assignment usage, recomputes source usage, and emits admin events when plan quota or source quota is exhausted.
+  - Updated customer profile building so `dataUsedBytes` now comes from the real latest assignment instead of a hardcoded `0`.
+  - Added a manual SQL migration file because local Prisma `migrate dev` hit a schema-engine issue even though validation and client generation succeeded.
+- **Verification**:
+  - `cd backend && npm run prisma:validate` PASSED.
+  - `cd backend && npm run prisma:generate` PASSED.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+
+## [2026-04-24] [Usage Producer Wiring + Local Migration Readiness]
+- **Status**: PARTIAL
+- **Changes**:
+  - Added a backend `subscription/usage` flow that accepts `{ userNumber, measuredUsedBytes }`, resolves the customer's latest fulfilled order, and forwards usage into `record_assignment_usage`.
+  - Added an Android producer that reports measured usage on manual VPN stop, then refreshes the access profile so the quota progress UI can reflect backend truth.
+  - Normalized the local Prisma `DATABASE_URL` password encoding so Prisma can parse the connection string correctly.
+- **Verification**:
+  - `cd backend && npm run prisma:validate` PASSED.
+  - `cd backend && npm run prisma:generate` PASSED.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+- **Blocker**:
+  - Applying the SQL migration locally is still blocked because PostgreSQL is not reachable at `localhost:5432` on this machine.
+
+## [2026-04-24] [Usage Producer Wiring + Local Migration Readiness]
+- **Status**: PARTIAL
+- **Changes**:
+  - Added a backend `subscription/usage` flow that accepts `{ userNumber, measuredUsedBytes }`, resolves the customer's latest fulfilled order, and forwards usage into `record_assignment_usage`.
+  - Added an Android producer that reports measured usage on manual VPN stop, then refreshes the access profile so the quota progress UI can reflect backend truth.
+  - Normalized the local Prisma `DATABASE_URL` password encoding so Prisma can parse the connection string correctly.
+- **Verification**:
+  - `cd backend && npm run prisma:validate` PASSED.
+  - `cd backend && npm run prisma:generate` PASSED.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+- **Blocker**:
+  - Applying the SQL migration locally is still blocked because PostgreSQL is not reachable at `localhost:5432` on this machine.
+
+## [2026-04-24] [Local Database Migration Applied Successfully]
+- **Status**: DONE
+- **Changes**:
+  - Started the local PostgreSQL container and applied `202604230001_init_schema` followed by `20260424093000_shared_quota_usage_foundation` in the correct order.
+  - Fixed the local migration execution path by removing UTF-8 BOM markers from migration SQL files and repairing the previously mis-marked migration history entry.
+  - Confirmed Prisma now sees the local database schema as up to date.
+- **Verification**:
+  - `docker compose up -d db` PASSED.
+  - `prisma db execute` for `202604230001_init_schema` PASSED.
+  - `prisma migrate resolve --applied 202604230001_init_schema` PASSED.
+  - `prisma db execute` for `20260424093000_shared_quota_usage_foundation` PASSED.
+  - `prisma migrate resolve --applied 20260424093000_shared_quota_usage_foundation` PASSED.
+  - `cd backend && prisma migrate status` => `Database schema is up to date!`

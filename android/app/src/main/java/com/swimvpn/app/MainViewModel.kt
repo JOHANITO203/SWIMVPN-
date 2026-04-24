@@ -16,6 +16,7 @@ import com.swimvpn.app.data.network.ActivateTrialRequest
 import com.swimvpn.app.data.network.BootstrapAccessRequest
 import com.swimvpn.app.data.model.CheckoutRequest
 import com.swimvpn.app.data.network.ImportSubscriptionRequest
+import com.swimvpn.app.data.network.ReportUsageRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerLatencyEvaluator
@@ -463,14 +464,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+    private suspend fun reportMeasuredUsage(userNumber: String): AccessProfileResponse? {
+        val measuredBytes = (com.swimvpn.app.vpn.VpnManager.bytesIn.value + com.swimvpn.app.vpn.VpnManager.bytesOut.value)
+            .coerceAtLeast(0L)
+        if (measuredBytes <= 0L) {
+            return null
+        }
+
+        return try {
+            api.reportUsage(
+                ReportUsageRequest(
+                    userNumber = userNumber,
+                    measuredUsedBytes = measuredBytes.toString(),
+                )
+            )
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Usage report failed", e)
+            null
+        }
+    }
+
     fun toggleVpn(context: android.content.Context, server: ServerNode?, profile: AccessProfileResponse?) {
         val currentState = com.swimvpn.app.vpn.VpnManager.state.value
 
         if (currentState == com.swimvpn.app.vpn.VpnState.CONNECTED || currentState == com.swimvpn.app.vpn.VpnState.CONNECTING) {
-            val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
-                action = SwimVpnService.ACTION_STOP
+            val successState = _state.value as? AppState.Success
+            viewModelScope.launch {
+                val refreshedProfile = successState?.profile?.userNumber?.let { reportMeasuredUsage(it) }
+                if (successState != null && refreshedProfile != null) {
+                    _state.value = refreshSuccessState(successState.copy(profile = refreshedProfile))
+                }
+                val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
+                    action = SwimVpnService.ACTION_STOP
+                }
+                context.startService(intent)
             }
-            context.startService(intent)
         } else {
             if (server == null || profile == null) {
                 _state.value = AppState.Error(s(R.string.err_no_server_profile))

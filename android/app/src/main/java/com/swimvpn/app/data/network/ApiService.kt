@@ -33,6 +33,9 @@ interface ApiService {
     @POST("api/v1/subscription/activate-code")
     suspend fun activateCode(@Body request: ActivateCodeRequest): AccessProfileResponse
 
+    @POST("api/v1/subscription/usage")
+    suspend fun reportUsage(@Body request: ReportUsageRequest): AccessProfileResponse
+
     @GET("api/v1/servers")
     suspend fun getServers(@Header("x-user-number") userNumber: String): List<ServerNode>
 

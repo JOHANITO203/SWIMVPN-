@@ -9,6 +9,7 @@ import {
   BootstrapAccessDto,
   ActivateTrialDto,
   CreateCheckoutDto,
+  ReportUsageDto,
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
 
@@ -223,14 +224,18 @@ export class CustomerService {
     const offerCode = latestOrder?.plan.code || null;
     const subscriptionExpiresAt = this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder);
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
+    const quotaLabel =
+      latestOrder?.plan.quota_label || assignment?.fallback_quota_label || '';
     const status = this.resolveProfileStatus({
       hasCompletedProfile: !!customer.email && !!customer.phone,
       hasOrder: !!latestOrder,
       subscriptionExpiresAt,
+      quotaExceeded: this.isPlanQuotaExceeded(quotaLabel, assignment?.measured_used_bytes),
+      sourceExhausted: this.isSourceQuotaExceeded(
+        inventoryItem?.source_quota_bytes,
+        inventoryItem?.source_used_bytes,
+      ),
     });
-    const quotaLabel =
-      latestOrder?.plan.quota_label || assignment?.fallback_quota_label || '';
-
     return {
       userNumber: customer.public_id,
       email: customer.email,
@@ -245,7 +250,7 @@ export class CustomerService {
       subscriptionUrl: inventoryItem?.raw_config || null,
       devicesAllowed: 1,
       dataLimitGB: latestOrder ? this.parseQuotaLabelToGb(quotaLabel) : 0,
-      dataUsedBytes: '0',
+      dataUsedBytes: assignment?.measured_used_bytes?.toString() || '0',
       profileCompletionRequired: !customer.email || !customer.phone,
       trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
     };
@@ -317,6 +322,46 @@ export class CustomerService {
         { encryptedLink },
       ),
     );
+  }
+
+
+  async reportUsage(data: ReportUsageDto) {
+    const measuredUsedBytes = data.measuredUsedBytes?.trim();
+    if (!measuredUsedBytes) {
+      throw new Error('Measured usage is required');
+    }
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { public_id: data.userNumber },
+      include: {
+        orders: {
+          where: { status: OrderStatus.FULFILLED },
+          orderBy: { created_at: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    const latestOrder = customer.orders[0];
+    if (!latestOrder) {
+      return { success: true, ignored: true, reason: 'NO_FULFILLED_ORDER' };
+    }
+
+    await firstValueFrom(
+      this.inventoryClient.send(
+        { cmd: 'record_assignment_usage' },
+        {
+          orderRef: latestOrder.order_ref,
+          measuredUsedBytes,
+        },
+      ),
+    );
+
+    return this.getProfile(customer.public_id);
   }
 
   async activateCode(data: { userNumber: string; code: string }) {
@@ -733,6 +778,8 @@ export class CustomerService {
     hasCompletedProfile: boolean;
     hasOrder: boolean;
     subscriptionExpiresAt: string | null;
+    quotaExceeded: boolean;
+    sourceExhausted: boolean;
   }) {
     if (!params.hasCompletedProfile) {
       return 'PROFILE_INCOMPLETE';
@@ -740,6 +787,10 @@ export class CustomerService {
 
     if (!params.hasOrder) {
       return 'TRIAL_AVAILABLE';
+    }
+
+    if (params.quotaExceeded || params.sourceExhausted) {
+      return 'EXPIRED';
     }
 
     if (!params.subscriptionExpiresAt) {
@@ -758,5 +809,31 @@ export class CustomerService {
     const normalized = match[1].replace(',', '.');
     const parsed = Number.parseFloat(normalized);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private quotaLabelToBytes(quotaLabel: string) {
+    const parsedGb = this.parseQuotaLabelToGb(quotaLabel);
+    if (!Number.isFinite(parsedGb) || parsedGb <= 0) {
+      return 0n;
+    }
+
+    return BigInt(Math.round(parsedGb * 1024 * 1024 * 1024));
+  }
+
+  private isPlanQuotaExceeded(quotaLabel: string, measuredUsedBytes?: bigint | null) {
+    const quotaBytes = this.quotaLabelToBytes(quotaLabel);
+    if (quotaBytes <= 0n) {
+      return false;
+    }
+
+    return (measuredUsedBytes ?? 0n) >= quotaBytes;
+  }
+
+  private isSourceQuotaExceeded(sourceQuotaBytes?: bigint | null, sourceUsedBytes?: bigint | null) {
+    if (!sourceQuotaBytes || sourceQuotaBytes <= 0n) {
+      return false;
+    }
+
+    return (sourceUsedBytes ?? 0n) >= sourceQuotaBytes;
   }
 }

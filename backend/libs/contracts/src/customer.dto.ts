@@ -89,3 +89,14 @@ export class CryptoWebhookDto {
   @IsOptional()
   payload?: Record<string, unknown>;
 }
+
+
+export class ReportUsageDto {
+  @IsString()
+  @IsNotEmpty()
+  userNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  measuredUsedBytes: string;
+}

@@ -95,6 +95,11 @@ data class ActivateCodeRequest(
     val code: String
 )
 
+data class ReportUsageRequest(
+    val userNumber: String,
+    val measuredUsedBytes: String
+)
+
 data class ServerNode(
     val id: String,
     val country: String,

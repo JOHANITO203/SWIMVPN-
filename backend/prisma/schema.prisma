@@ -39,6 +39,7 @@ model Customer {
 
   orders          Order[]
   inventory_items InventoryItem[]
+  order_assignments OrderAssignment[]
 }
 
 model Plan {
@@ -89,26 +90,37 @@ model InventoryItem {
   display_protocol     String
   batch_name           String?
   status               InventoryStatus @default(AVAILABLE)
-  assigned_order_id    String?         @unique
+  assigned_order_id    String?
   assigned_customer_id String?
   imported_at          DateTime        @default(now())
   assigned_at          DateTime?
+  source_quota_bytes   BigInt?
+  source_used_bytes    BigInt          @default(0)
+  max_customer_allocations Int        @default(5)
 
   customer    Customer?        @relation(fields: [assigned_customer_id], references: [id])
-  assignments OrderAssignment?
+  assignments OrderAssignment[]
 }
 
 model OrderAssignment {
   id                      String   @id @default(uuid())
   order_id                String
-  inventory_item_id       String   @unique
+  inventory_item_id       String
+  customer_id             String
   fallback_offer_title    String
   fallback_duration_label String
   fallback_quota_label    String
   assigned_at             DateTime @default(now())
+  measured_used_bytes     BigInt   @default(0)
+  last_measured_at        DateTime?
 
   order          Order         @relation(fields: [order_id], references: [id])
   inventory_item InventoryItem @relation(fields: [inventory_item_id], references: [id])
+  customer       Customer      @relation(fields: [customer_id], references: [id])
+
+  @@index([inventory_item_id])
+  @@index([customer_id])
+  @@index([order_id])
 }
 
 model Delivery {

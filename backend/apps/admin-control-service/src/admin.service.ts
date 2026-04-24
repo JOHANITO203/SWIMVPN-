@@ -129,6 +129,8 @@ export class AdminService {
         category: data.category,
         configs: data.configs,
         batchName: data.batchName,
+        sourceQuotaGb: data.sourceQuotaGb,
+        maxUsersPerConfig: data.maxUsersPerConfig,
       }),
     );
 
@@ -142,6 +144,8 @@ export class AdminService {
         payload_json: {
           category: data.category,
           batchName: data.batchName,
+          sourceQuotaGb: data.sourceQuotaGb ?? 1000,
+          maxUsersPerConfig: data.maxUsersPerConfig ?? 5,
           count: data.configs.length,
           result,
         } as any,
