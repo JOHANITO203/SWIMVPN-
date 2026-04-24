@@ -467,3 +467,8 @@ otification-bot-service event handoff.
 - Seed or verify a local fulfilled order + assignment, then test that `POST /api/v1/subscription/usage` updates `dataUsedBytes` as expected.
 - Run the Android app against the local/backend target, generate traffic, stop VPN manually, and verify the profile quota progress decreases.
 - If manual-stop reporting feels too sparse in product tests, add the next safe trigger without introducing a background spam loop.
+
+## [2026-04-24] Payment Flow Follow-up
+- Re-test the VPS checkout flow and inspect gateway/customer-service logs if `HTTP 500` still appears after redeploy.
+- Localize the new payment-confirmation modal strings cleanly for FR/RU after the current ASCII-safe unblock.
+- Decide the business shape of a future paid weekly offer instead of reusing the internal trial plan.

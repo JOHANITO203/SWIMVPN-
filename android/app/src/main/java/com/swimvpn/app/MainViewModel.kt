@@ -314,6 +314,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+
+    private fun extractApiErrorMessage(error: Exception): String? {
+        val httpException = error as? retrofit2.HttpException ?: return error.localizedMessage
+        val body = httpException.response()?.errorBody()?.string().orEmpty()
+        if (body.isBlank()) {
+            return httpException.message()
+        }
+
+        val patterns = listOf(
+            Regex(""""message"\s*:\s*"([^"]+)"""),
+            Regex(""""error"\s*:\s*"([^"]+)"""),
+        )
+        patterns.forEach { pattern ->
+            val match = pattern.find(body)
+            if (match != null) {
+                return match.groupValues[1]
+            }
+        }
+        return body.take(160)
+    }
+
     fun createCheckout(planId: String, paymentMethod: String, cryptoAsset: String? = null) {
         viewModelScope.launch {
             val currentState = _state.value as? AppState.Success ?: return@launch
@@ -338,7 +359,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _effect.emit(
                     AppSideEffect.ShowToast(
-                        s(R.string.err_order_creation_failed, e.localizedMessage ?: "unknown")
+                        s(R.string.err_order_creation_failed, extractApiErrorMessage(e) ?: "unknown")
                     )
                 )
             }

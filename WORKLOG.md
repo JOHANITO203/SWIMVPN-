@@ -1360,3 +1360,16 @@ pm run build PASSED.
   - `prisma db execute` for `20260424093000_shared_quota_usage_foundation` PASSED.
   - `prisma migrate resolve --applied 20260424093000_shared_quota_usage_foundation` PASSED.
   - `cd backend && prisma migrate status` => `Database schema is up to date!`
+
+## [2026-04-24] [Checkout Email Confirmation + Hide Trial From Store]
+- **Status**: DONE
+- **Changes**:
+  - Hid free/internal plans from the public store feed so the trial no longer appears on the subscription page.
+  - Corrected the seeded trial metadata from `7 Days Trial` to `3 Days Trial` for internal consistency.
+  - Added backend checkout error mapping so missing payment email and unavailable payment providers stop surfacing as opaque gateway failures.
+  - Added an Android email-confirmation modal before checkout and improved client-side API error extraction for payment failures.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd backend && npm run prisma:seed` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.

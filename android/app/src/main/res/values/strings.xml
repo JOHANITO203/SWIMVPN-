@@ -217,4 +217,10 @@
     <string name="kill_switch_chip_always_on">ALWAYS-ON</string>
     <string name="kill_switch_chip_lockdown">LOCKDOWN</string>
     <string name="btn_save">SAVE ALL PREFERENCES</string>
+
+    <string name="payment_confirm_email_title">CONFIRM EMAIL</string>
+    <string name="payment_confirm_email_body">We will use this email for payment follow-up and delivery.</string>
+    <string name="payment_confirm_email_confirm">CONFIRM</string>
+    <string name="payment_confirm_email_cancel">CANCEL</string>
+    <string name="payment_confirm_email_missing">No email found in your profile.</string>
 </resources>

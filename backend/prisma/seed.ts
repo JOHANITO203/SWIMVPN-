@@ -7,8 +7,8 @@ async function main() {
   const plans = [
     {
       code: PlanCategory.WEEK,
-      name: '7 Days Trial',
-      duration_label: '7 Days',
+      name: '3 Days Trial',
+      duration_label: '3 Days',
       quota_label: '5 GB',
       price_rub: 0,
       display_order: 1,

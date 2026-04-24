@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -51,12 +52,15 @@ import java.math.RoundingMode
 @Composable
 fun SubscriptionScreen(
     plans: List<Plan>,
+    paymentEmail: String?,
     onCheckoutClick: (planId: String, paymentMethod: String) -> Unit,
     onBack: () -> Unit = {}
 ) {
     var selectedPlanId by remember { mutableStateOf(plans.firstOrNull()?.id ?: "") }
     var selectedPaymentMethod by remember { mutableStateOf("CARD_MANUAL") }
+    var showEmailConfirmation by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+    val normalizedPaymentEmail = paymentEmail?.trim().orEmpty()
 
     Column(
         modifier = Modifier
@@ -169,7 +173,7 @@ fun SubscriptionScreen(
         Spacer(modifier = Modifier.height(48.dp))
 
         Button(
-            onClick = { if (selectedPlanId.isNotEmpty()) onCheckoutClick(selectedPlanId, selectedPaymentMethod) },
+            onClick = { if (selectedPlanId.isNotEmpty()) showEmailConfirmation = true },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp),
@@ -187,6 +191,64 @@ fun SubscriptionScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        if (showEmailConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showEmailConfirmation = false },
+                title = {
+                    Text(
+                        text = stringResource(R.string.payment_confirm_email_title),
+                        fontWeight = FontWeight.Black,
+                        color = SwimNavyMouth,
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = stringResource(R.string.payment_confirm_email_body),
+                            color = Color(0xFF64748B),
+                            fontSize = 14.sp,
+                        )
+                        Surface(
+                            color = Color(0xFFF8FAFC),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = normalizedPaymentEmail.ifBlank { stringResource(R.string.payment_confirm_email_missing) },
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                color = SwimNavyMouth,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showEmailConfirmation = false
+                            onCheckoutClick(selectedPlanId, selectedPaymentMethod)
+                        },
+                        enabled = selectedPlanId.isNotEmpty() && normalizedPaymentEmail.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain),
+                    ) {
+                        Text(stringResource(R.string.payment_confirm_email_confirm), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = { showEmailConfirmation = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2E8F0)),
+                    ) {
+                        Text(stringResource(R.string.payment_confirm_email_cancel), color = SwimNavyMouth, fontWeight = FontWeight.Bold)
+                    }
+                },
+                shape = RoundedCornerShape(24.dp),
+                containerColor = Color.White,
+            )
+        }
+
     }
 }
 

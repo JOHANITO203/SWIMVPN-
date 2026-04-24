@@ -599,3 +599,19 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Local environment setup is now deterministic.
   - Future migration recovery on blank databases should start with `202604230001_init_schema` before any follow-up migration.
   - This avoids a misleading state where Prisma history says “applied” while SQL never actually ran.
+
+## [2026-04-24] [Trial Must Stay Outside The Public Subscription Catalog]
+- **Decision**: The trial remains an access-state feature and badge, not a purchasable store plan shown on the subscription page.
+- **Why**: The trial is operationally separate from paid offers and has different rules (`3 days`, abuse controls, activation logic). Showing it as the `WEEK` store offer creates false product meaning and confuses checkout.
+- **Impact**:
+  - Public plan listing now exposes only paid offers.
+  - Trial access stays visible through profile/home status only.
+  - A future paid weekly offer can be introduced explicitly instead of piggybacking on the internal trial record.
+
+## [2026-04-24] [Checkout Must Confirm Payment Email Explicitly]
+- **Decision**: Checkout now requires an explicit email confirmation modal immediately before payment instead of assuming the stored profile email is implicitly accepted.
+- **Why**: Payment follow-up depends on the email, and users need a clear confirmation point before redirecting into Telegram or Crypto Pay. This also reduces confusion when checkout fails because contact data is incomplete or stale.
+- **Impact**:
+  - The app shows a lightweight confirm/cancel modal before creating checkout.
+  - Backend checkout errors for missing email are now surfaced more honestly.
+  - The payment contract is explicit at the moment of action, not hidden in prior onboarding state.

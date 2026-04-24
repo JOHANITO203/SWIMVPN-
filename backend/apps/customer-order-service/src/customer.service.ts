@@ -82,7 +82,7 @@ export class CustomerService {
 
     const paymentBotUsername = process.env.PAYMENT_BOT_USERNAME?.trim();
     if (!paymentBotUsername) {
-      throw new Error('Payment bot username is not configured');
+      throw new Error('Manual payment bot username is not configured');
     }
 
     await this.prisma.order.update({
@@ -582,7 +582,7 @@ export class CustomerService {
     const normalizedPhone = this.normalizePhone(data.phone) || undefined;
 
     if (!normalizedEmail) {
-      throw new Error('Email is required for payment follow-up');
+      throw new Error('Payment contact email is required before checkout');
     }
 
     const customer = await this.findOrCreateCustomerByContact(normalizedEmail, normalizedPhone);

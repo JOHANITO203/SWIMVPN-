@@ -7,7 +7,10 @@ export class StoreService {
 
   async getActivePlans() {
     return this.prisma.plan.findMany({
-      where: { active: true },
+      where: {
+        active: true,
+        price_rub: { gt: 0 },
+      },
       orderBy: { display_order: 'asc' },
     });
   }
