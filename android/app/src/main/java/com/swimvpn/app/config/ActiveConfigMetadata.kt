@@ -96,6 +96,33 @@ data class ActiveConfigMetadata(
             }
         }
 
+        fun fromImportedProfile(
+            profile: SwimVpnProfile,
+            isActive: Boolean = true,
+        ): ActiveConfigMetadata {
+            val parsed = fromRawConfig(
+                rawConfig = profile.rawConfig,
+                source = ActiveConfigSource.IMPORTED_CONFIG,
+                displayNameFallback = profile.displayName,
+                isActive = isActive,
+            )
+
+            return (parsed ?: ActiveConfigMetadata(
+                source = ActiveConfigSource.IMPORTED_CONFIG,
+                isActive = isActive,
+                displayName = profile.displayName,
+                protocol = profile.protocol.name.lowercase(),
+                serverHost = profile.address.takeIf { it.isNotBlank() },
+                warnings = profile.parseWarnings,
+            )).copy(
+                providerName = profile.subscriptionProviderName ?: parsed?.providerName,
+                trafficUsedBytes = profile.subscriptionTrafficUsedBytes ?: parsed?.trafficUsedBytes,
+                trafficTotalBytes = profile.subscriptionTrafficTotalBytes ?: parsed?.trafficTotalBytes,
+                expiresAt = profile.subscriptionExpiresAt ?: parsed?.expiresAt,
+                warnings = (parsed?.warnings.orEmpty() + profile.parseWarnings).distinct(),
+            )
+        }
+
         fun fromManagedServer(
             server: ServerNode,
             isActive: Boolean = true,

@@ -203,22 +203,12 @@ class ConfigRepository(private val context: Context) {
 
     suspend fun getActiveConfigMetadata(): ActiveConfigMetadata? {
         val profile = getActiveProfile() ?: return null
-        return ActiveConfigMetadata.fromRawConfig(
-            rawConfig = profile.rawConfig,
-            source = activeConfigSourceFor(profile.sourceType),
-            displayNameFallback = profile.displayName,
-            isActive = true,
-        )
+        return ActiveConfigMetadata.fromImportedProfile(profile)
     }
 
     suspend fun getImportedConfigMetadata(serverId: String): ActiveConfigMetadata? {
         val profile = getImportedProfileForServerId(serverId) ?: return null
-        return ActiveConfigMetadata.fromRawConfig(
-            rawConfig = profile.rawConfig,
-            source = activeConfigSourceFor(profile.sourceType),
-            displayNameFallback = profile.displayName,
-            isActive = true,
-        )
+        return ActiveConfigMetadata.fromImportedProfile(profile)
     }
 
     suspend fun getImportedProfileForServerId(serverId: String): SwimVpnProfile? {
@@ -461,7 +451,14 @@ class ConfigRepository(private val context: Context) {
                 return@forEachIndexed
             }
 
-            importedProfiles += normalizedProfile
+            importedProfiles += normalizedProfile.copy(
+                subscriptionProviderName = parsedProfile.providerName ?: parsedSubscription.providerName,
+                subscriptionTrafficUsedBytes = parsedProfile.trafficUsedBytes ?: parsedSubscription.trafficUsedBytes,
+                subscriptionTrafficTotalBytes = parsedProfile.trafficTotalBytes ?: parsedSubscription.trafficTotalBytes,
+                subscriptionExpiresAt = parsedProfile.expiresAt ?: parsedSubscription.expiresAt,
+                subscriptionAutoUpdateIntervalHours = parsedProfile.autoUpdateIntervalHours
+                    ?: parsedSubscription.autoUpdateIntervalHours,
+            )
             warnings += (parseResult.warnings + parsedProfile.warnings)
         }
 

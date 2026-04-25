@@ -116,6 +116,36 @@ class ActiveConfigMetadataMappingTest {
     }
 
     @Test
+    fun `stored imported profile exposes persisted subscription metadata`() {
+        val profile = SwimVpnProfile(
+            sourceType = SourceType.SUBSCRIPTION_URL,
+            rawConfig = "vless://11111111-1111-1111-1111-111111111111@pl.cloudrt.ru:443?security=reality&type=tcp#Poland",
+            sourceFormat = SourceFormat.VLESS_URL,
+            protocol = Protocol.VLESS,
+            transport = Transport.TCP,
+            securityMode = SecurityMode.REALITY,
+            address = "pl.cloudrt.ru",
+            port = 443,
+            displayName = "Poland",
+            displaySubtitle = "TCP, REALITY, Port: 443",
+            subscriptionProviderName = "VlessWB VPN",
+            subscriptionTrafficUsedBytes = 18L * 1024L * 1024L * 1024L,
+            subscriptionTrafficTotalBytes = 1000L * 1024L * 1024L * 1024L,
+            subscriptionExpiresAt = "2026-05-22T00:00:00Z",
+            subscriptionAutoUpdateIntervalHours = 1,
+        )
+
+        val metadata = ActiveConfigMetadata.fromImportedProfile(profile)
+
+        assertEquals(ActiveConfigSource.IMPORTED_CONFIG, metadata.source)
+        assertEquals("Poland", metadata.displayName)
+        assertEquals("VlessWB VPN", metadata.providerName)
+        assertEquals(18L * 1024L * 1024L * 1024L, metadata.trafficUsedBytes)
+        assertEquals(1000L * 1024L * 1024L * 1024L, metadata.trafficTotalBytes)
+        assertEquals("2026-05-22T00:00:00Z", metadata.expiresAt)
+    }
+
+    @Test
     fun `maps explicit profile metadata with imported source`() {
         val profile = ParsedVpnProfile(
             displayName = "NL Edge",

@@ -58,7 +58,12 @@ data class SwimVpnProfile(
     
     // Metadata
     val importedAt: Long = System.currentTimeMillis(),
-    val lastUsedAt: Long? = null
+    val lastUsedAt: Long? = null,
+    val subscriptionProviderName: String? = null,
+    val subscriptionTrafficUsedBytes: Long? = null,
+    val subscriptionTrafficTotalBytes: Long? = null,
+    val subscriptionExpiresAt: String? = null,
+    val subscriptionAutoUpdateIntervalHours: Int? = null
 )
 
 /**

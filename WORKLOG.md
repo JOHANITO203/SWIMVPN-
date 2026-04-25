@@ -1556,3 +1556,15 @@ pm run build PASSED.
 - **Verification**:
   - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
 
+## [2026-04-25] [Android Imported Subscription Metadata Persistence]
+- **Status**: DONE
+- **Changes**:
+  - ADB confirmed the phone showed `Configuration active` for an imported VLESS profile but only displayed profile identity/protocol because the stored profile contained only the individual `vless://` entry.
+  - Added persisted subscription metadata fields to `SwimVpnProfile` so imported profiles keep provider, traffic used, traffic total, expiration, and autoupdate metadata extracted from the original subscription payload.
+  - Updated import finalization to copy parser metadata from `ParsedVpnProfile` / `ParsedSubscription` into each stored imported profile while preserving the raw config intact.
+  - Updated `ActiveConfigMetadata` to prefer persisted imported-profile metadata before falling back to reparsing the individual raw config.
+  - Added a regression test for a stored imported profile carrying provider, quota, and expiration metadata.
+- **Verification**:
+  - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; .\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
