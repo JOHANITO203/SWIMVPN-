@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
+import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.theme.SwimBlueMain
@@ -45,7 +46,8 @@ import java.util.concurrent.TimeUnit
 @Composable
 @Suppress("UNUSED_PARAMETER")
 fun ProfileScreen(
-    profile: AccessProfileResponse, 
+    profile: AccessProfileResponse,
+    activeConfigMetadata: ActiveConfigMetadata? = null,
     bytesIn: Long = 0,
     bytesOut: Long = 0,
     onNavigateToSubscription: () -> Unit,

@@ -204,6 +204,7 @@ fun AppNavigation(
 
                     ProfileScreen(
                         profile = currentState.profile,
+                        activeConfigMetadata = currentState.activeConfigMetadata,
                         bytesIn = bytesIn,
                         bytesOut = bytesOut,
                         onNavigateToSubscription = { navController.navigate("subscription") },

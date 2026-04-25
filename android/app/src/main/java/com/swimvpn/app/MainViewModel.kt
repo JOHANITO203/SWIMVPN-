@@ -22,6 +22,7 @@ import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerLatencyEvaluator
 import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.config.ConfigRepository
+import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.config.ImportedProfileGroup
 import com.swimvpn.app.config.SecurityMode
 import com.swimvpn.app.config.SwimVpnProfile
@@ -52,6 +53,7 @@ sealed class AppState {
 
     data class Success(
         val profile: AccessProfileResponse,
+        val activeConfigMetadata: ActiveConfigMetadata? = null,
         val servers: List<ServerNode>,
         val serverGroups: List<ServerGroup>,
         val plans: List<com.swimvpn.app.data.model.Plan>,
@@ -384,7 +386,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val current = _state.value as? AppState.Success ?: return@launch
             val targetId = importedServerId(profile)
             prefs.setSelectedServerId(targetId)
-            _state.value = refreshSuccessState(current)
+            _state.value = refreshSuccessState(current.copy(activeConfigMetadata = resolveActiveConfigMetadata()))
             refreshServerLatency()
         }
     }
@@ -613,9 +615,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val servers = serverGroups.flatMap { it.servers }
         val savedServerId = prefs.selectedServerIdFlow.first()
         val activeServer = servers.find { it.id == savedServerId } ?: servers.firstOrNull()
+        val activeConfigMetadata = resolveActiveConfigMetadata()
 
         return AppState.Success(
             profile = profile,
+            activeConfigMetadata = activeConfigMetadata,
             servers = servers,
             serverGroups = serverGroups,
             plans = plans,
@@ -626,6 +630,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             themeMode = themeMode,
             activeServer = activeServer,
         )
+    }
+
+    private suspend fun resolveActiveConfigMetadata(): ActiveConfigMetadata? {
+        return runCatching { configRepository.getActiveConfigMetadata() }.getOrNull()
     }
 
     private suspend fun refreshSuccessState(currentState: AppState.Success): AppState.Success {
@@ -648,11 +656,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val activeServer = servers.find { it.id == savedServerId }
             ?: servers.find { it.id == currentState.activeServer?.id }
             ?: servers.firstOrNull()
+        val activeConfigMetadata = resolveActiveConfigMetadata()
 
         return currentState.copy(
             servers = servers,
             serverGroups = serverGroups,
             activeServer = activeServer,
+            activeConfigMetadata = activeConfigMetadata,
         )
     }
 

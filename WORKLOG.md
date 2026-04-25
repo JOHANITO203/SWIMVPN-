@@ -1460,3 +1460,14 @@ pm run build PASSED.
   - Local Prisma verification confirmed `WEEK`, `MONTH`, and `QUARTER` are now all active paid plans in PostgreSQL.
 - **Follow-up note**:
   - The live VPS still needs a fresh redeploy of this batch before the public checkout and store endpoints can reflect it.
+
+## [2026-04-25] [Android Task 3 - Thread Active Config Metadata Through App State]
+- **Status**: DONE
+- **Changes**:
+  - Added `activeConfigMetadata` to `AppState.Success` and threaded it through the profile render call from `MainActivity`.
+  - Added `resolveActiveConfigMetadata()` in `MainViewModel` and populated metadata during initial success-state construction.
+  - Refreshed metadata inside `refreshSuccessState(...)`, which also covers imported profile selection and later success-state refresh paths.
+  - Added a minimal no-UI-change compatibility parameter to `ProfileScreen` so the new call-site contract compiles before Task 4 renders the metadata.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` FAILED initially with `Cannot find a parameter with this name: activeConfigMetadata` at the `ProfileScreen(...)` call site.
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED after the state wiring and compatibility parameter update.
