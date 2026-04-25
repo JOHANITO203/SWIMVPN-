@@ -106,6 +106,7 @@
     <string name="active_config_provider">Provider</string>
     <string name="active_config_expiration">Config expiration</string>
     <string name="active_config_quota">Config quota</string>
+    <string name="active_config_usage">Config usage</string>
     <string name="profile_email_format">Email • %1$s</string>
     <string name="profile_phone_format">Phone • %1$s</string>
     <string name="profile_contact_missing">No contact details on file yet.</string>

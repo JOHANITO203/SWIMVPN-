@@ -106,6 +106,7 @@
     <string name="active_config_provider">Провайдер</string>
     <string name="active_config_expiration">Срок конфигурации</string>
     <string name="active_config_quota">Квота конфигурации</string>
+    <string name="active_config_usage">Использование конфигурации</string>
     <string name="profile_email_format">Email • %1$s</string>
     <string name="profile_phone_format">Телефон • %1$s</string>
     <string name="profile_contact_missing">Контактные данные пока не заполнены.</string>

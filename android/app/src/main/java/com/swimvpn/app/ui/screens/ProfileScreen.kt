@@ -456,11 +456,11 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
                 )
             }
 
-            formatConfigQuota(metadata)?.let { quotaText ->
+            activeConfigTrafficRow(metadata)?.let { trafficRow ->
                 Spacer(modifier = Modifier.height(16.dp))
                 MetadataRow(
-                    label = stringResource(R.string.active_config_quota),
-                    value = quotaText
+                    label = stringResource(trafficRow.labelRes),
+                    value = trafficRow.value
                 )
             }
 
@@ -748,23 +748,39 @@ private fun formatQuotaBytes(bytes: Long): String {
     }
 }
 
-private fun formatConfigQuota(metadata: ActiveConfigMetadata): String? {
+private data class ActiveConfigTrafficRow(
+    val labelRes: Int,
+    val value: String,
+)
+
+private fun activeConfigTrafficRow(metadata: ActiveConfigMetadata): ActiveConfigTrafficRow? {
     val used = metadata.trafficUsedBytes?.let(::formatQuotaBytes)
     val total = metadata.trafficTotalBytes?.let(::formatQuotaBytes)
     return when {
-        used != null && total != null -> "$used / $total"
-        total != null -> total
-        used != null -> used
+        used != null && total != null -> ActiveConfigTrafficRow(
+            labelRes = R.string.active_config_quota,
+            value = "$used / $total"
+        )
+        total != null -> ActiveConfigTrafficRow(
+            labelRes = R.string.active_config_quota,
+            value = total
+        )
+        used != null -> ActiveConfigTrafficRow(
+            labelRes = R.string.active_config_usage,
+            value = used
+        )
         else -> null
     }
 }
 
 private fun formatMetadataExpiry(expiresAt: String): String {
+    if (DATE_ONLY_PATTERN.matches(expiresAt)) {
+        return expiresAt
+    }
     val formats = listOf(
         "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
         "yyyy-MM-dd'T'HH:mm:ssXXX",
-        "yyyy-MM-dd'T'HH:mm:ss'Z'",
-        "yyyy-MM-dd"
+        "yyyy-MM-dd'T'HH:mm:ss'Z'"
     )
     for (pattern in formats) {
         runCatching {
@@ -777,6 +793,8 @@ private fun formatMetadataExpiry(expiresAt: String): String {
     }
     return expiresAt
 }
+
+private val DATE_ONLY_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
 
 @Composable
 fun ManagementRow(icon: ImageVector, title: String, onClick: () -> Unit) {

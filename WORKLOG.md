@@ -1,5 +1,16 @@
 # WORKLOG
 
+## [2026-04-25] [Android Task 4 Follow-up - Active Config Honesty Fixes]
+- **Status**: DONE
+- **Changes**:
+    - Adjusted `Active Config` traffic rendering so usage-only parser metadata is shown under a dedicated `Config usage` label instead of the misleading `Config quota` label.
+    - Kept quota labeling only for rows where total quota actually exists, including `used / total` presentation when both values are present.
+    - Made parser expiry formatting honest for date-only values by preserving the original date string without inventing a local clock time.
+    - Added the new active-config usage label in `values`, `values-fr`, and `values-ru`.
+- **Verification**:
+    - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` FAILED due to Kotlin daemon/JVM memory exhaustion (`Native memory allocation (mmap) failed` / pagefile pressure), after resources and Kotlin compilation had already started.
+    - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
 ## [2026-04-25] [Android Task 4 - Separate Profile Access And Active Config Cards]
 - **Status**: DONE
 - **Changes**:
