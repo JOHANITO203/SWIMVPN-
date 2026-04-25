@@ -547,3 +547,11 @@ u after each future language batch
   - card checkout redirect lands in the correct Telegram bot chat
   - crypto checkout opens a fresh Crypto Bot invoice
 - If live checkout still fails after redeploy, capture the exact HTTP response body from `/api/v1/orders/checkout` before changing code again.
+
+## [2026-04-25] Branding Retest Follow-up
+- Install or build the next Android test artifact with the new `swimvpn+` branding assets.
+- Visually verify:
+  - launcher icon
+  - splash logo
+  - home screen logo
+  - notification small icon fallback behavior

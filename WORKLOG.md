@@ -1678,3 +1678,14 @@ pm run build PASSED.
 - **Verification**:
   - `cd backend && npm run lint` PASSED.
   - `cd backend && npm run build:all` PASSED.
+
+## [2026-04-25] [Android Product Logo Replaced From Provided Zip]
+- **Status**: DONE
+- **Changes**:
+  - Replaced the Android product branding assets with the files from `C:\Users\Lenovo\Downloads\swimvpn+.zip`.
+  - Added launcher icons across all Android mipmap densities using the provided packaged assets.
+  - Replaced the in-app `swimvpn_logo` used by splash/home/notification with the provided `1024.png` as `drawable-nodpi/swimvpn_logo.png`.
+  - Updated adaptive launcher XML to use the new adaptive foreground/background PNG layers instead of the previous drawable logo inset.
+  - Removed the old `drawable/swimvpn_logo.jpg` so the app keeps a single visual truth for the current branding.
+- **Verification**:
+  - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx2048m -Xms512m"'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
