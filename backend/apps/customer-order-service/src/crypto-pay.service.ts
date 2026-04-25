@@ -31,7 +31,9 @@ export class CryptoPayService {
 
   constructor(private readonly configService: ConfigService) {
     this.token = this.configService.get<string>('CRYPTO_PAY_API_TOKEN')?.trim() || undefined;
-    this.baseUrl = this.configService.get<string>('CRYPTO_PAY_API_BASE_URL', 'https://pay.crypt.bot/api');
+    this.baseUrl = this.configService
+      .get<string>('CRYPTO_PAY_API_BASE_URL', 'https://pay.crypt.bot/api')
+      .replace(/\/+$/, '');
     this.acceptedAssets = this.configService.get<string>('CRYPTO_PAY_ACCEPTED_ASSETS')?.trim() || undefined;
     this.expiresInSeconds = Number.parseInt(
       this.configService.get<string>('CRYPTO_PAY_INVOICE_EXPIRES_IN', '1800'),
@@ -74,7 +76,13 @@ export class CryptoPayService {
 
     const json = await response.json().catch(() => ({}));
     if (!response.ok || json?.ok === false || !json?.result) {
-      throw new Error(`Crypto Pay createInvoice failed: ${json?.error?.name || response.statusText || 'unknown'}`);
+      const apiError =
+        json?.error?.name ||
+        json?.error?.message ||
+        json?.error ||
+        response.statusText ||
+        'unknown';
+      throw new Error(`Crypto Pay createInvoice failed: ${apiError}`);
     }
 
     return json.result as CryptoInvoiceResponse;

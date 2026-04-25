@@ -21,7 +21,11 @@ export class CustomerController {
       if (message.includes('email is required') || message.includes('payment contact email')) {
         throw new BadRequestException(message);
       }
-      if (message.includes('bot username is not configured') || message.includes('crypto pay api is not configured')) {
+      if (
+        message.includes('bot username is not configured') ||
+        message.includes('manual payment bot is not configured') ||
+        message.includes('crypto pay api is not configured')
+      ) {
         throw new ServiceUnavailableException(message);
       }
       throw new BadRequestException(message || 'Unable to create checkout');

@@ -685,3 +685,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Home badge and profile status now stay aligned with backend fulfillment truth.
   - Users can distinguish “paid and being prepared” from “active” and “expired”.
   - Support/debugging becomes easier because the UI no longer masks pending delivery as inactivity.
+
+## [2026-04-25] [Card Checkout Redirect Must Follow The Real Command Bot]
+- **Decision**: The card-payment redirect must be derived from the bot token that actually polls `/start card_<orderRef>` commands, not from a manually typed username string treated as a separate source of truth.
+- **Why**: The notification/payment command bot is the runtime owner of the manual card flow. If the redirect username points to a different bot, the customer lands in the wrong chat and the payment flow appears broken even when Telegram and backend services are healthy.
+- **Impact**:
+  - `NOTIFICATION_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN` now anchor the redirect target.
+  - `PAYMENT_BOT_USERNAME` becomes an optional fallback rather than a fragile mandatory field.
+  - Mis-entering a bot token in `PAYMENT_BOT_USERNAME` no longer breaks checkout because the backend can resolve the username automatically.

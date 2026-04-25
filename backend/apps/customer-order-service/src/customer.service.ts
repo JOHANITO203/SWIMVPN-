@@ -86,9 +86,9 @@ export class CustomerService {
         };
       }
 
-      const paymentBotUsername = process.env.PAYMENT_BOT_USERNAME?.trim();
+      const paymentBotUsername = await this.resolvePaymentBotUsername();
       if (!paymentBotUsername) {
-        this.fail('Manual payment bot username is not configured');
+        this.fail('Manual payment bot is not configured');
       }
 
       await this.prisma.order.update({
@@ -98,13 +98,12 @@ export class CustomerService {
         },
       });
 
-      const cleanUsername = paymentBotUsername.replace(/^@/, '');
       return {
         orderRef: checkout.order.order_ref,
         status: checkout.order.status,
         amountRub: checkout.plan.price_rub.toString(),
         paymentMethod: 'CARD_MANUAL',
-        redirectUrl: `https://t.me/${cleanUsername}?start=card_${checkout.order.order_ref}`,
+        redirectUrl: `https://t.me/${paymentBotUsername}?start=card_${checkout.order.order_ref}`,
         message: 'Continue payment in Telegram',
       };
     } catch (error: any) {
@@ -919,6 +918,48 @@ export class CustomerService {
     }
 
     return (sourceUsedBytes ?? 0n) >= sourceQuotaBytes;
+  }
+
+  private async resolvePaymentBotUsername() {
+    const commandBotToken =
+      process.env.NOTIFICATION_BOT_TOKEN?.trim() || process.env.TELEGRAM_BOT_TOKEN?.trim();
+    if (commandBotToken) {
+      const resolvedUsername = await this.fetchTelegramBotUsername(commandBotToken);
+      if (resolvedUsername) {
+        return resolvedUsername;
+      }
+    }
+
+    const configuredValue = process.env.PAYMENT_BOT_USERNAME?.trim();
+    if (configuredValue) {
+      if (this.looksLikeTelegramBotToken(configuredValue)) {
+        return this.fetchTelegramBotUsername(configuredValue);
+      }
+
+      return configuredValue.replace(/^@/, '');
+    }
+
+    return null;
+  }
+
+  private looksLikeTelegramBotToken(value: string) {
+    return /^\d+:[A-Za-z0-9_-]{20,}$/.test(value);
+  }
+
+  private async fetchTelegramBotUsername(token: string) {
+    try {
+      const response = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+      const json = await response.json().catch(() => ({}));
+      const username = json?.result?.username;
+
+      if (!response.ok || !json?.ok || typeof username !== 'string' || username.trim().length === 0) {
+        return null;
+      }
+
+      return username.trim().replace(/^@/, '');
+    } catch {
+      return null;
+    }
   }
 
   private extractErrorMessage(error: any) {

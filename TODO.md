@@ -540,3 +540,10 @@ u after each future language batch
 ## [2026-04-25] Pending Fulfillment UI Follow-up
 - Re-test on device a paid order that lands in `PENDING_FULFILLMENT` and confirm both home and profile show the same state.
 - Verify a supplier quota with decimals, such as `178.7 GB`, renders correctly in the paid access analytics card.
+
+## [2026-04-25] Payment Runtime Follow-up
+- Redeploy the backend services so the payment bot username resolution and Crypto Pay URL normalization are active on the VPS.
+- Re-test both live paths after redeploy:
+  - card checkout redirect lands in the correct Telegram bot chat
+  - crypto checkout opens a fresh Crypto Bot invoice
+- If live checkout still fails after redeploy, capture the exact HTTP response body from `/api/v1/orders/checkout` before changing code again.

@@ -1662,3 +1662,19 @@ pm run build PASSED.
 - **Verification**:
   - `cd backend && npm run lint` PASSED.
   - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx2048m -Xms512m"'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
+## [2026-04-25] [Payment Config Robustness For Telegram And Crypto Pay]
+- **Status**: DONE
+- **Changes**:
+  - Card checkout no longer depends blindly on `PAYMENT_BOT_USERNAME`.
+  - The backend now resolves the Telegram bot username from the real command-bot token first (`NOTIFICATION_BOT_TOKEN` or `TELEGRAM_BOT_TOKEN`), then falls back to a configured username only if no command-bot token is available.
+  - If `PAYMENT_BOT_USERNAME` is mistakenly filled with a Telegram bot token, the backend now detects that and resolves the public username automatically.
+  - Crypto Pay base URL is now normalized to avoid trailing-slash issues.
+  - Crypto Pay invoice creation errors now preserve more of the provider message instead of collapsing to a vague failure.
+- **Debug evidence**:
+  - Local Telegram `getMe` succeeded for the configured command bot token.
+  - Local Crypto Pay `createInvoice` succeeded with the configured API token.
+  - This confirmed the core issue was configuration interpretation and redirect wiring, not a dead external API.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
