@@ -253,14 +253,15 @@ private fun SwimVpnAccessCard(
         ?: context.getString(R.string.profile_unknown)
     val isTrial = profile.accessType == "TRIAL"
     val hasMeasuredLimit = profile.hasMeasuredLimit
-    val quotaValue = if (hasMeasuredLimit) formatBytes(profile.dataLimitBytes) else stringResource(R.string.label_unlimited)
+    val showMeasuredAnalytics = hasMeasuredLimit && !isTrial
+    val quotaValue = if (showMeasuredAnalytics) formatBytes(profile.dataLimitBytes) else stringResource(R.string.label_unlimited)
     val measuredUsedBytes = profile.parsedDataUsedBytes
-    val remainingBytes = if (hasMeasuredLimit) {
+    val remainingBytes = if (showMeasuredAnalytics) {
         (profile.dataLimitBytes - measuredUsedBytes).coerceAtLeast(0L)
     } else {
         0L
     }
-    val progress = if (hasMeasuredLimit && profile.dataLimitBytes > 0) {
+    val progress = if (showMeasuredAnalytics && profile.dataLimitBytes > 0) {
         (measuredUsedBytes.toFloat() / profile.dataLimitBytes.toFloat()).coerceIn(0f, 1f)
     } else {
         0f
@@ -300,7 +301,7 @@ private fun SwimVpnAccessCard(
                         fontSize = 24.sp
                     )
                 }
-                if (hasMeasuredLimit) {
+                if (showMeasuredAnalytics) {
                     Text(
                         text = formatUsagePercentage(progress),
                         fontWeight = FontWeight.Black,
@@ -312,29 +313,44 @@ private fun SwimVpnAccessCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(CircleShape),
-                color = statusColor,
-                trackColor = Color(0xFFF1F5F9)
-            )
+            if (showMeasuredAnalytics) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(CircleShape),
+                    color = statusColor,
+                    trackColor = Color(0xFFF1F5F9)
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                UsageStat(
-                    title = stringResource(R.string.profile_metric_used),
-                    value = formatQuotaBytes(measuredUsedBytes)
-                )
-                UsageStat(
-                    title = stringResource(R.string.label_left),
-                    value = if (hasMeasuredLimit) formatQuotaBytes(remainingBytes) else stringResource(R.string.label_unlimited)
-                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    UsageStat(
+                        title = stringResource(R.string.profile_metric_used),
+                        value = formatQuotaBytes(measuredUsedBytes)
+                    )
+                    UsageStat(
+                        title = stringResource(R.string.label_left),
+                        value = formatQuotaBytes(remainingBytes)
+                    )
+                }
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF8FAFC)
+                ) {
+                    Text(
+                        text = stringResource(R.string.profile_trial_unlimited_note),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        color = Color(0xFF475569),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

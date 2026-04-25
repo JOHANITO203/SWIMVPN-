@@ -555,3 +555,15 @@ u after each future language batch
   - splash logo
   - home screen logo
   - notification small icon fallback behavior
+
+## [2026-04-25] Trial/Profile Analytics Follow-up
+- Re-test on device that a pure trial now shows:
+  - `Unlimited` in `SWIMVPN Access`
+  - no quota progress bar
+  - trial expiry only
+- Re-test on device that a paid subscription still dominates analytics when it exists after a trial.
+- Verify one fresh imported subscription shows its parsed traffic and expiry in `Active Config` without relying on `SWIMVPN Access`.
+- If imported analytics still appear empty after a fresh import, inspect the saved `SwimVpnProfile` values for:
+  - `subscriptionTrafficUsedBytes`
+  - `subscriptionTrafficTotalBytes`
+  - `subscriptionExpiresAt`

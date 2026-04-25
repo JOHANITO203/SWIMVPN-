@@ -101,6 +101,7 @@
     <string name="profile_status_label">ACCESS STATUS</string>
     <string name="profile_metric_plan_quota">PLAN QUOTA</string>
     <string name="profile_metric_used">USED</string>
+    <string name="profile_trial_unlimited_note">Trial access is shown as unlimited while the trial is active.</string>
     <string name="active_config_source_managed">SWIMVPN Managed</string>
     <string name="active_config_source_imported">Imported Config</string>
     <string name="active_config_protocol">Protocol</string>

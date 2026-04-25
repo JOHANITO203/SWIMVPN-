@@ -1689,3 +1689,15 @@ pm run build PASSED.
   - Removed the old `drawable/swimvpn_logo.jpg` so the app keeps a single visual truth for the current branding.
 - **Verification**:
   - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx2048m -Xms512m"'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
+## [2026-04-25] [Trial Analytics Separated From Paid And Imported Truth]
+- **Status**: DONE
+- **Changes**:
+  - Removed the fake measured quota limit from the backend trial profile payload so trial no longer behaves like a `5 GB` paid-style quota in `SWIMVPN Access`.
+  - Trial profiles now return `dataLimitGB = 0` and `dataUsedBytes = 0`, while still preserving trial expiry truth.
+  - Updated the Android profile card so trial access displays `UNLIMITED` and does not render quota progress, used, or remaining analytics.
+  - Kept `Active Config` as the single analytics truth for imported configs; this batch did not merge imported parser metadata into `SWIMVPN Access`.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx2048m -Xms512m"'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.

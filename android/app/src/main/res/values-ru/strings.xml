@@ -101,6 +101,7 @@
     <string name="profile_status_label">СТАТУС ДОСТУПА</string>
     <string name="profile_metric_plan_quota">КВОТА ПЛАНА</string>
     <string name="profile_metric_used">ИСПОЛЬЗОВАНО</string>
+    <string name="profile_trial_unlimited_note">Пробный доступ отображается как безлимитный, пока действует пробный период.</string>
     <string name="active_config_source_managed">Под управлением SWIMVPN</string>
     <string name="active_config_source_imported">Импортированная конфигурация</string>
     <string name="active_config_protocol">Протокол</string>

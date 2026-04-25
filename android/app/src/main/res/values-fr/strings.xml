@@ -101,6 +101,7 @@
     <string name="profile_status_label">STATUT D’ACCÈS</string>
     <string name="profile_metric_plan_quota">QUOTA DU FORFAIT</string>
     <string name="profile_metric_used">UTILISÉ</string>
+    <string name="profile_trial_unlimited_note">L’accès d’essai est affiché comme illimité tant que l’essai est actif.</string>
     <string name="active_config_source_managed">Géré par SWIMVPN</string>
     <string name="active_config_source_imported">Configuration importée</string>
     <string name="active_config_protocol">Protocole</string>

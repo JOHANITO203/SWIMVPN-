@@ -693,3 +693,12 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `NOTIFICATION_BOT_TOKEN` / `TELEGRAM_BOT_TOKEN` now anchor the redirect target.
   - `PAYMENT_BOT_USERNAME` becomes an optional fallback rather than a fragile mandatory field.
   - Mis-entering a bot token in `PAYMENT_BOT_USERNAME` no longer breaks checkout because the backend can resolve the username automatically.
+
+## [2026-04-25] [Trial Must Stay Separate From Paid Analytics]
+- **Decision**: Trial access must not present quota-limited analytics in `SWIMVPN Access`; it is shown as unlimited while active, and imported-config analytics remain a separate truth in `Active Config`.
+- **Why**: The product trial is not a paid offer and should not visually compete with a supplier-backed paid plan or an imported config’s parsed metadata. Showing the historical `5 GB` backend fallback made the profile look like trial was a normal limited plan, which created hidden confusion.
+- **Impact**:
+  - Backend profile payloads no longer expose a measured quota limit for trial.
+  - Android trial UI now shows `Unlimited` instead of a quota progress bar.
+  - Paid subscription analytics continue to dominate whenever the current access truth is paid.
+  - Imported config analytics remain sourced from `ActiveConfigMetadata` only, instead of being blended into `SWIMVPN Access`.

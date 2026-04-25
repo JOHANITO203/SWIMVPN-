@@ -249,15 +249,16 @@ export class CustomerService {
       ? this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder)
       : inventoryItem?.supplier_expires_at?.toISOString() || null;
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
-    const quotaLabel = this.getEffectiveQuotaLabel(latestOrder, assignment?.fallback_quota_label);
+    const measuredDataLimitGb = inventoryItem?.source_quota_bytes
+      ? this.bytesToGb(inventoryItem.source_quota_bytes)
+      : 0;
+    const measuredDataUsedBytes = inventoryItem?.source_used_bytes?.toString() || '0';
     const status = this.resolveProfileStatus({
       hasCompletedProfile: !!customer.email && !!customer.phone,
       hasOrder: !!latestOrder,
       fulfillmentStatus,
       subscriptionExpiresAt,
-      quotaExceeded: isTrialOrder
-        ? this.isPlanQuotaExceeded(quotaLabel, assignment?.measured_used_bytes)
-        : false,
+      quotaExceeded: false,
       sourceExhausted: this.isSourceQuotaExceeded(
         inventoryItem?.source_quota_bytes,
         inventoryItem?.source_used_bytes,
@@ -282,12 +283,8 @@ export class CustomerService {
           : getPlanSlotCount(latestOrder.plan.code)
         : 0,
       fulfillmentStatus,
-      dataLimitGB: inventoryItem?.source_quota_bytes
-        ? this.bytesToGb(inventoryItem.source_quota_bytes)
-        : isTrialOrder && latestOrder
-          ? this.parseQuotaLabelToGb(quotaLabel)
-          : 0,
-      dataUsedBytes: inventoryItem?.source_used_bytes?.toString() || '0',
+      dataLimitGB: isTrialOrder ? 0 : measuredDataLimitGb,
+      dataUsedBytes: isTrialOrder ? '0' : measuredDataUsedBytes,
       supplierProviderName: inventoryItem?.supplier_provider_name || null,
       supplierExpiresAt: inventoryItem?.supplier_expires_at?.toISOString() || null,
       profileCompletionRequired: !customer.email || !customer.phone,
