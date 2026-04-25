@@ -477,3 +477,13 @@ otification-bot-service event handoff.
 - Redeploy the updated backend services on the VPS, then re-test `/api/v1/orders/checkout` because the public endpoint still returns `Internal server error` in the current deployment.
 - Capture gateway-service and customer-order-service logs on the VPS during a payment attempt if the error persists after redeploy.
 - Reinstall/update the Android app build on the phone after backend redeploy to verify that the subscription page and profile no longer show stale trial/week labels.
+## [2026-04-25] Weekly Offer + Checkout Redeploy Validation
+- Redeploy the backend services on the VPS with the 2026-04-25 payment/store batch.
+- Re-test `GET /api/v1/store/plans` on the live API and confirm it returns all three paid offers: `WEEK`, `MONTH`, `QUARTER`.
+- Re-test `POST /api/v1/orders/checkout` on the live API and confirm it no longer collapses known checkout failures into `Internal server error`.
+- If checkout still fails after redeploy, capture gateway-service and customer-order-service logs for the same payment attempt before changing more code.
+- After backend redeploy, update/reinstall the Android build only if the live app still shows stale trial/week data.
+## [2026-04-25] Parser Follow-up
+- Extend metadata detection for additional provider-specific subscription banners when real samples are collected.
+- Add non-importable profile surfacing if we later want to preview partially supported entries without importing them.
+- Consider moving preview generation to the normalized subscription parser once the runtime preview contract is cleaned up.

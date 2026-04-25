@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.swimvpn.app.config.subscriptionparser.SubscriptionParser
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.data.network.ResolveCryptSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
@@ -366,18 +367,21 @@ class ConfigRepository(private val context: Context) {
         resolution: ResolvedImportInput.DirectConfig,
         sourceType: SourceType,
     ): ImportResult {
-        val entries = splitConfigEntries(resolution.payload)
+        val parsedSubscription = SubscriptionParser.parse(
+            input = resolution.payload,
+            sourceType = sourceType,
+        )
         val existingProfiles = getAllProfiles()
-        val warnings = resolution.warnings.toMutableList()
+        val warnings = (resolution.warnings + parsedSubscription.warnings).toMutableList()
         val silentWarnings = mutableListOf<String>()
         val errors = mutableListOf<String>()
         val importedProfiles = mutableListOf<SwimVpnProfile>()
         val duplicateEntries = mutableListOf<String>()
         var skippedUnsupportedEntries = 0
-        val bundleId = if (entries.size > 1) UUID.randomUUID().toString() else null
+        val bundleId = if (parsedSubscription.profiles.size > 1) UUID.randomUUID().toString() else null
 
-        entries.forEachIndexed { index, entry ->
-            val parseResult = ConfigParserEngine.parseConfig(entry, sourceType)
+        parsedSubscription.profiles.forEachIndexed { index, parsedProfile ->
+            val parseResult = ConfigParserEngine.parseConfig(parsedProfile.raw, sourceType)
             if (!parseResult.isValid) {
                 if (parseResult.isRecognizedUnsupportedRuntimeFormat()) {
                     skippedUnsupportedEntries += 1
@@ -403,7 +407,7 @@ class ConfigRepository(private val context: Context) {
             }
 
             importedProfiles += normalizedProfile
-            warnings += parseResult.warnings
+            warnings += (parseResult.warnings + parsedProfile.warnings)
         }
 
         if (importedProfiles.isEmpty()) {
@@ -429,7 +433,7 @@ class ConfigRepository(private val context: Context) {
         val finalizedProfiles = importedProfiles.mapIndexed { index, profile ->
             profile.copy(
                 sourceBundleId = bundleId ?: profile.id,
-                sourceBundleName = if (entries.size > 1) bundleName else profile.displayName,
+                sourceBundleName = if (importedProfiles.size > 1) bundleName else profile.displayName,
                 sourceBundleOrder = index,
             )
         }

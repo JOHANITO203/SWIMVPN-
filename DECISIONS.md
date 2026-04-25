@@ -623,3 +623,25 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Trial account cards stop showing `Offer • WEEK`.
   - A future paid weekly offer can still exist independently.
   - Internal inventory grouping can remain separate from public subscription meaning.
+## [2026-04-25] [Weekly Paid Offer And Trial Must Share Category But Not Product Meaning]
+- **Decision**: `WEEK` remains the commercial weekly offer in PostgreSQL, while trial keeps its own runtime rules (`3 days`, `5 GB`, hidden from store) even if it still uses the `WEEK` category internally for assignment grouping.
+- **Why**: The repository truth requires public offers `week`, `month`, `quarter`. The previous seed collapsed `WEEK` into the trial itself, which removed the weekly offer from the store and confused profile meaning.
+- **Impact**:
+  - The store can expose all three paid offers again.
+  - Trial stays outside the purchasable catalog.
+  - Backend quota and expiry logic must explicitly override trial values instead of inheriting the paid weekly plan labels.
+
+## [2026-04-25] [Checkout Errors Must Survive The Microservice Boundary]
+- **Decision**: Checkout failures in `customer-order-service` must throw `RpcException` payloads, and the gateway must extract nested message shapes before returning HTTP errors.
+- **Why**: Plain `Error` exceptions crossing the Nest microservice boundary were collapsing into opaque `Internal server error` responses, which hid the actual payment problem from the user.
+- **Impact**:
+  - Missing email, missing payment bot config, and similar checkout failures can now surface as actionable HTTP messages after redeploy.
+  - Future payment debugging should start from the preserved gateway message before adding more instrumentation.
+## [2026-04-25] [Subscription Parsing Must Be Normalized Before Runtime Normalization]
+- **Decision**: Subscription parsing now has its own Kotlin layer with normalized parser models, separate from UI and separate from the runtime-oriented SwimVpnProfile normalization path.
+- **Why**: The previous parser logic already handled core protocol links, but metadata extraction and subscription expansion were too dispersed across import code. Strengthening robustness without breaking imports required a dedicated parser layer instead of piling more heuristics directly into UI/import logic.
+- **Impact**:
+  - The app can parse more subscription metadata without mixing parser concerns with business logic.
+  - Raw payloads remain preserved intact.
+  - ConfigRepository can consume normalized entries first, then keep using the existing runtime parser/normalizer for importable configs.
+  - Future parser work should extend the subscription parser package, not push raw-text parsing into screens.

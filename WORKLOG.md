@@ -119,6 +119,43 @@
     - Test Docker build and deployment locally.
     - Verify inter-service communication in Docker network.
 
+## [2026-04-25] [Android Parser Robustness Batch - Normalized Subscription Metadata]
+- **Status**: DONE
+- **Changes**:
+  - Added a dedicated Kotlin subscription parser layer under `android/app/src/main/java/com/swimvpn/app/config/subscriptionparser/`.
+  - Introduced normalized parser models for:
+    - `ParsedSubscription`
+    - `ParsedVpnProfile`
+  - Kept raw config payloads intact while adding extraction for:
+    - protocol
+    - transport/security hints
+    - host/port
+    - credentials
+    - provider hints
+    - traffic metadata
+    - expiry
+    - auto-update interval
+    - country emoji / UTF-8 display names
+    - warnings without hard crashes
+  - Added specialized parser helpers for:
+    - Base64 subscription decoding
+    - JSON array/object subscription expansion
+    - metadata parsing
+  - Added fallback parsing for VMess and Shadowsocks entries when they need a lighter path than the runtime parser.
+  - Integrated the new parser into `ConfigRepository` so imports consume normalized subscription entries before runtime normalization.
+  - Preserved the existing runtime pipeline:
+    - ingest
+    - parse
+    - normalize
+    - validate
+    - prepare runtime payload
+- **Verification**:
+  - `cd android && ./gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+  - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; ./gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
+  - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; ./gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.VpnConfigLinkExtractorTest` PASSED.
+- **Notes**:
+  - Kotlin daemon instability was environmental on this machine during parallel builds, so the parser tests were re-run in-process to get a reliable verification signal.
+
 ## [2026-04-21] [Materialize Source-of-Truth Documentation]
 - **Status**: DONE
 - **Changes**:
@@ -1389,3 +1426,17 @@ pm run build PASSED.
 - **Observed production note**:
   - Public API `GET /api/v1/access/SW-P8BYQD` still currently returns `accessType=TRIAL` plus `offerCode=WEEK` until the VPS backend is redeployed.
   - Public API `POST /api/v1/orders/checkout` still currently responds with `{"message":"Internal server error"}` on the VPS path that was tested.
+## [2026-04-25] [Weekly Paid Offer Restored + Trial Rules Kept Separate]
+- **Status**: DONE
+- **Changes**:
+  - Restored `WEEK` as a real paid backend offer in the seed using the product values already present in the app (`Bronze Weekly`, `7 Days`, `50 GB`, `299 RUB`).
+  - Realigned `MONTH` and `QUARTER` seed values with the current product strings (`150 GB / 699 RUB`, `500 GB / 1899 RUB`).
+  - Kept the trial out of the public catalog while preserving trial-specific backend rules (`3 days`, `5 GB`) during profile/status/quota handling.
+  - Stopped checkout from rethrowing generic errors on the customer service path by converting checkout failures to `RpcException` messages that the gateway can surface more honestly.
+- **Verification**:
+  - `cd backend && npm run prisma:seed` PASSED.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - Local Prisma verification confirmed `WEEK`, `MONTH`, and `QUARTER` are now all active paid plans in PostgreSQL.
+- **Follow-up note**:
+  - The live VPS still needs a fresh redeploy of this batch before the public checkout and store endpoints can reflect it.
