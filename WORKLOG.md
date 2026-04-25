@@ -1592,3 +1592,9 @@ pm run build PASSED.
   - `cd backend && npm run prisma:seed` FAILED because PostgreSQL was not reachable at `localhost:5432`.
   - `cd backend && docker compose up -d db` FAILED because Docker Desktop / `dockerDesktopLinuxEngine` was not running in this shell environment.
   - Android product debt remains noted: previously imported configs still need re-import before the profile card can show persisted parser analytics metadata.
+- **Verification Follow-up (Resolved)**:
+  - `cd backend && docker compose up -d db` PASSED after recreating the local DB container with the published `5432:5432` mapping.
+  - `cd backend && npx prisma db execute --file prisma/migrations/20260425153000_supplier_capacity_alignment/migration.sql --schema prisma/schema.prisma` PASSED.
+  - `cd backend && npx prisma migrate resolve --applied 20260425153000_supplier_capacity_alignment --schema prisma/schema.prisma` PASSED.
+  - `cd backend && npx prisma migrate status` PASSED with `Database schema is up to date!`.
+  - `cd backend && npm run prisma:seed` PASSED.

@@ -378,7 +378,8 @@ otification-bot-service event handoff.
 - After locale flicker fix, continue localization cleanup carefully:
   - audit ConfigImportScreen and remaining screens for user-facing hardcodes
   - keep locale application outside Compose-side reactive loops
-  - add a focused device smoke test for en, r, and u after each future language batch
+  - add a focused device smoke test for en, r, and 
+u after each future language batch
 - Re-test the Android technical screen on device after the entry-action guard:
   - opening Paramètres techniques should no longer jump into Android Settings
   - verify VPN session stays active while the technical screen opens
@@ -501,7 +502,6 @@ otification-bot-service event handoff.
 - Re-run the targeted Android parser/config tests after the local Gradle/JVM memory issue is cleared so Task 5 can be closed without verification concerns.
 
 ## [2026-04-25] Supplier Capacity Backend Follow-up
-- Start PostgreSQL or Docker Desktop, then apply the new migration `20260425153000_supplier_capacity_alignment` and rerun `npm run prisma:seed`.
 - Redeploy the backend services with the new supplier-slot logic before trusting live checkout/fulfillment behavior.
 - Add an admin UI surface for the new backend controls:
   - inventory overview
