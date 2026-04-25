@@ -181,7 +181,21 @@ class ConfigRepository(private val context: Context) {
             null
         }
     }
-    
+
+    suspend fun getActiveConfigMetadata(): ActiveConfigMetadata? {
+        val profile = getActiveProfile() ?: return null
+        val source = when {
+            profile.sourceType == SourceType.SUBSCRIPTION_URL || profile.sourceType == SourceType.MANUAL_ENTRY -> ActiveConfigSource.IMPORTED_CONFIG
+            else -> ActiveConfigSource.SWIMVPN_MANAGED
+        }
+        return ActiveConfigMetadata.fromRawConfig(
+            rawConfig = profile.rawConfig,
+            source = source,
+            displayNameFallback = profile.displayName,
+            isActive = true,
+        )
+    }
+
     /**
      * Set active profile
      */

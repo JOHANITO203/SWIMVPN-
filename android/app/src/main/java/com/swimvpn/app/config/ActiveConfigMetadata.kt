@@ -69,5 +69,26 @@ data class ActiveConfigMetadata(
                 isActive = isActive,
             )
         }
+
+        fun fromRawConfig(
+            rawConfig: String,
+            source: ActiveConfigSource,
+            displayNameFallback: String,
+            isActive: Boolean = true,
+        ): ActiveConfigMetadata? {
+            val parsed = com.swimvpn.app.config.subscriptionparser.SubscriptionParser.parse(rawConfig)
+            val firstProfile = parsed.profiles.firstOrNull()
+            return if (firstProfile == null) {
+                ActiveConfigMetadata(
+                    source = source,
+                    isActive = isActive,
+                    displayName = displayNameFallback,
+                    warnings = parsed.warnings,
+                )
+            } else {
+                fromFirstProfileInSubscription(parsed, source, isActive)
+                    ?.copy(displayName = firstProfile.displayName.ifBlank { displayNameFallback })
+            }
+        }
     }
 }

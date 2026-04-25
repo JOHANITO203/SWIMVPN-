@@ -1,5 +1,15 @@
 # WORKLOG
 
+## [2026-04-25] [Android Task 2 - Expose Active Config Metadata From Repository]
+- **Status**: DONE
+- **Changes**:
+    - Added `ActiveConfigMetadata.fromRawConfig(...)` to map active metadata directly from preserved raw config using the existing subscription parser.
+    - Added `ConfigRepository.getActiveConfigMetadata()` to expose active config metadata from the currently selected profile.
+    - Added a repository-facing metadata mapping test that verifies imported provider and traffic values are derived from the active profile raw config.
+- **Verification**:
+    - `android\\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest` FAILED first with `Unresolved reference: fromRawConfig`.
+    - `android\\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
+
 ## [2026-04-22] [VPN Core Batch 1 - Runtime Truth Foundations + Technical Settings Alignment]
 - **Status**: DONE
 - **Changes**:

@@ -3,10 +3,32 @@ package com.swimvpn.app.config
 import com.swimvpn.app.config.subscriptionparser.ParsedSubscription
 import com.swimvpn.app.config.subscriptionparser.ParsedVpnProfile
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ActiveConfigMetadataMappingTest {
+
+    @Test
+    fun `returns imported active config metadata from active profile raw config`() {
+        val raw = """
+            Provider Demo
+            15.3GB/1000.0GB
+            Expires: 15.05.2026
+            vless://11111111-1111-1111-1111-111111111111@example.com:443?security=tls&type=tcp#Node
+        """.trimIndent()
+
+        val metadata = ActiveConfigMetadata.fromRawConfig(
+            rawConfig = raw,
+            source = ActiveConfigSource.IMPORTED_CONFIG,
+            displayNameFallback = "Node"
+        )
+
+        assertNotNull(metadata)
+        assertEquals(ActiveConfigSource.IMPORTED_CONFIG, metadata?.source)
+        assertEquals("Provider Demo", metadata?.providerName)
+        assertEquals(15.3 * 1024 * 1024 * 1024, metadata!!.trafficUsedBytes!!.toDouble(), 1024.0)
+    }
 
     @Test
     fun `maps explicit profile metadata with imported source`() {
