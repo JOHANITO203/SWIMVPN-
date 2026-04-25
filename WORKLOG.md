@@ -1,5 +1,15 @@
 # WORKLOG
 
+## [2026-04-25] [Android Task 4 - Separate Profile Access And Active Config Cards]
+- **Status**: DONE
+- **Changes**:
+    - Split `ProfileScreen.kt` into two distinct profile sections so backend access truth now lives in `SWIMVPN Access` and parser/runtime metadata renders separately in `Active Config`.
+    - Kept the existing backend quota, usage, status, and expiry logic centered on `profile` without mixing in imported-config metadata.
+    - Added an `Active Config` card that appears only when `activeConfigMetadata` exists and shows source badge, display name, provider, protocol, parser quota, and parser expiration only when present.
+    - Added the new card labels and active-config metadata strings in `values`, `values-fr`, and `values-ru`.
+- **Verification**:
+    - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
 ## [2026-04-25] [Android Task 2 Follow-up - Active Config Metadata Quality Fixes]
 - **Status**: DONE
 - **Changes**:

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
 import com.swimvpn.app.config.ActiveConfigMetadata
+import com.swimvpn.app.config.ActiveConfigSource
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.theme.SwimBlueMain
@@ -62,16 +63,6 @@ fun ProfileScreen(
     val badgeText = profileBadgeText(profile, context)
     val badgeColor = profileBadgeColor(profile)
     val badgeBackground = profileBadgeBackground(profile)
-    val expiryString = profile.effectiveExpiryAt
-    val statusText = profileStatusText(profile, context)
-    val expirationText = calculateRemainingTime(
-        expiryDateStr = expiryString,
-        unknownLabel = context.getString(R.string.profile_unknown),
-        expiredAgoFormat = context.getString(R.string.profile_expired_days_ago),
-        daysLeftFormat = context.getString(R.string.profile_days_left),
-        hoursLeftFormat = context.getString(R.string.profile_hours_left),
-        expiringSoonLabel = context.getString(R.string.profile_expiring_soon)
-    )
 
     Column(
         modifier = Modifier
@@ -175,142 +166,15 @@ fun ProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
-        
-        Text(stringResource(R.string.label_analytics), fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp))
+        SectionLabel(title = stringResource(R.string.profile_section_swimvpn_access))
         Spacer(modifier = Modifier.height(12.dp))
+        SwimVpnAccessCard(profile = profile, badgeColor = badgeColor)
 
-        // Analytics Card
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                val isTrial = profile.accessType == "TRIAL"
-                val hasMeasuredLimit = profile.hasMeasuredLimit
-                val quotaValue = if (hasMeasuredLimit) formatBytes(profile.dataLimitBytes) else stringResource(R.string.label_unlimited)
-                val measuredUsedBytes = profile.parsedDataUsedBytes
-                val remainingBytes = if (hasMeasuredLimit) {
-                    (profile.dataLimitBytes - measuredUsedBytes).coerceAtLeast(0L)
-                } else {
-                    0L
-                }
-                val progress = if (hasMeasuredLimit && profile.dataLimitBytes > 0) {
-                    (measuredUsedBytes.toFloat() / profile.dataLimitBytes.toFloat()).coerceIn(0f, 1f)
-                } else {
-                    0f
-                }
-                val statusColor = when {
-                    isTrial -> SwimBlueMain
-                    profile.isExpired -> Color(0xFFEF4444)
-                    else -> Color(0xFF22C55E)
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.profile_metric_plan_quota),
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF475569),
-                            fontSize = 12.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = quotaValue,
-                            fontWeight = FontWeight.Black,
-                            color = SwimNavyMouth,
-                            fontSize = 24.sp
-                        )
-                    }
-                    if (hasMeasuredLimit) {
-                        Text(
-                            text = formatUsagePercentage(progress),
-                            fontWeight = FontWeight.Black,
-                            color = statusColor,
-                            fontSize = 18.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp)
-                        .clip(CircleShape),
-                    color = statusColor,
-                    trackColor = Color(0xFFF1F5F9)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    UsageStat(
-                        title = stringResource(R.string.profile_metric_used),
-                        value = formatQuotaBytes(measuredUsedBytes)
-                    )
-                    UsageStat(
-                        title = stringResource(R.string.label_left),
-                        value = if (hasMeasuredLimit) formatQuotaBytes(remainingBytes) else stringResource(R.string.label_unlimited)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                HorizontalDivider(color = Color(0xFFE2E8F0))
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            stringResource(R.string.profile_status_label),
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF475569),
-                            fontSize = 12.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = statusText,
-                            fontWeight = FontWeight.Black,
-                            color = badgeColor,
-                            fontSize = 14.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            stringResource(R.string.label_expires_at),
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF475569),
-                            fontSize = 12.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = expirationText,
-                            fontWeight = FontWeight.Bold,
-                            color = if (profile.isExpired) Color(0xFFEF4444) else Color(0xFF22C55E),
-                            fontSize = 12.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                }
-            }
+        if (activeConfigMetadata != null) {
+            Spacer(modifier = Modifier.height(24.dp))
+            SectionLabel(title = stringResource(R.string.profile_section_active_config))
+            Spacer(modifier = Modifier.height(12.dp))
+            ActiveConfigCard(metadata = activeConfigMetadata)
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -351,6 +215,286 @@ fun ProfileScreen(
         }
         
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun SectionLabel(title: String) {
+    Text(
+        text = title,
+        fontWeight = FontWeight.Bold,
+        color = Color(0xFF94A3B8),
+        fontSize = 10.sp,
+        letterSpacing = 1.sp,
+        modifier = Modifier.padding(horizontal = 8.dp)
+    )
+}
+
+@Composable
+private fun SwimVpnAccessCard(
+    profile: AccessProfileResponse,
+    badgeColor: Color,
+) {
+    val context = LocalContext.current
+    val expiryString = profile.effectiveExpiryAt
+    val statusText = profileStatusText(profile, context)
+    val expirationText = calculateRemainingTime(
+        expiryDateStr = expiryString,
+        unknownLabel = context.getString(R.string.profile_unknown),
+        expiredAgoFormat = context.getString(R.string.profile_expired_days_ago),
+        daysLeftFormat = context.getString(R.string.profile_days_left),
+        hoursLeftFormat = context.getString(R.string.profile_hours_left),
+        expiringSoonLabel = context.getString(R.string.profile_expiring_soon)
+    )
+    val isTrial = profile.accessType == "TRIAL"
+    val hasMeasuredLimit = profile.hasMeasuredLimit
+    val quotaValue = if (hasMeasuredLimit) formatBytes(profile.dataLimitBytes) else stringResource(R.string.label_unlimited)
+    val measuredUsedBytes = profile.parsedDataUsedBytes
+    val remainingBytes = if (hasMeasuredLimit) {
+        (profile.dataLimitBytes - measuredUsedBytes).coerceAtLeast(0L)
+    } else {
+        0L
+    }
+    val progress = if (hasMeasuredLimit && profile.dataLimitBytes > 0) {
+        (measuredUsedBytes.toFloat() / profile.dataLimitBytes.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val statusColor = when {
+        isTrial -> SwimBlueMain
+        profile.isExpired -> Color(0xFFEF4444)
+        else -> Color(0xFF22C55E)
+    }
+
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.profile_metric_plan_quota),
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF475569),
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = quotaValue,
+                        fontWeight = FontWeight.Black,
+                        color = SwimNavyMouth,
+                        fontSize = 24.sp
+                    )
+                }
+                if (hasMeasuredLimit) {
+                    Text(
+                        text = formatUsagePercentage(progress),
+                        fontWeight = FontWeight.Black,
+                        color = statusColor,
+                        fontSize = 18.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(CircleShape),
+                color = statusColor,
+                trackColor = Color(0xFFF1F5F9)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                UsageStat(
+                    title = stringResource(R.string.profile_metric_used),
+                    value = formatQuotaBytes(measuredUsedBytes)
+                )
+                UsageStat(
+                    title = stringResource(R.string.label_left),
+                    value = if (hasMeasuredLimit) formatQuotaBytes(remainingBytes) else stringResource(R.string.label_unlimited)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = Color(0xFFE2E8F0))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        stringResource(R.string.profile_status_label),
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF475569),
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = statusText,
+                        fontWeight = FontWeight.Black,
+                        color = badgeColor,
+                        fontSize = 14.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        stringResource(R.string.label_expires_at),
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF475569),
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = expirationText,
+                        fontWeight = FontWeight.Bold,
+                        color = if (profile.isExpired) Color(0xFFEF4444) else Color(0xFF22C55E),
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
+    val sourceLabel = when (metadata.source) {
+        ActiveConfigSource.SWIMVPN_MANAGED -> stringResource(R.string.active_config_source_managed)
+        ActiveConfigSource.IMPORTED_CONFIG -> stringResource(R.string.active_config_source_imported)
+    }
+    val sourceBadgeColor = when (metadata.source) {
+        ActiveConfigSource.SWIMVPN_MANAGED -> SwimBlueMain
+        ActiveConfigSource.IMPORTED_CONFIG -> Color(0xFF7C3AED)
+    }
+    val sourceBadgeBackground = when (metadata.source) {
+        ActiveConfigSource.SWIMVPN_MANAGED -> Color(0xFFEFF6FF)
+        ActiveConfigSource.IMPORTED_CONFIG -> Color(0xFFF5F3FF)
+    }
+
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = metadata.displayName.ifBlank { stringResource(R.string.profile_unknown) },
+                        fontWeight = FontWeight.Black,
+                        color = SwimNavyMouth,
+                        fontSize = 22.sp
+                    )
+                    metadata.serverHost?.takeIf { it.isNotBlank() }?.let { host ->
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = host,
+                            color = Color(0xFF64748B),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = sourceBadgeBackground
+                ) {
+                    Text(
+                        text = sourceLabel,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = sourceBadgeColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+
+            metadata.providerName?.takeIf { it.isNotBlank() }?.let { providerName ->
+                Spacer(modifier = Modifier.height(20.dp))
+                MetadataRow(
+                    label = stringResource(R.string.active_config_provider),
+                    value = providerName
+                )
+            }
+
+            metadata.protocol?.takeIf { it.isNotBlank() }?.let { protocol ->
+                Spacer(modifier = Modifier.height(16.dp))
+                MetadataRow(
+                    label = stringResource(R.string.active_config_protocol),
+                    value = protocol.uppercase(Locale.getDefault())
+                )
+            }
+
+            formatConfigQuota(metadata)?.let { quotaText ->
+                Spacer(modifier = Modifier.height(16.dp))
+                MetadataRow(
+                    label = stringResource(R.string.active_config_quota),
+                    value = quotaText
+                )
+            }
+
+            metadata.expiresAt?.takeIf { it.isNotBlank() }?.let { expiresAt ->
+                Spacer(modifier = Modifier.height(16.dp))
+                MetadataRow(
+                    label = stringResource(R.string.active_config_expiration),
+                    value = formatMetadataExpiry(expiresAt)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetadataRow(
+    label: String,
+    value: String,
+) {
+    Column {
+        Text(
+            text = label,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF64748B),
+            fontSize = 11.sp,
+            letterSpacing = 0.4.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            fontWeight = FontWeight.SemiBold,
+            color = SwimNavyMouth,
+            fontSize = 14.sp
+        )
     }
 }
 
@@ -602,6 +746,36 @@ private fun formatQuotaBytes(bytes: Long): String {
         bytes >= mb -> String.format(Locale.US, "%.1f MB", bytes / mb)
         else -> formatBytes(bytes)
     }
+}
+
+private fun formatConfigQuota(metadata: ActiveConfigMetadata): String? {
+    val used = metadata.trafficUsedBytes?.let(::formatQuotaBytes)
+    val total = metadata.trafficTotalBytes?.let(::formatQuotaBytes)
+    return when {
+        used != null && total != null -> "$used / $total"
+        total != null -> total
+        used != null -> used
+        else -> null
+    }
+}
+
+private fun formatMetadataExpiry(expiresAt: String): String {
+    val formats = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd"
+    )
+    for (pattern in formats) {
+        runCatching {
+            val parser = SimpleDateFormat(pattern, Locale.US).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val parsedDate = parser.parse(expiresAt) ?: return@runCatching null
+            return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(parsedDate)
+        }.getOrNull()?.let { return it }
+    }
+    return expiresAt
 }
 
 @Composable
