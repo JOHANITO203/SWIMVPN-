@@ -386,7 +386,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val current = _state.value as? AppState.Success ?: return@launch
             val targetId = importedServerId(profile)
             prefs.setSelectedServerId(targetId)
-            _state.value = refreshSuccessState(current.copy(activeConfigMetadata = resolveActiveConfigMetadata()))
+            _state.value = refreshSuccessState(current)
             refreshServerLatency()
         }
     }

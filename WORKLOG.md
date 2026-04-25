@@ -1471,3 +1471,10 @@ pm run build PASSED.
 - **Verification**:
   - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` FAILED initially with `Cannot find a parameter with this name: activeConfigMetadata` at the `ProfileScreen(...)` call site.
   - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED after the state wiring and compatibility parameter update.
+
+## [2026-04-25] [Android Task 3 Follow-up - Remove Redundant Metadata Refresh]
+- **Status**: DONE
+- **Changes**:
+  - Removed the duplicate `resolveActiveConfigMetadata()` call from `selectImportedProfile(...)` because `refreshSuccessState(...)` already refreshes that field.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
