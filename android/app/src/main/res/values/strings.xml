@@ -29,9 +29,9 @@
     <string name="label_download">DOWNLOAD</string>
     <string name="label_upload">UPLOAD</string>
     <string name="home_badge_trial">TRIAL 3 DAYS</string>
-    <string name="home_badge_month">MONTH ACTIVE</string>
-    <string name="home_badge_quarter">QUARTER ACTIVE</string>
-    <string name="home_badge_week">WEEK ACTIVE</string>
+    <string name="home_badge_basic">BASIC ACTIVE</string>
+    <string name="home_badge_premium">PREMIUM ACTIVE</string>
+    <string name="home_badge_platinum">PLATINUM ACTIVE</string>
     <string name="home_badge_access">ACCESS ACTIVE</string>
     <string name="home_proxy_ready">Local proxy ready for manual or proxy-aware apps</string>
     <string name="home_connected_via">Connected via %1$s, %2$s</string>
@@ -125,6 +125,9 @@
     <string name="profile_status_inactive">INACTIVE</string>
     <string name="label_management">MANAGEMENT</string>
     <string name="label_plan">Plan</string>
+    <string name="plan_basic">Basic</string>
+    <string name="plan_premium">Premium</string>
+    <string name="plan_platinum">Platinum</string>
     <string name="label_expires">Expires</string>
     <string name="menu_subscription">Subscription</string>
     <string name="menu_security">Account Security</string>

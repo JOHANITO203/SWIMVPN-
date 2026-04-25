@@ -450,12 +450,18 @@ fun HomeScreen(
         }
     }
 
+    val publicPlanCode = when (profile.publicPlanName ?: profile.offerCode) {
+        "Premium", "MONTH" -> "PREMIUM"
+        "Platinum", "QUARTER" -> "PLATINUM"
+        "Basic", "WEEK" -> "BASIC"
+        else -> null
+    }
     val badgeText = when {
         profile.status == "EXPIRED" -> stringResource(R.string.status_expired)
         profile.accessType == "TRIAL" -> stringResource(R.string.home_badge_trial)
-        profile.offerCode == "MONTH" -> stringResource(R.string.home_badge_month)
-        profile.offerCode == "QUARTER" -> stringResource(R.string.home_badge_quarter)
-        profile.offerCode == "WEEK" -> stringResource(R.string.home_badge_week)
+        publicPlanCode == "PREMIUM" -> stringResource(R.string.home_badge_premium)
+        publicPlanCode == "PLATINUM" -> stringResource(R.string.home_badge_platinum)
+        publicPlanCode == "BASIC" -> stringResource(R.string.home_badge_basic)
         else -> stringResource(R.string.home_badge_access)
     }
     val connectionSubtitle = when (vpnState) {

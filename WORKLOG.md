@@ -1624,3 +1624,27 @@ pm run build PASSED.
   - `cd backend && node -r ts-node/register/transpile-only -r tsconfig-paths/register apps/vpn-config-engine-service/src/__tests__/supplier-resource-parser.spec.ts` PASSED.
   - `cd backend && npm run lint` PASSED.
   - `cd backend && npm run build:all` PASSED.
+
+## [2026-04-25] [Paid Access Profile Truth Alignment]
+- **Status**: DONE
+- **Changes**:
+  - Added `planDisplayName` to the backend customer profile payload so the app no longer has to present internal commercial codes like `WEEK / MONTH / QUARTER` to paid users.
+  - Extended Android `AccessProfileResponse` to consume:
+    - `planDisplayName`
+    - `fulfillmentStatus`
+    - `supplierExpiresAt`
+  - Updated the home badge to show the public product names:
+    - `Basic`
+    - `Premium`
+    - `Platinum`
+  - Updated the profile identification card and status line to use the public plan name instead of the internal plan code.
+  - Updated `SWIMVPN Access` so the expiry block now shows the exact expiration date first, with the relative remaining time kept as secondary context.
+  - Kept the paid-user focus narrow:
+    - real used traffic percentage
+    - real plan expiry
+    - exact bought subscription label
+    - no new visual emphasis on provider/site details for the purchased-plan path
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.

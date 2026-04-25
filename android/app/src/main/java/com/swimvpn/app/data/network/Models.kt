@@ -30,6 +30,7 @@ data class AccessProfileResponse(
     val phone: String?,
     val accessType: String,
     val offerCode: String?,
+    val planDisplayName: String? = null,
     val planType: String,
     val status: String,
     val trialStartedAt: String?,
@@ -39,6 +40,8 @@ data class AccessProfileResponse(
     val devicesAllowed: Int,
     val dataLimitGB: Int,
     val dataUsedBytes: String,
+    val fulfillmentStatus: String? = null,
+    val supplierExpiresAt: String? = null,
     val profileCompletionRequired: Boolean,
     val trialEligible: Boolean
 ) {
@@ -65,6 +68,16 @@ data class AccessProfileResponse(
 
     fun consumedPercentage(bytesIn: Long = 0L, bytesOut: Long = 0L): Float =
         if (!hasMeasuredLimit) 0f else (totalConsumedBytes(bytesIn, bytesOut).toFloat() / dataLimitBytes.toFloat()).coerceIn(0f, 1f)
+
+    val publicPlanName: String?
+        get() = when {
+            accessType == "TRIAL" -> null
+            !planDisplayName.isNullOrBlank() -> planDisplayName
+            offerCode == "MONTH" -> "Premium"
+            offerCode == "QUARTER" -> "Platinum"
+            offerCode == "WEEK" -> "Basic"
+            else -> null
+        }
 }
 
 data class ActivateTrialRequest(

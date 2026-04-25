@@ -669,3 +669,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Inventory imports can preserve the meaningful supplier metadata needed for product truth.
   - The backend now seeds `used_resale_slots` from already-connected supplier devices when detected.
   - The app can later display provider-driven traffic and expiry more honestly once the backend resource exists.
+
+## [2026-04-25] [Paid Profile UI Must Show Public Plan Names And Exact Expiry]
+- **Decision**: The paid-user profile path must surface the public subscription label (`Basic / Premium / Platinum`) and the exact expiration date, while leaving provider/site details out of the primary purchased-plan presentation.
+- **Why**: Internal backend categories like `WEEK / MONTH / QUARTER` are implementation details. The user-facing truth that matters is what they bought, how much shared supplier traffic is already used, and when the access actually expires.
+- **Impact**:
+  - Backend profile payloads now expose `planDisplayName`.
+  - Android home/profile surfaces no longer need to show internal commercial codes for paid access.
+  - `SWIMVPN Access` now prioritizes exact expiry date and real consumption over supplier-brand metadata.

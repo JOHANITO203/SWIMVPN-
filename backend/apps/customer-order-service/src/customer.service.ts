@@ -9,6 +9,7 @@ import {
   BootstrapAccessDto,
   ActivateTrialDto,
   CreateCheckoutDto,
+  getPublicPlanName,
   getPlanSlotCount,
   ReportUsageDto,
 } from '@app/contracts';
@@ -238,6 +239,8 @@ export class CustomerService {
     const isTrialOrder = this.isTrialOrder(latestOrder);
     const accessType = latestOrder ? (isTrialOrder ? 'TRIAL' : 'PAID') : 'NONE';
     const offerCode = latestOrder && !isTrialOrder ? latestOrder.plan.code : null;
+    const planDisplayName =
+      latestOrder && !isTrialOrder ? getPublicPlanName(latestOrder.plan.code) : null;
     const fulfillmentStatus = latestOrder
       ? latestOrder.status === OrderStatus.FULFILLED
         ? 'DELIVERED'
@@ -267,6 +270,7 @@ export class CustomerService {
       phone: customer.phone,
       accessType,
       offerCode,
+      planDisplayName,
       planType: accessType,
       status,
       trialStartedAt: latestOrder?.created_at.toISOString() || null,

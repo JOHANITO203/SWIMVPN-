@@ -527,3 +527,12 @@ u after each future language batch
   - connected-device-derived `used_resale_slots`
 - Surface the new supplier metadata through the admin UI so resources no longer look empty.
 - Re-check the Android/profile flow after a real supplier-backed assignment exists, especially for traffic remaining and expiry display.
+
+## [2026-04-25] Paid Profile Truth Follow-up
+- Re-test the paid-profile path on device after a real supplier-backed order is assigned and fulfilled.
+- Verify the user now sees:
+  - `Basic / Premium / Platinum` instead of `WEEK / MONTH / QUARTER`
+  - exact expiration date in `SWIMVPN Access`
+  - real used traffic percentage derived from backend supplier analytics
+- Keep the Android import-config debt visible separately:
+  - previously imported configs still need re-import before their persisted parser analytics appear on the profile card.

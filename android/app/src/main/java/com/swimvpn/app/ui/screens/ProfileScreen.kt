@@ -63,6 +63,7 @@ fun ProfileScreen(
     val badgeText = profileBadgeText(profile, context)
     val badgeColor = profileBadgeColor(profile)
     val badgeBackground = profileBadgeBackground(profile)
+    val localizedPlanName = profileLocalizedPlanName(profile, context)
 
     Column(
         modifier = Modifier
@@ -153,10 +154,10 @@ fun ProfileScreen(
                         Text(line, color = Color(0xFF64748B), fontSize = 14.sp)
                     }
                 }
-                profile.offerCode?.takeIf { it.isNotBlank() && profile.accessType != "TRIAL" }?.let { offerCode ->
+                localizedPlanName?.takeIf { it.isNotBlank() && profile.accessType != "TRIAL" }?.let { planName ->
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = stringResource(R.string.profile_offer_format, offerCode),
+                        text = stringResource(R.string.profile_offer_format, planName),
                         color = Color(0xFF94A3B8),
                         fontSize = 12.sp,
                         letterSpacing = 0.5.sp
@@ -246,6 +247,10 @@ private fun SwimVpnAccessCard(
         hoursLeftFormat = context.getString(R.string.profile_hours_left),
         expiringSoonLabel = context.getString(R.string.profile_expiring_soon)
     )
+    val exactExpirationText = expiryString
+        ?.takeIf { it.isNotBlank() }
+        ?.let(::formatMetadataExpiry)
+        ?: context.getString(R.string.profile_unknown)
     val isTrial = profile.accessType == "TRIAL"
     val hasMeasuredLimit = profile.hasMeasuredLimit
     val quotaValue = if (hasMeasuredLimit) formatBytes(profile.dataLimitBytes) else stringResource(R.string.label_unlimited)
@@ -368,12 +373,20 @@ private fun SwimVpnAccessCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = expirationText,
+                        text = exactExpirationText,
                         fontWeight = FontWeight.Bold,
                         color = if (profile.isExpired) Color(0xFFEF4444) else Color(0xFF22C55E),
                         fontSize = 12.sp,
                         letterSpacing = 0.5.sp
                     )
+                    if (exactExpirationText != context.getString(R.string.profile_unknown)) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = expirationText,
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp
+                        )
+                    }
                 }
             }
         }
@@ -785,12 +798,23 @@ private fun profileStatusText(profile: AccessProfileResponse, context: android.c
             if (profile.accessType == "TRIAL") {
                 context.getString(R.string.profile_status_trial_active)
             } else {
-                profile.offerCode?.takeIf { it.isNotBlank() }
+                profileLocalizedPlanName(profile, context)?.takeIf { it.isNotBlank() }
                     ?.let { context.getString(R.string.profile_status_offer_active, it) }
                     ?: context.getString(R.string.profile_status_paid_active)
             }
         }
         else -> context.getString(R.string.profile_status_inactive)
+    }
+
+private fun profileLocalizedPlanName(
+    profile: AccessProfileResponse,
+    context: android.content.Context,
+): String? =
+    when (profile.publicPlanName ?: profile.offerCode) {
+        "Basic", "WEEK" -> context.getString(R.string.plan_basic)
+        "Premium", "MONTH" -> context.getString(R.string.plan_premium)
+        "Platinum", "QUARTER" -> context.getString(R.string.plan_platinum)
+        else -> null
     }
 
 private fun profileBadgeColor(profile: AccessProfileResponse): Color =
