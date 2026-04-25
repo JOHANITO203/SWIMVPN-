@@ -1,5 +1,15 @@
 # WORKLOG
 
+## [2026-04-25] [Android Task 2 Follow-up - Active Config Metadata Quality Fixes]
+- **Status**: DONE
+- **Changes**:
+    - Preserved parsed subscription-level provider, quota, and expiry metadata in `ActiveConfigMetadata.fromRawConfig(...)` when raw config parsing yields no profile entries.
+    - Tightened `ConfigRepository` source classification so all user-imported source types map to `IMPORTED_CONFIG`.
+    - Added targeted regression tests for fallback metadata preservation and imported-source classification.
+- **Verification**:
+    - `android\\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest` FAILED first with missing `activeConfigSourceFor`.
+    - `android\\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
+
 ## [2026-04-25] [Android Task 2 - Expose Active Config Metadata From Repository]
 - **Status**: DONE
 - **Changes**:

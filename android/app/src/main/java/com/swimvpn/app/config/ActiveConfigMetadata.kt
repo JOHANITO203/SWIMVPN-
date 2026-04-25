@@ -83,6 +83,10 @@ data class ActiveConfigMetadata(
                     source = source,
                     isActive = isActive,
                     displayName = displayNameFallback,
+                    providerName = parsed.providerName,
+                    trafficUsedBytes = parsed.trafficUsedBytes,
+                    trafficTotalBytes = parsed.trafficTotalBytes,
+                    expiresAt = parsed.expiresAt,
                     warnings = parsed.warnings,
                 )
             } else {

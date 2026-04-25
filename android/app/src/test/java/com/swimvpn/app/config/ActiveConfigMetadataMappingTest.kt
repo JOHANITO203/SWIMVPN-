@@ -31,6 +31,51 @@ class ActiveConfigMetadataMappingTest {
     }
 
     @Test
+    fun `raw config fallback preserves subscription metadata when no profile is parsed`() {
+        val raw = """
+            Provider Demo
+            15.3GB/1000.0GB
+            Expires: 15.05.2026
+        """.trimIndent()
+
+        val metadata = ActiveConfigMetadata.fromRawConfig(
+            rawConfig = raw,
+            source = ActiveConfigSource.IMPORTED_CONFIG,
+            displayNameFallback = "Imported fallback",
+        )
+
+        assertNotNull(metadata)
+        assertEquals("Imported fallback", metadata?.displayName)
+        assertEquals("Provider Demo", metadata?.providerName)
+        assertEquals(15.3 * 1024 * 1024 * 1024, metadata!!.trafficUsedBytes!!.toDouble(), 1024.0)
+        assertEquals(1000.0 * 1024 * 1024 * 1024, metadata.trafficTotalBytes!!.toDouble(), 1024.0)
+        assertEquals("2026-05-15T00:00:00Z", metadata.expiresAt)
+    }
+
+    @Test
+    fun `repository source classification treats all user imported sources as imported config`() {
+        val importedSources = listOf(
+            SourceType.CLIPBOARD,
+            SourceType.FILE_IMPORT,
+            SourceType.QR_CODE,
+            SourceType.MANUAL_ENTRY,
+            SourceType.SUBSCRIPTION_URL,
+        )
+
+        importedSources.forEach { sourceType ->
+            assertEquals(
+                ActiveConfigSource.IMPORTED_CONFIG,
+                ConfigRepository.activeConfigSourceFor(sourceType)
+            )
+        }
+
+        assertEquals(
+            ActiveConfigSource.SWIMVPN_MANAGED,
+            ConfigRepository.activeConfigSourceFor(SourceType.BACKEND_API)
+        )
+    }
+
+    @Test
     fun `maps explicit profile metadata with imported source`() {
         val profile = ParsedVpnProfile(
             displayName = "NL Edge",

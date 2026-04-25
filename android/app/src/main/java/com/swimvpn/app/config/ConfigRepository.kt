@@ -54,6 +54,17 @@ class ConfigRepository(private val context: Context) {
         private val IMPORTED_PROFILES_KEY = stringPreferencesKey("imported_profiles")
         private val ACTIVE_PROFILE_ID_KEY = stringPreferencesKey("active_profile_id")
         private val LAST_USED_PROFILE_ID_KEY = stringPreferencesKey("last_used_profile_id")
+
+        internal fun activeConfigSourceFor(sourceType: SourceType): ActiveConfigSource {
+            return when (sourceType) {
+                SourceType.CLIPBOARD,
+                SourceType.FILE_IMPORT,
+                SourceType.QR_CODE,
+                SourceType.MANUAL_ENTRY,
+                SourceType.SUBSCRIPTION_URL -> ActiveConfigSource.IMPORTED_CONFIG
+                SourceType.BACKEND_API -> ActiveConfigSource.SWIMVPN_MANAGED
+            }
+        }
     }
     
     /**
@@ -184,13 +195,9 @@ class ConfigRepository(private val context: Context) {
 
     suspend fun getActiveConfigMetadata(): ActiveConfigMetadata? {
         val profile = getActiveProfile() ?: return null
-        val source = when {
-            profile.sourceType == SourceType.SUBSCRIPTION_URL || profile.sourceType == SourceType.MANUAL_ENTRY -> ActiveConfigSource.IMPORTED_CONFIG
-            else -> ActiveConfigSource.SWIMVPN_MANAGED
-        }
         return ActiveConfigMetadata.fromRawConfig(
             rawConfig = profile.rawConfig,
-            source = source,
+            source = activeConfigSourceFor(profile.sourceType),
             displayNameFallback = profile.displayName,
             isActive = true,
         )
