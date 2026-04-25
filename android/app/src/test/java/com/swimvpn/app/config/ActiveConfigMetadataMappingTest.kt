@@ -77,6 +77,17 @@ class ActiveConfigMetadataMappingTest {
     }
 
     @Test
+    fun `imported server id helpers encode and decode consistently`() {
+        val profileId = "profile-123"
+        val serverId = ConfigRepository.importedServerIdFor(profileId)
+
+        assertEquals("imported:profile-123", serverId)
+        assertEquals(profileId, ConfigRepository.importedProfileIdFromServerId(serverId))
+        assertNull(ConfigRepository.importedProfileIdFromServerId(profileId))
+        assertNull(ConfigRepository.importedProfileIdFromServerId("imported:"))
+    }
+
+    @Test
     fun `maps backend selected server to managed active config metadata without parser-only fields`() {
         val metadata = ActiveConfigMetadata.fromManagedServer(
             server = ServerNode(

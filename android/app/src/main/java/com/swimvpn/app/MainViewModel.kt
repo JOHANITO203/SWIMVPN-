@@ -371,6 +371,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectServer(server: ServerNode) {
         viewModelScope.launch {
             prefs.setSelectedServerId(server.id)
+            when (server.source) {
+                "imported" -> {
+                    configRepository.getImportedProfileForServerId(server.id)?.let { profile ->
+                        configRepository.setActiveProfile(profile)
+                    }
+                }
+                "backend" -> configRepository.clearActiveProfile()
+            }
             val current = _state.value
             if (current is AppState.Success) {
                 val activeConfigMetadata = resolveActiveConfigMetadata(server)
@@ -386,7 +394,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun selectImportedProfile(profile: SwimVpnProfile) {
         viewModelScope.launch {
             val current = _state.value as? AppState.Success ?: return@launch
-            val targetId = importedServerId(profile)
+            val targetId = ConfigRepository.importedServerIdFor(profile.id)
+            configRepository.setActiveProfile(profile)
             prefs.setSelectedServerId(targetId)
             _state.value = refreshSuccessState(current)
             refreshServerLatency()
@@ -715,7 +724,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val importedServers = group.profiles.map { importedProfile ->
                 importedProfile.toImportedServerNode(
                     groupName = group.name,
-                    isPinned = importedServerId(importedProfile) in pinnedIds,
+                    isPinned = ConfigRepository.importedServerIdFor(importedProfile.id) in pinnedIds,
                 )
             }.sortedWith(compareByDescending<ServerNode> { it.isPinned }.thenBy { it.city })
 
@@ -738,7 +747,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         isPinned: Boolean,
     ): ServerNode {
         return ServerNode(
-            id = importedServerId(this),
+            id = ConfigRepository.importedServerIdFor(id),
             country = groupName,
             city = displayName,
             host = address,
@@ -760,6 +769,4 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isPinned = isPinned,
         )
     }
-
-    private fun importedServerId(profile: SwimVpnProfile): String = "imported:${profile.id}"
 }

@@ -1534,3 +1534,15 @@ pm run build PASSED.
       - parser quota/expiration staying inside `Active Config`
       - no UI wording claiming imported parser quota is SWIMVPN-enforced backend truth
 
+## [2026-04-25] [Android Final Consistency Fix - Imported Selection Sync]
+- **Status**: DONE
+- **Changes**:
+  - Centralized imported server id encode/decode helpers in `ConfigRepository` so imported server mapping no longer duplicates raw `"imported:${profile.id}"` logic.
+  - Added a narrow repository method to clear imported active-profile selection without affecting the main selected server id.
+  - Updated `MainViewModel.selectServer(...)` so selecting an imported server synchronizes the imported active profile, while selecting a backend server clears stale imported selection state.
+  - Updated imported profile selection and server-node building paths to reuse the centralized helper.
+  - Added focused test coverage for imported server id encode/decode behavior and invalid imported-id rejection.
+- **Verification**:
+  - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; .\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+

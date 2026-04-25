@@ -47,6 +47,7 @@ class ConfigRepository(private val context: Context) {
         .build()
     
     companion object {
+        private const val IMPORTED_SERVER_ID_PREFIX = "imported:"
         private const val DATA_STORE_NAME = "vpn_configs"
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = DATA_STORE_NAME)
         
@@ -64,6 +65,13 @@ class ConfigRepository(private val context: Context) {
                 SourceType.SUBSCRIPTION_URL -> ActiveConfigSource.IMPORTED_CONFIG
                 SourceType.BACKEND_API -> ActiveConfigSource.SWIMVPN_MANAGED
             }
+        }
+
+        internal fun importedServerIdFor(profileId: String): String = "$IMPORTED_SERVER_ID_PREFIX$profileId"
+
+        internal fun importedProfileIdFromServerId(serverId: String): String? {
+            val profileId = serverId.removePrefix(IMPORTED_SERVER_ID_PREFIX)
+            return profileId.takeIf { it.isNotBlank() && it != serverId }
         }
     }
     
@@ -214,10 +222,7 @@ class ConfigRepository(private val context: Context) {
     }
 
     suspend fun getImportedProfileForServerId(serverId: String): SwimVpnProfile? {
-        val profileId = serverId.removePrefix("imported:")
-        if (profileId.isBlank() || profileId == serverId) {
-            return null
-        }
+        val profileId = importedProfileIdFromServerId(serverId) ?: return null
         return getAllProfiles().find { it.id == profileId }
     }
 
@@ -289,6 +294,17 @@ class ConfigRepository(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Error generating preview", e)
             null
+        }
+    }
+
+    suspend fun clearActiveProfile() {
+        try {
+            context.dataStore.edit { preferences ->
+                preferences.remove(ACTIVE_PROFILE_ID_KEY)
+            }
+            Log.i(TAG, "Cleared active imported profile selection")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing active profile", e)
         }
     }
     
