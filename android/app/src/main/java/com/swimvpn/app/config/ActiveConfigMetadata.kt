@@ -1,11 +1,20 @@
 package com.swimvpn.app.config
 
 import com.swimvpn.app.config.subscriptionparser.ParsedSubscription
+import com.swimvpn.app.config.subscriptionparser.ParsedVpnProfile
 
 enum class ActiveConfigSource {
     SWIMVPN_MANAGED,
     IMPORTED_CONFIG,
 }
+
+data class ActiveConfigFallbackMetadata(
+    val providerName: String? = null,
+    val trafficUsedBytes: Long? = null,
+    val trafficTotalBytes: Long? = null,
+    val expiresAt: String? = null,
+    val warnings: List<String> = emptyList(),
+)
 
 data class ActiveConfigMetadata(
     val source: ActiveConfigSource,
@@ -20,24 +29,44 @@ data class ActiveConfigMetadata(
     val warnings: List<String> = emptyList(),
 ) {
     companion object {
-        fun fromParsedSubscription(
+        fun fromParsedProfile(
+            profile: ParsedVpnProfile,
+            fallback: ActiveConfigFallbackMetadata,
+            source: ActiveConfigSource,
+            isActive: Boolean,
+        ): ActiveConfigMetadata {
+            return ActiveConfigMetadata(
+                source = source,
+                isActive = isActive,
+                displayName = profile.displayName,
+                providerName = profile.providerName ?: fallback.providerName,
+                protocol = profile.protocol,
+                serverHost = profile.serverHost,
+                trafficUsedBytes = profile.trafficUsedBytes ?: fallback.trafficUsedBytes,
+                trafficTotalBytes = profile.trafficTotalBytes ?: fallback.trafficTotalBytes,
+                expiresAt = profile.expiresAt ?: fallback.expiresAt,
+                warnings = (fallback.warnings + profile.warnings).distinct(),
+            )
+        }
+
+        fun fromFirstProfileInSubscription(
             parsed: ParsedSubscription,
             source: ActiveConfigSource,
             isActive: Boolean,
         ): ActiveConfigMetadata? {
             val profile = parsed.profiles.firstOrNull() ?: return null
 
-            return ActiveConfigMetadata(
+            return fromParsedProfile(
+                profile = profile,
+                fallback = ActiveConfigFallbackMetadata(
+                    providerName = parsed.providerName,
+                    trafficUsedBytes = parsed.trafficUsedBytes,
+                    trafficTotalBytes = parsed.trafficTotalBytes,
+                    expiresAt = parsed.expiresAt,
+                    warnings = parsed.warnings,
+                ),
                 source = source,
                 isActive = isActive,
-                displayName = profile.displayName,
-                providerName = profile.providerName ?: parsed.providerName,
-                protocol = profile.protocol,
-                serverHost = profile.serverHost,
-                trafficUsedBytes = profile.trafficUsedBytes ?: parsed.trafficUsedBytes,
-                trafficTotalBytes = profile.trafficTotalBytes ?: parsed.trafficTotalBytes,
-                expiresAt = profile.expiresAt ?: parsed.expiresAt,
-                warnings = (parsed.warnings + profile.warnings).distinct(),
             )
         }
     }

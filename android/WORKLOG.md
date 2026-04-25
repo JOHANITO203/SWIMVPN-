@@ -154,3 +154,13 @@
   - Confirmed the new test failed first because `ActiveConfigMetadata` and `ActiveConfigSource` were missing.
   - Ran `./gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest` successfully after implementation.
 
+## 2026-04-25 [Android Active Config Metadata Contract Follow-up]
+- **Status**: DONE
+- **Changes**:
+  - Replaced the hidden subscription-only mapper contract with an explicit profile-based mapper using `ActiveConfigFallbackMetadata`.
+  - Kept a clearly named convenience path, `fromFirstProfileInSubscription(...)`, for callers that intentionally want first-profile selection.
+  - Expanded targeted test coverage for fallback precedence, warning merge/deduplication, and empty-subscription behavior.
+- **Verification**:
+  - Confirmed the updated test suite failed first on the missing explicit mapper API.
+  - Ran `./gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest` successfully after implementation.
+
