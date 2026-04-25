@@ -645,3 +645,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Raw payloads remain preserved intact.
   - ConfigRepository can consume normalized entries first, then keep using the existing runtime parser/normalizer for importable configs.
   - Future parser work should extend the subscription parser package, not push raw-text parsing into screens.
+
+## [2026-04-25] [Profile UI Must Keep Backend Access Truth Separate From Imported Config Truth]
+- **Decision**: The profile screen keeps `SWIMVPN Access` as backend access truth and `Active Config` as parser/runtime truth for the currently active config.
+- **Why**: Imported configs can carry useful provider, quota, and expiry metadata, but that metadata is not the same thing as SWIMVPN-managed subscription enforcement. Showing both in one card risks falsely presenting imported parser values as backend-controlled product truth.
+- **Impact**:
+  - Trial and paid access state remain anchored to backend profile fields only.
+  - Imported config metadata is surfaced with an explicit source badge in a separate card.
+  - Parser-derived quota/expiration stays descriptive and local to `Active Config`, not product-enforcement wording.

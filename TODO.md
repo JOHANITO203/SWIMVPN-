@@ -487,3 +487,15 @@ otification-bot-service event handoff.
 - Extend metadata detection for additional provider-specific subscription banners when real samples are collected.
 - Add non-importable profile surfacing if we later want to preview partially supported entries without importing them.
 - Consider moving preview generation to the normalized subscription parser once the runtime preview contract is cleaned up.
+
+## [2026-04-25] Active Config Follow-up
+- Expand `Active Config` presentation for richer parser metadata only when the source stays clearly labeled:
+  - server/location hints
+  - provider banner details
+  - parser warnings when useful for diagnosis
+- Add focused scenario coverage for profile truth separation:
+  - trial profile with imported active config
+  - paid profile with SWIMVPN-managed active config
+  - imported config carrying usage-only metadata
+  - imported config carrying expiration-only metadata
+- Re-run the targeted Android parser/config tests after the local Gradle/JVM memory issue is cleared so Task 5 can be closed without verification concerns.

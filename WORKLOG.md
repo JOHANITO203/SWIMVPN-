@@ -1507,3 +1507,19 @@ pm run build PASSED.
   - Removed the duplicate `resolveActiveConfigMetadata()` call from `selectImportedProfile(...)` because `refreshSuccessState(...)` already refreshes that field.
 - **Verification**:
   - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
+## [2026-04-25] [Android Task 5 - Access And Active Config Separation Verification]
+- **Status**: DONE_WITH_CONCERNS
+- **Changes**:
+    - Completed the Task 5 verification pass for the profile truth split between `SWIMVPN Access` and `Active Config`.
+    - Reviewed the implemented profile UI logic and confirmed the separation stays aligned with backend-vs-parser truth boundaries for imported configs.
+    - Updated repo memory files with the final verification outcome, decision note, and follow-up coverage work.
+- **Verification**:
+    - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; .\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.SubscriptionParserTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest` FAILED due to Gradle/JVM environment memory crash (`android/hs_err_pid520.log`: native memory allocation failure), not a reported test assertion failure.
+    - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+    - Logical scenario review PASSED for:
+      - trial truth staying in `SWIMVPN Access`
+      - imported-source badge rendering in `Active Config`
+      - parser quota/expiration staying inside `Active Config`
+      - no UI wording claiming imported parser quota is SWIMVPN-enforced backend truth
+
