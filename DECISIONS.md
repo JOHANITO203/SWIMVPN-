@@ -725,3 +725,10 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Card checkout can resolve the payment bot from the real token used in deployment.
   - Crypto checkout is more tolerant of deployment naming drift.
   - Docker-based runtime configuration is now closer to the operator's real environment.
+
+## [2026-04-25] [The VPS Root Compose Must Match The Backend Payment Contract]
+- **Decision**: The root `docker-compose.yml` used by VPS deployments must explicitly carry the same payment-runtime variables required by `customer-order-service` and `notification-bot-service`, instead of relying on the backend-only compose file.
+- **Why**: The live environment was reading the root compose, which was missing the payment bot and crypto variables even though the backend code had already been updated. That created a false impression that the code was still broken while the real drift was in deployment wiring.
+- **Impact**:
+  - The deployment compose at the repo root now reflects the real backend runtime contract for card and crypto checkout.
+  - Future VPS redeploys can pick up payment variables without depending on the backend-local compose file.

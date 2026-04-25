@@ -1726,3 +1726,14 @@ pm run build PASSED.
   - `cd backend && npm run build:all` PASSED.
   - `cd android && .\gradlew.bat --no-daemon :app:compileDebugKotlin` PASSED.
   - `cd android && .\gradlew.bat --no-daemon cleanTestDebugUnitTest testDebugUnitTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
+
+## [2026-04-25] [Root Compose Payment Runtime Alignment]
+- **Status**: DONE
+- **Changes**:
+  - Aligned the root `docker-compose.yml` with the current backend payment runtime contract.
+  - Added the missing payment and crypto environment variables to `customer-order-service` in the root compose file.
+  - Added the missing card-review/payment notification variables to `notification-bot-service` in the root compose file.
+  - Confirmed the root compose, not only `backend/docker-compose.yml`, now reflects the payment variables expected by the running VPS deployment path.
+- **Verification**:
+  - `rg` confirmed the new variables are present in the root compose under the expected services.
+  - `docker compose config` PASSED from the repository root and expanded the new environment keys correctly.

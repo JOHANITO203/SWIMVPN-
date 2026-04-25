@@ -581,3 +581,8 @@ u after each future language batch
   - quota progress bar
   - used/total traffic
   - expiry date
+
+## [2026-04-25] VPS Payment Redeploy
+- Recreate the VPS services using the updated root `docker-compose.yml`, not only a container restart.
+- Re-test card checkout after redeploy and confirm `customer-order-service` no longer reports missing bot configuration.
+- Re-test crypto checkout after redeploy and confirm the service sees the configured crypto token/key.
