@@ -1,5 +1,16 @@
 # WORKLOG
 
+## [2026-04-25] [Android Final Review Follow-up - Active Config Source Truth]
+- **Status**: DONE
+- **Changes**:
+    - Rewired `MainViewModel` active-config resolution to follow the actual selected `activeServer` instead of the repository's stale imported `active_profile_id`.
+    - Added an honest `SWIMVPN_MANAGED` metadata mapper for backend-selected servers using only current runtime identity fields already exposed by backend server nodes.
+    - Added repository lookup support for imported metadata by selected imported server id so imported selections still render parser-derived config details from preserved raw config.
+    - Added focused regression coverage for backend-managed active-config mapping without invented parser quota/provider fields.
+- **Verification**:
+    - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; .\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
+    - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
 ## [2026-04-25] [Android Task 4 Final Follow-up - Midnight Timestamp Date Semantics]
 - **Status**: DONE
 - **Changes**:

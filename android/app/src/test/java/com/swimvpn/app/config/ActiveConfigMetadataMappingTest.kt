@@ -2,6 +2,7 @@ package com.swimvpn.app.config
 
 import com.swimvpn.app.config.subscriptionparser.ParsedSubscription
 import com.swimvpn.app.config.subscriptionparser.ParsedVpnProfile
+import com.swimvpn.app.data.network.ServerNode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -73,6 +74,34 @@ class ActiveConfigMetadataMappingTest {
             ActiveConfigSource.SWIMVPN_MANAGED,
             ConfigRepository.activeConfigSourceFor(SourceType.BACKEND_API)
         )
+    }
+
+    @Test
+    fun `maps backend selected server to managed active config metadata without parser-only fields`() {
+        val metadata = ActiveConfigMetadata.fromManagedServer(
+            server = ServerNode(
+                id = "backend-ru-1",
+                country = "Russia",
+                city = "Moscow",
+                host = "ru-msk.swimvpn.pro",
+                port = 443,
+                protocol = "vless",
+                tags = listOf("managed"),
+                planScope = "month",
+                source = "backend",
+            ),
+            isActive = true,
+        )
+
+        assertEquals(ActiveConfigSource.SWIMVPN_MANAGED, metadata.source)
+        assertEquals("Moscow, Russia", metadata.displayName)
+        assertEquals("vless", metadata.protocol)
+        assertEquals("ru-msk.swimvpn.pro", metadata.serverHost)
+        assertNull(metadata.providerName)
+        assertNull(metadata.trafficUsedBytes)
+        assertNull(metadata.trafficTotalBytes)
+        assertNull(metadata.expiresAt)
+        assertEquals(emptyList<String>(), metadata.warnings)
     }
 
     @Test

@@ -373,8 +373,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             prefs.setSelectedServerId(server.id)
             val current = _state.value
             if (current is AppState.Success) {
+                val activeConfigMetadata = resolveActiveConfigMetadata(server)
                 _state.value = current.copy(
                     activeServer = server,
+                    activeConfigMetadata = activeConfigMetadata,
                     servers = current.servers.map { it.copy(isPinned = it.isPinned) },
                 )
             }
@@ -615,7 +617,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val servers = serverGroups.flatMap { it.servers }
         val savedServerId = prefs.selectedServerIdFlow.first()
         val activeServer = servers.find { it.id == savedServerId } ?: servers.firstOrNull()
-        val activeConfigMetadata = resolveActiveConfigMetadata()
+        val activeConfigMetadata = resolveActiveConfigMetadata(activeServer)
 
         return AppState.Success(
             profile = profile,
@@ -632,8 +634,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private suspend fun resolveActiveConfigMetadata(): ActiveConfigMetadata? {
-        return runCatching { configRepository.getActiveConfigMetadata() }.getOrNull()
+    private suspend fun resolveActiveConfigMetadata(activeServer: ServerNode?): ActiveConfigMetadata? {
+        if (activeServer == null) {
+            return null
+        }
+
+        return when (activeServer.source) {
+            "imported" -> runCatching { configRepository.getImportedConfigMetadata(activeServer.id) }.getOrNull()
+            "backend" -> ActiveConfigMetadata.fromManagedServer(activeServer)
+            else -> activeServer.rawConfig?.let { rawConfig ->
+                ActiveConfigMetadata.fromRawConfig(
+                    rawConfig = rawConfig,
+                    source = com.swimvpn.app.config.ActiveConfigSource.IMPORTED_CONFIG,
+                    displayNameFallback = activeServer.city.ifBlank { activeServer.host },
+                    isActive = true,
+                )
+            }
+        }
     }
 
     private suspend fun refreshSuccessState(currentState: AppState.Success): AppState.Success {
@@ -656,7 +673,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val activeServer = servers.find { it.id == savedServerId }
             ?: servers.find { it.id == currentState.activeServer?.id }
             ?: servers.firstOrNull()
-        val activeConfigMetadata = resolveActiveConfigMetadata()
+        val activeConfigMetadata = resolveActiveConfigMetadata(activeServer)
 
         return currentState.copy(
             servers = servers,

@@ -203,6 +203,24 @@ class ConfigRepository(private val context: Context) {
         )
     }
 
+    suspend fun getImportedConfigMetadata(serverId: String): ActiveConfigMetadata? {
+        val profile = getImportedProfileForServerId(serverId) ?: return null
+        return ActiveConfigMetadata.fromRawConfig(
+            rawConfig = profile.rawConfig,
+            source = activeConfigSourceFor(profile.sourceType),
+            displayNameFallback = profile.displayName,
+            isActive = true,
+        )
+    }
+
+    suspend fun getImportedProfileForServerId(serverId: String): SwimVpnProfile? {
+        val profileId = serverId.removePrefix("imported:")
+        if (profileId.isBlank() || profileId == serverId) {
+            return null
+        }
+        return getAllProfiles().find { it.id == profileId }
+    }
+
     /**
      * Set active profile
      */

@@ -2,6 +2,7 @@ package com.swimvpn.app.config
 
 import com.swimvpn.app.config.subscriptionparser.ParsedSubscription
 import com.swimvpn.app.config.subscriptionparser.ParsedVpnProfile
+import com.swimvpn.app.data.network.ServerNode
 
 enum class ActiveConfigSource {
     SWIMVPN_MANAGED,
@@ -93,6 +94,25 @@ data class ActiveConfigMetadata(
                 fromFirstProfileInSubscription(parsed, source, isActive)
                     ?.copy(displayName = firstProfile.displayName.ifBlank { displayNameFallback })
             }
+        }
+
+        fun fromManagedServer(
+            server: ServerNode,
+            isActive: Boolean = true,
+        ): ActiveConfigMetadata {
+            val displayName = listOf(server.city, server.country)
+                .filter { it.isNotBlank() }
+                .distinct()
+                .joinToString(", ")
+                .ifBlank { server.host }
+
+            return ActiveConfigMetadata(
+                source = ActiveConfigSource.SWIMVPN_MANAGED,
+                isActive = isActive,
+                displayName = displayName,
+                protocol = server.protocol.takeIf { it.isNotBlank() },
+                serverHost = server.host.takeIf { it.isNotBlank() },
+            )
         }
     }
 }
