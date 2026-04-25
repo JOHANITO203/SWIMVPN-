@@ -1737,3 +1737,27 @@ pm run build PASSED.
 - **Verification**:
   - `rg` confirmed the new variables are present in the root compose under the expected services.
   - `docker compose config` PASSED from the repository root and expanded the new environment keys correctly.
+
+## [2026-04-25] [Landing Service Exposure On app.swimvpn.pro]
+- **Status**: DONE
+- **Changes**:
+  - Added a dedicated root-level `landing-service` to the main `docker-compose.yml`.
+  - Added a multi-stage `Dockerfile.landing` to build the Vite app and serve the built assets from Nginx.
+  - Added `nginx.landing.conf` with SPA fallback so direct route refreshes still load `index.html`.
+  - Wired the landing service to Dokploy/Traefik on `app.swimvpn.pro`.
+- **Verification**:
+  - `docker compose config` PASSED from the repository root.
+  - `docker build -f Dockerfile.landing .` PASSED.
+
+## [2026-04-25] [Landing Service Exposure On app.swimvpn.pro]
+- **Status**: DONE
+- **Changes**:
+  - Added a dedicated root-level `landing-service` to the main `docker-compose.yml`.
+  - Added a multi-stage `Dockerfile.landing` to build the Vite app and serve the built assets from Nginx.
+  - Added `nginx.landing.conf` with SPA fallback so direct route refreshes still load `index.html`.
+  - Added a root `.dockerignore` to keep the landing build context small and avoid shipping backend/mobile files into the landing image.
+  - Wired the landing service to Dokploy/Traefik on `app.swimvpn.pro`.
+- **Verification**:
+  - `docker compose config` PASSED from the repository root.
+  - `npm run build` was BLOCKED locally by `ENOSPC: no space left on device`.
+  - `docker build -f Dockerfile.landing .` was BLOCKED locally because Docker Desktop returned a `500`/`EOF` from the local engine.

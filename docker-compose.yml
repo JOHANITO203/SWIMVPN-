@@ -10,6 +10,31 @@ volumes:
   swimvpn-pgdata:
 
 services:
+  landing-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.landing
+    restart: unless-stopped
+    mem_limit: 160m
+    cpus: "0.20"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - dokploy-public
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "dokploy-network"
+      traefik.http.routers.swimvpn-app.rule: "Host(`app.swimvpn.pro`)"
+      traefik.http.routers.swimvpn-app.entrypoints: "websecure"
+      traefik.http.routers.swimvpn-app.tls: "true"
+      traefik.http.routers.swimvpn-app.tls.certresolver: "letsencrypt"
+      traefik.http.routers.swimvpn-app.service: "swimvpn-app"
+      traefik.http.services.swimvpn-app.loadbalancer.server.port: "3000"
+
   db:
     image: postgres:15-alpine
     environment:

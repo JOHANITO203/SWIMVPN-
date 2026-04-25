@@ -732,3 +732,10 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Impact**:
   - The deployment compose at the repo root now reflects the real backend runtime contract for card and crypto checkout.
   - Future VPS redeploys can pick up payment variables without depending on the backend-local compose file.
+
+## [2026-04-25] [Landing Must Be Exposed As Its Own Web Service]
+- **Decision**: The landing page is deployed as a separate root-level web service with Traefik labels on `app.swimvpn.pro`, instead of pretending it is part of a backend microservice.
+- **Why**: The landing lives at the repository root and is a standalone frontend concern. DNS alone is not enough; Dokploy needs a real containerized service behind the domain.
+- **Impact**:
+  - `app.swimvpn.pro` now has a dedicated deployment target in the main compose file.
+  - Backend microservices stay isolated from frontend hosting concerns.

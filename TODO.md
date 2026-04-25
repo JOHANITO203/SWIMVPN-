@@ -586,3 +586,8 @@ u after each future language batch
 - Recreate the VPS services using the updated root `docker-compose.yml`, not only a container restart.
 - Re-test card checkout after redeploy and confirm `customer-order-service` no longer reports missing bot configuration.
 - Re-test crypto checkout after redeploy and confirm the service sees the configured crypto token/key.
+
+## [2026-04-25] Landing Domain Rollout
+- Ensure the Spaceship `A` record for `app.swimvpn.pro` points to the VPS IP.
+- Redeploy the root compose so Dokploy creates the new `landing-service`.
+- Verify `https://app.swimvpn.pro` resolves with a valid TLS certificate and loads the built landing page.
