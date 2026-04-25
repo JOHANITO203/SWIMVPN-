@@ -144,3 +144,13 @@
 - **Verification**:
   - Code compiles, npm run lint passes (ignoring backend alias errors).
 
+## 2026-04-25 [Android Active Config Metadata Model]
+- **Status**: DONE
+- **Changes**:
+  - Added `ActiveConfigSource` and `ActiveConfigMetadata` under the Android config package.
+  - Implemented `ActiveConfigMetadata.fromParsedSubscription(...)` to map the first parsed profile into active-config UI metadata while preserving parser-provided traffic, expiry, and warning fallbacks.
+  - Added a targeted unit test covering imported-config mapping from `ParsedSubscription`.
+- **Verification**:
+  - Confirmed the new test failed first because `ActiveConfigMetadata` and `ActiveConfigSource` were missing.
+  - Ran `./gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest` successfully after implementation.
+
