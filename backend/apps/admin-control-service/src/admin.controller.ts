@@ -1,8 +1,16 @@
 import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload, EventPattern } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { AdminService } from './admin.service';
 import { AdminBotService } from './admin-bot.service';
-import { AdminLoginDto, CreatePlanDto, TriggerImportDto } from '@app/contracts';
+import {
+  AdminLoginDto,
+  CreatePlanDto,
+  MoveAssignmentDto,
+  RevokeAssignmentDto,
+  RetryFulfillmentDto,
+  TriggerImportDto,
+  UpdateInventoryHealthDto,
+} from '@app/contracts';
 
 @Controller()
 export class AdminController {
@@ -14,14 +22,25 @@ export class AdminController {
   @EventPattern('low_stock_alert')
   async handleLowStock(@Payload() data: { category: string; remaining: number }) {
     await this.adminBotService.sendAdminAlert(
-      `⚠️ *LOW STOCK ALERT*\nCategory: ${data.category}\nRemaining: ${data.remaining} configs.`
+      `LOW STOCK ALERT\nCategory: ${data.category}\nRemaining: ${data.remaining} configs.`,
     );
   }
 
   @EventPattern('order_fulfilled')
-  async handleOrderFulfilled(@Payload() data: { orderId: string; orderRef: string; amount: number; planCode: string }) {
+  async handleOrderFulfilled(
+    @Payload() data: { orderId: string; orderRef: string; amount: number; planCode: string },
+  ) {
     await this.adminBotService.sendAdminAlert(
-      `✅ *NEW SALE*\nRef: \`${data.orderRef}\`\nPlan: ${data.planCode}\nAmount: ${data.amount} RUB`
+      `NEW SALE\nRef: ${data.orderRef}\nPlan: ${data.planCode}\nAmount: ${data.amount} RUB`,
+    );
+  }
+
+  @EventPattern('fulfillment_pending_alert')
+  async handleFulfillmentPending(
+    @Payload() data: { orderRef: string; planCode: string; requiredSlots: number },
+  ) {
+    await this.adminBotService.sendAdminAlert(
+      `FULFILLMENT PENDING\nRef: ${data.orderRef}\nPlan: ${data.planCode}\nSlots needed: ${data.requiredSlots}`,
     );
   }
 
@@ -53,5 +72,30 @@ export class AdminController {
   @MessagePattern({ cmd: 'trigger_import' })
   async triggerImport(@Payload() data: TriggerImportDto) {
     return this.adminService.triggerImport(data);
+  }
+
+  @MessagePattern({ cmd: 'list_inventory_overview' })
+  async listInventoryOverview() {
+    return this.adminService.listInventoryOverview();
+  }
+
+  @MessagePattern({ cmd: 'update_inventory_health' })
+  async updateInventoryHealth(@Payload() data: UpdateInventoryHealthDto) {
+    return this.adminService.updateInventoryHealth(data);
+  }
+
+  @MessagePattern({ cmd: 'revoke_assignment' })
+  async revokeAssignment(@Payload() data: RevokeAssignmentDto) {
+    return this.adminService.revokeAssignment(data);
+  }
+
+  @MessagePattern({ cmd: 'move_assignment' })
+  async moveAssignment(@Payload() data: MoveAssignmentDto) {
+    return this.adminService.moveAssignment(data);
+  }
+
+  @MessagePattern({ cmd: 'retry_fulfillment' })
+  async retryFulfillment(@Payload() data: RetryFulfillmentDto) {
+    return this.adminService.retryFulfillment(data);
   }
 }

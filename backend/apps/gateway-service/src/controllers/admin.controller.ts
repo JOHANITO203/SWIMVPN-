@@ -33,6 +33,36 @@ export class AdminController {
   }
 
   @UseGuards(AdminGuard)
+  @Get('inventory')
+  getInventoryOverview() {
+    return this.adminClient.send({ cmd: 'list_inventory_overview' }, {});
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('inventory/health')
+  updateInventoryHealth(@Body() data: any, @Req() req: any) {
+    return this.adminClient.send({ cmd: 'update_inventory_health' }, { ...data, adminId: req.admin.id });
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('assignments/revoke')
+  revokeAssignment(@Body() data: any, @Req() req: any) {
+    return this.adminClient.send({ cmd: 'revoke_assignment' }, { ...data, adminId: req.admin.id });
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('assignments/move')
+  moveAssignment(@Body() data: any, @Req() req: any) {
+    return this.adminClient.send({ cmd: 'move_assignment' }, { ...data, adminId: req.admin.id });
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('orders/retry-fulfillment')
+  retryFulfillment(@Body() data: any, @Req() req: any) {
+    return this.adminClient.send({ cmd: 'retry_fulfillment' }, { ...data, adminId: req.admin.id });
+  }
+
+  @UseGuards(AdminGuard)
   @Post('crypt-import')
   generateCryptImport(@Body() data: any) {
     return this.vpnConfigClient.send({ cmd: 'generate_swim_crypt_import' }, data);

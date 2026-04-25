@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsArray, IsOptional, IsEnum, IsInt, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsArray, IsOptional, IsEnum, IsInt, Min, Max, IsDateString } from 'class-validator';
 import { PlanCategory } from '@prisma/client';
 
 export class ImportConfigsDto {
@@ -23,6 +23,25 @@ export class ImportConfigsDto {
   @IsInt()
   @Min(1)
   maxUsersPerConfig?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  maxResaleSlots?: number;
+
+  @IsOptional()
+  @IsDateString()
+  supplierExpiresAt?: string;
+
+  @IsOptional()
+  @IsString()
+  supplierProviderName?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  supplierDeviceLimit?: number;
 }
 
 export class FulfillOrderDto {

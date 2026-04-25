@@ -26,4 +26,35 @@ export class InventoryController {
   async triggerHealthCheck() {
     return this.inventoryService.runHealthCheck();
   }
+
+  @MessagePattern({ cmd: 'list_inventory_overview' })
+  async listInventoryOverview() {
+    return this.inventoryService.listInventoryOverview();
+  }
+
+  @MessagePattern({ cmd: 'update_inventory_health' })
+  async updateInventoryHealth(
+    @Payload() data: {
+      inventoryItemId: string;
+      healthStatus: 'HEALTHY' | 'DEGRADED' | 'FULL' | 'EXPIRED' | 'DISABLED';
+      adminId?: string | null;
+    },
+  ) {
+    return this.inventoryService.updateInventoryHealth(data as any);
+  }
+
+  @MessagePattern({ cmd: 'revoke_assignment' })
+  async revokeAssignment(
+    @Payload() data: { assignmentId: string; reason?: string; adminId?: string | null },
+  ) {
+    return this.inventoryService.revokeAssignment(data);
+  }
+
+  @MessagePattern({ cmd: 'move_assignment' })
+  async moveAssignment(
+    @Payload()
+    data: { assignmentId: string; targetInventoryItemId: string; adminId?: string | null },
+  ) {
+    return this.inventoryService.moveAssignment(data);
+  }
 }

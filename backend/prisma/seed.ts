@@ -7,28 +7,31 @@ async function main() {
   const plans = [
     {
       code: PlanCategory.WEEK,
-      name: '3 Days Trial',
-      duration_label: '3 Days',
-      quota_label: '5 GB',
-      price_rub: 0,
+      name: 'Basic',
+      duration_label: '7 Days',
+      quota_label: '50 GB',
+      slot_count: 1,
+      price_rub: 299,
       display_order: 1,
       active: true,
     },
     {
       code: PlanCategory.MONTH,
-      name: 'Standard Monthly',
+      name: 'Premium',
       duration_label: '30 Days',
-      quota_label: '100 GB',
-      price_rub: 490,
+      quota_label: '150 GB',
+      slot_count: 2,
+      price_rub: 699,
       display_order: 2,
       active: true,
     },
     {
       code: PlanCategory.QUARTER,
-      name: 'Quarterly Premium',
+      name: 'Platinum',
       duration_label: '90 Days',
-      quota_label: '300 GB',
-      price_rub: 1290,
+      quota_label: '500 GB',
+      slot_count: 4,
+      price_rub: 1899,
       display_order: 3,
       active: true,
     },
@@ -56,7 +59,7 @@ async function main() {
     });
   }
 
-  // 3. Seed some Inventory (Dummy VLESS for Trial)
+  // 3. Seed some Inventory (starter WEEK-category inventory used by assignments)
   const seededConfig = await prisma.inventoryItem.findFirst({
     where: { batch_name: 'SEED-BATCH' },
   });
@@ -73,7 +76,7 @@ async function main() {
     });
   }
 
-  console.log('Seed completed: Plans, Servers, and 1 Trial Config created.');
+  console.log('Seed completed: paid plans, servers, and starter WEEK inventory created.');
 }
 
 main()

@@ -653,3 +653,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Trial and paid access state remain anchored to backend profile fields only.
   - Imported config metadata is surfaced with an explicit source badge in a separate card.
   - Parser-derived quota/expiration stays descriptive and local to `Active Config`, not product-enforcement wording.
+## [2026-04-25] [Supplier Config Capacity Must Be Enforced As Shared Resale Slots]
+- **Decision**: Supplier configs are now treated as shared backend resources with an explicit resale cap of `4` slots, regardless of the provider's hidden technical allowance of `5`.
+- **Why**: Product truth requires us to preserve speed and reliability by under-selling supplier device capacity instead of promising isolated per-user resources that do not exist.
+- **Impact**:
+  - Fulfillment now allocates by slot consumption, not by distinct-customer count alone.
+  - Paid orders can enter `PENDING_FULFILLMENT` when payment succeeds but no supplier config has enough remaining healthy capacity.
+  - Admin tooling and audit logs can reason about `used_resale_slots`, config health, assignment status, and manual reassignment/revocation.
+  - Backend profile payloads now expose commercial allowance (`devicesAllowed`) separately from supplier-managed quota/expiration truth.

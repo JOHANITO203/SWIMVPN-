@@ -16,6 +16,7 @@ enum PlanCategory {
 enum OrderStatus {
   PENDING
   PAID
+  PENDING_FULFILLMENT
   FULFILLED
   FAILED
   CANCELLED
@@ -26,6 +27,22 @@ enum InventoryStatus {
   RESERVED
   ASSIGNED
   DEAD
+}
+
+enum InventoryHealthStatus {
+  HEALTHY
+  DEGRADED
+  FULL
+  EXPIRED
+  DISABLED
+}
+
+enum AssignmentAccessStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  REVOKED
+  FAILED
 }
 
 model Customer {
@@ -48,6 +65,7 @@ model Plan {
   name           String
   duration_label String
   quota_label    String
+  slot_count     Int          @default(1)
   price_rub      Decimal      @db.Decimal(10, 2)
   active         Boolean      @default(true)
   display_order  Int          @default(0)
@@ -83,19 +101,25 @@ model Order {
 }
 
 model InventoryItem {
-  id                   String          @id @default(uuid())
-  category             PlanCategory
-  raw_config           String          @db.Text
-  config_type          String          // "VLESS", "VMESS", etc.
-  display_protocol     String
-  batch_name           String?
-  status               InventoryStatus @default(AVAILABLE)
-  assigned_order_id    String?
-  assigned_customer_id String?
-  imported_at          DateTime        @default(now())
-  assigned_at          DateTime?
-  source_quota_bytes   BigInt?
-  source_used_bytes    BigInt          @default(0)
+  id                       String                @id @default(uuid())
+  category                 PlanCategory
+  raw_config               String                @db.Text
+  config_type              String                // "VLESS", "VMESS", etc.
+  display_protocol         String
+  batch_name               String?
+  status                   InventoryStatus       @default(AVAILABLE)
+  health_status            InventoryHealthStatus @default(HEALTHY)
+  assigned_order_id        String?
+  assigned_customer_id     String?
+  imported_at              DateTime              @default(now())
+  assigned_at              DateTime?
+  source_quota_bytes       BigInt?
+  source_used_bytes        BigInt                @default(0)
+  max_resale_slots         Int                   @default(4)
+  used_resale_slots        Int                   @default(0)
+  supplier_expires_at      DateTime?
+  supplier_provider_name   String?
+  supplier_device_limit    Int?
   max_customer_allocations Int        @default(5)
 
   customer    Customer?        @relation(fields: [assigned_customer_id], references: [id])
@@ -105,17 +129,22 @@ model InventoryItem {
 model OrderAssignment {
   id                      String   @id @default(uuid())
   order_id                String
-  inventory_item_id       String
+  inventory_item_id       String?
   customer_id             String
+  access_status           AssignmentAccessStatus @default(PENDING)
   fallback_offer_title    String
   fallback_duration_label String
   fallback_quota_label    String
+  slot_count              Int      @default(1)
   assigned_at             DateTime @default(now())
+  expires_at              DateTime?
+  revoked_at              DateTime?
+  status_reason           String?
   measured_used_bytes     BigInt   @default(0)
   last_measured_at        DateTime?
 
   order          Order         @relation(fields: [order_id], references: [id])
-  inventory_item InventoryItem @relation(fields: [inventory_item_id], references: [id])
+  inventory_item InventoryItem? @relation(fields: [inventory_item_id], references: [id])
   customer       Customer      @relation(fields: [customer_id], references: [id])
 
   @@index([inventory_item_id])

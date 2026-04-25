@@ -499,3 +499,20 @@ otification-bot-service event handoff.
   - imported config carrying usage-only metadata
   - imported config carrying expiration-only metadata
 - Re-run the targeted Android parser/config tests after the local Gradle/JVM memory issue is cleared so Task 5 can be closed without verification concerns.
+
+## [2026-04-25] Supplier Capacity Backend Follow-up
+- Start PostgreSQL or Docker Desktop, then apply the new migration `20260425153000_supplier_capacity_alignment` and rerun `npm run prisma:seed`.
+- Redeploy the backend services with the new supplier-slot logic before trusting live checkout/fulfillment behavior.
+- Add an admin UI surface for the new backend controls:
+  - inventory overview
+  - config health updates
+  - assignment revocation
+  - assignment move
+  - retry fulfillment for pending paid orders
+- Validate live scenarios after redeploy:
+  - payment success + allocatable config => fulfilled
+  - payment success + no capacity => pending fulfillment
+  - revoked assignment stops appearing active
+  - supplier-expired config marks linked assignments expired
+- Keep the Android truth visible in product follow-up:
+  - old imported configs still need re-import before the profile card can show the persisted parser analytics metadata.

@@ -2,7 +2,16 @@ import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@app/database';
-import { AdminLoginDto, CreatePlanDto, TriggerImportDto } from '@app/contracts';
+import {
+  AdminLoginDto,
+  CreatePlanDto,
+  getPlanSlotCount,
+  MoveAssignmentDto,
+  RevokeAssignmentDto,
+  RetryFulfillmentDto,
+  TriggerImportDto,
+  UpdateInventoryHealthDto,
+} from '@app/contracts';
 import * as bcrypt from 'bcryptjs';
 import { firstValueFrom } from 'rxjs';
 
@@ -111,6 +120,7 @@ export class AdminService {
         name: data.name,
         duration_label: data.duration_label,
         quota_label: data.quota_label,
+        slot_count: data.slot_count ?? getPlanSlotCount(data.code),
         price_rub: data.price_rub,
       },
     });
@@ -131,6 +141,10 @@ export class AdminService {
         batchName: data.batchName,
         sourceQuotaGb: data.sourceQuotaGb,
         maxUsersPerConfig: data.maxUsersPerConfig,
+        maxResaleSlots: data.maxResaleSlots,
+        supplierExpiresAt: data.supplierExpiresAt,
+        supplierProviderName: data.supplierProviderName,
+        supplierDeviceLimit: data.supplierDeviceLimit,
       }),
     );
 
@@ -146,8 +160,52 @@ export class AdminService {
           batchName: data.batchName,
           sourceQuotaGb: data.sourceQuotaGb ?? 1000,
           maxUsersPerConfig: data.maxUsersPerConfig ?? 5,
+          maxResaleSlots: data.maxResaleSlots ?? 4,
+          supplierExpiresAt: data.supplierExpiresAt ?? null,
+          supplierProviderName: data.supplierProviderName ?? null,
+          supplierDeviceLimit: data.supplierDeviceLimit ?? null,
           count: data.configs.length,
           result,
+        } as any,
+      },
+    });
+
+    return result;
+  }
+
+  async listInventoryOverview() {
+    return firstValueFrom(this.inventoryClient.send({ cmd: 'list_inventory_overview' }, {}));
+  }
+
+  async updateInventoryHealth(data: UpdateInventoryHealthDto) {
+    return firstValueFrom(
+      this.inventoryClient.send({ cmd: 'update_inventory_health' }, data),
+    );
+  }
+
+  async revokeAssignment(data: RevokeAssignmentDto) {
+    return firstValueFrom(this.inventoryClient.send({ cmd: 'revoke_assignment' }, data));
+  }
+
+  async moveAssignment(data: MoveAssignmentDto) {
+    return firstValueFrom(this.inventoryClient.send({ cmd: 'move_assignment' }, data));
+  }
+
+  async retryFulfillment(data: RetryFulfillmentDto) {
+    const result = await firstValueFrom(
+      this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: data.orderId }),
+    );
+
+    await this.prisma.adminEvent.create({
+      data: {
+        admin_id: data.adminId,
+        event_type: 'FULFILLMENT_RETRY_TRIGGERED',
+        entity_type: 'ORDER',
+        entity_id: data.orderId,
+        payload_json: {
+          orderId: data.orderId,
+          result,
+          retriedAt: new Date().toISOString(),
         } as any,
       },
     });

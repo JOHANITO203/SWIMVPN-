@@ -29,6 +29,18 @@ export class CustomerController {
   }
 
   private extractErrorMessage(error: any) {
+    if (typeof error?.error === 'string' && error.error.trim().length > 0) {
+      return error.error;
+    }
+
+    if (typeof error?.response?.message === 'string' && error.response.message.trim().length > 0) {
+      return error.response.message;
+    }
+
+    if (Array.isArray(error?.response?.message) && error.response.message.length > 0) {
+      return error.response.message.join(', ');
+    }
+
     if (typeof error?.message === 'string' && error.message.trim().length > 0) {
       return error.message;
     }

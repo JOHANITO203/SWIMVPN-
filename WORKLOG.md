@@ -1568,3 +1568,27 @@ pm run build PASSED.
   - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; .\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
   - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
 
+
+## [2026-04-25] [Backend Supplier Capacity Alignment For Payments And Fulfillment]
+- **Status**: DONE_WITH_ENV_BLOCKER
+- **Changes**:
+  - Added shared backend plan policy for public plan naming and slot counts: `Basic=1`, `Premium=2`, `Platinum=4`.
+  - Extended Prisma schema with supplier-capacity fields and statuses:
+    - `Plan.slot_count`
+    - `InventoryItem.health_status`, `max_resale_slots`, `used_resale_slots`, supplier metadata fields
+    - `OrderAssignment.access_status`, `slot_count`, revocation/expiry fields
+    - `OrderStatus.PENDING_FULFILLMENT`
+  - Reworked inventory fulfillment to allocate by resale slots instead of distinct-customer count, with transaction-safe row locking and `PENDING_FULFILLMENT` when payment succeeds but no healthy config has enough remaining capacity.
+  - Updated customer profile truth so `devicesAllowed` now reflects plan slot allowance and paid access no longer invents a longer backend expiration than the supplier config actually provides.
+  - Added admin backend operations to inspect inventory capacity, disable or re-health configs, revoke assignments, move assignments, and retry pending fulfillment.
+  - Updated paid seed plan names to `Basic`, `Premium`, `Platinum`.
+  - Added a focused supplier-capacity regression script covering slot counts and allocatability rules.
+- **Verification**:
+  - `cd backend && node -r ts-node/register/transpile-only -r tsconfig-paths/register apps/inventory-delivery-service/src/__tests__/supplier-capacity.policy.spec.ts` PASSED.
+  - `cd backend && npm run prisma:validate` PASSED.
+  - `cd backend && npm run prisma:generate` PASSED.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd backend && npm run prisma:seed` FAILED because PostgreSQL was not reachable at `localhost:5432`.
+  - `cd backend && docker compose up -d db` FAILED because Docker Desktop / `dockerDesktopLinuxEngine` was not running in this shell environment.
+  - Android product debt remains noted: previously imported configs still need re-import before the profile card can show persisted parser analytics metadata.

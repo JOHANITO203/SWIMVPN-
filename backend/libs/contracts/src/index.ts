@@ -3,3 +3,4 @@ export * from './vpn-profile.dto';
 export * from './inventory.dto';
 export * from './admin.dto';
 export * from './customer.dto';
+export * from './plan-policy';

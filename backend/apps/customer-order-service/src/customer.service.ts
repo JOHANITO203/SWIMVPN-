@@ -1,20 +1,24 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom } from 'rxjs';
-import { OrderStatus } from '@prisma/client';
+import { AssignmentAccessStatus, OrderStatus } from '@prisma/client';
 import {
   StartTrialDto,
   CreateOrderDto,
   BootstrapAccessDto,
   ActivateTrialDto,
   CreateCheckoutDto,
+  getPlanSlotCount,
   ReportUsageDto,
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
 
 @Injectable()
 export class CustomerService {
+  private static readonly TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
+  private static readonly TRIAL_QUOTA_LABEL = '5 GB';
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientProxy,
@@ -49,58 +53,62 @@ export class CustomerService {
   }
 
   async createCheckout(data: CreateCheckoutDto) {
-    const checkout = await this.preparePendingOrder({
-      email: data.email,
-      phone: data.phone,
-      planId: data.planId,
-    });
-
-    if (data.paymentMethod === 'CRYPTO') {
-      const invoice = await this.cryptoPayService.createInvoice({
-        amountRub: checkout.plan.price_rub.toString(),
-        orderRef: checkout.order.order_ref,
-        planLabel: `${checkout.plan.name} • ${checkout.plan.duration_label} • ${checkout.plan.quota_label}`,
-        asset: data.cryptoAsset,
+    try {
+      const checkout = await this.preparePendingOrder({
+        email: data.email,
+        phone: data.phone,
+        planId: data.planId,
       });
+
+      if (data.paymentMethod === 'CRYPTO') {
+        const invoice = await this.cryptoPayService.createInvoice({
+          amountRub: checkout.plan.price_rub.toString(),
+          orderRef: checkout.order.order_ref,
+          planLabel: `${checkout.plan.name} - ${checkout.plan.duration_label} - ${checkout.plan.quota_label}`,
+          asset: data.cryptoAsset,
+        });
+
+        await this.prisma.order.update({
+          where: { id: checkout.order.id },
+          data: {
+            payment_ref: `CRYPTO_INVOICE:${invoice.invoice_id}`,
+          },
+        });
+
+        return {
+          orderRef: checkout.order.order_ref,
+          status: checkout.order.status,
+          amountRub: checkout.plan.price_rub.toString(),
+          paymentMethod: 'CRYPTO',
+          redirectUrl: invoice.bot_invoice_url || invoice.mini_app_invoice_url || invoice.web_app_invoice_url || null,
+          message: 'Crypto invoice created',
+        };
+      }
+
+      const paymentBotUsername = process.env.PAYMENT_BOT_USERNAME?.trim();
+      if (!paymentBotUsername) {
+        this.fail('Manual payment bot username is not configured');
+      }
 
       await this.prisma.order.update({
         where: { id: checkout.order.id },
         data: {
-          payment_ref: `CRYPTO_INVOICE:${invoice.invoice_id}`,
+          payment_ref: 'CARD_MANUAL:INIT',
         },
       });
 
+      const cleanUsername = paymentBotUsername.replace(/^@/, '');
       return {
         orderRef: checkout.order.order_ref,
         status: checkout.order.status,
         amountRub: checkout.plan.price_rub.toString(),
-        paymentMethod: 'CRYPTO',
-        redirectUrl: invoice.bot_invoice_url || invoice.mini_app_invoice_url || invoice.web_app_invoice_url || null,
-        message: 'Crypto invoice created',
+        paymentMethod: 'CARD_MANUAL',
+        redirectUrl: `https://t.me/${cleanUsername}?start=card_${checkout.order.order_ref}`,
+        message: 'Continue payment in Telegram',
       };
+    } catch (error: any) {
+      this.fail(this.extractErrorMessage(error));
     }
-
-    const paymentBotUsername = process.env.PAYMENT_BOT_USERNAME?.trim();
-    if (!paymentBotUsername) {
-      throw new Error('Manual payment bot username is not configured');
-    }
-
-    await this.prisma.order.update({
-      where: { id: checkout.order.id },
-      data: {
-        payment_ref: 'CARD_MANUAL:INIT',
-      },
-    });
-
-    const cleanUsername = paymentBotUsername.replace(/^@/, '');
-    return {
-      orderRef: checkout.order.order_ref,
-      status: checkout.order.status,
-      amountRub: checkout.plan.price_rub.toString(),
-      paymentMethod: 'CARD_MANUAL',
-      redirectUrl: `https://t.me/${cleanUsername}?start=card_${checkout.order.order_ref}`,
-      message: 'Continue payment in Telegram',
-    };
   }
 
   async startTrial(data: StartTrialDto) {
@@ -196,12 +204,17 @@ export class CustomerService {
       where: { public_id: userNumber },
       include: {
         orders: {
-          where: { status: OrderStatus.FULFILLED },
+          where: {
+            status: {
+              in: [OrderStatus.FULFILLED, OrderStatus.PAID, OrderStatus.PENDING_FULFILLMENT],
+            },
+          },
           orderBy: { created_at: 'desc' },
           take: 1,
           include: {
             plan: true,
             assignments: {
+              orderBy: { assigned_at: 'desc' },
               include: {
                 inventory_item: true,
               },
@@ -216,21 +229,33 @@ export class CustomerService {
     }
 
     const latestOrder = customer.orders[0];
-    const assignment = latestOrder?.assignments[0];
+    const assignment = latestOrder?.assignments.find(
+      (item) =>
+        item.access_status === AssignmentAccessStatus.ACTIVE ||
+        item.access_status === AssignmentAccessStatus.PENDING,
+    );
     const inventoryItem = assignment?.inventory_item;
-    const isTrialOrder =
-      latestOrder?.payment_ref === 'TRIAL:3D' || latestOrder?.order_ref.startsWith('TRIAL-');
+    const isTrialOrder = this.isTrialOrder(latestOrder);
     const accessType = latestOrder ? (isTrialOrder ? 'TRIAL' : 'PAID') : 'NONE';
     const offerCode = latestOrder && !isTrialOrder ? latestOrder.plan.code : null;
-    const subscriptionExpiresAt = this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder);
+    const fulfillmentStatus = latestOrder
+      ? latestOrder.status === OrderStatus.FULFILLED
+        ? 'DELIVERED'
+        : 'PENDING_FULFILLMENT'
+      : 'NONE';
+    const subscriptionExpiresAt = isTrialOrder
+      ? this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder)
+      : inventoryItem?.supplier_expires_at?.toISOString() || null;
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
-    const quotaLabel =
-      latestOrder?.plan.quota_label || assignment?.fallback_quota_label || '';
+    const quotaLabel = this.getEffectiveQuotaLabel(latestOrder, assignment?.fallback_quota_label);
     const status = this.resolveProfileStatus({
       hasCompletedProfile: !!customer.email && !!customer.phone,
       hasOrder: !!latestOrder,
+      fulfillmentStatus,
       subscriptionExpiresAt,
-      quotaExceeded: this.isPlanQuotaExceeded(quotaLabel, assignment?.measured_used_bytes),
+      quotaExceeded: isTrialOrder
+        ? this.isPlanQuotaExceeded(quotaLabel, assignment?.measured_used_bytes)
+        : false,
       sourceExhausted: this.isSourceQuotaExceeded(
         inventoryItem?.source_quota_bytes,
         inventoryItem?.source_used_bytes,
@@ -248,9 +273,20 @@ export class CustomerService {
       trialExpiresAt,
       subscriptionExpiresAt,
       subscriptionUrl: inventoryItem?.raw_config || null,
-      devicesAllowed: 1,
-      dataLimitGB: latestOrder ? this.parseQuotaLabelToGb(quotaLabel) : 0,
-      dataUsedBytes: assignment?.measured_used_bytes?.toString() || '0',
+      devicesAllowed: latestOrder
+        ? isTrialOrder
+          ? 1
+          : getPlanSlotCount(latestOrder.plan.code)
+        : 0,
+      fulfillmentStatus,
+      dataLimitGB: inventoryItem?.source_quota_bytes
+        ? this.bytesToGb(inventoryItem.source_quota_bytes)
+        : isTrialOrder && latestOrder
+          ? this.parseQuotaLabelToGb(quotaLabel)
+          : 0,
+      dataUsedBytes: inventoryItem?.source_used_bytes?.toString() || '0',
+      supplierProviderName: inventoryItem?.supplier_provider_name || null,
+      supplierExpiresAt: inventoryItem?.supplier_expires_at?.toISOString() || null,
       profileCompletionRequired: !customer.email || !customer.phone,
       trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
     };
@@ -278,10 +314,11 @@ export class CustomerService {
       include: { assignments: true },
     });
 
-    if (latestOrder && latestOrder.assignments.length > 0) {
-      const assignment = latestOrder.assignments[0];
+    const linkedAssignment = latestOrder?.assignments.find((assignment) => !!assignment.inventory_item_id);
+
+    if (latestOrder && linkedAssignment?.inventory_item_id) {
       await this.prisma.inventoryItem.update({
-        where: { id: assignment.inventory_item_id },
+        where: { id: linkedAssignment.inventory_item_id },
         data: { raw_config: data.subscriptionUrl },
       });
     } else {
@@ -545,24 +582,26 @@ export class CustomerService {
     });
 
     if (!order) return { success: false, error: 'Order not found' };
-    if (order.status !== OrderStatus.PENDING) return { success: true, alreadyProcessed: true };
+    if (
+      order.status !== OrderStatus.PENDING &&
+      order.status !== OrderStatus.PENDING_FULFILLMENT
+    ) {
+      return { success: true, alreadyProcessed: true };
+    }
 
-    // 1. Mark as PAID
     await this.prisma.order.update({
       where: { id: order.id },
       data: {
         status: OrderStatus.PAID,
-        paid_at: new Date(),
-        payment_ref: paymentRef,
+        paid_at: order.paid_at ?? new Date(),
+        payment_ref: paymentRef || order.payment_ref,
       },
     });
 
-    // 2. Trigger fulfillment via Inventory Service
     try {
-      await firstValueFrom(
+      return await firstValueFrom(
         this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
       );
-      return { success: true };
     } catch (e) {
       console.error(`Fulfillment failed for order ${order.id}:`, e);
       return { success: false, error: 'Fulfillment triggered but failed' };
@@ -575,14 +614,14 @@ export class CustomerService {
     });
 
     if (!plan || !plan.active) {
-      throw new Error('Plan not found or inactive');
+      this.fail('Plan not found or inactive');
     }
 
     const normalizedEmail = data.email?.trim().toLowerCase() || undefined;
     const normalizedPhone = this.normalizePhone(data.phone) || undefined;
 
     if (!normalizedEmail) {
-      throw new Error('Payment contact email is required before checkout');
+      this.fail('Payment contact email is required before checkout');
     }
 
     const customer = await this.findOrCreateCustomerByContact(normalizedEmail, normalizedPhone);
@@ -675,6 +714,7 @@ export class CustomerService {
     throw new Error('Unable to generate unique public user number');
   }
 
+
   private normalizePhone(phone?: string) {
     if (!phone) {
       return '';
@@ -741,7 +781,7 @@ export class CustomerService {
 
   private getDurationMsFromOrder(planCode: string, isTrialOrder: boolean) {
     if (isTrialOrder) {
-      return 3 * 24 * 60 * 60 * 1000;
+      return CustomerService.TRIAL_DURATION_MS;
     }
 
     switch (planCode) {
@@ -774,9 +814,41 @@ export class CustomerService {
     ).toISOString();
   }
 
+  private isTrialOrder(
+    order?:
+      | {
+          payment_ref?: string | null;
+          order_ref: string;
+        }
+      | undefined,
+  ) {
+    return !!order && (
+      order.payment_ref === 'TRIAL:3D' ||
+      order.order_ref.startsWith('TRIAL-')
+    );
+  }
+
+  private getEffectiveQuotaLabel(
+    order?:
+      | {
+          payment_ref?: string | null;
+          order_ref: string;
+          plan?: { quota_label?: string | null };
+        }
+      | undefined,
+    fallbackQuotaLabel?: string | null,
+  ) {
+    if (this.isTrialOrder(order)) {
+      return CustomerService.TRIAL_QUOTA_LABEL;
+    }
+
+    return order?.plan?.quota_label || fallbackQuotaLabel || '';
+  }
+
   private resolveProfileStatus(params: {
     hasCompletedProfile: boolean;
     hasOrder: boolean;
+    fulfillmentStatus: string;
     subscriptionExpiresAt: string | null;
     quotaExceeded: boolean;
     sourceExhausted: boolean;
@@ -787,6 +859,10 @@ export class CustomerService {
 
     if (!params.hasOrder) {
       return 'TRIAL_AVAILABLE';
+    }
+
+    if (params.fulfillmentStatus === 'PENDING_FULFILLMENT') {
+      return 'PENDING_FULFILLMENT';
     }
 
     if (params.quotaExceeded || params.sourceExhausted) {
@@ -820,6 +896,10 @@ export class CustomerService {
     return BigInt(Math.round(parsedGb * 1024 * 1024 * 1024));
   }
 
+  private bytesToGb(valueBytes: bigint) {
+    return Number(valueBytes) / (1024 * 1024 * 1024);
+  }
+
   private isPlanQuotaExceeded(quotaLabel: string, measuredUsedBytes?: bigint | null) {
     const quotaBytes = this.quotaLabelToBytes(quotaLabel);
     if (quotaBytes <= 0n) {
@@ -835,5 +915,32 @@ export class CustomerService {
     }
 
     return (sourceUsedBytes ?? 0n) >= sourceQuotaBytes;
+  }
+
+  private extractErrorMessage(error: any) {
+    if (error instanceof RpcException) {
+      const rpcError = error.getError();
+      if (typeof rpcError === 'string' && rpcError.trim().length > 0) {
+        return rpcError;
+      }
+
+      if (typeof rpcError === 'object' && rpcError && typeof (rpcError as any).message === 'string') {
+        return (rpcError as any).message;
+      }
+    }
+
+    if (typeof error?.message === 'string' && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    if (typeof error?.error?.message === 'string' && error.error.message.trim().length > 0) {
+      return error.error.message;
+    }
+
+    return 'Unable to create checkout';
+  }
+
+  private fail(message: string): never {
+    throw new RpcException({ message });
   }
 }

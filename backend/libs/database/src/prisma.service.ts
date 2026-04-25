@@ -23,16 +23,22 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       ['Plan', 'active'],
       ['Plan', 'display_order'],
       ['Plan', 'price_rub'],
+      ['Plan', 'slot_count'],
       ['Server', 'is_active'],
       ['Order', 'amount_rub'],
       ['OrderAssignment', 'fallback_quota_label'],
+      ['OrderAssignment', 'access_status'],
+      ['OrderAssignment', 'slot_count'],
+      ['InventoryItem', 'health_status'],
+      ['InventoryItem', 'max_resale_slots'],
+      ['InventoryItem', 'used_resale_slots'],
     ] as const;
 
     const rows = await this.$queryRaw<Array<{ table_name: string; column_name: string }>>`
       SELECT table_name, column_name
       FROM information_schema.columns
       WHERE table_schema = 'public'
-        AND table_name IN ('Customer', 'Plan', 'Server', 'Order', 'OrderAssignment')
+        AND table_name IN ('Customer', 'Plan', 'Server', 'Order', 'OrderAssignment', 'InventoryItem')
     `;
 
     const available = new Set(rows.map((row) => `${row.table_name}.${row.column_name}`));
