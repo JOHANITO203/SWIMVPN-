@@ -44,7 +44,7 @@ object SubscriptionParser {
         entry: String,
         sourceType: SourceType,
         warnings: MutableList<String>,
-        metadata: ParsedSubscriptionMetadata,
+        metadata: SubscriptionMetadataEnvelope,
     ): ParsedVpnProfile? {
         return when {
             entry.startsWith("vmess://", ignoreCase = true) -> {
@@ -82,7 +82,7 @@ object SubscriptionParser {
 
     private fun mapProfile(
         profile: SwimVpnProfile,
-        metadata: ParsedSubscriptionMetadata,
+        metadata: SubscriptionMetadataEnvelope,
     ): ParsedVpnProfile {
         return ParsedVpnProfile(
             providerName = metadata.providerName,
@@ -148,7 +148,7 @@ object SubscriptionParser {
 
     private fun parseVmessFallback(
         entry: String,
-        metadata: ParsedSubscriptionMetadata,
+        metadata: SubscriptionMetadataEnvelope,
     ): ParsedVpnProfile? {
         val base64Payload = entry.removePrefix("vmess://")
         val decoded = SubscriptionPayloadDecoder.decode(base64Payload).payload
@@ -194,7 +194,7 @@ object SubscriptionParser {
 
     private fun parseShadowsocksFallback(
         entry: String,
-        metadata: ParsedSubscriptionMetadata,
+        metadata: SubscriptionMetadataEnvelope,
     ): ParsedVpnProfile? {
         val withoutScheme = entry.removePrefix("ss://")
         val hashIndex = withoutScheme.indexOf('#')

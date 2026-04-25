@@ -1,4 +1,4 @@
-package com.swimvpn.app.config
+﻿package com.swimvpn.app.config
 
 import com.swimvpn.app.config.subscriptionparser.SubscriptionParser
 import org.junit.Assert.assertEquals
@@ -170,6 +170,32 @@ class SubscriptionParserTest {
         assertEquals("Поставщик VPN", parsed.providerName)
         assertEquals("🇷🇺", profile.countryEmoji)
         assertTrue(parsed.warnings.any { it.contains("Закончился трафик") })
+    }
+
+    @Test
+    fun `parses russian supplier bundle traffic and textual expiry`() {
+        val input = """
+            🔑 Ваша подписка:
+
+            https://wb.routerwb.ru/jtz5386jCHkztYRZ
+
+            ⏳ Осталось: 28 дней, 19 часов, 20 минут
+            Истекает: 21 мая 2026 года
+
+            📦 Тариф подписки:📁 Группа: Базовый ⚡️ 8 стран
+            📊 Трафик: 1000 ГБ
+            📉 Израсходовано: 6.7 ГБ / 1000 ГБ
+
+            VlessWB
+            vless://11111111-1111-1111-1111-111111111111@example.com:443?security=tls&type=tcp#Node
+        """.trimIndent()
+
+        val parsed = SubscriptionParser.parse(input)
+
+        assertEquals("VlessWB", parsed.providerName)
+        assertEquals(6.7 * 1024 * 1024 * 1024, parsed.trafficUsedBytes!!.toDouble(), 1024.0)
+        assertEquals(1000.0 * 1024 * 1024 * 1024, parsed.trafficTotalBytes!!.toDouble(), 1024.0)
+        assertEquals("2026-05-21T00:00:00Z", parsed.expiresAt)
     }
 
     @Test

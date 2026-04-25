@@ -919,7 +919,9 @@ export class CustomerService {
 
   private async resolvePaymentBotUsername() {
     const commandBotToken =
-      process.env.NOTIFICATION_BOT_TOKEN?.trim() || process.env.TELEGRAM_BOT_TOKEN?.trim();
+      process.env.NOTIFICATION_BOT_TOKEN?.trim() ||
+      process.env.PAYMENT_BOT_TOKEN?.trim() ||
+      process.env.TELEGRAM_BOT_TOKEN?.trim();
     if (commandBotToken) {
       const resolvedUsername = await this.fetchTelegramBotUsername(commandBotToken);
       if (resolvedUsername) {

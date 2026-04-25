@@ -710,3 +710,18 @@ otification-bot-service with Resend API for transactional delivery emails.
   - No-access states no longer imply a phantom device entitlement.
   - Trial wording is less likely to be mistaken for a paid plan.
   - Hidden fallback paths are less likely to reintroduce the old trial-cap confusion later.
+
+## [2026-04-25] [Supplier Bundle Parsing Must Support Real Russian Provider Messages]
+- **Decision**: The Android parser must recognize supplier metadata in the same Russian-language bundle formats users actually import, including `??` units and textual month names.
+- **Why**: The UI for `Active Config` was already capable of showing quota bars and expiry, but the parser was silently dropping the metadata for real supplier messages, which made the UI look broken when the truth was actually missing upstream.
+- **Impact**:
+  - Imported configs can now surface the real traffic bar and expiry from richer supplier messages.
+  - Parser verification now includes a realistic provider bundle instead of only sanitized English metadata examples.
+
+## [2026-04-25] [Payment Runtime Must Accept Real Deployment Variable Names]
+- **Decision**: `customer-order-service` must accept `PAYMENT_BOT_TOKEN` for card-bot resolution and `CRYPTO_PAY_API_KEY` as a fallback alias for crypto configuration, while Docker must pass those values into the service environment.
+- **Why**: The live runtime was failing with `main bot not configured` and `crypto api not configured` even though the operator had provided usable credentials, because the service only trusted a narrower variable set than the deployment actually used.
+- **Impact**:
+  - Card checkout can resolve the payment bot from the real token used in deployment.
+  - Crypto checkout is more tolerant of deployment naming drift.
+  - Docker-based runtime configuration is now closer to the operator's real environment.

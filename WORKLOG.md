@@ -1712,3 +1712,17 @@ pm run build PASSED.
   - `cd backend && npm run lint` PASSED.
   - `cd backend && npm run build:all` PASSED.
   - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx2048m -Xms512m"'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
+## [2026-04-25] [Russian Supplier Metadata Parsing And Payment Runtime Fallbacks]
+- **Status**: DONE
+- **Changes**:
+  - Hardened the Android subscription metadata parser to recognize Russian traffic units (`??/??/??/??`) and Russian textual expiry dates such as `21 ??? 2026 ????`.
+  - Added a real supplier-bundle parser test covering a `VlessWB / wb.routerwb.ru`-style message with quota and expiry metadata.
+  - Extended customer-order payment runtime bot resolution to accept `PAYMENT_BOT_TOKEN` as a valid source for resolving the Telegram payment bot username.
+  - Extended Crypto Pay configuration lookup to accept `CRYPTO_PAY_API_KEY` as a fallback alias in addition to `CRYPTO_PAY_API_TOKEN`.
+  - Updated `backend/docker-compose.yml` so `customer-order-service` actually receives the Telegram bot tokens and crypto API alias needed at runtime.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon :app:compileDebugKotlin` PASSED.
+  - `cd android && .\gradlew.bat --no-daemon cleanTestDebugUnitTest testDebugUnitTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.

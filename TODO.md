@@ -572,3 +572,12 @@ u after each future language batch
 - Verify on device that profile-incomplete/no-access states do not expose a misleading device allowance.
 - Verify the trial card now reads as `Trial Access` and not as a paid plan quota section.
 - Keep one focused follow-up only if needed: remove provider-name prominence from `Active Config` if it still feels too technical during user tests.
+
+## [2026-04-25] Payment And Imported Config Retest
+- Redeploy the backend services after this batch so `customer-order-service` receives the new Docker environment wiring.
+- Re-test card checkout and confirm the redirect is built from the actual payment bot token/runtime.
+- Re-test crypto checkout and confirm the runtime no longer fails fast on missing config when `CRYPTO_PAY_API_KEY` or `CRYPTO_PAY_API_TOKEN` is present.
+- Re-import a real Russian supplier bundle and verify `Active Config` now shows:
+  - quota progress bar
+  - used/total traffic
+  - expiry date

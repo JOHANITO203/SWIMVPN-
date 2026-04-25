@@ -30,7 +30,10 @@ export class CryptoPayService {
   private readonly expiresInSeconds: number;
 
   constructor(private readonly configService: ConfigService) {
-    this.token = this.configService.get<string>('CRYPTO_PAY_API_TOKEN')?.trim() || undefined;
+    this.token =
+      this.configService.get<string>('CRYPTO_PAY_API_TOKEN')?.trim() ||
+      this.configService.get<string>('CRYPTO_PAY_API_KEY')?.trim() ||
+      undefined;
     this.baseUrl = this.configService
       .get<string>('CRYPTO_PAY_API_BASE_URL', 'https://pay.crypt.bot/api')
       .replace(/\/+$/, '');
