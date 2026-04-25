@@ -18,7 +18,7 @@ import { CryptoPayService } from './crypto-pay.service';
 @Injectable()
 export class CustomerService {
   private static readonly TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
-  private static readonly TRIAL_QUOTA_LABEL = '5 GB';
+  private static readonly TRIAL_QUOTA_LABEL = 'UNLIMITED';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -125,7 +125,7 @@ export class CustomerService {
         trialExpiresAt: null,
         subscriptionExpiresAt: null,
         subscriptionUrl: null,
-        devicesAllowed: 1,
+        devicesAllowed: 0,
         dataLimitGB: 0,
         dataUsedBytes: '0',
         profileCompletionRequired: true,

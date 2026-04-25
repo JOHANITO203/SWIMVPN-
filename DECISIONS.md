@@ -702,3 +702,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Android trial UI now shows `Unlimited` instead of a quota progress bar.
   - Paid subscription analytics continue to dominate whenever the current access truth is paid.
   - Imported config analytics remain sourced from `ActiveConfigMetadata` only, instead of being blended into `SWIMVPN Access`.
+
+## [2026-04-25] [Trial Bootstrap And Labels Must Not Pretend There Is Paid Access]
+- **Decision**: When the user has no active access yet, bootstrap/profile-incomplete responses must expose `devicesAllowed = 0`, and trial UI/backend fallback labels must not reuse paid-plan quota semantics.
+- **Why**: Returning a non-zero device allowance before access exists and keeping a hidden `5 GB` trial fallback created small but real contradictions that could resurface in UI, admin tools, or future endpoints.
+- **Impact**:
+  - No-access states no longer imply a phantom device entitlement.
+  - Trial wording is less likely to be mistaken for a paid plan.
+  - Hidden fallback paths are less likely to reintroduce the old trial-cap confusion later.

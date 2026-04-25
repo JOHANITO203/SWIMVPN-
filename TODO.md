@@ -567,3 +567,8 @@ u after each future language batch
   - `subscriptionTrafficUsedBytes`
   - `subscriptionTrafficTotalBytes`
   - `subscriptionExpiresAt`
+
+## [2026-04-25] Trial Consistency Retest
+- Verify on device that profile-incomplete/no-access states do not expose a misleading device allowance.
+- Verify the trial card now reads as `Trial Access` and not as a paid plan quota section.
+- Keep one focused follow-up only if needed: remove provider-name prominence from `Active Config` if it still feels too technical during user tests.

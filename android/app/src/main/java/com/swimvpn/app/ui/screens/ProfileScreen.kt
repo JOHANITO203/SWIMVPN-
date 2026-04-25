@@ -287,7 +287,10 @@ private fun SwimVpnAccessCard(
             ) {
                 Column {
                     Text(
-                        text = stringResource(R.string.profile_metric_plan_quota),
+                        text = stringResource(
+                            if (isTrial) R.string.profile_metric_trial_access
+                            else R.string.profile_metric_plan_quota
+                        ),
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF475569),
                         fontSize = 12.sp,

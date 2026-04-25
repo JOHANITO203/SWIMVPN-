@@ -1701,3 +1701,14 @@ pm run build PASSED.
   - `cd backend && npm run lint` PASSED.
   - `cd backend && npm run build:all` PASSED.
   - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx2048m -Xms512m"'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
+## [2026-04-25] [Trial Labeling And Bootstrap Device Truth Cleanup]
+- **Status**: DONE
+- **Changes**:
+  - Changed the no-access bootstrap/profile-incomplete response to return `devicesAllowed = 0` instead of `1`.
+  - Renamed the trial metric heading in the Android profile card from the generic paid-plan wording to a dedicated `Trial Access` label.
+  - Neutralized the remaining hidden backend fallback trial quota label from `5 GB` to `UNLIMITED` in customer and inventory services so future admin/fallback paths do not reintroduce a fake trial cap.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx2048m -Xms512m"'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.

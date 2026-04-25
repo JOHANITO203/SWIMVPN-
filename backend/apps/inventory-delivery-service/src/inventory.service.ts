@@ -23,7 +23,7 @@ import { canAllocateSupplierConfig } from './supplier-capacity.policy';
 export class InventoryService {
   private static readonly DEFAULT_SOURCE_QUOTA_GB = 1000n;
   private static readonly DEFAULT_MAX_USERS_PER_CONFIG = 5;
-  private static readonly TRIAL_QUOTA_LABEL = '5 GB';
+  private static readonly TRIAL_QUOTA_LABEL = 'UNLIMITED';
   private static readonly TRIAL_DURATION_LABEL = '3 Days';
 
   constructor(
