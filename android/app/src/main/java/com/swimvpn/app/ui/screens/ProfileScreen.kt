@@ -774,13 +774,14 @@ private fun activeConfigTrafficRow(metadata: ActiveConfigMetadata): ActiveConfig
 }
 
 private fun formatMetadataExpiry(expiresAt: String): String {
-    if (DATE_ONLY_PATTERN.matches(expiresAt)) {
-        return expiresAt
+    if (hasDateOnlySemantics(expiresAt)) {
+        return expiresAt.take(DATE_ONLY_LENGTH)
     }
     val formats = listOf(
         "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
         "yyyy-MM-dd'T'HH:mm:ssXXX",
-        "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss"
     )
     for (pattern in formats) {
         runCatching {
@@ -794,7 +795,13 @@ private fun formatMetadataExpiry(expiresAt: String): String {
     return expiresAt
 }
 
+private fun hasDateOnlySemantics(expiresAt: String): Boolean {
+    return DATE_ONLY_PATTERN.matches(expiresAt) || MIDNIGHT_TIMESTAMP_PATTERN.matches(expiresAt)
+}
+
+private const val DATE_ONLY_LENGTH = 10
 private val DATE_ONLY_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
+private val MIDNIGHT_TIMESTAMP_PATTERN = Regex("""\d{4}-\d{2}-\d{2}T00:00:00(?:\.0{1,9})?(?:Z|[+-]\d{2}:\d{2})?""")
 
 @Composable
 fun ManagementRow(icon: ImageVector, title: String, onClick: () -> Unit) {

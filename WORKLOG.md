@@ -1,5 +1,13 @@
 # WORKLOG
 
+## [2026-04-25] [Android Task 4 Final Follow-up - Midnight Timestamp Date Semantics]
+- **Status**: DONE
+- **Changes**:
+    - Updated `ProfileScreen.kt` expiry formatting so date-semantic midnight timestamps such as `2026-04-25T00:00:00Z` are displayed as date-only instead of being converted into local `yyyy-MM-dd HH:mm`.
+    - Preserved date-only semantics for both plain dates and midnight timestamp variants, avoiding invented clock time and timezone-caused day shifts for effectively date-based parser metadata.
+- **Verification**:
+    - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
 ## [2026-04-25] [Android Task 4 Follow-up - Active Config Honesty Fixes]
 - **Status**: DONE
 - **Changes**:
