@@ -516,3 +516,14 @@ u after each future language batch
   - supplier-expired config marks linked assignments expired
 - Keep the Android truth visible in product follow-up:
   - old imported configs still need re-import before the profile card can show the persisted parser analytics metadata.
+
+## [2026-04-25] Supplier Bundle Parsing Follow-up
+- Import a real `wb.routerwb.ru` supplier resource through the admin/backend path and verify the stored inventory row contains:
+  - extracted subscription URL
+  - source used bytes
+  - source total bytes
+  - supplier expiry
+  - provider name
+  - connected-device-derived `used_resale_slots`
+- Surface the new supplier metadata through the admin UI so resources no longer look empty.
+- Re-check the Android/profile flow after a real supplier-backed assignment exists, especially for traffic remaining and expiry display.

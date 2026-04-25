@@ -1598,3 +1598,29 @@ pm run build PASSED.
   - `cd backend && npx prisma migrate resolve --applied 20260425153000_supplier_capacity_alignment --schema prisma/schema.prisma` PASSED.
   - `cd backend && npx prisma migrate status` PASSED with `Database schema is up to date!`.
   - `cd backend && npm run prisma:seed` PASSED.
+
+## [2026-04-25] [Backend Supplier Bundle Import Parsing]
+- **Status**: DONE
+- **Changes**:
+  - Added backend supplier-resource parsing in `vpn-config-engine-service` so admin/import flows can ingest a provider message bundle instead of only raw `vless://` or `ss://` links.
+  - Added support for extracting the actual subscription URL from mixed supplier text blocks such as `https://wb.routerwb.ru/...`.
+  - Added metadata extraction for provider bundles:
+    - provider name
+    - traffic used
+    - traffic total
+    - supplier expiry
+    - connected devices count
+    - supplier device limit
+  - Updated `inventory-delivery-service` import flow to store parsed supplier metadata automatically into inventory fields:
+    - `raw_config` now keeps the extracted deliverable subscription URL
+    - `source_quota_bytes`
+    - `source_used_bytes`
+    - `supplier_expires_at`
+    - `supplier_provider_name`
+    - `supplier_device_limit`
+    - `used_resale_slots` seeded from detected connected-device count
+  - Added a focused regression script for the exact `VlessWB / wb.routerwb.ru` style supplier message.
+- **Verification**:
+  - `cd backend && node -r ts-node/register/transpile-only -r tsconfig-paths/register apps/vpn-config-engine-service/src/__tests__/supplier-resource-parser.spec.ts` PASSED.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.

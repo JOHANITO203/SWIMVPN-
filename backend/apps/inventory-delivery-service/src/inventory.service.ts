@@ -37,16 +37,47 @@ export class InventoryService {
     const results = [];
 
     for (const raw of data.configs) {
-      const profile: SwimVpnProfile = await firstValueFrom(
-        this.vpnClient.send({ cmd: 'parse_config' }, { rawConfig: raw }),
+      const supplierResource: {
+        rawConfig: string;
+        parsedProfile: SwimVpnProfile;
+        metadata: {
+          providerName?: string;
+          trafficUsedBytes?: number;
+          trafficTotalBytes?: number;
+          expiresAt?: string;
+          connectedDevices?: number;
+          deviceLimit?: number;
+        };
+      } = await firstValueFrom(
+        this.vpnClient.send({ cmd: 'process_supplier_resource' }, { rawConfig: raw }),
       );
+      const profile = supplierResource.parsedProfile;
 
       if (profile.validationState === 'VALID') {
-        const supplierExpiresAt = data.supplierExpiresAt ? new Date(data.supplierExpiresAt) : null;
+        const supplierExpiresAt = data.supplierExpiresAt
+          ? new Date(data.supplierExpiresAt)
+          : supplierResource.metadata.expiresAt
+            ? new Date(supplierResource.metadata.expiresAt)
+            : null;
+        const sourceQuotaBytes =
+          typeof supplierResource.metadata.trafficTotalBytes === 'number'
+            ? BigInt(supplierResource.metadata.trafficTotalBytes)
+            : this.toBytesFromGb(
+                BigInt(data.sourceQuotaGb ?? Number(InventoryService.DEFAULT_SOURCE_QUOTA_GB)),
+              );
+        const sourceUsedBytes =
+          typeof supplierResource.metadata.trafficUsedBytes === 'number'
+            ? BigInt(supplierResource.metadata.trafficUsedBytes)
+            : 0n;
+        const usedResaleSlots = Math.min(
+          supplierResource.metadata.connectedDevices ?? 0,
+          data.maxResaleSlots ?? DEFAULT_RESALE_SLOT_CAP,
+        );
+        const maxResaleSlots = data.maxResaleSlots ?? DEFAULT_RESALE_SLOT_CAP;
         const item = await this.prisma.inventoryItem.create({
           data: {
             category: data.category,
-            raw_config: raw,
+            raw_config: supplierResource.rawConfig,
             config_type: profile.protocol,
             display_protocol: profile.protocol,
             batch_name: data.batchName,
@@ -54,17 +85,25 @@ export class InventoryService {
             health_status:
               supplierExpiresAt && supplierExpiresAt.getTime() <= Date.now()
                 ? InventoryHealthStatus.EXPIRED
+                : usedResaleSlots >= maxResaleSlots
+                  ? InventoryHealthStatus.FULL
                 : InventoryHealthStatus.HEALTHY,
-            source_quota_bytes: this.toBytesFromGb(
-              BigInt(data.sourceQuotaGb ?? Number(InventoryService.DEFAULT_SOURCE_QUOTA_GB)),
-            ),
+            source_quota_bytes: sourceQuotaBytes,
+            source_used_bytes: sourceUsedBytes,
             max_customer_allocations:
               data.maxUsersPerConfig ?? InventoryService.DEFAULT_MAX_USERS_PER_CONFIG,
-            max_resale_slots: data.maxResaleSlots ?? DEFAULT_RESALE_SLOT_CAP,
+            max_resale_slots: maxResaleSlots,
+            used_resale_slots: usedResaleSlots,
             supplier_expires_at: supplierExpiresAt,
-            supplier_provider_name: data.supplierProviderName?.trim() || null,
+            supplier_provider_name:
+              data.supplierProviderName?.trim() ||
+              supplierResource.metadata.providerName?.trim() ||
+              null,
             supplier_device_limit:
-              data.supplierDeviceLimit ?? data.maxUsersPerConfig ?? DEFAULT_SUPPLIER_DEVICE_LIMIT,
+              data.supplierDeviceLimit ??
+              supplierResource.metadata.deviceLimit ??
+              data.maxUsersPerConfig ??
+              DEFAULT_SUPPLIER_DEVICE_LIMIT,
           },
         });
         results.push({ id: item.id, status: 'IMPORTED' });

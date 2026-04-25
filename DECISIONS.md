@@ -661,3 +661,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Paid orders can enter `PENDING_FULFILLMENT` when payment succeeds but no supplier config has enough remaining healthy capacity.
   - Admin tooling and audit logs can reason about `used_resale_slots`, config health, assignment status, and manual reassignment/revocation.
   - Backend profile payloads now expose commercial allowance (`devicesAllowed`) separately from supplier-managed quota/expiration truth.
+
+## [2026-04-25] [Backend Import Must Parse Supplier Message Bundles, Not Just Bare Config Links]
+- **Decision**: The backend import path now accepts a supplier message bundle and extracts the deliverable subscription URL plus metadata, instead of requiring admins to manually strip the text down to a bare link first.
+- **Why**: Real supplier resources often arrive as rich Telegram/bot messages containing the usable subscription URL, quota, expiry, provider name, and current connected-device count in one block. Requiring manual cleanup loses critical truth and creates empty inventory metadata.
+- **Impact**:
+  - Inventory imports can preserve the meaningful supplier metadata needed for product truth.
+  - The backend now seeds `used_resale_slots` from already-connected supplier devices when detected.
+  - The app can later display provider-driven traffic and expiry more honestly once the backend resource exists.

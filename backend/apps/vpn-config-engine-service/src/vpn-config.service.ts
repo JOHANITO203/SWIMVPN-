@@ -46,6 +46,21 @@ export interface ResolvedSwimCryptImportResult {
   compressed: boolean;
 }
 
+export interface SupplierResourceMetadata {
+  providerName?: string;
+  trafficUsedBytes?: number;
+  trafficTotalBytes?: number;
+  expiresAt?: string;
+  connectedDevices?: number;
+  deviceLimit?: number;
+}
+
+export interface SupplierResourceParseResult {
+  rawConfig: string;
+  parsedProfile: SwimVpnProfile;
+  metadata: SupplierResourceMetadata;
+}
+
 @Injectable()
 export class VpnConfigService {
   private static readonly CRYPT1_NONCE_BYTES = 12;
@@ -80,6 +95,18 @@ export class VpnConfigService {
     };
   }
 
+  processSupplierResource(raw: string): SupplierResourceParseResult {
+    const extractedRawConfig = this.extractPrimaryConfigCandidate(raw);
+    const parsedProfile = this.parse(extractedRawConfig);
+    const metadata = this.extractSupplierMetadata(raw);
+
+    return {
+      rawConfig: extractedRawConfig,
+      parsedProfile,
+      metadata,
+    };
+  }
+
   private ingest(raw: string): string {
     return raw.trim();
   }
@@ -88,6 +115,9 @@ export class VpnConfigService {
     try {
       if (trimmed.startsWith('vless://')) {
         return this.parseVless(trimmed);
+      }
+      if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+        return this.parseSubscriptionLink(trimmed);
       }
       if (trimmed.startsWith('ss://')) {
         return this.parseShadowsocks(trimmed);
@@ -240,6 +270,24 @@ export class VpnConfigService {
     };
   }
 
+  private parseSubscriptionLink(raw: string): SwimVpnProfile {
+    const url = new URL(raw);
+    const port = url.port ? parseInt(url.port, 10) : url.protocol === 'http:' ? 80 : 443;
+
+    return {
+      rawConfig: raw,
+      protocol: VpnProtocol.UNKNOWN,
+      uuid: url.pathname || url.hostname,
+      address: url.hostname,
+      port,
+      security: url.protocol.replace(':', ''),
+      transport: 'subscription',
+      path: url.pathname || undefined,
+      displayTitle: url.hostname,
+      validationState: 'VALID',
+    };
+  }
+
   async checkHealth(raw: string): Promise<{ alive: boolean; latency?: number }> {
     const profile = this.parse(raw);
     if (profile.validationState === 'INVALID') {
@@ -376,5 +424,153 @@ export class VpnConfigService {
       validationState: 'INVALID',
       errorMessage: msg,
     };
+  }
+
+  private extractPrimaryConfigCandidate(raw: string): string {
+    const trimmed = raw.trim();
+    if (
+      trimmed.startsWith('vless://') ||
+      trimmed.startsWith('ss://') ||
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://')
+    ) {
+      return trimmed.split(/\s+/)[0].trim();
+    }
+
+    const directUrlMatches = Array.from(trimmed.matchAll(/https?:\/\/[^\s)]+/gi)).map((match) =>
+      match[0].trim(),
+    );
+    if (directUrlMatches.length > 0) {
+      return directUrlMatches[0];
+    }
+
+    const embeddedUrlMatch = trimmed.match(/\((https?:\/\/[^\s)]+)\)/i);
+    if (embeddedUrlMatch?.[1]) {
+      return embeddedUrlMatch[1].trim();
+    }
+
+    return trimmed;
+  }
+
+  private extractSupplierMetadata(raw: string): SupplierResourceMetadata {
+    const trimmed = raw.trim();
+    const lines = trimmed
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    const providerName = lines.find((line) =>
+      /^[A-Za-z][A-Za-z0-9+\-_ ]{2,40}$/.test(line) &&
+      !/^https?:\/\//i.test(line) &&
+      !/^wb\./i.test(line) &&
+      !/subscription page/i.test(line),
+    );
+
+    const usedTrafficLine = lines.find((line) => /израсходовано|used/i.test(line));
+    const totalTrafficLine = lines.find((line) => /трафик|traffic/i.test(line));
+    const expiryLine = lines.find((line) => /истекает|expires/i.test(line));
+    const connectedLine = lines.find((line) => /подключили|connected/i.test(line));
+    const deviceLimitLine = lines.find((line) => /лимит устройств|device limit/i.test(line));
+
+    const usedTrafficMatch = usedTrafficLine?.match(
+      /([\d.,]+)\s*([ГгGgМмMmКкKkТтTt]?[БB])\s*\/\s*([\d.,]+)\s*([ГгGgМмMmКкKkТтTt]?[БB])/u,
+    );
+    const totalTrafficMatch =
+      totalTrafficLine?.match(/([\d.,]+)\s*([ГгGgМмMmКкKkТтTt]?[БB])/u) || usedTrafficMatch;
+
+    const trafficUsedBytes = usedTrafficMatch
+      ? this.toBytes(usedTrafficMatch[1], usedTrafficMatch[2])
+      : undefined;
+    const trafficTotalBytes = usedTrafficMatch
+      ? this.toBytes(usedTrafficMatch[3], usedTrafficMatch[4])
+      : totalTrafficMatch
+        ? this.toBytes(totalTrafficMatch[1], totalTrafficMatch[2])
+      : undefined;
+
+    const connectedMatch = connectedLine?.match(/(\d+)/);
+    const deviceLimitMatch = deviceLimitLine?.match(/(\d+)/);
+    const expiryMatch = expiryLine?.match(/(\d{1,2})\s+([^\d\s]+)\s+(\d{4})/u);
+
+    return {
+      providerName,
+      trafficUsedBytes,
+      trafficTotalBytes,
+      expiresAt: expiryMatch
+        ? this.normalizeHumanExpiry(expiryMatch[1], expiryMatch[2], expiryMatch[3])
+        : undefined,
+      connectedDevices: connectedMatch ? parseInt(connectedMatch[1], 10) : undefined,
+      deviceLimit: deviceLimitMatch ? parseInt(deviceLimitMatch[1], 10) : undefined,
+    };
+  }
+
+  private toBytes(rawNumber: string, rawUnit: string): number {
+    const numeric = Number.parseFloat(rawNumber.replace(',', '.'));
+    const normalizedUnit = rawUnit
+      .toUpperCase()
+      .replace('Б', 'B')
+      .replace('Г', 'G')
+      .replace('М', 'M')
+      .replace('К', 'K')
+      .replace('Т', 'T')
+      .replace('Т', 'T')
+      .replace('TB', 'TB')
+      .replace('GB', 'GB')
+      .replace('MB', 'MB')
+      .replace('KB', 'KB');
+
+    const factor =
+      normalizedUnit.startsWith('TB')
+        ? 1024 ** 4
+        : normalizedUnit.startsWith('GB')
+          ? 1024 ** 3
+          : normalizedUnit.startsWith('MB')
+            ? 1024 ** 2
+            : normalizedUnit.startsWith('KB')
+              ? 1024
+              : 1;
+
+    return Math.round(numeric * factor);
+  }
+
+  private normalizeHumanExpiry(day: string, monthWord: string, year: string): string | undefined {
+    const monthIndex = this.resolveMonthIndex(monthWord);
+    if (!monthIndex) {
+      return undefined;
+    }
+
+    const date = new Date(Date.UTC(Number.parseInt(year, 10), monthIndex - 1, Number.parseInt(day, 10)));
+    return Number.isNaN(date.getTime()) ? undefined : date.toISOString().replace('.000', '');
+  }
+
+  private resolveMonthIndex(monthWord: string): number | undefined {
+    const normalized = monthWord.trim().toLowerCase();
+    const months: Record<string, number> = {
+      января: 1,
+      февраля: 2,
+      марта: 3,
+      апреля: 4,
+      мая: 5,
+      июня: 6,
+      июля: 7,
+      августа: 8,
+      сентября: 9,
+      октября: 10,
+      ноября: 11,
+      декабря: 12,
+      january: 1,
+      february: 2,
+      march: 3,
+      april: 4,
+      may: 5,
+      june: 6,
+      july: 7,
+      august: 8,
+      september: 9,
+      october: 10,
+      november: 11,
+      december: 12,
+    };
+
+    return months[normalized];
   }
 }
