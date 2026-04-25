@@ -536,3 +536,7 @@ u after each future language batch
   - real used traffic percentage derived from backend supplier analytics
 - Keep the Android import-config debt visible separately:
   - previously imported configs still need re-import before their persisted parser analytics appear on the profile card.
+
+## [2026-04-25] Pending Fulfillment UI Follow-up
+- Re-test on device a paid order that lands in `PENDING_FULFILLMENT` and confirm both home and profile show the same state.
+- Verify a supplier quota with decimals, such as `178.7 GB`, renders correctly in the paid access analytics card.

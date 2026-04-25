@@ -677,3 +677,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Backend profile payloads now expose `planDisplayName`.
   - Android home/profile surfaces no longer need to show internal commercial codes for paid access.
   - `SWIMVPN Access` now prioritizes exact expiry date and real consumption over supplier-brand metadata.
+
+## [2026-04-25] [Paid Access Pending Fulfillment Must Stay Explicit In UI]
+- **Decision**: `PENDING_FULFILLMENT` must remain a first-class user-visible state in Android instead of being shown as either `ACTIVE` or `INACTIVE`.
+- **Why**: A paid order that has been confirmed but not yet assigned is neither active nor absent. Hiding this state causes contradictory UI and breaks the truth of the fulfillment model.
+- **Impact**:
+  - Home badge and profile status now stay aligned with backend fulfillment truth.
+  - Users can distinguish “paid and being prepared” from “active” and “expired”.
+  - Support/debugging becomes easier because the UI no longer masks pending delivery as inactivity.

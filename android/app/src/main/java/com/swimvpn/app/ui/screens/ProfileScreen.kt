@@ -778,6 +778,7 @@ private fun profileBadgeText(profile: AccessProfileResponse, context: android.co
     when (profile.status) {
         "PROFILE_INCOMPLETE" -> context.getString(R.string.profile_status_complete_profile)
         "TRIAL_AVAILABLE" -> context.getString(R.string.profile_status_trial_available)
+        "PENDING_FULFILLMENT" -> context.getString(R.string.profile_status_pending_fulfillment)
         "EXPIRED" -> context.getString(R.string.profile_status_expired)
         "ACTIVE" -> {
             if (profile.accessType == "TRIAL") {
@@ -793,6 +794,7 @@ private fun profileStatusText(profile: AccessProfileResponse, context: android.c
     when (profile.status) {
         "PROFILE_INCOMPLETE" -> context.getString(R.string.profile_status_complete_profile)
         "TRIAL_AVAILABLE" -> context.getString(R.string.profile_status_trial_available)
+        "PENDING_FULFILLMENT" -> context.getString(R.string.profile_status_pending_fulfillment)
         "EXPIRED" -> context.getString(R.string.profile_status_expired)
         "ACTIVE" -> {
             if (profile.accessType == "TRIAL") {
@@ -821,6 +823,7 @@ private fun profileBadgeColor(profile: AccessProfileResponse): Color =
     when (profile.status) {
         "PROFILE_INCOMPLETE" -> Color(0xFFB45309)
         "TRIAL_AVAILABLE" -> SwimBlueMain
+        "PENDING_FULFILLMENT" -> Color(0xFFB45309)
         "EXPIRED" -> Color(0xFFDC2626)
         "ACTIVE" -> if (profile.accessType == "TRIAL") SwimBlueMain else Color(0xFF15803D)
         else -> Color(0xFF64748B)
@@ -830,6 +833,7 @@ private fun profileBadgeBackground(profile: AccessProfileResponse): Color =
     when (profile.status) {
         "PROFILE_INCOMPLETE" -> Color(0xFFFFFBEB)
         "TRIAL_AVAILABLE" -> Color(0xFFEFF6FF)
+        "PENDING_FULFILLMENT" -> Color(0xFFFFFBEB)
         "EXPIRED" -> Color(0xFFFEF2F2)
         "ACTIVE" -> if (profile.accessType == "TRIAL") Color(0xFFEFF6FF) else Color(0xFFF0FDF4)
       else -> Color(0xFFF8FAFC)

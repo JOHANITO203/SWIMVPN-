@@ -38,7 +38,7 @@ data class AccessProfileResponse(
     val subscriptionExpiresAt: String?,
     val subscriptionUrl: String?,
     val devicesAllowed: Int,
-    val dataLimitGB: Int,
+    val dataLimitGB: Double,
     val dataUsedBytes: String,
     val fulfillmentStatus: String? = null,
     val supplierExpiresAt: String? = null,
@@ -58,7 +58,7 @@ data class AccessProfileResponse(
         get() = dataLimitGB > 0
 
     val dataLimitBytes: Long
-        get() = if (hasMeasuredLimit) dataLimitGB.toLong() * 1024L * 1024L * 1024L else 0L
+        get() = if (hasMeasuredLimit) (dataLimitGB * 1024.0 * 1024.0 * 1024.0).toLong() else 0L
 
     fun totalConsumedBytes(bytesIn: Long = 0L, bytesOut: Long = 0L): Long =
         parsedDataUsedBytes + bytesIn + bytesOut

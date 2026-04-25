@@ -458,6 +458,7 @@ fun HomeScreen(
     }
     val badgeText = when {
         profile.status == "EXPIRED" -> stringResource(R.string.status_expired)
+        profile.status == "PENDING_FULFILLMENT" -> stringResource(R.string.home_badge_pending_fulfillment)
         profile.accessType == "TRIAL" -> stringResource(R.string.home_badge_trial)
         publicPlanCode == "PREMIUM" -> stringResource(R.string.home_badge_premium)
         publicPlanCode == "PLATINUM" -> stringResource(R.string.home_badge_platinum)

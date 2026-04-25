@@ -32,6 +32,7 @@
     <string name="home_badge_basic">BASIC ACTIVE</string>
     <string name="home_badge_premium">PREMIUM ACTIVE</string>
     <string name="home_badge_platinum">PLATINUM ACTIVE</string>
+    <string name="home_badge_pending_fulfillment">ACCESS PREPARING</string>
     <string name="home_badge_access">ACCESS ACTIVE</string>
     <string name="home_proxy_ready">Local proxy ready for manual or proxy-aware apps</string>
     <string name="home_connected_via">Connected via %1$s, %2$s</string>
@@ -118,6 +119,7 @@
     <string name="profile_expiring_soon">Expiring soon</string>
     <string name="profile_status_complete_profile">COMPLETE PROFILE</string>
     <string name="profile_status_trial_available">TRIAL READY</string>
+    <string name="profile_status_pending_fulfillment">PREPARING ACCESS</string>
     <string name="profile_status_expired">EXPIRED</string>
     <string name="profile_status_trial_active">TRIAL ACTIVE</string>
     <string name="profile_status_paid_active">ACTIVE</string>

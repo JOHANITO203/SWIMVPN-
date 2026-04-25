@@ -32,6 +32,7 @@
     <string name="home_badge_basic">BASIC АКТИВЕН</string>
     <string name="home_badge_premium">PREMIUM АКТИВЕН</string>
     <string name="home_badge_platinum">PLATINUM АКТИВЕН</string>
+    <string name="home_badge_pending_fulfillment">ДОСТУП ГОТОВИТСЯ</string>
     <string name="home_badge_access">ДОСТУП АКТИВЕН</string>
     <string name="home_proxy_ready">Локальный прокси готов для ручного использования или proxy-aware приложений</string>
     <string name="home_connected_via">Подключено через %1$s, %2$s</string>
@@ -118,6 +119,7 @@
     <string name="profile_expiring_soon">Скоро истекает</string>
     <string name="profile_status_complete_profile">ЗАПОЛНИТЬ ПРОФИЛЬ</string>
     <string name="profile_status_trial_available">ПРОБНЫЙ ДОСТУП ГОТОВ</string>
+    <string name="profile_status_pending_fulfillment">ПОДГОТОВКА ДОСТУПА</string>
     <string name="profile_status_expired">ИСТЕКЛО</string>
     <string name="profile_status_trial_active">ПРОБНЫЙ ПЕРИОД АКТИВЕН</string>
     <string name="profile_status_paid_active">АКТИВЕН</string>

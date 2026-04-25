@@ -1648,3 +1648,17 @@ pm run build PASSED.
   - `cd backend && npm run lint` PASSED.
   - `cd backend && npm run build:all` PASSED.
   - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
+## [2026-04-25] [Paid Access Pending State And Decimal Quota Fix]
+- **Status**: DONE
+- **Changes**:
+  - Fixed paid-profile state coherence so `PENDING_FULFILLMENT` no longer appears as active on the home badge.
+  - Added explicit user-facing `PENDING_FULFILLMENT` messaging on the profile card and badge text instead of collapsing it into `INACTIVE`.
+  - Changed Android `AccessProfileResponse.dataLimitGB` from `Int` to `Double` so supplier quotas with decimal values no longer lose precision or risk deserialization mismatches.
+  - Kept the product truth unchanged:
+    - paid plan label stays public (`Basic / Premium / Platinum`)
+    - exact expiry date remains visible
+    - traffic percentage continues to use backend supplier analytics.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process -Dorg.gradle.jvmargs="-Xmx2048m -Xms512m"'; .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
