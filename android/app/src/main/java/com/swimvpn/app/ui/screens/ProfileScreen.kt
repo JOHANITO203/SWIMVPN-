@@ -386,6 +386,10 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
         ActiveConfigSource.SWIMVPN_MANAGED -> stringResource(R.string.active_config_source_managed)
         ActiveConfigSource.IMPORTED_CONFIG -> stringResource(R.string.active_config_source_imported)
     }
+    val trafficSummary = activeConfigTrafficSummary(metadata)
+    val formattedExpiry = metadata.expiresAt
+        ?.takeIf { it.isNotBlank() }
+        ?.let(::formatMetadataExpiry)
     val sourceBadgeColor = when (metadata.source) {
         ActiveConfigSource.SWIMVPN_MANAGED -> SwimBlueMain
         ActiveConfigSource.IMPORTED_CONFIG -> Color(0xFF7C3AED)
@@ -440,6 +444,14 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
                 }
             }
 
+            if (trafficSummary != null || formattedExpiry != null) {
+                Spacer(modifier = Modifier.height(22.dp))
+                ActiveConfigStatusGrid(
+                    trafficSummary = trafficSummary,
+                    formattedExpiry = formattedExpiry
+                )
+            }
+
             metadata.providerName?.takeIf { it.isNotBlank() }?.let { providerName ->
                 Spacer(modifier = Modifier.height(20.dp))
                 MetadataRow(
@@ -455,22 +467,94 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
                     value = protocol.uppercase(Locale.getDefault())
                 )
             }
+        }
+    }
+}
 
-            activeConfigTrafficRow(metadata)?.let { trafficRow ->
-                Spacer(modifier = Modifier.height(16.dp))
-                MetadataRow(
-                    label = stringResource(trafficRow.labelRes),
-                    value = trafficRow.value
+@Composable
+private fun ActiveConfigStatusGrid(
+    trafficSummary: ActiveConfigTrafficSummary?,
+    formattedExpiry: String?,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF8FAFC), RoundedCornerShape(18.dp))
+            .padding(16.dp)
+    ) {
+        trafficSummary?.let { summary ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(summary.labelRes),
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF475569),
+                    fontSize = 12.sp,
+                    letterSpacing = 0.4.sp
+                )
+                summary.percentageLabel?.let { percentageLabel ->
+                    Text(
+                        text = percentageLabel,
+                        fontWeight = FontWeight.Black,
+                        color = SwimBlueMain,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = summary.primaryValue,
+                fontWeight = FontWeight.Black,
+                color = SwimNavyMouth,
+                fontSize = 18.sp
+            )
+            summary.progress?.let { progress ->
+                Spacer(modifier = Modifier.height(12.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(CircleShape),
+                    color = SwimBlueMain,
+                    trackColor = Color(0xFFE2E8F0)
                 )
             }
-
-            metadata.expiresAt?.takeIf { it.isNotBlank() }?.let { expiresAt ->
-                Spacer(modifier = Modifier.height(16.dp))
-                MetadataRow(
-                    label = stringResource(R.string.active_config_expiration),
-                    value = formatMetadataExpiry(expiresAt)
+            summary.remainingBytes?.let { remainingBytes ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "${stringResource(R.string.label_left)}: ${formatQuotaBytes(remainingBytes)}",
+                    color = Color(0xFF64748B),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
+        }
+
+        if (trafficSummary != null && formattedExpiry != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = Color(0xFFE2E8F0))
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        formattedExpiry?.let { expiry ->
+            Text(
+                text = stringResource(R.string.active_config_expiration),
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF475569),
+                fontSize = 12.sp,
+                letterSpacing = 0.4.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = expiry,
+                fontWeight = FontWeight.Black,
+                color = SwimNavyMouth,
+                fontSize = 18.sp
+            )
         }
     }
 }
@@ -748,26 +832,39 @@ private fun formatQuotaBytes(bytes: Long): String {
     }
 }
 
-private data class ActiveConfigTrafficRow(
+private data class ActiveConfigTrafficSummary(
     val labelRes: Int,
-    val value: String,
+    val primaryValue: String,
+    val remainingBytes: Long? = null,
+    val progress: Float? = null,
+    val percentageLabel: String? = null,
 )
 
-private fun activeConfigTrafficRow(metadata: ActiveConfigMetadata): ActiveConfigTrafficRow? {
-    val used = metadata.trafficUsedBytes?.let(::formatQuotaBytes)
-    val total = metadata.trafficTotalBytes?.let(::formatQuotaBytes)
+private fun activeConfigTrafficSummary(metadata: ActiveConfigMetadata): ActiveConfigTrafficSummary? {
+    val usedBytes = metadata.trafficUsedBytes
+    val totalBytes = metadata.trafficTotalBytes
+    val used = usedBytes?.let(::formatQuotaBytes)
+    val total = totalBytes?.let(::formatQuotaBytes)
+
     return when {
-        used != null && total != null -> ActiveConfigTrafficRow(
+        usedBytes != null && totalBytes != null && totalBytes > 0L -> {
+            val progress = (usedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+            val remaining = (totalBytes - usedBytes).coerceAtLeast(0L)
+            ActiveConfigTrafficSummary(
+                labelRes = R.string.active_config_quota,
+                primaryValue = "${formatQuotaBytes(usedBytes)} / ${formatQuotaBytes(totalBytes)}",
+                remainingBytes = remaining,
+                progress = progress,
+                percentageLabel = formatUsagePercentage(progress)
+            )
+        }
+        total != null -> ActiveConfigTrafficSummary(
             labelRes = R.string.active_config_quota,
-            value = "$used / $total"
+            primaryValue = total
         )
-        total != null -> ActiveConfigTrafficRow(
-            labelRes = R.string.active_config_quota,
-            value = total
-        )
-        used != null -> ActiveConfigTrafficRow(
+        used != null -> ActiveConfigTrafficSummary(
             labelRes = R.string.active_config_usage,
-            value = used
+            primaryValue = used
         )
         else -> null
     }

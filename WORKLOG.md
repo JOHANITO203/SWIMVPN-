@@ -1546,3 +1546,13 @@ pm run build PASSED.
   - `cd android && $env:GRADLE_OPTS='-Dkotlin.compiler.execution.strategy=in-process'; .\gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest --tests com.swimvpn.app.config.SubscriptionParserTest` PASSED.
   - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
 
+## [2026-04-25] [Android Profile Active Config Metadata Presentation]
+- **Status**: DONE
+- **Changes**:
+  - Made the `Active Config` card surface parser metadata more visibly in the profile screen.
+  - Promoted imported config quota/usage into a dedicated visual block with `used / total`, percentage, remaining bytes, and a progress bar when total quota is available.
+  - Promoted config expiration into the same metadata block so imported config expiry is visible without hunting through small detail rows.
+  - Kept provider, protocol, host, and source badge as secondary details, preserving the separation from `SWIMVPN Access`.
+- **Verification**:
+  - `cd android && .\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` PASSED.
+
