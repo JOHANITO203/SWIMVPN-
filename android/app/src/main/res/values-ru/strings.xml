@@ -181,7 +181,7 @@
 
     <!-- Subscription -->
     <string name="sub_title">ПЛАНЫ&#10;VPN ДОСТУПА</string>
-    <string name="sub_desc">Выберите реальное backend-предложение под ваш трафик и срок доступа.</string>
+    <string name="sub_desc">Выберите тариф, который подходит для ваших задач, и мгновенно защитите свое соединение.</string>
     <string name="title_pricing">ЦЕНЫ</string>
     <string name="plan_weekly">BRONZE</string>
     <string name="plan_weekly_desc">50 ГБ • 299 ₽ / неделя</string>

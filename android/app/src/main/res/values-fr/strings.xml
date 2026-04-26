@@ -181,7 +181,7 @@
 
     <!-- Subscription -->
     <string name="sub_title">FORFAITS&#10;D’ACCÈS VPN</string>
-    <string name="sub_desc">Choisissez l’offre backend réelle qui correspond à votre trafic et à votre durée d’accès.</string>
+    <string name="sub_desc">Choisissez le forfait qui correspond à vos besoins et protégez votre connexion instantanément.</string>
     <string name="title_pricing">TARIFS</string>
     <string name="plan_weekly">BRONZE</string>
     <string name="plan_weekly_desc">50 Go • 299 ₽ / semaine</string>
