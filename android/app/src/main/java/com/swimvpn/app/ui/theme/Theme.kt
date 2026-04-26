@@ -11,11 +11,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+import com.swimvpn.app.R
 
 object AppThemePreference {
     const val SYSTEM = "SYSTEM"
@@ -83,23 +85,42 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 // --- TYPOGRAPHY ---
+val PoppinsFontFamily = FontFamily(
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+    Font(R.font.poppins_black, FontWeight.Black)
+)
+
 val Typography = Typography(
+    displayLarge = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Black, fontSize = 57.sp),
+    displayMedium = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 45.sp),
+    displaySmall = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 36.sp),
     headlineLarge = TextStyle(
-        fontFamily = FontFamily.Default, // Idéalement remplacer par Inter
-        fontWeight = FontWeight.Black,   // Poids 900
+        fontFamily = PoppinsFontFamily,
+        fontWeight = FontWeight.Black,
         fontSize = 32.sp,
         letterSpacing = 2.sp
     ),
+    headlineMedium = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 28.sp),
+    headlineSmall = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 24.sp),
     titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = PoppinsFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp
     ),
+    titleMedium = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp),
+    titleSmall = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Medium, fontSize = 14.sp),
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = PoppinsFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp
-    )
+    ),
+    bodyMedium = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Normal, fontSize = 14.sp),
+    bodySmall = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Normal, fontSize = 12.sp),
+    labelLarge = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Bold, fontSize = 14.sp),
+    labelMedium = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Medium, fontSize = 12.sp),
+    labelSmall = TextStyle(fontFamily = PoppinsFontFamily, fontWeight = FontWeight.Medium, fontSize = 11.sp)
 )
 
 // --- SHAPES ---
