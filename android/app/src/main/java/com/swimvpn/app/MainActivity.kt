@@ -331,16 +331,56 @@ fun AppNavigation(
 @Composable
 fun SplashScreen() {
     val infiniteTransition = rememberInfiniteTransition(label = "splash")
-    
-    // Animation de respiration (taille)
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = 1.10f,
+
+    // 1. Animation de respiration légère du logo
+    val logoScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(2000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "scale"
+        label = "logoScale"
+    )
+
+    // 2. Onde Radar 1 (Scale & Alpha)
+    val radarScale1 by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 2.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "radarScale1"
+    )
+    val radarAlpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "radarAlpha1"
+    )
+
+    // 3. Onde Radar 2 (Décalée)
+    val radarScale2 by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 2.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing, delayMillis = 1250),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "radarScale2"
+    )
+    val radarAlpha2 by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing, delayMillis = 1250),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "radarAlpha2"
     )
 
     Box(
@@ -348,28 +388,55 @@ fun SplashScreen() {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(
-                painter = painterResource(id = R.drawable.swimvpn_logo),
-                contentDescription = stringResource(R.string.content_desc_logo),
-                modifier = Modifier
-                    .size(240.dp)
-                    .scale(scale)
-                    .clip(CircleShape)
-            )
-            Spacer(modifier = Modifier.height(48.dp))
+            
+            Box(contentAlignment = Alignment.Center) {
+                // Onde 1
+                Box(
+                    modifier = Modifier
+                        .size(180.dp)
+                        .scale(radarScale1)
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha1), CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha1 * 0.15f), CircleShape)
+                )
+
+                // Onde 2
+                Box(
+                    modifier = Modifier
+                        .size(180.dp)
+                        .scale(radarScale2)
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha2), CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha2 * 0.15f), CircleShape)
+                )
+
+                // Anneau Premium qui tourne (Proposition 2)
+                CircularProgressIndicator(
+                    modifier = Modifier.size(200.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 2.dp,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+
+                // Logo Central (qui flotte/respire)
+                Image(
+                    painter = painterResource(id = R.drawable.swimvpn_logo),
+                    contentDescription = stringResource(R.string.content_desc_logo),
+                    modifier = Modifier
+                        .size(180.dp)
+                        .scale(logoScale)
+                        .clip(CircleShape)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(72.dp))
+
+            // Texte Corporate espacé
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Black,
-                    letterSpacing = 2.sp
+                    letterSpacing = 6.sp // Espacement premium
                 ),
                 color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(32.dp))
-            LinearProgressIndicator(
-                modifier = Modifier.width(140.dp).height(6.dp).clip(CircleShape),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
     }
