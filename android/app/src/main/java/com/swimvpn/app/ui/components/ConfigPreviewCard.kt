@@ -29,8 +29,8 @@ fun ConfigPreviewCard(
     val borderColor = when (preview.validationStatus) {
         ValidationStatus.VALID -> if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF22C55E)
         ValidationStatus.WARNING -> Color(0xFFF59E0B)
-        ValidationStatus.ERROR -> Color(0xFFEF4444)
-        ValidationStatus.UNKNOWN -> Color(0xFF6B7280)
+        ValidationStatus.ERROR -> MaterialTheme.colorScheme.error
+        ValidationStatus.UNKNOWN -> MaterialTheme.colorScheme.outline
     }
     
     val backgroundColor = if (isSelected) {
@@ -159,8 +159,8 @@ fun ConfigPreviewCard(
             if (preview.warnings.isNotEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFFFEF3C7),
-                    border = BorderStroke(1.dp, Color(0xFFF59E0B))
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
                 ) {
                     Column(
                         modifier = Modifier
@@ -171,21 +171,21 @@ fun ConfigPreviewCard(
                             Icon(
                                 imageVector = Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = Color(0xFF92400E),
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "Warnings",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color(0xFF92400E)
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                         preview.warnings.forEach { warning ->
                             Text(
                                 text = "• $warning",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF92400E),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(start = 18.dp, top = 2.dp)
                             )
                         }
@@ -211,7 +211,7 @@ private fun getProtocolColor(protocol: String): Color {
         "VMESS" -> Color(0xFF8B5CF6)
         "TROJAN" -> Color(0xFF10B981)
         "SHADOWSOCKS" -> Color(0xFFF59E0B)
-        else -> Color(0xFF6B7280)
+        else -> MaterialTheme.colorScheme.outline
     }
 }
 
@@ -348,7 +348,7 @@ fun ClipboardImportSheet(
                     Icon(
                         imageVector = Icons.Default.ContentPaste,
                         contentDescription = null,
-                        tint = Color(0xFF6B7280),
+                        tint = MaterialTheme.colorScheme.outline,
                         modifier = Modifier.size(48.dp)
                     )
                     Text(
@@ -358,7 +358,7 @@ fun ClipboardImportSheet(
                     Text(
                         text = clipboardContent.take(100) + if (clipboardContent.length > 100) "..." else "",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6B7280),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
@@ -385,7 +385,7 @@ fun ClipboardImportSheet(
                         Icon(
                             imageVector = Icons.Default.Error,
                             contentDescription = null,
-                            tint = Color(0xFFEF4444),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(48.dp)
                         )
                         Text(

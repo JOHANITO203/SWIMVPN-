@@ -38,8 +38,6 @@ import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.config.ActiveConfigSource
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.ui.formatBytes
-import com.swimvpn.app.ui.theme.SwimBlueMain
-import com.swimvpn.app.ui.theme.SwimNavyMouth
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -68,7 +66,7 @@ fun ProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(24.dp)
     ) {
@@ -77,17 +75,17 @@ fun ProfileScreen(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                     .clickable { onBack?.invoke() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = SwimNavyMouth)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 stringResource(R.string.title_account),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = SwimNavyMouth)
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
             )
         }
 
@@ -96,10 +94,10 @@ fun ProfileScreen(
         // User Identification Card
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Row(
@@ -110,10 +108,10 @@ fun ProfileScreen(
                     Box(
                         modifier = Modifier
                             .size(72.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape),
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(32.dp))
+                        Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
                     }
                     
                     Surface(
@@ -133,8 +131,8 @@ fun ProfileScreen(
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                Text(stringResource(R.string.label_user_id), fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp)
-                Text(profile.userNumber, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 28.sp)
+                Text(stringResource(R.string.label_user_id), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = 1.sp)
+                Text(profile.userNumber, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, fontSize = 28.sp)
                 val contactLines = buildList {
                     profile.email?.takeIf { it.isNotBlank() }?.let {
                         add(context.getString(R.string.profile_email_format, it))
@@ -146,19 +144,19 @@ fun ProfileScreen(
                 if (contactLines.isEmpty()) {
                     Text(
                         stringResource(R.string.profile_contact_missing),
-                        color = Color(0xFF94A3B8),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
                     )
                 } else {
                     contactLines.forEach { line ->
-                        Text(line, color = Color(0xFF64748B), fontSize = 14.sp)
+                        Text(line, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                     }
                 }
                 localizedPlanName?.takeIf { it.isNotBlank() && profile.accessType != "TRIAL" }?.let { planName ->
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = stringResource(R.string.profile_offer_format, planName),
-                        color = Color(0xFF94A3B8),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         letterSpacing = 0.5.sp
                     )
@@ -180,24 +178,24 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
         
-        Text(stringResource(R.string.label_management), fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp))
+        Text(stringResource(R.string.label_management), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp))
         Spacer(modifier = Modifier.height(12.dp))
 
         // Management List
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
         ) {
             Column {
                 ManagementRow(icon = Icons.Outlined.CreditCard, title = stringResource(R.string.menu_subscription), onClick = onNavigateToSubscription)
-                HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 24.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
                 ManagementRow(icon = Icons.Outlined.LocalOffer, title = stringResource(R.string.menu_import_access), onClick = onNavigateToImport)
-                HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 24.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
                 ManagementRow(icon = Icons.Outlined.Settings, title = stringResource(R.string.menu_technical), onClick = onNavigateToTechnical)
-                HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(horizontal = 24.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
                 ManagementRow(icon = Icons.AutoMirrored.Outlined.HelpOutline, title = stringResource(R.string.menu_support), onClick = onNavigateToSupport)
             }
         }
@@ -209,8 +207,8 @@ fun ProfileScreen(
             onClick = onSignOut,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = SwimNavyMouth),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Text(stringResource(R.string.menu_signout), fontWeight = FontWeight.Black, fontSize = 14.sp, letterSpacing = 1.sp)
         }
@@ -224,7 +222,7 @@ private fun SectionLabel(title: String) {
     Text(
         text = title,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF94A3B8),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontSize = 10.sp,
         letterSpacing = 1.sp,
         modifier = Modifier.padding(horizontal = 8.dp)
@@ -267,17 +265,17 @@ private fun SwimVpnAccessCard(
         0f
     }
     val statusColor = when {
-        isTrial -> SwimBlueMain
-        profile.isExpired -> Color(0xFFEF4444)
-        else -> Color(0xFF22C55E)
+        isTrial -> MaterialTheme.colorScheme.primary
+        profile.isExpired -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.primary // Green/Success generally represented by positive theme color or primary
     }
 
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(
@@ -292,7 +290,7 @@ private fun SwimVpnAccessCard(
                             else R.string.profile_metric_plan_quota
                         ),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         letterSpacing = 0.5.sp
                     )
@@ -300,7 +298,7 @@ private fun SwimVpnAccessCard(
                     Text(
                         text = quotaValue,
                         fontWeight = FontWeight.Black,
-                        color = SwimNavyMouth,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 24.sp
                     )
                 }
@@ -324,7 +322,7 @@ private fun SwimVpnAccessCard(
                         .height(10.dp)
                         .clip(CircleShape),
                     color = statusColor,
-                    trackColor = Color(0xFFF1F5F9)
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -344,12 +342,12 @@ private fun SwimVpnAccessCard(
             } else {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFF8FAFC)
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Text(
                         text = stringResource(R.string.profile_trial_unlimited_note),
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        color = Color(0xFF475569),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -357,7 +355,7 @@ private fun SwimVpnAccessCard(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(color = Color(0xFFE2E8F0))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(24.dp))
 
             Row(
@@ -369,7 +367,7 @@ private fun SwimVpnAccessCard(
                     Text(
                         stringResource(R.string.profile_status_label),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         letterSpacing = 0.5.sp
                     )
@@ -386,7 +384,7 @@ private fun SwimVpnAccessCard(
                     Text(
                         stringResource(R.string.label_expires_at),
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         letterSpacing = 0.5.sp
                     )
@@ -394,7 +392,7 @@ private fun SwimVpnAccessCard(
                     Text(
                         text = exactExpirationText,
                         fontWeight = FontWeight.Bold,
-                        color = if (profile.isExpired) Color(0xFFEF4444) else Color(0xFF22C55E),
+                        color = if (profile.isExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         letterSpacing = 0.5.sp
                     )
@@ -402,7 +400,7 @@ private fun SwimVpnAccessCard(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = expirationText,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
                         )
                     }
@@ -423,20 +421,20 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
         ?.takeIf { it.isNotBlank() }
         ?.let(::formatMetadataExpiry)
     val sourceBadgeColor = when (metadata.source) {
-        ActiveConfigSource.SWIMVPN_MANAGED -> SwimBlueMain
-        ActiveConfigSource.IMPORTED_CONFIG -> Color(0xFF7C3AED)
+        ActiveConfigSource.SWIMVPN_MANAGED -> MaterialTheme.colorScheme.primary
+        ActiveConfigSource.IMPORTED_CONFIG -> MaterialTheme.colorScheme.secondary
     }
     val sourceBadgeBackground = when (metadata.source) {
-        ActiveConfigSource.SWIMVPN_MANAGED -> Color(0xFFEFF6FF)
-        ActiveConfigSource.IMPORTED_CONFIG -> Color(0xFFF5F3FF)
+        ActiveConfigSource.SWIMVPN_MANAGED -> MaterialTheme.colorScheme.primaryContainer
+        ActiveConfigSource.IMPORTED_CONFIG -> MaterialTheme.colorScheme.secondaryContainer
     }
 
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(
@@ -448,14 +446,14 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
                     Text(
                         text = metadata.displayName.ifBlank { stringResource(R.string.profile_unknown) },
                         fontWeight = FontWeight.Black,
-                        color = SwimNavyMouth,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 22.sp
                     )
                     metadata.serverHost?.takeIf { it.isNotBlank() }?.let { host ->
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = host,
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
                         )
                     }
@@ -511,7 +509,7 @@ private fun ActiveConfigStatusGrid(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF8FAFC), RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp))
             .padding(16.dp)
     ) {
         trafficSummary?.let { summary ->
@@ -523,7 +521,7 @@ private fun ActiveConfigStatusGrid(
                 Text(
                     text = stringResource(summary.labelRes),
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     letterSpacing = 0.4.sp
                 )
@@ -531,7 +529,7 @@ private fun ActiveConfigStatusGrid(
                     Text(
                         text = percentageLabel,
                         fontWeight = FontWeight.Black,
-                        color = SwimBlueMain,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 13.sp
                     )
                 }
@@ -540,7 +538,7 @@ private fun ActiveConfigStatusGrid(
             Text(
                 text = summary.primaryValue,
                 fontWeight = FontWeight.Black,
-                color = SwimNavyMouth,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 18.sp
             )
             summary.progress?.let { progress ->
@@ -551,15 +549,15 @@ private fun ActiveConfigStatusGrid(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(CircleShape),
-                    color = SwimBlueMain,
-                    trackColor = Color(0xFFE2E8F0)
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.outlineVariant
                 )
             }
             summary.remainingBytes?.let { remainingBytes ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "${stringResource(R.string.label_left)}: ${formatQuotaBytes(remainingBytes)}",
-                    color = Color(0xFF64748B),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -568,7 +566,7 @@ private fun ActiveConfigStatusGrid(
 
         if (trafficSummary != null && formattedExpiry != null) {
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = Color(0xFFE2E8F0))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -576,7 +574,7 @@ private fun ActiveConfigStatusGrid(
             Text(
                 text = stringResource(R.string.active_config_expiration),
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF475569),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 letterSpacing = 0.4.sp
             )
@@ -584,7 +582,7 @@ private fun ActiveConfigStatusGrid(
             Text(
                 text = expiry,
                 fontWeight = FontWeight.Black,
-                color = SwimNavyMouth,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 18.sp
             )
         }
@@ -600,7 +598,7 @@ private fun MetadataRow(
         Text(
             text = label,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF64748B),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,
             letterSpacing = 0.4.sp
         )
@@ -608,7 +606,7 @@ private fun MetadataRow(
         Text(
             text = value,
             fontWeight = FontWeight.SemiBold,
-            color = SwimNavyMouth,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 14.sp
         )
     }
@@ -623,7 +621,7 @@ private fun UsageStat(
         Text(
             text = title,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF64748B),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,
             letterSpacing = 0.4.sp
         )
@@ -631,7 +629,7 @@ private fun UsageStat(
         Text(
             text = value,
             fontWeight = FontWeight.Black,
-            color = SwimNavyMouth,
+            color = MaterialTheme.colorScheme.onSurface,
             fontSize = 16.sp
         )
     }
@@ -654,24 +652,24 @@ fun TrialActivationProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = SwimNavyMouth)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 stringResource(R.string.title_account),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = SwimNavyMouth)
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
             )
         }
 
@@ -679,20 +677,20 @@ fun TrialActivationProfileScreen(
 
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(24.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFFFF7ED)
+                    color = MaterialTheme.colorScheme.secondaryContainer
                 ) {
                     Text(
                         text = stringResource(R.string.profile_trial_badge),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = Color(0xFFC2410C),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp,
                         letterSpacing = 1.sp
@@ -701,13 +699,13 @@ fun TrialActivationProfileScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Text(stringResource(R.string.profile_trial_id_label), fontWeight = FontWeight.Bold, color = Color(0xFF94A3B8), fontSize = 10.sp, letterSpacing = 1.sp)
-                Text(userNumber, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 28.sp)
+                Text(stringResource(R.string.profile_trial_id_label), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = 1.sp)
+                Text(userNumber, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, fontSize = 28.sp)
 
                 Spacer(modifier = Modifier.height(20.dp))
                 Text(
                     stringResource(R.string.profile_trial_description),
-                    color = Color(0xFF64748B),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     lineHeight = 20.sp
                 )
@@ -741,9 +739,9 @@ fun TrialActivationProfileScreen(
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = RoundedCornerShape(28.dp),
                     enabled = trialEligible && isEmailValid && isPhoneValid,
-                    colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text(stringResource(R.string.profile_activate_trial), color = Color.White, fontWeight = FontWeight.Black)
+                    Text(stringResource(R.string.profile_activate_trial), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -754,7 +752,7 @@ fun TrialActivationProfileScreen(
                     } else {
                         stringResource(R.string.profile_trial_ineligible_note)
                     },
-                    color = if (trialEligible) Color(0xFF64748B) else Color(0xFFDC2626),
+                    color = if (trialEligible) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
                 )
@@ -838,24 +836,26 @@ private fun profileLocalizedPlanName(
         else -> null
     }
 
+@Composable
 private fun profileBadgeColor(profile: AccessProfileResponse): Color =
     when (profile.status) {
-        "PROFILE_INCOMPLETE" -> Color(0xFFB45309)
-        "TRIAL_AVAILABLE" -> SwimBlueMain
-        "PENDING_FULFILLMENT" -> Color(0xFFB45309)
-        "EXPIRED" -> Color(0xFFDC2626)
-        "ACTIVE" -> if (profile.accessType == "TRIAL") SwimBlueMain else Color(0xFF15803D)
-        else -> Color(0xFF64748B)
+        "PROFILE_INCOMPLETE" -> MaterialTheme.colorScheme.error
+        "TRIAL_AVAILABLE" -> MaterialTheme.colorScheme.primary
+        "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.error
+        "EXPIRED" -> MaterialTheme.colorScheme.error
+        "ACTIVE" -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+@Composable
 private fun profileBadgeBackground(profile: AccessProfileResponse): Color =
     when (profile.status) {
-        "PROFILE_INCOMPLETE" -> Color(0xFFFFFBEB)
-        "TRIAL_AVAILABLE" -> Color(0xFFEFF6FF)
-        "PENDING_FULFILLMENT" -> Color(0xFFFFFBEB)
-        "EXPIRED" -> Color(0xFFFEF2F2)
-        "ACTIVE" -> if (profile.accessType == "TRIAL") Color(0xFFEFF6FF) else Color(0xFFF0FDF4)
-      else -> Color(0xFFF8FAFC)
+        "PROFILE_INCOMPLETE" -> MaterialTheme.colorScheme.errorContainer
+        "TRIAL_AVAILABLE" -> MaterialTheme.colorScheme.primaryContainer
+        "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.errorContainer
+        "EXPIRED" -> MaterialTheme.colorScheme.errorContainer
+        "ACTIVE" -> MaterialTheme.colorScheme.primaryContainer
+      else -> MaterialTheme.colorScheme.surfaceVariant
   }
 
 private fun formatUsagePercentage(progress: Float): String {
@@ -956,9 +956,9 @@ fun ManagementRow(icon: ImageVector, title: String, onClick: () -> Unit) {
             .padding(horizontal = 24.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(20.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         Spacer(modifier = Modifier.width(16.dp))
-        Text(title, fontWeight = FontWeight.Bold, color = Color(0xFF475569), fontSize = 12.sp, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color(0xFF94A3B8))
+        Text(title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = 1.sp, modifier = Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

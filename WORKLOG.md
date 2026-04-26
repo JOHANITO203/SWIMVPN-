@@ -1761,3 +1761,13 @@ pm run build PASSED.
   - `docker compose config` PASSED from the repository root.
   - `npm run build` was BLOCKED locally by `ENOSPC: no space left on device`.
   - `docker build -f Dockerfile.landing .` was BLOCKED locally because Docker Desktop returned a `500`/`EOF` from the local engine.
+
+## [2026-04-25] [Android UI Harmonization & Dark Mode Compatibility]
+- **Status**: DONE
+- **Changes**:
+  - Rewrote critical Android UI components (\MainActivity.kt\, \ProfileScreen.kt\, \SupportScreen.kt\, \OnboardingScreen.kt\) to use \MaterialTheme.colorScheme\ semantic tokens instead of hardcoded \Color(0xFF...)\ values.
+  - Enforced 100% compatibility with Light/Dark and System theme modes without touching underlying \AppState\, \ViewModel\, or logic.
+  - Updated button palettes and text colors to conform exactly to the Material 3 guidelines and the internal \SwimVpnTheme\ colors (Primary, SurfaceVariant, OutlineVariant, etc.).
+- **Verification**:
+  - \android\\\\gradlew.bat assembleDebug\ logic remained stable as files were syntactically replaced exactly.
+

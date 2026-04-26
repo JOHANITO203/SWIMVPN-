@@ -94,7 +94,7 @@ fun ServersScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ElectricBlue,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface
@@ -144,8 +144,8 @@ fun ServerItem(
     onTogglePin: () -> Unit,
 ) {
     val borderColor = when {
-        isSelected -> ElectricBlue
-        server.isPinned -> Color(0xFFEAB308)
+        isSelected -> MaterialTheme.colorScheme.primary
+        server.isPinned -> MaterialTheme.colorScheme.secondary
         else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
     }
 
@@ -194,7 +194,7 @@ fun ServerItem(
                     Icon(
                         imageVector = Icons.Default.PushPin,
                         contentDescription = "Pin server",
-                        tint = if (server.isPinned) Color(0xFFEAB308) else MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = if (server.isPinned) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (server.ping > 0) {
@@ -210,7 +210,7 @@ fun ServerItem(
                     progress = { server.load / 100f },
                     modifier = Modifier.size(24.dp),
                     color = getLoadColor(server.load),
-                    trackColor = Color(0xFFF1F5F9),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
                     strokeWidth = 3.dp
                 )
             }
@@ -222,20 +222,20 @@ fun ServerItem(
 private fun PinBadge() {
     Row(
         modifier = Modifier
-            .background(Color(0xFFFEF3C7), CircleShape)
+            .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
             .padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Default.PushPin,
             contentDescription = null,
-            tint = Color(0xFFD97706),
+            tint = MaterialTheme.colorScheme.onSecondaryContainer,
             modifier = Modifier.size(12.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
             text = "PIN",
-            color = Color(0xFF92400E),
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
@@ -251,14 +251,14 @@ fun getFlagEmoji(countryCode: String): String {
 
 @Composable
 fun getPingColor(ping: Int): Color = when {
-    ping < 100 -> Color(0xFF4CAF50)
-    ping < 200 -> Color(0xFFFFC107)
-    else -> Color(0xFFF44336)
+    ping < 100 -> MaterialTheme.colorScheme.primary
+    ping < 200 -> MaterialTheme.colorScheme.secondary
+    else -> MaterialTheme.colorScheme.error
 }
 
 @Composable
 fun getLoadColor(load: Int): Color = when {
-    load < 50 -> Color(0xFF4CAF50)
-    load < 80 -> Color(0xFFFFC107)
-    else -> Color(0xFFF44336)
+    load < 50 -> MaterialTheme.colorScheme.primary
+    load < 80 -> MaterialTheme.colorScheme.secondary
+    else -> MaterialTheme.colorScheme.error
 }

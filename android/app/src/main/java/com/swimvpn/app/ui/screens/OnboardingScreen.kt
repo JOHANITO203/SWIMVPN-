@@ -105,11 +105,11 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             Text(
                 text = if (currentStep < steps.size - 1) stringResource(R.string.onboarding_next) else stringResource(R.string.onboarding_start),
-                color = androidx.compose.ui.graphics.Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp
             )

@@ -145,7 +145,7 @@ fun TechnicalSettingsScreen(
                     onAutoConnectChange(false)
                     onLanguageChange("en")
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF3B30)),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 shape = RoundedCornerShape(20.dp),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 modifier = Modifier.height(36.dp)
@@ -249,7 +249,7 @@ fun TechnicalSettingsScreen(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             Text(
                 text = stringResource(R.string.btn_save),
@@ -528,21 +528,21 @@ private fun RoutingModeButton(
     onClick: () -> Unit,
 ) {
     val borderColor = when {
-        active -> Color(0xFF22C55E)
+        active -> MaterialTheme.colorScheme.secondary
         selected -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.outlineVariant
     }
     val backgroundColor = when {
-        active -> Color(0xFFF0FDF4)
+        active -> MaterialTheme.colorScheme.secondaryContainer
         selected -> MaterialTheme.colorScheme.primaryContainer
         else -> MaterialTheme.colorScheme.surfaceContainer
     }
     val textColor = when {
-        active -> Color(0xFF166534)
+        active -> MaterialTheme.colorScheme.onSecondaryContainer
         selected -> MaterialTheme.colorScheme.onSurface
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val dotColor = if (active) Color(0xFF22C55E) else Color(0xFFCBD5E1)
+    val dotColor = if (active) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant
 
     Surface(
         modifier = modifier
@@ -564,7 +564,7 @@ private fun RoutingModeButton(
                         .background(dotColor, CircleShape)
                         .border(
                             width = if (active) 2.dp else 1.dp,
-                            color = if (active) Color(0xFFBBF7D0) else MaterialTheme.colorScheme.surface,
+                            color = if (active) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface,
                             shape = CircleShape
                         )
                 )
@@ -580,7 +580,7 @@ private fun RoutingModeButton(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = badge,
-                color = if (active) Color(0xFF166534) else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (active) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold,
                 fontSize = 9.sp,
                 letterSpacing = 0.5.sp
@@ -731,8 +731,8 @@ fun SettingsRowWithSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = ElectricBlue
+                checkedThumbColor = MaterialTheme.colorScheme.surface,
+                checkedTrackColor = MaterialTheme.colorScheme.primary
             )
         )
     }

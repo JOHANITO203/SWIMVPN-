@@ -344,7 +344,7 @@ fun SplashScreen() {
     )
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.White),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -354,6 +354,7 @@ fun SplashScreen() {
                 modifier = Modifier
                     .size(240.dp)
                     .scale(scale)
+                    .clip(CircleShape)
             )
             Spacer(modifier = Modifier.height(48.dp))
             Text(
@@ -362,13 +363,13 @@ fun SplashScreen() {
                     fontWeight = FontWeight.Black,
                     letterSpacing = 2.sp
                 ),
-                color = Color(0xFF0A3151)
+                color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(32.dp))
             LinearProgressIndicator(
                 modifier = Modifier.width(140.dp).height(6.dp).clip(CircleShape),
-                color = Color(0xFF4A9ED7),
-                trackColor = Color(0xFFEBF5FF)
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         }
     }
@@ -493,7 +494,7 @@ fun HomeScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -511,14 +512,16 @@ fun HomeScreen(
                     Image(
                         painter = painterResource(id = R.drawable.swimvpn_logo),
                         contentDescription = stringResource(R.string.content_desc_logo),
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = stringResource(R.string.app_name),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Black, 
-                            color = Color(0xFF0F172A),
+                            color = MaterialTheme.colorScheme.onBackground,
                             letterSpacing = 0.5.sp
                         )
                     )
@@ -528,15 +531,15 @@ fun HomeScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF8FAFC))
-                        .border(1.dp, Color(0xFFE2E8F0), CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                         .clickable { onNavigateProfile() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person, 
                         contentDescription = stringResource(R.string.content_desc_profile), 
-                        tint = Color(0xFF475569),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -546,14 +549,14 @@ fun HomeScreen(
 
             // Status Badge
             val badgeColor = when {
-                profile.status == "EXPIRED" -> Color(0xFFFFF1F2) // Red-ish
-                profile.accessType == "TRIAL" -> Color(0xFFFFF7ED) // Orange
-                else -> Color(0xFFF0FDF4) // Green
+                profile.status == "EXPIRED" -> MaterialTheme.colorScheme.errorContainer
+                profile.accessType == "TRIAL" -> MaterialTheme.colorScheme.secondaryContainer
+                else -> MaterialTheme.colorScheme.primaryContainer
             }
             val badgeTextColor = when {
-                profile.status == "EXPIRED" -> Color(0xFFE11D48)
-                profile.accessType == "TRIAL" -> Color(0xFFC2410C)
-                else -> Color(0xFF15803D)
+                profile.status == "EXPIRED" -> MaterialTheme.colorScheme.onErrorContainer
+                profile.accessType == "TRIAL" -> MaterialTheme.colorScheme.onSecondaryContainer
+                else -> MaterialTheme.colorScheme.onPrimaryContainer
             }
 
             Surface(
@@ -578,9 +581,9 @@ fun HomeScreen(
             val isError = vpnState == VpnState.ERROR
             
             val circleOuterColor = when {
-                isActive -> SwimBlueMain.copy(alpha = 0.1f)
-                isError -> Color(0xFFFFE4E6)
-                else -> Color(0xFFF1F5F9)
+                isActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                isError -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                else -> Color.Transparent
             }
             
             Box(
@@ -588,9 +591,9 @@ fun HomeScreen(
                     .size(260.dp)
                     .scale(pulseScale)
                     .shadow(
-                        elevation = if (isActive) 32.dp else 0.dp,
+                        elevation = if (isActive) 16.dp else 2.dp,
                         shape = CircleShape,
-                        spotColor = SwimBlueMain.copy(alpha = 0.4f)
+                        spotColor = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant
                     )
                     .clip(CircleShape)
                     .background(circleOuterColor)
@@ -616,21 +619,21 @@ fun HomeScreen(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                // Background Circle with Gradient Border
+                val innerCircleColor = when {
+                    isActive -> MaterialTheme.colorScheme.primary
+                    isError -> MaterialTheme.colorScheme.errorContainer
+                    else -> MaterialTheme.colorScheme.surface
+                }
+                
+                // Background Circle with Solid Fill or Empty state
                 Box(
                     modifier = Modifier
                         .size(210.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(innerCircleColor)
                         .border(
                             width = 2.dp,
-                            brush = Brush.linearGradient(
-                                colors = when {
-                                    isActive -> listOf(SwimBlueMain, SwimBlueFace)
-                                    isError -> listOf(Color(0xFFFB7185), Color(0xFFE11D48))
-                                    else -> listOf(Color(0xFFE2E8F0), Color(0xFFF1F5F9))
-                                }
-                            ),
+                            color = if (isActive) Color.Transparent else if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant,
                             shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -638,8 +641,8 @@ fun HomeScreen(
                     if (isTransitioning) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(120.dp),
-                            color = SwimBlueMain.copy(alpha = 0.2f),
-                            strokeWidth = 2.dp,
+                            color = if (isActive) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                            strokeWidth = 3.dp,
                             trackColor = Color.Transparent
                         )
                     }
@@ -649,10 +652,10 @@ fun HomeScreen(
                         contentDescription = stringResource(R.string.content_desc_connect),
                         modifier = Modifier.size(88.dp),
                         tint = when {
-                            vpnState == VpnState.CONNECTED -> SwimBlueMain
-                            isTransitioning -> SwimBlueMain.copy(alpha = 0.5f)
-                            isError -> Color(0xFFE11D48)
-                            else -> Color(0xFFCBD5E1)
+                            vpnState == VpnState.CONNECTED -> MaterialTheme.colorScheme.onPrimary
+                            isTransitioning -> if (isActive) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            isError -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         }
                     )
                 }
@@ -666,7 +669,7 @@ fun HomeScreen(
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = SwimBlueMain
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                 }
@@ -680,7 +683,7 @@ fun HomeScreen(
                     },
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.Black, 
-                        color = Color(0xFF0F172A),
+                        color = MaterialTheme.colorScheme.onBackground,
                         letterSpacing = (-0.5).sp
                     )
                 )
@@ -688,7 +691,7 @@ fun HomeScreen(
 
             Text(
                 text = connectionSubtitle,
-                color = Color(0xFF64748B),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(top = 8.dp)
             )
@@ -707,8 +710,8 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(32.dp))
-                    .background(Color(0xFFF8FAFC))
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(32.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(32.dp))
                     .padding(vertical = 24.dp, horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
@@ -716,14 +719,14 @@ fun HomeScreen(
                     label = stringResource(R.string.label_download), 
                     value = formatBytes(bytesIn), 
                     icon = Icons.Default.ArrowDownward, 
-                    color = Color(0xFF22C55E)
+                    color = MaterialTheme.colorScheme.secondary
                 )
-                Box(modifier = Modifier.width(1.dp).height(40.dp).background(Color(0xFFE2E8F0)))
+                Box(modifier = Modifier.width(1.dp).height(40.dp).background(MaterialTheme.colorScheme.outlineVariant))
                 StatItem(
                     label = stringResource(R.string.label_upload), 
                     value = formatBytes(bytesOut),
                     icon = Icons.Default.ArrowUpward, 
-                    color = SwimBlueMain
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -735,8 +738,8 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp),
-            containerColor = SwimBlueMain,
-            contentColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
             shape = RoundedCornerShape(28.dp)
         ) {
             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.content_desc_quick_actions), modifier = Modifier.size(30.dp))
@@ -770,10 +773,10 @@ private fun vpnStateForRuntimeStatus(status: RuntimeStatus): VpnState {
 fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
     Card(
         shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(28.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(28.dp))
             .clickable { onClick() }
     ) {
         Row(
@@ -786,13 +789,13 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(58.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFFF1F5F9)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 val serverLabel = server?.countryCode ?: "--"
                 Text(
                     text = serverLabel.uppercase(),
-                    color = Color(0xFF0F172A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Black,
                     fontSize = 22.sp
                 )
@@ -803,7 +806,7 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.selected_server_title),
-                    color = Color(0xFF94A3B8),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp,
                     letterSpacing = 1.sp
@@ -811,7 +814,7 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = if (server != null) "${server.country}, ${server.city}" else stringResource(R.string.selected_server_none),
-                    color = Color(0xFF0F172A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp
                 )
@@ -830,7 +833,7 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
                     } else {
                         stringResource(R.string.selected_server_hint)
                     },
-                    color = Color(0xFF64748B),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
@@ -839,7 +842,7 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = stringResource(R.string.content_desc_open_server_list),
-                tint = Color(0xFF0F172A)
+                tint = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -851,9 +854,9 @@ fun StatItem(label: String, value: String, icon: androidx.compose.ui.graphics.ve
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text(label, color = Color(0xFF64748B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-        Text(value, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black, color = Color(0xFF0F172A)))
+        Text(value, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface))
     }
 }
 

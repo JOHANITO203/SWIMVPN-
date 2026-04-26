@@ -45,8 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
 import com.swimvpn.app.data.model.Plan
-import com.swimvpn.app.ui.theme.SwimBlueMain
-import com.swimvpn.app.ui.theme.SwimNavyMouth
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -71,7 +69,7 @@ fun SubscriptionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8FAFC))
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(24.dp)
     ) {
@@ -79,19 +77,19 @@ fun SubscriptionScreen(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = SwimNavyMouth)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
                 stringResource(R.string.title_pricing),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Black,
-                    color = SwimNavyMouth,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             )
         }
@@ -102,13 +100,13 @@ fun SubscriptionScreen(
             text = stringResource(R.string.sub_title),
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontWeight = FontWeight.Black,
-                color = SwimNavyMouth,
+                color = MaterialTheme.colorScheme.onSurface,
                 lineHeight = 40.sp,
             )
         )
         Text(
             text = stringResource(R.string.sub_desc),
-            color = Color(0xFF64748B),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 16.sp,
         )
 
@@ -152,7 +150,7 @@ fun SubscriptionScreen(
             text = stringResource(R.string.payment_method_title),
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Black,
-                color = SwimNavyMouth,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         )
 
@@ -184,12 +182,12 @@ fun SubscriptionScreen(
                 .fillMaxWidth()
                 .height(64.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             enabled = selectedPlanId.isNotEmpty()
         ) {
             Text(
                 stringResource(R.string.btn_create_order),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Black,
                 fontSize = 16.sp,
                 letterSpacing = 1.sp,
@@ -205,25 +203,25 @@ fun SubscriptionScreen(
                     Text(
                         text = stringResource(R.string.payment_confirm_email_title),
                         fontWeight = FontWeight.Black,
-                        color = SwimNavyMouth,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = stringResource(R.string.payment_confirm_email_body),
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp,
                         )
                         Surface(
-                            color = Color(0xFFF8FAFC),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
                                 text = normalizedPaymentEmail.ifBlank { stringResource(R.string.payment_confirm_email_missing) },
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                color = SwimNavyMouth,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                             )
@@ -237,21 +235,21 @@ fun SubscriptionScreen(
                             onCheckoutClick(selectedPlanId, selectedPaymentMethod)
                         },
                         enabled = selectedPlanId.isNotEmpty() && normalizedPaymentEmail.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = SwimBlueMain),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     ) {
-                        Text(stringResource(R.string.payment_confirm_email_confirm), color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.payment_confirm_email_confirm), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     Button(
                         onClick = { showEmailConfirmation = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2E8F0)),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     ) {
-                        Text(stringResource(R.string.payment_confirm_email_cancel), color = SwimNavyMouth, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.payment_confirm_email_cancel), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                     }
                 },
                 shape = RoundedCornerShape(24.dp),
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
             )
         }
 
@@ -268,13 +266,13 @@ private fun PaymentMethodCard(
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color.White else Color(0xFFF1F5F9)
+            containerColor = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant
         ),
         modifier = modifier
             .clickable(onClick = onClick)
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) SwimBlueMain else Color(0xFFE2E8F0),
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(20.dp)
             )
     ) {
@@ -284,7 +282,7 @@ private fun PaymentMethodCard(
         ) {
             Text(
                 text = title,
-                color = SwimNavyMouth,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Black,
                 fontSize = 14.sp
             )
@@ -306,14 +304,14 @@ fun PlanCard(
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color.White else Color(0xFFF1F5F9)
+            containerColor = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant
         ),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) SwimBlueMain else Color(0xFFE2E8F0),
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(24.dp)
             )
     ) {
@@ -330,7 +328,7 @@ fun PlanCard(
                         title,
                         fontWeight = FontWeight.Black,
                         fontSize = 14.sp,
-                        color = SwimNavyMouth,
+                        color = MaterialTheme.colorScheme.onSurface,
                         letterSpacing = 0.5.sp,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -354,14 +352,14 @@ fun PlanCard(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(duration, color = Color(0xFF64748B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(duration, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(price, fontWeight = FontWeight.Black, color = SwimNavyMouth, fontSize = 24.sp)
+                Text(price, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, fontSize = 24.sp)
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                Text(quota, fontWeight = FontWeight.Black, color = SwimBlueMain, fontSize = 18.sp)
-                Text(stringResource(R.string.label_traffic), color = Color(0xFF64748B), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(quota, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, fontSize = 18.sp)
+                Text(stringResource(R.string.label_traffic), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
