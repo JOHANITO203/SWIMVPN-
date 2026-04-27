@@ -19,6 +19,10 @@ export const CITIES: City[] = [
   { name: 'JOHANNESBURG', lat: -26.2041, lng: 28.0473 },
   { name: 'FRANKFURT', lat: 50.1109, lng: 8.6821 },
   { name: 'MUMBAI', lat: 19.076, lng: 72.8777 },
+  { name: 'HONG KONG', lat: 22.3193, lng: 114.1694 },
+  { name: 'SEOUL', lat: 37.5665, lng: 126.9780 },
+  { name: 'TORONTO', lat: 43.6510, lng: -79.3470 },
+  { name: 'AMSTERDAM', lat: 52.3676, lng: 4.9041 },
 ];
 
 export function latLonToVector3(lat: number, lng: number, radius = 1): THREE.Vector3 {

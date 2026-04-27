@@ -40,9 +40,9 @@ function GlobeScene({ isMobile }: { isMobile: boolean }) {
     () => ({
       position: isMobile
         ? ([0, 0, 7.5] as [number, number, number])
-        : ([0, 0, 6.2] as [number, number, number]),
+        : ([0, 0, 7.0] as [number, number, number]),
       fov: isMobile ? 40 : 35,
-      scale: isMobile ? 1.05 : 1.25,
+      scale: isMobile ? 1.05 : 1.15,
     }),
     [isMobile],
   );
@@ -96,36 +96,17 @@ export const InteractivePixelGlobe = () => {
     <div
       className="
         relative
-        mx-auto
         w-full
-
-        max-w-[300px]
-        sm:max-w-[410px]
-        md:max-w-[500px]
-        lg:max-w-[540px]
-        xl:max-w-[580px]
-
-        h-[200px]
-        sm:h-[290px]
-        md:h-[350px]
-        lg:h-[360px]
-        xl:h-[390px]
-
-        min-h-0
+        h-full
+        max-w-[600px]
+        mx-auto
         overflow-visible
-
-        lg:translate-y-[96px]
-        xl:translate-y-[108px]
-
-        lg:-translate-x-[16px]
-        xl:-translate-x-[28px]
-
         lg:cursor-grab
         lg:active:cursor-grabbing
       "
       style={{
         touchAction: 'pan-y',
-        pointerEvents: isMobile ? 'none' : 'auto',
+        pointerEvents: 'auto',
       }}
       aria-hidden="true"
     >
@@ -145,7 +126,7 @@ export const InteractivePixelGlobe = () => {
         style={{
           background: 'transparent',
           touchAction: 'pan-y',
-          pointerEvents: isMobile ? 'none' : 'auto',
+          pointerEvents: 'auto',
         }}
       >
         <GlobeScene isMobile={isMobile} />

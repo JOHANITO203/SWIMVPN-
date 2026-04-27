@@ -14,11 +14,11 @@ export const TrustStrip = () => {
         <div className="text-[10px] font-mono font-bold text-white/20 uppercase tracking-[0.2em] hidden lg:block">
           // NETWORK_VERIFIED
         </div>
-        <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
+        <div className="flex flex-wrap justify-center items-center gap-6 md:gap-12 lg:gap-16">
           {BADGES.map((badge, idx) => (
-            <div key={idx} className="flex items-center gap-3">
-              <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full" />
-              <span className="text-white font-mono font-bold tracking-widest uppercase text-[10px]">{badge}</span>
+            <div key={idx} className="flex items-center gap-2 md:gap-3">
+              <div className="w-1 h-1 md:w-1.5 md:h-1.5 bg-cyan-500 rounded-full" />
+              <span className="text-white font-mono font-bold tracking-widest uppercase text-[9px] md:text-[10px] text-center">{badge}</span>
             </div>
           ))}
         </div>

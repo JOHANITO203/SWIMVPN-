@@ -11,11 +11,11 @@ export const WhySwimVPN = () => {
           <div className="text-cyan-400 font-mono text-xs font-bold tracking-[0.4em] mb-6 uppercase">
             // NETWORK_ADAPTIVITY
           </div>
-          <h2 className="text-5xl md:text-7xl font-black text-white mb-10 tracking-tighter uppercase italic leading-[0.9]">
+          <h2 className="text-4xl sm:text-5xl md:text-7xl font-black text-white mb-8 md:mb-10 tracking-tighter uppercase italic leading-[0.9]">
             BUILT FOR <br /> 
             <span className="text-glow-cyan">ADVERSE CONDITIONS.</span>
           </h2>
-          <p className="text-slate-400 text-lg md:text-xl max-w-xl mb-12 leading-relaxed">
+          <p className="text-slate-400 text-base md:text-xl max-w-xl mb-12 leading-relaxed">
             Standard protocols fail under pressure. SwimVPN+ is a custom-engineered tunnel designed to maintain persistence where others drop.
           </p>
           
@@ -48,7 +48,7 @@ export const WhySwimVPN = () => {
           </div>
         </div>
         
-        <div className="relative order-first lg:order-last">
+        <div className="relative order-last mt-12 lg:mt-0">
           {/* Decorative glows */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-blue-500/20 shadow-[0_0_100px_rgba(6,182,212,0.4)] rounded-full pointer-events-none" />

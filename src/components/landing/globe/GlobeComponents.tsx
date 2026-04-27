@@ -1,15 +1,16 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useLoader } from '@react-three/fiber';
-import { CITIES, createArcCurve, latLonToVector3 } from './globeUtils';
+import { Html } from '@react-three/drei';
+import { CITIES, createArcCurve, latLonToVector3, City } from './globeUtils';
 
 const GLOBE_RADIUS = 1;
 const ROTATION_SPEED = 0.00035;
 
 // Lowered point counts for a more minimalist "plexus" dot matrix aesthetic
-const LAND_SAMPLE_COUNT = 15000;
-const SHELL_SAMPLE_COUNT = 2000;
-const CLOUD_COUNT = 600;
+// Increased point count for high-definition coastline rendering
+const TOTAL_POINTS = 75000;
+const CLOUD_COUNT = 500;
 
 type MaskData = {
   data: Uint8ClampedArray;
@@ -21,24 +22,14 @@ function buildMaskData(texture: THREE.Texture): MaskData | null {
   if (typeof document === 'undefined' || !texture.image) return null;
 
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 512;
+  canvas.width = 2048;
+  canvas.height = 1024;
 
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return null;
 
   const image = texture.image;
-  if (
-    !image ||
-    !(
-      image instanceof HTMLImageElement ||
-      image instanceof HTMLCanvasElement ||
-      image instanceof ImageBitmap ||
-      image instanceof HTMLVideoElement
-    )
-  ) {
-    return null;
-  }
+  if (!image) return null;
 
   try {
     ctx.drawImage(image as CanvasImageSource, 0, 0, canvas.width, canvas.height);
@@ -56,18 +47,32 @@ function sampleEarth(mask: MaskData, lat: number, lon: number) {
   const u = (lon + Math.PI) / (2 * Math.PI);
   const v = 1 - (lat + Math.PI / 2) / Math.PI;
 
-  const x = Math.max(0, Math.min(mask.width - 1, Math.floor((u % 1) * mask.width)));
-  const y = Math.max(0, Math.min(mask.height - 1, Math.floor(v * mask.height)));
-  const idx = (y * mask.width + x) * 4;
+  const getVal = (dx = 0, dy = 0) => {
+    const x = Math.max(0, Math.min(mask.width - 1, Math.floor((u % 1) * mask.width) + dx));
+    const y = Math.max(0, Math.min(mask.height - 1, Math.floor(v * mask.height) + dy));
+    const idx = (y * mask.width + x) * 4;
+    return mask.data[idx] ?? 0;
+  };
 
-  const r = mask.data[idx] ?? 0;
-  const g = mask.data[idx + 1] ?? 0;
-  const b = mask.data[idx + 2] ?? 0;
+  // Specular map: Oceans are bright (white), Land is dark (black)
+  const val = getVal(0, 0);
+  const isLand = val < 90; // Threshold for land
 
-  const brightness = (r + g + b) / 3;
-  const isLand = brightness > 72;
+  let isCoastline = false;
 
-  return { brightness, isLand };
+  // Simple edge detection: if land, check if any neighbor 2 pixels away is water
+  if (isLand) {
+    const n1 = getVal(2, 0) < 90;
+    const n2 = getVal(-2, 0) < 90;
+    const n3 = getVal(0, 2) < 90;
+    const n4 = getVal(0, -2) < 90;
+
+    if (!n1 || !n2 || !n3 || !n4) {
+      isCoastline = true;
+    }
+  }
+
+  return { isLand, isCoastline };
 }
 
 export function GlobeWireframe() {
@@ -76,20 +81,20 @@ export function GlobeWireframe() {
   useFrame(() => {
     if (groupRef.current) {
       groupRef.current.rotation.y += ROTATION_SPEED * 0.8;
-      groupRef.current.rotation.x += ROTATION_SPEED * 0.2;
+      groupRef.current.rotation.x += ROTATION_SPEED * 0.1;
     }
   });
 
   return (
     <group ref={groupRef}>
       <mesh>
-        {/* Holographic structural plexus mesh */}
-        <icosahedronGeometry args={[GLOBE_RADIUS * 0.998, 14]} />
+        {/* Classic Lat/Lon Radar Grid */}
+        <sphereGeometry args={[GLOBE_RADIUS * 0.998, 36, 36]} />
         <meshBasicMaterial
-          color="#0044aa"
+          color="#003388"
           wireframe
           transparent
-          opacity={0.06}
+          opacity={0.12}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
@@ -101,7 +106,7 @@ export function GlobeWireframe() {
 export function GlobeAtmosphere() {
   return (
     <group>
-      {/* Deep black inner core for cinematic contrast */}
+      {/* Deep black inner core */}
       <mesh>
         <sphereGeometry args={[GLOBE_RADIUS * 0.98, 64, 64]} />
         <meshBasicMaterial color="#010308" />
@@ -113,7 +118,7 @@ export function GlobeAtmosphere() {
         <meshBasicMaterial
           color="#0055ff"
           transparent
-          opacity={0.06}
+          opacity={0.05}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
@@ -126,7 +131,7 @@ export function GlobeAtmosphere() {
         <meshBasicMaterial
           color="#00aaff"
           transparent
-          opacity={0.08}
+          opacity={0.06}
           side={THREE.BackSide}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
@@ -139,9 +144,10 @@ export function GlobeAtmosphere() {
 export function GlobePoints() {
   const groupRef = useRef<THREE.Group>(null);
 
+  // Using specular map: no clouds, precise continental geometry
   const earthTexture = useLoader(
     THREE.TextureLoader,
-    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_atmos_2048.jpg',
+    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/earth_specular_2048.jpg',
   );
 
   const { landPositions, landColors, shellPositions, shellColors } = useMemo(() => {
@@ -153,10 +159,9 @@ export function GlobePoints() {
     const shellCol: number[] = [];
 
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-    const total = LAND_SAMPLE_COUNT + SHELL_SAMPLE_COUNT;
 
-    for (let i = 0; i < total; i += 1) {
-      const y = 1 - (i / (total - 1)) * 2;
+    for (let i = 0; i < TOTAL_POINTS; i += 1) {
+      const y = 1 - (i / (TOTAL_POINTS - 1)) * 2;
       const radiusAtY = Math.sqrt(Math.max(0, 1 - y * y));
       const theta = goldenAngle * i;
 
@@ -172,30 +177,22 @@ export function GlobePoints() {
 
       const sampled = mask
         ? sampleEarth(mask, lat, lon)
-        : { brightness: Math.random() * 255, isLand: Math.random() > 0.58 };
+        : { isLand: Math.random() > 0.58, isCoastline: false };
 
       if (sampled.isLand) {
         landPos.push(px, py, pz);
 
-        const lift = THREE.MathUtils.clamp(
-          THREE.MathUtils.mapLinear(sampled.brightness, 72, 255, 0, 1),
-          0,
-          1,
-        );
-
-        // Electric cyan/blue coloring
-        const baseR = 0.0, baseG = 0.5, baseB = 0.8;
-        const highR = 0.0, highG = 0.9, highB = 1.0;
-
-        landCol.push(
-          THREE.MathUtils.lerp(baseR, highR, lift),
-          THREE.MathUtils.lerp(baseG, highG, lift),
-          THREE.MathUtils.lerp(baseB, highB, lift)
-        );
+        if (sampled.isCoastline) {
+          // Brilliant Cyan for coastlines (Edge detection)
+          landCol.push(0.0, 0.9, 1.0);
+        } else {
+          // Deep holographic blue for inland
+          landCol.push(0.0, 0.2, 0.5);
+        }
       } else {
-        if (Math.random() > 0.4) continue;
+        if (Math.random() > 0.12) continue; // Extremely sparse ocean points
         shellPos.push(px * 0.995, py * 0.995, pz * 0.995);
-        shellCol.push(0.0, 0.1, 0.2);
+        shellCol.push(0.0, 0.05, 0.15);
       }
     }
 
@@ -221,7 +218,7 @@ export function GlobePoints() {
           <bufferAttribute attach="attributes-color" args={[shellColors, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={0.004}
+          size={0.003}
           vertexColors
           transparent
           opacity={0.3}
@@ -237,10 +234,10 @@ export function GlobePoints() {
           <bufferAttribute attach="attributes-color" args={[landColors, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={0.007} // Larger dots for minimalist look
+          size={0.0035} // Fine points for high definition
           vertexColors
           transparent
-          opacity={0.9}
+          opacity={0.95}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           sizeAttenuation
@@ -250,11 +247,14 @@ export function GlobePoints() {
   );
 }
 
-function Marker({ lat, lng, index }: { lat: number; lng: number; index: number }) {
+function Marker({ city, index, isActive, onClick }: { city: City; index: number; isActive: boolean; onClick: (e: any) => void }) {
   const groupRef = useRef<THREE.Group>(null);
   const ringRef = useRef<THREE.Mesh>(null);
 
-  const markerPos = useMemo(() => latLonToVector3(lat, lng, GLOBE_RADIUS * 1.002), [lat, lng]);
+  const markerPos = useMemo(() => latLonToVector3(city.lat, city.lng, GLOBE_RADIUS * 1.002), [city.lat, city.lng]);
+
+  // Déterminer un faux ping réaliste basé sur la ville pour l'illusion HUD
+  const ping = useMemo(() => 12 + (city.name.length * 7) % 80, [city.name]);
 
   useEffect(() => {
     if (groupRef.current) {
@@ -266,37 +266,82 @@ function Marker({ lat, lng, index }: { lat: number; lng: number; index: number }
   useFrame((state) => {
     if (!ringRef.current) return;
     const t = state.clock.elapsedTime * 1.8 + index;
-    const pulse = 1 + Math.sin(t) * 0.3;
+    const pulse = isActive ? 1 + Math.sin(t * 3) * 0.4 : 1 + Math.sin(t) * 0.3;
     ringRef.current.scale.setScalar(pulse);
 
     if (ringRef.current.material instanceof THREE.MeshBasicMaterial) {
-      ringRef.current.material.opacity = Math.max(0, (1 - Math.sin(t))) * 0.4;
+      ringRef.current.material.opacity = isActive
+        ? Math.max(0, (1 - Math.sin(t * 3))) * 0.6
+        : Math.max(0, (1 - Math.sin(t))) * 0.4;
     }
   });
 
   return (
-    <group ref={groupRef}>
+    <group
+      ref={groupRef}
+      onClick={onClick}
+      onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
+      onPointerOut={(e) => { e.stopPropagation(); document.body.style.cursor = 'auto'; }}
+    >
+      {/* Zone de clic invisible élargie */}
+      <mesh visible={false} scale={4}>
+        <sphereGeometry args={[0.02, 8, 8]} />
+        <meshBasicMaterial />
+      </mesh>
+
       {/* Intense bright core */}
       <mesh name="hub-core">
         <sphereGeometry args={[0.012, 16, 16]} />
-        <meshBasicMaterial color="#ffffff" blending={THREE.AdditiveBlending} depthWrite={false} />
+        <meshBasicMaterial color={isActive ? "#ffffff" : "#aaffff"} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
       {/* Cyan halo */}
-      <mesh name="hub-glow" scale={2.5}>
+      <mesh name="hub-glow" scale={isActive ? 3.5 : 2.5}>
         <sphereGeometry args={[0.014, 16, 16]} />
-        <meshBasicMaterial color="#00E5FF" transparent opacity={0.35} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <meshBasicMaterial color="#00E5FF" transparent opacity={isActive ? 0.6 : 0.35} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
       {/* Radar pulse ring */}
       <mesh ref={ringRef} name="pulse-ring">
         <ringGeometry args={[0.02, 0.024, 32]} />
-        <meshBasicMaterial color="#00E5FF" transparent opacity={0.5} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial color="#00E5FF" transparent opacity={isActive ? 0.8 : 0.5} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
+
+      {/* HUD Info Card Holographique */}
+      {isActive && (
+        <Html center zIndexRange={[100, 0]}>
+          <div style={{
+            background: 'rgba(2, 8, 19, 0.85)',
+            border: '1px solid rgba(0, 229, 255, 0.3)',
+            boxShadow: '0 0 15px rgba(0, 229, 255, 0.15), inset 0 0 20px rgba(0, 229, 255, 0.05)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            color: '#fff',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            minWidth: '160px',
+            transform: 'translate3d(20px, -50%, 0)',
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}>
+            <div style={{ fontSize: '10px', color: '#00E5FF', fontWeight: 'bold', letterSpacing: '0.1em', marginBottom: '6px' }}>// NODE_ACTIVE</div>
+            <div style={{ fontSize: '18px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '10px', letterSpacing: '-0.02em', textShadow: '0 0 10px rgba(0,229,255,0.3)' }}>{city.name}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '10px', fontSize: '12px' }}>
+              <span style={{ color: '#64748B', fontWeight: 600 }}>LATENCY</span>
+              <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>{ping} ms</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '6px', fontSize: '12px' }}>
+              <span style={{ color: '#64748B', fontWeight: 600 }}>STATUS</span>
+              <span style={{ color: '#10B981', fontWeight: 'bold', textShadow: '0 0 8px rgba(16,185,129,0.4)' }}>SECURE</span>
+            </div>
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
 
 export function GlobeMarkers() {
   const groupRef = useRef<THREE.Group>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   useFrame(() => {
     if (!groupRef.current) return;
@@ -304,9 +349,21 @@ export function GlobeMarkers() {
   });
 
   return (
-    <group ref={groupRef}>
-      {CITIES.slice(0, 10).map((city, i) => (
-        <Marker key={`${city.name}-${i}`} lat={city.lat} lng={city.lng} index={i} />
+    <group
+      ref={groupRef}
+      onPointerMissed={() => setActiveIndex(null)}
+    >
+      {CITIES.map((city, i) => (
+        <Marker
+          key={`${city.name}-${i}`}
+          city={city}
+          index={i}
+          isActive={activeIndex === i}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActiveIndex(activeIndex === i ? null : i);
+          }}
+        />
       ))}
     </group>
   );
@@ -321,9 +378,27 @@ export function GlobeArcs() {
   const groupRef = useRef<THREE.Group>(null);
 
   const arcs = useMemo<ArcData[]>(() => {
+    // A more globally distributed and complex network of connections
     const connections: [number, number][] = [
-      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0],
-      [0, 4], [1, 5], [2, 6], [3, 8], [4, 9], [6, 1],
+      [5, 3], // NY - London
+      [5, 10], // NY - Frankfurt
+      [6, 0], // SF - Tokyo
+      [0, 12], // Tokyo - HK
+      [12, 1], // HK - Singapore
+      [1, 8], // Singapore - Sydney
+      [2, 11], // Dubai - Mumbai
+      [11, 1], // Mumbai - Singapore
+      [3, 4], // London - Paris
+      [4, 15], // Paris - Amsterdam
+      [7, 5], // Sao Paulo - NY
+      [7, 9], // Sao Paulo - Joburg
+      [9, 2], // Joburg - Dubai
+      [14, 6], // Toronto - SF
+      [13, 0], // Seoul - Tokyo
+      [2, 10], // Dubai - Frankfurt
+      [3, 2], // London - Dubai
+      [0, 1], // Tokyo - Singapore
+      [5, 6], // NY - SF
     ];
 
     return connections
@@ -352,67 +427,112 @@ export function GlobeArcs() {
     <group ref={groupRef}>
       {arcs.map((arc, i) => (
         <group key={i}>
-          {/* Base connection line */}
+          {/* Subtle dashed line for a digital radar feel */}
+          <line>
+            <bufferGeometry onUpdate={(self) => self.computeLineDistances()}>
+              <bufferAttribute attach="attributes-position" args={[arc.positions, 3]} />
+            </bufferGeometry>
+            <lineDashedMaterial
+              color="#00aaff"
+              transparent
+              opacity={0.12}
+              dashSize={0.02}
+              gapSize={0.02}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </line>
+
+          {/* Very faint solid core line */}
           <line>
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[arc.positions, 3]} />
             </bufferGeometry>
             <lineBasicMaterial
-              color="#00aaff"
+              color="#0055ff"
               transparent
-              opacity={0.12}
+              opacity={0.08}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
           </line>
-          <DataPacket curve={arc.curve} delay={i * 0.3} />
+
+          {/* Comet Data Stream */}
+          <DataStream curve={arc.curve} delay={i * 0.4} />
         </group>
       ))}
     </group>
   );
 }
 
-function DataPacket({ curve, delay }: { curve: THREE.Curve<THREE.Vector3>; delay: number }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
+function DataStream({ curve, delay }: { curve: THREE.Curve<THREE.Vector3>; delay: number }) {
+  const headRef = useRef<THREE.Mesh>(null);
+  const tail1Ref = useRef<THREE.Mesh>(null);
+  const tail2Ref = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
-    if (!meshRef.current || !glowRef.current) return;
+    if (!headRef.current || !tail1Ref.current || !tail2Ref.current) return;
 
-    const t = ((state.clock.elapsedTime + delay) * 0.12) % 1;
-    const point = curve.getPoint(t);
+    const speed = 0.2;
+    const time = (state.clock.elapsedTime + delay) * speed;
 
-    meshRef.current.position.copy(point);
-    glowRef.current.position.copy(point);
+    // Calculate positions slightly offset from each other
+    const t1 = time % 1;
+    const t2 = Math.max(0, t1 - 0.015);
+    const t3 = Math.max(0, t1 - 0.03);
 
-    const intensity = Math.sin(t * Math.PI);
+    const p1 = curve.getPoint(t1);
+    const p2 = curve.getPoint(t2);
+    const p3 = curve.getPoint(t3);
 
-    if (meshRef.current.material instanceof THREE.MeshBasicMaterial) {
-      meshRef.current.material.opacity = intensity * 0.9;
+    headRef.current.position.copy(p1);
+    tail1Ref.current.position.copy(p2);
+    tail2Ref.current.position.copy(p3);
+
+    // Fade in and out at the start and end of the arc
+    const intensity = Math.sin(t1 * Math.PI);
+
+    if (headRef.current.material instanceof THREE.MeshBasicMaterial) {
+      headRef.current.material.opacity = intensity * 0.95;
     }
-    if (glowRef.current.material instanceof THREE.MeshBasicMaterial) {
-      glowRef.current.material.opacity = intensity * 0.4;
+    if (tail1Ref.current.material instanceof THREE.MeshBasicMaterial) {
+      tail1Ref.current.material.opacity = intensity * 0.6;
+    }
+    if (tail2Ref.current.material instanceof THREE.MeshBasicMaterial) {
+      tail2Ref.current.material.opacity = intensity * 0.25;
     }
   });
 
   return (
     <group>
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[0.008, 12, 12]} />
+      {/* Bright comet head */}
+      <mesh ref={headRef}>
+        <sphereGeometry args={[0.007, 12, 12]} />
         <meshBasicMaterial
           color="#ffffff"
           transparent
-          opacity={0.8}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </mesh>
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[0.016, 12, 12]} />
+
+      {/* Cyan mid tail */}
+      <mesh ref={tail1Ref}>
+        <sphereGeometry args={[0.012, 12, 12]} />
         <meshBasicMaterial
           color="#00E5FF"
           transparent
-          opacity={0.4}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Dark blue trailing edge */}
+      <mesh ref={tail2Ref}>
+        <sphereGeometry args={[0.016, 12, 12]} />
+        <meshBasicMaterial
+          color="#0055ff"
+          transparent
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />

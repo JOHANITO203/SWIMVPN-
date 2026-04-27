@@ -24,14 +24,14 @@ const LandingPage = () => {
           </div>
           
           <div className="flex items-center gap-4 md:gap-8">
-            <div className="hidden md:flex gap-8 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] font-mono">
+            <div className="hidden lg:flex gap-8 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] font-mono">
               <a href="#features" className="hover:text-cyan-400 transition-colors">/FEATURES</a>
               <a href="#protocol" className="hover:text-cyan-400 transition-colors">/PROTOCOL</a>
               <a href="#download" className="hover:text-cyan-400 transition-colors">/DOWNLOAD</a>
             </div>
             <a 
               href="#download-apk" 
-              className="px-4 py-2 md:px-5 md:py-2 bg-cyan-500 text-black text-[10px] font-black rounded-lg hover:bg-cyan-400 transition-all uppercase tracking-tight shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+              className="px-4 py-2 md:px-5 md:py-2.5 bg-cyan-500 text-black text-[10px] md:text-[11px] font-black rounded-lg hover:bg-cyan-400 transition-all uppercase tracking-tight shadow-[0_0_20px_rgba(6,182,212,0.3)]"
             >
               FETCH APK
             </a>

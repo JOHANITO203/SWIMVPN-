@@ -9,7 +9,7 @@ export const DownloadSection = () => {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-[500px] bg-cyan-600/5 blur-[160px] rounded-full" />
       
       <div className="container mx-auto max-w-4xl relative z-10">
-        <div className="border border-white/5 bg-black/40 rounded-[2rem] p-12 md:p-24 text-center backdrop-blur-3xl overflow-hidden relative">
+        <div className="border border-white/5 bg-black/40 rounded-[2rem] p-8 sm:p-12 md:p-24 text-center backdrop-blur-3xl overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
           
           <motion.div
@@ -27,11 +27,11 @@ export const DownloadSection = () => {
             </div>
           </motion.div>
           
-          <h2 className="text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter uppercase italic leading-[0.85]">
+          <h2 className="text-4xl sm:text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter uppercase italic leading-[0.85]">
             GET THE <br /> <span className="text-glow-cyan">OFFICIAL APK.</span>
           </h2>
           
-          <p className="text-slate-500 text-lg md:text-xl max-w-2xl mx-auto mb-16 font-medium leading-relaxed">
+          <p className="text-slate-500 text-base md:text-xl max-w-2xl mx-auto mb-12 md:mb-16 font-medium leading-relaxed">
             Unrestricted access starts here. Optimized for stability, 256-bit encryption, and zero-latency performance.
           </p>
           
@@ -42,7 +42,7 @@ export const DownloadSection = () => {
               aria-label="Download swimvpnapk"
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
-              className="px-16 py-6 bg-white text-black font-black text-xl rounded-2xl flex items-center gap-4 shadow-[0_30px_60px_-15px_rgba(255,255,255,0.2)] hover:shadow-[0_40px_80px_-15px_rgba(255,255,255,0.3)] transition-all"
+              className="px-10 py-5 md:px-16 md:py-6 bg-white text-black font-black text-lg md:text-xl rounded-2xl flex items-center gap-4 shadow-[0_30px_60px_-15px_rgba(255,255,255,0.2)] hover:shadow-[0_40px_80px_-15px_rgba(255,255,255,0.3)] transition-all"
             >
               <Download size={28} strokeWidth={3} />
               DOWNLOAD APK

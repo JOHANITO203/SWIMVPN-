@@ -15,7 +15,7 @@ export const HeroSection = () => {
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center lg:text-left"
+          className="text-center lg:text-left relative z-20"
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -50,7 +50,7 @@ export const HeroSection = () => {
               aria-label="Download SwimVPN APK"
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
-              className="group relative px-10 py-5 bg-white text-black font-black rounded-2xl flex items-center gap-3 overflow-hidden transition-all shadow-[0_20px_40px_-15px_rgba(255,255,255,0.3)] hover:shadow-[0_30px_60px_-15px_rgba(255,255,255,0.4)]"
+              className="group relative w-full sm:w-auto justify-center px-8 py-5 md:px-10 bg-white text-black font-black rounded-2xl flex items-center gap-3 overflow-hidden transition-all shadow-[0_20px_40px_-15px_rgba(255,255,255,0.3)] hover:shadow-[0_30px_60px_-15px_rgba(255,255,255,0.4)]"
             >
               <Download size={22} strokeWidth={3} />
               DOWNLOAD APK
@@ -58,7 +58,7 @@ export const HeroSection = () => {
 
             <a
               href="#features"
-              className="group px-10 py-5 bg-white/5 border border-white/10 text-white font-bold rounded-2xl flex items-center gap-3 hover:bg-white/10 transition-all hover:border-white/20"
+              className="group w-full sm:w-auto justify-center px-8 py-5 md:px-10 bg-white/5 border border-white/10 text-white font-bold rounded-2xl flex items-center gap-3 hover:bg-white/10 transition-all hover:border-white/20"
             >
               /DOCUMENTATION
               <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
@@ -70,9 +70,9 @@ export const HeroSection = () => {
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.2, ease: 'easeOut' }}
-          className="relative order-last h-[300px] sm:h-[340px] md:h-[520px] lg:h-[700px] flex items-center justify-center lg:pl-12 overflow-visible"
+          className="relative z-0 order-last w-full aspect-square max-w-[380px] sm:max-w-[450px] md:max-w-[520px] lg:max-w-none lg:h-[700px] mx-auto flex items-center justify-center lg:justify-end overflow-visible"
         >
-          <div className="w-full h-full lg:translate-x-12 lg:translate-y-40">
+          <div className="w-full h-full flex items-center justify-center lg:translate-x-12 xl:translate-x-24 lg:translate-y-12">
             <InteractivePixelGlobe />
           </div>
         </motion.div>

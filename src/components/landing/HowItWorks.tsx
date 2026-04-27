@@ -12,12 +12,12 @@ export const HowItWorks = () => {
   return (
     <section className="py-32 px-6 bg-black/20 border-y border-white/5">
       <div className="container mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-20 gap-4">
-          <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter uppercase italic">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 md:mb-20 gap-6">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tighter uppercase italic leading-[0.9]">
             DEPLOYMENT <br /> PROTOCOL
           </h2>
-          <div className="h-px flex-grow bg-white/10 mx-8 hidden md:block" />
-          <div className="text-[10px] font-mono text-cyan-400 font-bold tracking-[0.3em] uppercase">
+          <div className="h-px flex-grow bg-gradient-to-r from-transparent via-white/10 to-transparent mx-8 hidden md:block mb-4" />
+          <div className="text-[10px] font-mono text-cyan-400 font-bold tracking-[0.3em] uppercase md:mb-4">
             // 04_SIMPLE_STEPS
           </div>
         </div>

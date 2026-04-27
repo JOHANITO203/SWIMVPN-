@@ -53,16 +53,16 @@ export const FeatureGrid = () => {
       <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       
       <div className="container mx-auto">
-        <div className="flex flex-col lg:flex-row items-end justify-between mb-20 gap-8">
+        <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between mb-16 md:mb-20 gap-8">
           <div className="max-w-2xl text-left">
             <div className="text-cyan-400 font-mono text-xs font-bold tracking-[0.4em] mb-4 uppercase">
               // CORE_CAPABILITIES
             </div>
-            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter uppercase italic leading-none">
+            <h2 className="text-4xl sm:text-5xl md:text-7xl font-black text-white tracking-tighter uppercase italic leading-[0.9]">
               ENGINEERED FOR <br /> HIGH-STAKES ADAPTIVITY.
             </h2>
           </div>
-          <p className="text-slate-400 text-lg max-w-md text-left lg:text-right border-l lg:border-l-0 lg:border-r border-white/10 pl-6 lg:pl-0 lg:pr-6 py-2">
+          <p className="text-slate-400 text-base md:text-lg max-w-md text-left lg:text-right border-l lg:border-l-0 lg:border-r border-white/10 pl-6 lg:pl-0 lg:pr-6 py-2">
             SwimVPN+ isn't just a client. It's a persistent networking layer that protects your digital footprint across aggressive environments.
           </p>
         </div>
