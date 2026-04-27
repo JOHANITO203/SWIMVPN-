@@ -28,20 +28,13 @@ services:
       - dokploy-public
     labels:
       traefik.enable: "true"
-  traefik.docker.network: "dokploy-network"
-
-  traefik.http.routers.swimvpn-app-http.rule: "Host(`app.swimvpn.pro`)"
-  traefik.http.routers.swimvpn-app-http.entrypoints: "web"
-  traefik.http.routers.swimvpn-app-http.middlewares: "swimvpn-app-https-redirect"
-  traefik.http.middlewares.swimvpn-app-https-redirect.redirectscheme.scheme: "https"
-  traefik.http.middlewares.swimvpn-app-https-redirect.redirectscheme.permanent: "true"
-
-  traefik.http.routers.swimvpn-app.rule: "Host(`app.swimvpn.pro`)"
-  traefik.http.routers.swimvpn-app.entrypoints: "websecure"
-  traefik.http.routers.swimvpn-app.tls: "true"
-  traefik.http.routers.swimvpn-app.tls.certresolver: "letsencrypt"
-  traefik.http.routers.swimvpn-app.service: "swimvpn-app"
-  traefik.http.services.swimvpn-app.loadbalancer.server.port: "3000"
+      traefik.docker.network: "dokploy-network"
+      traefik.http.routers.swimvpn-app.rule: "Host(`app.swimvpn.pro`)"
+      traefik.http.routers.swimvpn-app.entrypoints: "websecure"
+      traefik.http.routers.swimvpn-app.tls: "true"
+      traefik.http.routers.swimvpn-app.tls.certresolver: "letsencrypt"
+      traefik.http.routers.swimvpn-app.service: "swimvpn-app"
+      traefik.http.services.swimvpn-app.loadbalancer.server.port: "3000"
 
   db:
     image: postgres:15-alpine
