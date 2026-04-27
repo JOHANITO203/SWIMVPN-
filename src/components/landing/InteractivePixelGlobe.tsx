@@ -7,6 +7,7 @@ import {
   GlobeArcs,
   GlobeAtmosphere,
   GlobeCloud,
+  GlobeWireframe,
 } from './globe/GlobeComponents';
 
 const MOBILE_BREAKPOINT = 768;
@@ -37,39 +38,37 @@ function useIsMobile() {
 function GlobeScene({ isMobile }: { isMobile: boolean }) {
   const cameraConfig = useMemo(
     () => ({
-      // Caméra rapprochée pour apprécier les détails sans agrandir le canvas.
       position: isMobile
-        ? ([0, 0, 8.8] as [number, number, number])
-        : ([0, 0, 7.9] as [number, number, number]),
-
-      // FOV serré pour un rendu plus premium.
-      fov: isMobile ? 36 : 30,
-
-      // Globe légèrement agrandi.
-      scale: isMobile ? 1.12 : 1.38,
+        ? ([0, 0, 7.5] as [number, number, number])
+        : ([0, 0, 6.2] as [number, number, number]),
+      fov: isMobile ? 40 : 35,
+      scale: isMobile ? 1.05 : 1.25,
     }),
     [isMobile],
   );
 
   return (
     <>
+      {/* Cinematic Fog for Depth of Field illusion */}
+      <fogExp2 attach="fog" color="#010308" density={0.11} />
+
       <PerspectiveCamera
         makeDefault
         position={cameraConfig.position}
         fov={cameraConfig.fov}
       />
 
-      <ambientLight intensity={0.12} />
-      <pointLight position={[10, 10, 10]} intensity={1.45} color="#00E5FF" />
-      <pointLight position={[-10, -10, -10]} intensity={0.75} color="#0080FF" />
+      {/* Very subtle ambient lighting, although points are unlit */}
+      <ambientLight intensity={0.1} />
 
       <Suspense fallback={null}>
-        <group rotation={[0.3, 0, 0]} scale={cameraConfig.scale}>
+        <group rotation={[0.25, -0.4, 0]} scale={cameraConfig.scale}>
+          <GlobeAtmosphere />
+          <GlobeWireframe />
           <GlobePoints />
           <GlobeCloud />
           <GlobeMarkers />
           <GlobeArcs />
-          <GlobeAtmosphere />
         </group>
       </Suspense>
 
@@ -77,11 +76,11 @@ function GlobeScene({ isMobile }: { isMobile: boolean }) {
         <OrbitControls
           enableZoom={false}
           enablePan={false}
-          rotateSpeed={0.65}
-          dampingFactor={0.06}
+          enableRotate={true}
+          rotateSpeed={0.4}
+          dampingFactor={0.05}
           enableDamping
-          autoRotate={false}
-          makeDefault
+          autoRotate={false} /* Globe layers rotate themselves */
         />
       )}
 
@@ -113,7 +112,7 @@ export const InteractivePixelGlobe = () => {
         xl:h-[390px]
 
         min-h-0
-        overflow-hidden
+        overflow-visible
 
         lg:translate-y-[96px]
         xl:translate-y-[108px]
@@ -131,7 +130,7 @@ export const InteractivePixelGlobe = () => {
       aria-hidden="true"
     >
       <Canvas
-        dpr={isMobile ? [1, 1.15] : [1, 1.65]}
+        dpr={isMobile ? [1, 1.2] : [1, 2]}
         frameloop="always"
         gl={{
           antialias: !isMobile,

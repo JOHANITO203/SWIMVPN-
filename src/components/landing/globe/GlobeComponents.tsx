@@ -1,62 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { Html } from '@react-three/drei';
 import { useFrame, useLoader } from '@react-three/fiber';
 import { CITIES, createArcCurve, latLonToVector3 } from './globeUtils';
 
 const GLOBE_RADIUS = 1;
-const ROTATION_SPEED = 0.00045;
+const ROTATION_SPEED = 0.00035;
 
-const LAND_SAMPLE_COUNT = 145000;
-const SHELL_SAMPLE_COUNT = 26000;
-const CLOUD_COUNT = 2200;
-
-const HUD_OFFSETS: [number, number, number][] = [
-  [0.22, 0.14, 0],
-  [-0.26, 0.12, 0],
-  [0.22, -0.04, 0],
-  [-0.26, -0.14, 0],
-];
-
-const panelStyle: React.CSSProperties = {
-  minWidth: 118,
-  padding: '8px 10px',
-  border: '1px solid rgba(0, 229, 255, 0.26)',
-  background: 'linear-gradient(180deg, rgba(3,12,22,0.92) 0%, rgba(1,7,14,0.82) 100%)',
-  boxShadow: '0 0 0 1px rgba(0,229,255,0.06) inset, 0 0 18px rgba(0,170,255,0.12)',
-  borderRadius: 4,
-  color: '#9cecff',
-  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  pointerEvents: 'none',
-  userSelect: 'none',
-  backdropFilter: 'blur(4px)',
-};
-
-const rowStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 8,
-  fontSize: 8,
-  lineHeight: 1.4,
-  opacity: 0.9,
-};
-
-const titleStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 700,
-  color: '#50e6ff',
-  marginBottom: 6,
-  textShadow: '0 0 10px rgba(0,229,255,0.25)',
-};
-
-const dividerStyle: React.CSSProperties = {
-  height: 1,
-  margin: '6px 0',
-  background:
-    'linear-gradient(90deg, rgba(0,229,255,0) 0%, rgba(0,229,255,0.45) 45%, rgba(0,229,255,0) 100%)',
-};
+// Lowered point counts for a more minimalist "plexus" dot matrix aesthetic
+const LAND_SAMPLE_COUNT = 15000;
+const SHELL_SAMPLE_COUNT = 2000;
+const CLOUD_COUNT = 600;
 
 type MaskData = {
   data: Uint8ClampedArray;
@@ -117,39 +70,64 @@ function sampleEarth(mask: MaskData, lat: number, lon: number) {
   return { brightness, isLand };
 }
 
+export function GlobeWireframe() {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += ROTATION_SPEED * 0.8;
+      groupRef.current.rotation.x += ROTATION_SPEED * 0.2;
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      <mesh>
+        {/* Holographic structural plexus mesh */}
+        <icosahedronGeometry args={[GLOBE_RADIUS * 0.998, 14]} />
+        <meshBasicMaterial
+          color="#0044aa"
+          wireframe
+          transparent
+          opacity={0.06}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 export function GlobeAtmosphere() {
   return (
     <group>
+      {/* Deep black inner core for cinematic contrast */}
       <mesh>
-        <sphereGeometry args={[GLOBE_RADIUS * 1.018, 64, 64]} />
+        <sphereGeometry args={[GLOBE_RADIUS * 0.98, 64, 64]} />
+        <meshBasicMaterial color="#010308" />
+      </mesh>
+
+      {/* Surface glow */}
+      <mesh>
+        <sphereGeometry args={[GLOBE_RADIUS * 1.015, 64, 64]} />
         <meshBasicMaterial
-          color="#1ec8ff"
+          color="#0055ff"
+          transparent
+          opacity={0.06}
+          side={THREE.BackSide}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Atmospheric neon corona */}
+      <mesh>
+        <sphereGeometry args={[GLOBE_RADIUS * 1.18, 64, 64]} />
+        <meshBasicMaterial
+          color="#00aaff"
           transparent
           opacity={0.08}
           side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-
-      <mesh>
-        <sphereGeometry args={[GLOBE_RADIUS * 1.09, 64, 64]} />
-        <meshBasicMaterial
-          color="#003b73"
-          transparent
-          opacity={0.06}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </mesh>
-
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[GLOBE_RADIUS * 1.12, 0.0012, 8, 220]} />
-        <meshBasicMaterial
-          color="#34d7ff"
-          transparent
-          opacity={0.06}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
@@ -199,23 +177,25 @@ export function GlobePoints() {
       if (sampled.isLand) {
         landPos.push(px, py, pz);
 
-        const spark = Math.random() > 0.992;
-        if (spark) {
-          landCol.push(0.6, 0.95, 1);
-        } else {
-          const lift = THREE.MathUtils.clamp(
-            THREE.MathUtils.mapLinear(sampled.brightness, 72, 255, 0, 1),
-            0,
-            1,
-          );
+        const lift = THREE.MathUtils.clamp(
+          THREE.MathUtils.mapLinear(sampled.brightness, 72, 255, 0, 1),
+          0,
+          1,
+        );
 
-          landCol.push(0.03 + lift * 0.05, 0.36 + lift * 0.25, 0.72 + lift * 0.2);
-        }
+        // Electric cyan/blue coloring
+        const baseR = 0.0, baseG = 0.5, baseB = 0.8;
+        const highR = 0.0, highG = 0.9, highB = 1.0;
+
+        landCol.push(
+          THREE.MathUtils.lerp(baseR, highR, lift),
+          THREE.MathUtils.lerp(baseG, highG, lift),
+          THREE.MathUtils.lerp(baseB, highB, lift)
+        );
       } else {
-        if (Math.random() > 0.56) continue;
-
-        shellPos.push(px * 0.998, py * 0.998, pz * 0.998);
-        shellCol.push(0.015, 0.09, 0.22);
+        if (Math.random() > 0.4) continue;
+        shellPos.push(px * 0.995, py * 0.995, pz * 0.995);
+        shellCol.push(0.0, 0.1, 0.2);
       }
     }
 
@@ -241,10 +221,10 @@ export function GlobePoints() {
           <bufferAttribute attach="attributes-color" args={[shellColors, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={0.0031}
+          size={0.004}
           vertexColors
           transparent
-          opacity={0.52}
+          opacity={0.3}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           sizeAttenuation
@@ -257,10 +237,10 @@ export function GlobePoints() {
           <bufferAttribute attach="attributes-color" args={[landColors, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          size={0.0042}
+          size={0.007} // Larger dots for minimalist look
           vertexColors
           transparent
-          opacity={0.95}
+          opacity={0.9}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           sizeAttenuation
@@ -270,124 +250,64 @@ export function GlobePoints() {
   );
 }
 
-type HubCity = {
-  name: string;
-  lat: number;
-  lng: number;
-  ping: number;
-  traffic: string;
-  status: string;
-  featured: boolean;
-  offset: [number, number, number];
-};
+function Marker({ lat, lng, index }: { lat: number; lng: number; index: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
 
-function HubLabel({ city }: { city: HubCity }) {
+  const markerPos = useMemo(() => latLonToVector3(lat, lng, GLOBE_RADIUS * 1.002), [lat, lng]);
+
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.position.copy(markerPos);
+      groupRef.current.lookAt(new THREE.Vector3(0, 0, 0));
+    }
+  }, [markerPos]);
+
+  useFrame((state) => {
+    if (!ringRef.current) return;
+    const t = state.clock.elapsedTime * 1.8 + index;
+    const pulse = 1 + Math.sin(t) * 0.3;
+    ringRef.current.scale.setScalar(pulse);
+
+    if (ringRef.current.material instanceof THREE.MeshBasicMaterial) {
+      ringRef.current.material.opacity = Math.max(0, (1 - Math.sin(t))) * 0.4;
+    }
+  });
+
   return (
-    <Html transform distanceFactor={1.25} position={city.offset}>
-      <div style={panelStyle}>
-        <div style={titleStyle}>{city.name} HUB</div>
-        <div style={rowStyle}>
-          <span>PING</span>
-          <strong>{city.ping} ms</strong>
-        </div>
-        <div style={rowStyle}>
-          <span>TRAFFIC</span>
-          <strong>{city.traffic}</strong>
-        </div>
-        <div style={dividerStyle} />
-        <div style={rowStyle}>
-          <span>STATUS</span>
-          <strong>{city.status}</strong>
-        </div>
-      </div>
-    </Html>
+    <group ref={groupRef}>
+      {/* Intense bright core */}
+      <mesh name="hub-core">
+        <sphereGeometry args={[0.012, 16, 16]} />
+        <meshBasicMaterial color="#ffffff" blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      {/* Cyan halo */}
+      <mesh name="hub-glow" scale={2.5}>
+        <sphereGeometry args={[0.014, 16, 16]} />
+        <meshBasicMaterial color="#00E5FF" transparent opacity={0.35} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      {/* Radar pulse ring */}
+      <mesh ref={ringRef} name="pulse-ring">
+        <ringGeometry args={[0.02, 0.024, 32]} />
+        <meshBasicMaterial color="#00E5FF" transparent opacity={0.5} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+    </group>
   );
 }
 
 export function GlobeMarkers() {
   const groupRef = useRef<THREE.Group>(null);
-  const [focusIndex, setFocusIndex] = useState(0);
 
-  const cityData = useMemo(() => {
-    return CITIES.slice(0, 8).map((city, i) => ({
-      ...city,
-      featured: i < 4,
-    }));
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setFocusIndex((prev) => (prev + 1) % Math.min(4, cityData.length || 1));
-    }, 2800);
-
-    return () => window.clearInterval(timer);
-  }, [cityData.length]);
-
-  useFrame((state) => {
+  useFrame(() => {
     if (!groupRef.current) return;
-
     groupRef.current.rotation.y += ROTATION_SPEED;
-
-    groupRef.current.children.forEach((child, i) => {
-      const ring = child.getObjectByName('pulse-ring');
-      const glow = child.getObjectByName('hub-glow');
-
-      const activeBoost = i === focusIndex ? 1 : 0;
-      const pulse = 1 + Math.sin(state.clock.elapsedTime * 2.4 + i) * 0.08 + activeBoost * 0.12;
-
-      if (ring) {
-        ring.scale.setScalar(pulse);
-      }
-
-      if (glow instanceof THREE.Mesh && glow.material instanceof THREE.MeshBasicMaterial) {
-        glow.material.opacity = i === focusIndex ? 0.34 : 0.18;
-      }
-    });
   });
 
   return (
     <group ref={groupRef}>
-      {cityData.map((city, i) => {
-        const pos = latLonToVector3(city.lat, city.lng, GLOBE_RADIUS * 1.008);
-
-        return (
-          <group key={`${city.name}-${i}`} position={pos}>
-            <mesh name="hub-core">
-              <sphereGeometry args={[0.0115, 12, 12]} />
-              <meshBasicMaterial
-                color="#7ef3ff"
-                transparent
-                opacity={0.95}
-                blending={THREE.AdditiveBlending}
-                depthWrite={false}
-              />
-            </mesh>
-
-            <mesh name="hub-glow" scale={2.3}>
-              <sphereGeometry args={[0.0145, 12, 12]} />
-              <meshBasicMaterial
-                color="#00b8ff"
-                transparent
-                opacity={0.18}
-                blending={THREE.AdditiveBlending}
-                depthWrite={false}
-              />
-            </mesh>
-
-            <mesh name="pulse-ring" rotation={[Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[0.017, 0.021, 24]} />
-              <meshBasicMaterial
-                color="#5ce8ff"
-                transparent
-                opacity={0.55}
-                blending={THREE.AdditiveBlending}
-                side={THREE.DoubleSide}
-                depthWrite={false}
-              />
-            </mesh>
-          </group>
-        );
-      })}
+      {CITIES.slice(0, 10).map((city, i) => (
+        <Marker key={`${city.name}-${i}`} lat={city.lat} lng={city.lng} index={i} />
+      ))}
     </group>
   );
 }
@@ -402,17 +322,8 @@ export function GlobeArcs() {
 
   const arcs = useMemo<ArcData[]>(() => {
     const connections: [number, number][] = [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 4],
-      [4, 5],
-      [5, 6],
-      [6, 7],
-      [7, 0],
-      [0, 4],
-      [1, 5],
-      [2, 6],
+      [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 0],
+      [0, 4], [1, 5], [2, 6], [3, 8], [4, 9], [6, 1],
     ];
 
     return connections
@@ -424,7 +335,7 @@ export function GlobeArcs() {
         const p1 = latLonToVector3(from.lat, from.lng, GLOBE_RADIUS);
         const p2 = latLonToVector3(to.lat, to.lng, GLOBE_RADIUS);
         const curve = createArcCurve(p1, p2, GLOBE_RADIUS);
-        const points = curve.getPoints(72);
+        const points = curve.getPoints(64);
         const positions = new Float32Array(points.flatMap((p) => [p.x, p.y, p.z]));
 
         return { curve, positions };
@@ -441,20 +352,20 @@ export function GlobeArcs() {
     <group ref={groupRef}>
       {arcs.map((arc, i) => (
         <group key={i}>
+          {/* Base connection line */}
           <line>
             <bufferGeometry>
               <bufferAttribute attach="attributes-position" args={[arc.positions, 3]} />
             </bufferGeometry>
             <lineBasicMaterial
-              color="#7adfff"
+              color="#00aaff"
               transparent
-              opacity={0.18}
+              opacity={0.12}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
             />
           </line>
-
-          <DataPacket curve={arc.curve} delay={i * 0.35} />
+          <DataPacket curve={arc.curve} delay={i * 0.3} />
         </group>
       ))}
     </group>
@@ -463,31 +374,50 @@ export function GlobeArcs() {
 
 function DataPacket({ curve, delay }: { curve: THREE.Curve<THREE.Vector3>; delay: number }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const glowRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
-    if (!meshRef.current) return;
+    if (!meshRef.current || !glowRef.current) return;
 
-    const t = ((state.clock.elapsedTime + delay) * 0.22) % 1;
+    const t = ((state.clock.elapsedTime + delay) * 0.12) % 1;
     const point = curve.getPoint(t);
 
     meshRef.current.position.copy(point);
+    glowRef.current.position.copy(point);
+
+    const intensity = Math.sin(t * Math.PI);
 
     if (meshRef.current.material instanceof THREE.MeshBasicMaterial) {
-      meshRef.current.material.opacity = 0.35 + Math.sin(t * Math.PI) * 0.45;
+      meshRef.current.material.opacity = intensity * 0.9;
+    }
+    if (glowRef.current.material instanceof THREE.MeshBasicMaterial) {
+      glowRef.current.material.opacity = intensity * 0.4;
     }
   });
 
   return (
-    <mesh ref={meshRef}>
-      <sphereGeometry args={[0.0065, 10, 10]} />
-      <meshBasicMaterial
-        color="#a9f8ff"
-        transparent
-        opacity={0.75}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-      />
-    </mesh>
+    <group>
+      <mesh ref={meshRef}>
+        <sphereGeometry args={[0.008, 12, 12]} />
+        <meshBasicMaterial
+          color="#ffffff"
+          transparent
+          opacity={0.8}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh ref={glowRef}>
+        <sphereGeometry args={[0.016, 12, 12]} />
+        <meshBasicMaterial
+          color="#00E5FF"
+          transparent
+          opacity={0.4}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
   );
 }
 
@@ -501,20 +431,15 @@ export function GlobeCloud() {
     for (let i = 0; i < CLOUD_COUNT; i += 1) {
       const phi = Math.acos(2 * Math.random() - 1);
       const theta = 2 * Math.PI * Math.random();
-      const r = GLOBE_RADIUS * (1.08 + Math.random() * 0.08);
+      const r = GLOBE_RADIUS * (1.12 + Math.random() * 0.1); // Pushed further out
 
-      const x = r * Math.sin(phi) * Math.cos(theta);
-      const y = r * Math.cos(phi);
-      const z = r * Math.sin(phi) * Math.sin(theta);
+      pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      pos[i * 3 + 1] = r * Math.cos(phi);
+      pos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
 
-      pos[i * 3] = x;
-      pos[i * 3 + 1] = y;
-      pos[i * 3 + 2] = z;
-
-      const lift = Math.random();
-      col[i * 3] = 0.02;
-      col[i * 3 + 1] = 0.15 + lift * 0.1;
-      col[i * 3 + 2] = 0.35 + lift * 0.12;
+      col[i * 3] = 0.0;
+      col[i * 3 + 1] = 0.4 + Math.random() * 0.4;
+      col[i * 3 + 2] = 0.8 + Math.random() * 0.2;
     }
 
     return { positions: pos, colors: col };
@@ -522,7 +447,9 @@ export function GlobeCloud() {
 
   useFrame(() => {
     if (pointsRef.current) {
-      pointsRef.current.rotation.y -= ROTATION_SPEED * 0.35;
+      // Counter-rotation for parallax cinematic feel
+      pointsRef.current.rotation.y -= ROTATION_SPEED * 0.4;
+      pointsRef.current.rotation.z += ROTATION_SPEED * 0.1;
     }
   });
 
@@ -533,10 +460,10 @@ export function GlobeCloud() {
         <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        size={0.0026}
+        size={0.004}
         vertexColors
         transparent
-        opacity={0.16}
+        opacity={0.2}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
         sizeAttenuation
