@@ -1,28 +1,27 @@
 import * as THREE from 'three';
 
-export interface City {
+export type City = {
   name: string;
   lat: number;
   lng: number;
-}
+};
 
 export const CITIES: City[] = [
-  { name: 'New York', lat: 40.7128, lng: -74.0060 },
-  { name: 'London', lat: 51.5074, lng: -0.1278 },
-  { name: 'Paris', lat: 48.8566, lng: 2.3522 },
-  { name: 'Dubai', lat: 25.2048, lng: 55.2708 },
-  { name: 'Singapore', lat: 1.3521, lng: 103.8198 },
-  { name: 'Tokyo', lat: 35.6762, lng: 139.6503 },
-  { name: 'Sydney', lat: -33.8688, lng: 151.2093 },
-  { name: 'Moscow', lat: 55.7558, lng: 37.6173 },
-  { name: 'São Paulo', lat: -23.5505, lng: -46.6333 },
-  { name: 'San Francisco', lat: 37.7749, lng: -122.4194 },
-  { name: 'Lagos', lat: 6.5244, lng: 3.3792 },
-  { name: 'Frankfurt', lat: 50.1109, lng: 8.6821 },
-  { name: 'Mumbai', lat: 19.0760, lng: 72.8777 },
+  { name: 'TOKYO', lat: 35.6762, lng: 139.6503 },
+  { name: 'SINGAPORE', lat: 1.3521, lng: 103.8198 },
+  { name: 'DUBAI', lat: 25.2048, lng: 55.2708 },
+  { name: 'LONDON', lat: 51.5072, lng: -0.1276 },
+  { name: 'PARIS', lat: 48.8566, lng: 2.3522 },
+  { name: 'NEW YORK', lat: 40.7128, lng: -74.006 },
+  { name: 'SAN FRANCISCO', lat: 37.7749, lng: -122.4194 },
+  { name: 'SÃO PAULO', lat: -23.5558, lng: -46.6396 },
+  { name: 'SYDNEY', lat: -33.8688, lng: 151.2093 },
+  { name: 'JOHANNESBURG', lat: -26.2041, lng: 28.0473 },
+  { name: 'FRANKFURT', lat: 50.1109, lng: 8.6821 },
+  { name: 'MUMBAI', lat: 19.076, lng: 72.8777 },
 ];
 
-export function latLonToVector3(lat: number, lng: number, radius: number): THREE.Vector3 {
+export function latLonToVector3(lat: number, lng: number, radius = 1): THREE.Vector3 {
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lng + 180) * (Math.PI / 180);
 
@@ -33,13 +32,16 @@ export function latLonToVector3(lat: number, lng: number, radius: number): THREE
   return new THREE.Vector3(x, y, z);
 }
 
-export function createArcCurve(p1: THREE.Vector3, p2: THREE.Vector3, radius: number) {
-  const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-  const distance = p1.distanceTo(p2);
-  const altitude = radius + distance * 0.25;
-  
-  midPoint.normalize().multiplyScalar(altitude);
-  
-  const curve = new THREE.QuadraticBezierCurve3(p1, midPoint, p2);
-  return curve;
+export function createArcCurve(
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  radius = 1,
+): THREE.QuadraticBezierCurve3 {
+  const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+  const distance = start.distanceTo(end);
+
+  const altitude = radius * (1.18 + Math.min(distance * 0.18, 0.42));
+  mid.normalize().multiplyScalar(altitude);
+
+  return new THREE.QuadraticBezierCurve3(start, mid, end);
 }
