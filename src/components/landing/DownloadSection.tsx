@@ -37,7 +37,9 @@ export const DownloadSection = () => {
           
           <div className="flex flex-col items-center gap-8">
             <motion.a
-              href="#download-apk"
+              href="/downloads/swimvpn.apk"
+              download="SwimVPN.apk"
+              aria-label="Download SwimVPN APK"
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
               className="px-16 py-6 bg-white text-black font-black text-xl rounded-2xl flex items-center gap-4 shadow-[0_30px_60px_-15px_rgba(255,255,255,0.2)] hover:shadow-[0_40px_80px_-15px_rgba(255,255,255,0.3)] transition-all"
