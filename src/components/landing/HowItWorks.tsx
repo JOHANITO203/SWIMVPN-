@@ -3,8 +3,8 @@ import { motion } from 'motion/react';
 
 const STEPS = [
   { id: "01", title: "Download the APK", text: "Secure the latest version directly." },
-  { id: "02", title: "Open SwimVPN+", text: "Instant installation on Android." },
-  { id: "03", title: "Tap Connect", text: "One click to bypass restrictions." },
+  { id: "02", title: "Open swimvpn+", text: "Instant installation on Android." },
+  { id: "03", title: "Paste Config", text: "One click to bypass restrictions." },
   { id: "04", title: "Stay Connected", text: "Automatic smart reconnection." }
 ];
 

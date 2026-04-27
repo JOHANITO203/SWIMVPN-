@@ -40,7 +40,7 @@ const FEATURES = [
   },
   {
     title: "Smart Connection",
-    text: "SwimVPN+ adapts automatically without manual configuration.",
+    text: "swimvpn+ adapts automatically without manual configuration.",
     icon: Gauge,
     color: "text-rose-400",
     bg: "bg-rose-400/10"

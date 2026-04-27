@@ -16,7 +16,7 @@ export const Footer = () => {
         </div>
         
         <div className="text-slate-600 text-sm">
-          © {new Date().getFullYear()} SwimVPN+. All rights reserved.
+          © {new Date().getFullYear()} swimvpn+. All rights reserved.
         </div>
       </div>
     </footer>
