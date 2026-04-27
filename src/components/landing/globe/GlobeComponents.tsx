@@ -427,21 +427,7 @@ export function GlobeArcs() {
     <group ref={groupRef}>
       {arcs.map((arc, i) => (
         <group key={i}>
-          {/* Subtle dashed line for a digital radar feel */}
-          <line>
-            <bufferGeometry onUpdate={(self) => self.computeLineDistances()}>
-              <bufferAttribute attach="attributes-position" args={[arc.positions, 3]} />
-            </bufferGeometry>
-            <lineDashedMaterial
-              color="#00aaff"
-              transparent
-              opacity={0.12}
-              dashSize={0.02}
-              gapSize={0.02}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-            />
-          </line>
+          <ArcLine positions={arc.positions} />
 
           {/* Very faint solid core line */}
           <line>
@@ -462,6 +448,33 @@ export function GlobeArcs() {
         </group>
       ))}
     </group>
+  );
+}
+
+function ArcLine({ positions }: { positions: Float32Array }) {
+  const lineRef = useRef<THREE.Line>(null);
+
+  useEffect(() => {
+    if (lineRef.current) {
+      lineRef.current.computeLineDistances();
+    }
+  }, [positions]);
+
+  return (
+    <line ref={lineRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <lineDashedMaterial
+        color="#00aaff"
+        transparent
+        opacity={0.12}
+        dashSize={0.02}
+        gapSize={0.02}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </line>
   );
 }
 
