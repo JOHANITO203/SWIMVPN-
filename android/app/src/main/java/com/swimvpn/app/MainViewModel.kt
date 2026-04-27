@@ -137,9 +137,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 prefs.saveUserNumber(bootstrap.userNumber)
 
-                if (bootstrap.hasActiveAccess && bootstrap.profile != null) {
+                val shouldGoToHome = bootstrap.profile != null &&
+                    bootstrap.profile.status != "PROFILE_INCOMPLETE" &&
+                    bootstrap.profile.status != "TRIAL_AVAILABLE"
+
+                if (shouldGoToHome) {
                     val successState = buildSuccessState(
-                        profile = bootstrap.profile,
+                        profile = bootstrap.profile!!,
                         isOnboardingDone = isOnboardingDone,
                         routingMode = routingMode,
                         autoConnect = autoConnect,
@@ -439,7 +443,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val server = successState.activeServer ?: return
         val profile = successState.profile
         val runtimeConfig = server.rawConfig ?: profile.subscriptionUrl
-        if (profile.isExpired || runtimeConfig.isNullOrBlank()) return
+        if ((profile.isExpired && server.source == "backend") || runtimeConfig.isNullOrBlank()) return
 
         val vpnState = com.swimvpn.app.vpn.VpnManager.state.value
         if (vpnState != com.swimvpn.app.vpn.VpnState.DISCONNECTED && vpnState != com.swimvpn.app.vpn.VpnState.ERROR) {
@@ -536,18 +540,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         } else {
             if (server == null || profile == null) {
-                _state.value = AppState.Error(s(R.string.err_no_server_profile))
+                viewModelScope.launch { _effect.emit(AppSideEffect.ShowToast(s(R.string.err_no_server_profile))) }
                 return
             }
 
-            if (profile.isExpired) {
-                _state.value = AppState.Error(s(R.string.err_subscription_expired))
+            if (profile.isExpired && server.source == "backend") {
+                viewModelScope.launch { _effect.emit(AppSideEffect.ShowToast(s(R.string.err_subscription_expired))) }
                 return
             }
 
             val runtimeConfig = server.rawConfig ?: profile.subscriptionUrl
             if (runtimeConfig.isNullOrBlank()) {
-                _state.value = AppState.Error(s(R.string.err_no_runtime_config))
+                viewModelScope.launch { _effect.emit(AppSideEffect.ShowToast(s(R.string.err_no_runtime_config))) }
                 return
             }
 

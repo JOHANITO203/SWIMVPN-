@@ -179,6 +179,7 @@ fun AppNavigation(
                 onNavigateProfile = { navController.navigate("profile") },
                 onNavigateServers = { navController.navigate("servers") },
                 onNavigateImport = { navController.navigate("import") },
+                onNavigateSubscription = { navController.navigate("subscription") }
             ) 
         }
         composable("servers") { 
@@ -450,6 +451,7 @@ fun HomeScreen(
     onNavigateProfile: () -> Unit,
     onNavigateServers: () -> Unit,
     onNavigateImport: () -> Unit,
+    onNavigateSubscription: () -> Unit,
 ) {
     val profile = data.profile
     val activeServer = data.activeServer
@@ -665,10 +667,14 @@ fun HomeScreen(
                     .clip(CircleShape)
                     .background(circleOuterColor)
                     .clickable(
-                        enabled = profile.status != "EXPIRED" && vpnState != VpnState.DISCONNECTING,
+                        enabled = vpnState != VpnState.DISCONNECTING,
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null
                     ) {
+                        if (profile.status == "EXPIRED" && activeServer?.source != "imported" && vpnState == VpnState.DISCONNECTED) {
+                            onNavigateSubscription()
+                            return@clickable
+                        }
                         if (vpnState == VpnState.DISCONNECTED || vpnState == VpnState.ERROR) {
                             if (selectedRuntimeMode == RuntimeMode.FULL_TUNNEL) {
                                 val intent = android.net.VpnService.prepare(context)

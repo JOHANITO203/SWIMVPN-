@@ -39,7 +39,7 @@ export class CustomerService {
       trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
       profileCompletionRequired: !customer.email || !customer.phone,
       hasActiveAccess,
-      profile: hasActiveAccess ? profile : null,
+      profile: profile, // ALWAYS return profile to allow freemium app shell access
     };
   }
 
@@ -276,7 +276,7 @@ export class CustomerService {
       trialStartedAt: latestOrder?.created_at.toISOString() || null,
       trialExpiresAt,
       subscriptionExpiresAt,
-      subscriptionUrl: inventoryItem?.raw_config || null,
+      subscriptionUrl: status === 'ACTIVE' ? (inventoryItem?.raw_config || null) : null,
       devicesAllowed: latestOrder
         ? isTrialOrder
           ? 1
