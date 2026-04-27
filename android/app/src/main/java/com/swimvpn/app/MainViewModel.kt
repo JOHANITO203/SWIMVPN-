@@ -285,19 +285,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun activateCode(code: String) {
-        viewModelScope.launch {
-            val currentState = _state.value as? AppState.Success ?: return@launch
-            try {
-                _state.value = AppState.Loading
-                val updatedProfile = api.activateCode(ActivateCodeRequest(currentState.profile.userNumber, code))
-                _state.value = currentState.copy(profile = updatedProfile)
-            } catch (e: Exception) {
-                _state.value = AppState.Error(s(R.string.err_activation_failed, e.localizedMessage ?: "unknown"))
-            }
-        }
-    }
-
     fun importVless(url: String) {
         viewModelScope.launch {
             val currentState = _state.value as? AppState.Success ?: return@launch
@@ -533,7 +520,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (successState != null && refreshedProfile != null) {
                     _state.value = refreshSuccessState(successState.copy(profile = refreshedProfile))
                 }
-                val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
+                val intent = Intent(context, SwimVpnService::class.java).apply {
                     action = SwimVpnService.ACTION_STOP
                 }
                 context.startService(intent)
@@ -566,7 +553,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 )
 
-                val intent = android.content.Intent(context, SwimVpnService::class.java).apply {
+                val intent = Intent(context, SwimVpnService::class.java).apply {
                     action = SwimVpnService.ACTION_START
                     putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
                     putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
