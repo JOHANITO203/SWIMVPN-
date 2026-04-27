@@ -1,6 +1,7 @@
 networks:
   private:
     driver: bridge
+    name: swimvpn-private
 
   dokploy-public:
     external: true
