@@ -29,6 +29,13 @@ services:
     labels:
       traefik.enable: "true"
       traefik.docker.network: "dokploy-network"
+
+      traefik.http.routers.swimvpn-app-http.rule: "Host(`app.swimvpn.pro`)"
+      traefik.http.routers.swimvpn-app-http.entrypoints: "web"
+      traefik.http.routers.swimvpn-app-http.middlewares: "swimvpn-app-https-redirect"
+      traefik.http.middlewares.swimvpn-app-https-redirect.redirectscheme.scheme: "https"
+      traefik.http.middlewares.swimvpn-app-https-redirect.redirectscheme.permanent: "true"
+
       traefik.http.routers.swimvpn-app.rule: "Host(`app.swimvpn.pro`)"
       traefik.http.routers.swimvpn-app.entrypoints: "websecure"
       traefik.http.routers.swimvpn-app.tls: "true"
@@ -342,6 +349,19 @@ services:
     labels:
       traefik.enable: "true"
       traefik.docker.network: "dokploy-network"
+
+      traefik.http.routers.swimvpn-api-http.rule: "Host(`api.swimvpn.pro`)"
+      traefik.http.routers.swimvpn-api-http.entrypoints: "web"
+      traefik.http.routers.swimvpn-api-http.middlewares: "swimvpn-api-https-redirect"
+      traefik.http.middlewares.swimvpn-api-https-redirect.redirectscheme.scheme: "https"
+      traefik.http.middlewares.swimvpn-api-https-redirect.redirectscheme.permanent: "true"
+
+      traefik.http.routers.swimvpn-admin-http.rule: "Host(`admin.swimvpn.pro`)"
+      traefik.http.routers.swimvpn-admin-http.entrypoints: "web"
+      traefik.http.routers.swimvpn-admin-http.middlewares: "swimvpn-admin-https-redirect"
+      traefik.http.middlewares.swimvpn-admin-https-redirect.redirectscheme.scheme: "https"
+      traefik.http.middlewares.swimvpn-admin-https-redirect.redirectscheme.permanent: "true"
+
       traefik.http.routers.swimvpn-api.rule: "Host(`api.swimvpn.pro`)"
       traefik.http.routers.swimvpn-api.entrypoints: "websecure"
       traefik.http.routers.swimvpn-api.tls: "true"
