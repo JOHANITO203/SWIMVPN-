@@ -12,40 +12,39 @@ import {
 
 const MOBILE_BREAKPOINT = 768;
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+function useDeviceType() {
+  const [device, setDevice] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-
     const update = () => {
-      setIsMobile(mediaQuery.matches);
+      if (window.innerWidth < 640) setDevice('mobile');
+      else if (window.innerWidth < 1024) setDevice('tablet');
+      else setDevice('desktop');
     };
 
     update();
-    mediaQuery.addEventListener('change', update);
-
-    return () => {
-      mediaQuery.removeEventListener('change', update);
-    };
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
-  return isMobile;
+  return device;
 }
 
-function GlobeScene({ isMobile }: { isMobile: boolean }) {
-  const cameraConfig = useMemo(
-    () => ({
-      position: isMobile
-        ? ([0, 0, 7.5] as [number, number, number])
-        : ([0, 0, 7.0] as [number, number, number]),
-      fov: isMobile ? 40 : 35,
-      scale: isMobile ? 1.05 : 1.15,
-    }),
-    [isMobile],
-  );
+function GlobeScene({ device }: { device: 'mobile' | 'tablet' | 'desktop' }) {
+  const cameraConfig = useMemo(() => {
+    if (device === 'mobile') {
+      // Very close and large on mobile to ensure it fills the space
+      return { position: [0, 0, 5.5] as [number, number, number], fov: 42, scale: 1.35 };
+    }
+    if (device === 'tablet') {
+      // Generous sizing for tablets
+      return { position: [0, 0, 6.0] as [number, number, number], fov: 38, scale: 1.25 };
+    }
+    // Desktop layout (shifted right visually)
+    return { position: [0, 0, 7.0] as [number, number, number], fov: 35, scale: 1.15 };
+  }, [device]);
 
   return (
     <>
@@ -72,7 +71,7 @@ function GlobeScene({ isMobile }: { isMobile: boolean }) {
         </group>
       </Suspense>
 
-      {!isMobile && (
+      {!device.includes('mobile') && (
         <OrbitControls
           enableZoom={false}
           enablePan={false}
@@ -90,7 +89,7 @@ function GlobeScene({ isMobile }: { isMobile: boolean }) {
 }
 
 export const InteractivePixelGlobe = () => {
-  const isMobile = useIsMobile();
+  const device = useDeviceType();
 
   return (
     <div
@@ -98,7 +97,9 @@ export const InteractivePixelGlobe = () => {
         relative
         w-full
         h-full
-        max-w-[600px]
+        max-w-[400px]
+        sm:max-w-[500px]
+        md:max-w-[600px]
         mx-auto
         overflow-visible
         lg:cursor-grab
@@ -111,10 +112,10 @@ export const InteractivePixelGlobe = () => {
       aria-hidden="true"
     >
       <Canvas
-        dpr={isMobile ? [1, 1.2] : [1, 2]}
+        dpr={device === 'desktop' ? [1, 2] : [1, 1.2]}
         frameloop="always"
         gl={{
-          antialias: !isMobile,
+          antialias: device === 'desktop',
           alpha: true,
           powerPreference: 'high-performance',
           preserveDrawingBuffer: false,
@@ -129,7 +130,7 @@ export const InteractivePixelGlobe = () => {
           pointerEvents: 'auto',
         }}
       >
-        <GlobeScene isMobile={isMobile} />
+        <GlobeScene device={device} />
       </Canvas>
     </div>
   );

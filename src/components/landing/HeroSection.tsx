@@ -70,7 +70,7 @@ export const HeroSection = () => {
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.2, ease: 'easeOut' }}
-          className="relative z-0 order-last w-full aspect-square max-w-[380px] sm:max-w-[450px] md:max-w-[520px] lg:max-w-none lg:h-[700px] mx-auto flex items-center justify-center lg:justify-end overflow-visible"
+          className="relative z-0 order-last w-full h-[350px] sm:h-[450px] md:h-[550px] lg:h-[700px] max-w-[400px] sm:max-w-[500px] md:max-w-[600px] lg:max-w-none mx-auto flex items-center justify-center lg:justify-end overflow-visible"
         >
           <div className="w-full h-full flex items-center justify-center lg:translate-x-12 xl:translate-x-24 lg:translate-y-12">
             <InteractivePixelGlobe />
