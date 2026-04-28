@@ -1793,3 +1793,30 @@ pm run build PASSED.
   - `cd android && .\gradlew.bat :app:testDebugUnitTest --no-daemon` PASSED.
   - `cd backend && npx prisma migrate status` BLOCKED by `Schema engine error`.
   - `cd backend && npm test` BLOCKED because no backend `test` script exists.
+
+## [2026-04-28] [Backend Deployment Verification Scripts]
+- **Status**: DONE
+- **Changes**:
+  - Added `backend` script `test:policy` to run the existing TypeScript policy/parser/template tests without pretending a full Jest-style suite exists.
+  - Added `verify:deploy` to chain backend deploy-safe checks: TypeScript compile, Prisma schema validation/generation, all microservice builds, and policy tests.
+  - Added `prisma:migrate:status` as the explicit Prisma migration status command.
+  - Confirmed root `docker-compose.yml` already includes `prisma-migrate` before `prisma-seed`, and backend services wait for seed completion.
+- **Verification**:
+  - `cd backend && npm run test:policy` PASSED.
+  - `cd backend && npm run verify:deploy` PASSED.
+  - `cd backend && npm run prisma:migrate:status` BLOCKED locally by DB connectivity/config: local `.env` is Docker-oriented and local `localhost:5432` is not accepting TCP connections.
+  - `docker compose config --quiet` PASSED.
+
+## [2026-04-28] [Database URL Encoding And Compose Alignment]
+- **Status**: DONE
+- **Changes**:
+  - Restored `DATABASE_URL` in the root `.env` from the existing `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` values.
+  - Updated `backend/.env` with the same URL-encoded Docker/Dokploy database URL.
+  - Replaced raw Compose-side `DATABASE_URL` reconstruction with `${DATABASE_URL:?DATABASE_URL is required}` in both root and backend compose files.
+  - Preserved the existing Postgres password and database name; no DB reset or rollback was performed.
+- **Verification**:
+  - Parsed root `.env` `DATABASE_URL` successfully with Node; host is `db`, schema is `public`, reserved password characters are URL-encoded.
+  - Parsed `backend/.env` `DATABASE_URL` successfully with Node.
+  - `docker compose config --quiet` PASSED.
+  - `cd backend && npm run prisma:validate` PASSED.
+  - `cd backend && npm run verify:deploy` PASSED.

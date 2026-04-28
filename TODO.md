@@ -601,3 +601,19 @@ u after each future language batch
 - Re-test security manually: calls to `/api/v1/servers` without `x-device-id` or with a wrong device ID return no premium servers.
 - Investigate local `npx prisma migrate status` `Schema engine error` before deployment readiness can be marked YES.
 - Add or wire a backend `npm test` script so backend test readiness is not permanently blocked by package configuration.
+
+## [2026-04-28] Backend Deployment Verification Follow-up
+- For local migration status, either start the local Postgres container stack or override `DATABASE_URL` with a URL-encoded localhost connection string before running `cd backend && npm run prisma:migrate:status`.
+- On VPS/Dokploy, verify the one-shot migration job after deploy with:
+  - `docker compose ps prisma-migrate prisma-seed`
+  - `docker compose logs prisma-migrate --tail 200`
+  - `docker compose logs prisma-seed --tail 200`
+- Do not use plain `npm test` for backend readiness unless a real test runner script is added later; use `npm run test:policy` or `npm run verify:deploy`.
+
+## [2026-04-28] Dokploy DATABASE_URL Alignment
+- Add or update the Dokploy/root environment variable `DATABASE_URL` with the URL-encoded Postgres connection string that uses host `db` and schema `public`.
+- Keep `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` unchanged unless you intentionally rotate the database password.
+- After redeploy, verify:
+  - `docker compose logs prisma-migrate --tail 200`
+  - `docker compose logs prisma-seed --tail 200`
+  - `curl -f https://api.swimvpn.pro/api/v1/health`
