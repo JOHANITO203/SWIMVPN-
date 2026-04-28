@@ -1820,3 +1820,16 @@ pm run build PASSED.
   - `docker compose config --quiet` PASSED.
   - `cd backend && npm run prisma:validate` PASSED.
   - `cd backend && npm run verify:deploy` PASSED.
+
+## [2026-04-28] [Dokploy DATABASE_URL Interpolation Rollback]
+- **Status**: DONE
+- **Changes**:
+  - Reverted Compose `DATABASE_URL` entries back to the existing `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` interpolation so Dokploy does not require a separate `DATABASE_URL` variable at compose-parse time.
+  - Kept local `.env` / `backend/.env` `DATABASE_URL` values available for direct Prisma/local tooling.
+  - Did not change database credentials, Docker service topology, Android, landing, or access logic.
+- **Verification**:
+  - `docker compose config --quiet` PASSED without requiring `DATABASE_URL`.
+  - `docker compose --env-file backend/.env -f backend/docker-compose.yml config --quiet` PASSED.
+  - `cd backend && npm run prisma:validate` PASSED.
+- **Note**:
+  - If `prisma-migrate` later fails at runtime with a URL parsing/auth error, the clean fix is to provide an encoded `DATABASE_URL` through Dokploy env or rotate the DB password to URL-safe characters. The current patch intentionally prioritizes unblocking Dokploy interpolation without changing Dokploy variables.

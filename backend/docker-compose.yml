@@ -26,7 +26,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
       CUSTOMER_SERVICE_HOST: customer-order-service
       INVENTORY_SERVICE_HOST: inventory-delivery-service
       ADMIN_SERVICE_HOST: admin-control-service
@@ -48,7 +48,7 @@ services:
     container_name: swimvpn_customer_order
     command: node dist/apps/customer-order-service/main
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
       INVENTORY_SERVICE_HOST: inventory-delivery-service
       VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
@@ -73,7 +73,7 @@ services:
     container_name: swimvpn_inventory_delivery
     command: node dist/apps/inventory-delivery-service/main
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
       VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
       ADMIN_SERVICE_HOST: admin-control-service
       NOTIFICATION_SERVICE_HOST: notification-bot-service
@@ -89,7 +89,7 @@ services:
     container_name: swimvpn_admin_control
     command: node dist/apps/admin-control-service/main
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
       INVENTORY_SERVICE_HOST: inventory-delivery-service
       CUSTOMER_SERVICE_HOST: customer-order-service
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
@@ -113,7 +113,7 @@ services:
     container_name: swimvpn_vpn_engine
     command: node dist/apps/vpn-config-engine-service/main
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
       SWIMVPN_CRYPT1_KEY_BASE64: ${SWIMVPN_CRYPT1_KEY_BASE64:-}
     depends_on:
       db:
@@ -127,7 +127,7 @@ services:
     container_name: swimvpn_store_engine
     command: node dist/apps/store-engine-service/main
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
       DEFAULT_CURRENCY: RUB
     depends_on:
       db:
@@ -141,7 +141,7 @@ services:
     container_name: swimvpn_notification_bot
     command: node dist/apps/notification-bot-service/main
     environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       NOTIFICATION_BOT_TOKEN: ${NOTIFICATION_BOT_TOKEN:-}
       ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:?ADMIN_CHAT_ID is required}
