@@ -591,3 +591,13 @@ u after each future language batch
 - Ensure the Spaceship `A` record for `app.swimvpn.pro` points to the VPS IP.
 - Redeploy the root compose so Dokploy creates the new `landing-service`.
 - Verify `https://app.swimvpn.pro` resolves with a valid TLS certificate and loads the built landing page.
+
+## [2026-04-28] Trial/Access QA Follow-up
+- Re-test on device: fresh profile incomplete -> onboarding, not expired/paywall.
+- Re-test on device: `TRIAL_AVAILABLE` enters app shell/freemium and can activate trial without a dead end.
+- Re-test on device: `ACTIVE_TRIAL` receives premium servers/configs and can connect.
+- Re-test on device: expired trial/subscription stays in app shell, imported configs remain usable, managed premium server actions route to subscription/paywall.
+- Re-test on device: usage reporting still refreshes profile after disconnect with matching device ID.
+- Re-test security manually: calls to `/api/v1/servers` without `x-device-id` or with a wrong device ID return no premium servers.
+- Investigate local `npx prisma migrate status` `Schema engine error` before deployment readiness can be marked YES.
+- Add or wire a backend `npm test` script so backend test readiness is not permanently blocked by package configuration.

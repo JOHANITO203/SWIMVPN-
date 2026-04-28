@@ -739,3 +739,20 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Impact**:
   - `app.swimvpn.pro` now has a dedicated deployment target in the main compose file.
   - Backend microservices stay isolated from frontend hosting concerns.
+
+## [2026-04-28] [Backend Entitlement State Is The Access Truth]
+- **Decision**: Backend profile responses now expose an explicit `entitlementState` (`ACTIVE_TRIAL`, `ACTIVE_SUBSCRIPTION`, `EXPIRED_TRIAL`, `EXPIRED_SUBSCRIPTION`, `TRIAL_AVAILABLE`, `PROFILE_INCOMPLETE`, `PENDING_FULFILLMENT`) while keeping legacy `status`/`accessType` for compatibility.
+- **Why**: Android and backend were mixing trial, paid, expired, and profile-incomplete states through coarse `ACTIVE`/`EXPIRED` flags, creating contradictory routing and premium-resource checks.
+- **Impact**:
+  - Android normalizes all access decisions from backend state instead of inventing its own truth.
+  - Premium backend resources are limited to active trial or active subscription.
+  - Expired users keep app shell/imported-config access without receiving managed servers/configs.
+
+## [2026-04-28] [Runtime Config Exposure Must Be Device-Bound]
+- **Decision**: Raw managed config delivery must be opt-in and device-bound; public profile/import paths must not expose `subscriptionUrl`, and premium server/usage endpoints must verify the customer device.
+- **Why**: A public user number is not strong enough to authorize premium server metadata, usage mutation, or raw config delivery.
+- **Impact**:
+  - `GET /access/:userNumber` and local import sync return safe profile payloads without raw runtime config.
+  - `/servers` requires both `x-user-number` and `x-device-id`.
+  - Usage reporting validates the device before recording shared supplier usage.
+  - Encrypted `crypt1` resolution is bound to the assigned raw config.

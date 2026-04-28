@@ -15,7 +15,6 @@ import com.swimvpn.app.data.network.ActivateCodeRequest
 import com.swimvpn.app.data.network.ActivateTrialRequest
 import com.swimvpn.app.data.network.BootstrapAccessRequest
 import com.swimvpn.app.data.model.CheckoutRequest
-import com.swimvpn.app.data.network.ImportSubscriptionRequest
 import com.swimvpn.app.data.network.ReportUsageRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerGroup
@@ -138,8 +137,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 prefs.saveUserNumber(bootstrap.userNumber)
 
                 val shouldGoToHome = bootstrap.profile != null &&
-                    bootstrap.profile.status != "PROFILE_INCOMPLETE" &&
-                    bootstrap.profile.status != "TRIAL_AVAILABLE"
+                    !bootstrap.profile.requiresProfileCompletion
 
                 if (shouldGoToHome) {
                     val successState = buildSuccessState(
@@ -288,22 +286,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun importVless(url: String) {
         viewModelScope.launch {
             val currentState = _state.value as? AppState.Success ?: return@launch
-            try {
-                val updatedProfile = api.importSubscription(
-                    ImportSubscriptionRequest(
-                        userNumber = currentState.profile.userNumber,
-                        subscriptionUrl = url
-                    )
-                )
-
-                _state.value = refreshSuccessState(currentState.copy(profile = updatedProfile))
-                refreshServerLatency()
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Import failed", e)
-                _state.value = refreshSuccessState(currentState)
-                refreshServerLatency()
-                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_import_sync_failed)))
-            }
+            Log.i("MainViewModel", "Local imported config refreshed without mutating backend inventory")
+            _state.value = refreshSuccessState(currentState)
+            refreshServerLatency()
         }
     }
 
@@ -430,7 +415,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val server = successState.activeServer ?: return
         val profile = successState.profile
         val runtimeConfig = server.rawConfig ?: profile.subscriptionUrl
-        if ((profile.isExpired && server.source == "backend") || runtimeConfig.isNullOrBlank()) return
+        if ((!profile.isPremiumAllowed && server.source == "backend") || runtimeConfig.isNullOrBlank()) return
 
         val vpnState = com.swimvpn.app.vpn.VpnManager.state.value
         if (vpnState != com.swimvpn.app.vpn.VpnState.DISCONNECTED && vpnState != com.swimvpn.app.vpn.VpnState.ERROR) {
@@ -471,21 +456,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            val restoreIntent = Intent(context, SwimVpnService::class.java).apply {
-                action = SwimVpnService.ACTION_START
-                putExtra(SwimVpnService.EXTRA_SERVER_HOST, payload.host)
-                putExtra(SwimVpnService.EXTRA_SERVER_PORT, payload.port)
-                putExtra(SwimVpnService.EXTRA_PROTOCOL, payload.protocol)
-                putExtra(SwimVpnService.EXTRA_URL, payload.runtimeConfig)
-                putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, payload.runtimeMode.name)
-            }
-            context.startService(restoreIntent)
-            lastAutoConnectSignature = listOf(
-                currentState.profile.userNumber,
-                payload.host,
-                payload.port.toString(),
-                payload.runtimeConfig,
-            ).joinToString(":")
+            Log.i("MainViewModel", "Skipping stale auto-connect payload until bootstrap selects the active server again")
         }
     }
 
@@ -502,6 +473,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 ReportUsageRequest(
                     userNumber = userNumber,
                     measuredUsedBytes = measuredBytes.toString(),
+                    deviceId = getDeviceId(),
                 )
             )
         } catch (e: Exception) {
@@ -531,7 +503,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return
             }
 
-            if (profile.isExpired && server.source == "backend") {
+            if (!profile.isPremiumAllowed && server.source == "backend") {
                 viewModelScope.launch { _effect.emit(AppSideEffect.ShowToast(s(R.string.err_subscription_expired))) }
                 return
             }
@@ -595,12 +567,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         language: String,
         themeMode: ThemeMode,
     ): AppState.Success? {
+        val pinnedIds = prefs.pinnedServerIdsFlow.first()
+        val importedGroups = configRepository.getImportedProfileGroups()
         val backendServers = try {
-            api.getServers(profile.userNumber)
+            api.getServers(profile.userNumber, getDeviceId())
         } catch (e: Exception) {
             Log.e("MainViewModel", "API Error fetching servers", e)
-            _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
-            return null
+            if (profile.isPremiumAllowed) {
+                _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
+                return null
+            }
+            emptyList()
         }
 
         val plans = try {
@@ -611,8 +588,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return null
         }
 
-        val pinnedIds = prefs.pinnedServerIdsFlow.first()
-        val importedGroups = configRepository.getImportedProfileGroups()
         val serverGroups = buildServerGroups(profile, backendServers, importedGroups, pinnedIds)
         val servers = serverGroups.flatMap { it.servers }
         val savedServerId = prefs.selectedServerIdFlow.first()

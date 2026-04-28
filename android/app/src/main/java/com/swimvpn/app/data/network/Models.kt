@@ -33,6 +33,7 @@ data class AccessProfileResponse(
     val planDisplayName: String? = null,
     val planType: String,
     val status: String,
+    val entitlementState: String? = null,
     val trialStartedAt: String?,
     val trialExpiresAt: String?,
     val subscriptionExpiresAt: String?,
@@ -45,6 +46,34 @@ data class AccessProfileResponse(
     val profileCompletionRequired: Boolean,
     val trialEligible: Boolean
 ) {
+    val normalizedEntitlementState: String
+        get() = when {
+            !entitlementState.isNullOrBlank() -> entitlementState
+            status == "ACTIVE" && accessType == "TRIAL" -> "ACTIVE_TRIAL"
+            status == "ACTIVE" && accessType == "PAID" -> "ACTIVE_SUBSCRIPTION"
+            status == "EXPIRED" && accessType == "TRIAL" -> "EXPIRED_TRIAL"
+            status == "EXPIRED" && accessType == "PAID" -> "EXPIRED_SUBSCRIPTION"
+            else -> status
+        }
+
+    val requiresProfileCompletion: Boolean
+        get() = normalizedEntitlementState == "PROFILE_INCOMPLETE"
+
+    val isTrialAvailable: Boolean
+        get() = normalizedEntitlementState == "TRIAL_AVAILABLE"
+
+    val isPendingFulfillment: Boolean
+        get() = normalizedEntitlementState == "PENDING_FULFILLMENT"
+
+    val isActiveTrial: Boolean
+        get() = normalizedEntitlementState == "ACTIVE_TRIAL"
+
+    val isActiveSubscription: Boolean
+        get() = normalizedEntitlementState == "ACTIVE_SUBSCRIPTION"
+
+    val isPremiumAllowed: Boolean
+        get() = isActiveTrial || isActiveSubscription
+
     val parsedDataUsedBytes: Long
         get() = dataUsedBytes.filter { it.isDigit() }.toLongOrNull() ?: 0L
 
@@ -52,7 +81,9 @@ data class AccessProfileResponse(
         get() = if (accessType == "TRIAL") trialExpiresAt else subscriptionExpiresAt
 
     val isExpired: Boolean
-        get() = status == "EXPIRED"
+        get() = normalizedEntitlementState == "EXPIRED_TRIAL" ||
+            normalizedEntitlementState == "EXPIRED_SUBSCRIPTION" ||
+            status == "EXPIRED"
 
     val hasMeasuredLimit: Boolean
         get() = dataLimitGB > 0
@@ -110,7 +141,8 @@ data class ActivateCodeRequest(
 
 data class ReportUsageRequest(
     val userNumber: String,
-    val measuredUsedBytes: String
+    val measuredUsedBytes: String,
+    val deviceId: String? = null
 )
 
 data class ServerNode(

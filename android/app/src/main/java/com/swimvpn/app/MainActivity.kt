@@ -526,9 +526,9 @@ fun HomeScreen(
         else -> null
     }
     val badgeText = when {
-        profile.status == "EXPIRED" -> stringResource(R.string.status_expired)
-        profile.status == "PENDING_FULFILLMENT" -> stringResource(R.string.home_badge_pending_fulfillment)
-        profile.accessType == "TRIAL" -> stringResource(R.string.home_badge_trial)
+        profile.isExpired -> stringResource(R.string.status_expired)
+        profile.isPendingFulfillment -> stringResource(R.string.home_badge_pending_fulfillment)
+        profile.isActiveTrial -> stringResource(R.string.home_badge_trial)
         publicPlanCode == "PREMIUM" -> stringResource(R.string.home_badge_premium)
         publicPlanCode == "PLATINUM" -> stringResource(R.string.home_badge_platinum)
         publicPlanCode == "BASIC" -> stringResource(R.string.home_badge_basic)
@@ -617,13 +617,13 @@ fun HomeScreen(
 
             // Status Badge
             val badgeColor = when {
-                profile.status == "EXPIRED" -> MaterialTheme.colorScheme.errorContainer
-                profile.accessType == "TRIAL" -> MaterialTheme.colorScheme.secondaryContainer
+                profile.isExpired -> MaterialTheme.colorScheme.errorContainer
+                profile.isActiveTrial -> MaterialTheme.colorScheme.secondaryContainer
                 else -> MaterialTheme.colorScheme.primaryContainer
             }
             val badgeTextColor = when {
-                profile.status == "EXPIRED" -> MaterialTheme.colorScheme.onErrorContainer
-                profile.accessType == "TRIAL" -> MaterialTheme.colorScheme.onSecondaryContainer
+                profile.isExpired -> MaterialTheme.colorScheme.onErrorContainer
+                profile.isActiveTrial -> MaterialTheme.colorScheme.onSecondaryContainer
                 else -> MaterialTheme.colorScheme.onPrimaryContainer
             }
 
@@ -670,7 +670,7 @@ fun HomeScreen(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null
                     ) {
-                        if (profile.status == "EXPIRED" && activeServer?.source != "imported" && vpnState == VpnState.DISCONNECTED) {
+                        if (!profile.isPremiumAllowed && activeServer?.source == "backend" && vpnState == VpnState.DISCONNECTED) {
                             onNavigateSubscription()
                             return@clickable
                         }

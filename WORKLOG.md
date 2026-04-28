@@ -1771,3 +1771,25 @@ pm run build PASSED.
 - **Verification**:
   - \android\\\\gradlew.bat assembleDebug\ logic remained stable as files were syntactically replaced exactly.
 
+
+## [2026-04-28] [Trial Entitlement And Premium Access Contract Cleanup]
+- **Status**: DONE
+- **Changes**:
+  - Added explicit backend `entitlementState` values while preserving legacy `status`/`accessType` for Android compatibility.
+  - Aligned premium access so only `ACTIVE_TRIAL` and `ACTIVE_SUBSCRIPTION` can receive managed configs or server lists.
+  - Kept expired, pending, profile-incomplete, and trial-available users inside the app shell without exposing premium backend resources.
+  - Stopped local imported-config sync from mutating backend supplier inventory.
+  - Required device proof for premium server list and usage reporting paths to avoid `userNumber`-only leakage/mutation.
+  - Hid raw runtime config from public `GET /access/:userNumber` and import responses.
+  - Aligned profile and server expiry checks to use the earliest relevant provider/order expiry and block disabled/expired supplier inventory.
+  - Updated Android routing/status helpers so trial-available and expired users are not hard-locked, while premium backend actions still route to paywall or fail safely.
+  - Disabled direct boot-time VPN restore until the app bootstrap revalidates current access.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run prisma:validate` PASSED.
+  - `cd backend && npx prisma generate` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\gradlew.bat :app:assembleDebug --no-daemon` PASSED.
+  - `cd android && .\gradlew.bat :app:testDebugUnitTest --no-daemon` PASSED.
+  - `cd backend && npx prisma migrate status` BLOCKED by `Schema engine error`.
+  - `cd backend && npm test` BLOCKED because no backend `test` script exists.

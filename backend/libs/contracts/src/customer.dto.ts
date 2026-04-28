@@ -99,4 +99,8 @@ export class ReportUsageDto {
   @IsString()
   @IsNotEmpty()
   measuredUsedBytes: string;
+
+  @IsString()
+  @IsOptional()
+  deviceId?: string;
 }

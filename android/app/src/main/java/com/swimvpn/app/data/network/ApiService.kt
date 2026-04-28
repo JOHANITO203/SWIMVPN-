@@ -37,7 +37,10 @@ interface ApiService {
     suspend fun reportUsage(@Body request: ReportUsageRequest): AccessProfileResponse
 
     @GET("api/v1/servers")
-    suspend fun getServers(@Header("x-user-number") userNumber: String): List<ServerNode>
+    suspend fun getServers(
+        @Header("x-user-number") userNumber: String,
+        @Header("x-device-id") deviceId: String
+    ): List<ServerNode>
 
     @GET("api/v1/store/plans")
     suspend fun getPlans(): List<Plan>

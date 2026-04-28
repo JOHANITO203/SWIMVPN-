@@ -13,6 +13,6 @@ export class StoreController {
 
   @MessagePattern({ cmd: 'get_servers' })
   async getServers(data: any) {
-    return this.storeService.getServers(data.userNumber);
+    return this.storeService.getServers(data);
   }
 }

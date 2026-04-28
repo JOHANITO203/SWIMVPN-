@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom } from 'rxjs';
-import { AssignmentAccessStatus, OrderStatus } from '@prisma/client';
+import { AssignmentAccessStatus, InventoryHealthStatus, OrderStatus } from '@prisma/client';
 import {
   StartTrialDto,
   CreateOrderDto,
@@ -30,7 +30,7 @@ export class CustomerService {
   async bootstrapAccess(data: BootstrapAccessDto) {
     const customer = await this.findOrCreateCustomerByDevice(data.deviceId);
     const profile = await this.getProfile(customer.public_id);
-    const hasActiveAccess = profile.status === 'ACTIVE' && !!profile.subscriptionUrl;
+    const hasActiveAccess = this.isPremiumAllowed(profile.entitlementState) && !!profile.subscriptionUrl;
 
     return {
       userNumber: customer.public_id,
@@ -114,23 +114,7 @@ export class CustomerService {
   async startTrial(data: StartTrialDto) {
     const customer = await this.findOrCreateCustomerByDevice(data.deviceId);
     if (!customer.email || !customer.phone) {
-      return {
-        userNumber: customer.public_id,
-        email: customer.email,
-        phone: customer.phone,
-        accessType: 'NONE',
-        offerCode: null,
-        status: 'PROFILE_INCOMPLETE',
-        trialStartedAt: null,
-        trialExpiresAt: null,
-        subscriptionExpiresAt: null,
-        subscriptionUrl: null,
-        devicesAllowed: 0,
-        dataLimitGB: 0,
-        dataUsedBytes: '0',
-        profileCompletionRequired: true,
-        trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
-      };
+      return this.getProfile(customer.public_id);
     }
 
     return this.activateTrial({
@@ -199,7 +183,8 @@ export class CustomerService {
     return this.getProfile(customer.public_id);
   }
 
-  async getProfile(userNumber: string) {
+  async getProfile(userNumber: string, options: { exposeRuntimeConfig?: boolean } = {}) {
+    const exposeRuntimeConfig = options.exposeRuntimeConfig ?? true;
     const customer = await this.prisma.customer.findUnique({
       where: { public_id: userNumber },
       include: {
@@ -229,11 +214,14 @@ export class CustomerService {
     }
 
     const latestOrder = customer.orders[0];
-    const assignment = latestOrder?.assignments.find(
+    const activeAssignment = latestOrder?.assignments.find(
       (item) =>
-        item.access_status === AssignmentAccessStatus.ACTIVE ||
-        item.access_status === AssignmentAccessStatus.PENDING,
+        item.access_status === AssignmentAccessStatus.ACTIVE,
     );
+    const pendingAssignment = latestOrder?.assignments.find(
+      (item) => item.access_status === AssignmentAccessStatus.PENDING,
+    );
+    const assignment = activeAssignment ?? pendingAssignment;
     const inventoryItem = assignment?.inventory_item;
     const isTrialOrder = this.isTrialOrder(latestOrder);
     const accessType = latestOrder ? (isTrialOrder ? 'TRIAL' : 'PAID') : 'NONE';
@@ -245,25 +233,36 @@ export class CustomerService {
         ? 'DELIVERED'
         : 'PENDING_FULFILLMENT'
       : 'NONE';
-    const subscriptionExpiresAt = isTrialOrder
+    const orderExpiresAt = latestOrder
       ? this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder)
-      : inventoryItem?.supplier_expires_at?.toISOString() || null;
+      : null;
+    const providerExpiresAt =
+      activeAssignment?.expires_at?.toISOString() ||
+      inventoryItem?.supplier_expires_at?.toISOString() ||
+      null;
+    const subscriptionExpiresAt = isTrialOrder
+      ? this.pickEarlierIsoDate(orderExpiresAt, providerExpiresAt)
+      : this.pickEarlierIsoDate(providerExpiresAt, orderExpiresAt);
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
     const measuredDataLimitGb = inventoryItem?.source_quota_bytes
       ? this.bytesToGb(inventoryItem.source_quota_bytes)
       : 0;
     const measuredDataUsedBytes = inventoryItem?.source_used_bytes?.toString() || '0';
-    const status = this.resolveProfileStatus({
+    const entitlementState = this.resolveEntitlementState({
       hasCompletedProfile: !!customer.email && !!customer.phone,
       hasOrder: !!latestOrder,
       fulfillmentStatus,
+      accessType,
+      hasActiveAssignment: !!activeAssignment?.inventory_item_id,
       subscriptionExpiresAt,
       quotaExceeded: false,
+      inventoryHealthStatus: inventoryItem?.health_status,
       sourceExhausted: this.isSourceQuotaExceeded(
         inventoryItem?.source_quota_bytes,
         inventoryItem?.source_used_bytes,
       ),
     });
+    const status = this.toLegacyProfileStatus(entitlementState);
     return {
       userNumber: customer.public_id,
       email: customer.email,
@@ -273,10 +272,13 @@ export class CustomerService {
       planDisplayName,
       planType: accessType,
       status,
+      entitlementState,
       trialStartedAt: latestOrder?.created_at.toISOString() || null,
       trialExpiresAt,
       subscriptionExpiresAt,
-      subscriptionUrl: status === 'ACTIVE' ? (inventoryItem?.raw_config || null) : null,
+      subscriptionUrl: exposeRuntimeConfig && this.isPremiumAllowed(entitlementState)
+        ? (inventoryItem?.raw_config || null)
+        : null,
       devicesAllowed: latestOrder
         ? isTrialOrder
           ? 1
@@ -301,33 +303,9 @@ export class CustomerService {
       throw new Error('Customer not found');
     }
 
-    // In MVP, "import" means manually setting the raw_config for the customer's current valid assignment.
-    // Or creating a manual order/assignment if one doesn't exist.
-    // For now, let's find their latest fulfilled order and update the raw_config.
+    console.log(`Local config import acknowledged for ${customer.public_id}; backend inventory unchanged.`);
 
-    const latestOrder = await this.prisma.order.findFirst({
-      where: {
-        customer_id: customer.id,
-        status: OrderStatus.FULFILLED,
-      },
-      orderBy: { created_at: 'desc' },
-      include: { assignments: true },
-    });
-
-    const linkedAssignment = latestOrder?.assignments.find((assignment) => !!assignment.inventory_item_id);
-
-    if (latestOrder && linkedAssignment?.inventory_item_id) {
-      await this.prisma.inventoryItem.update({
-        where: { id: linkedAssignment.inventory_item_id },
-        data: { raw_config: data.subscriptionUrl },
-      });
-    } else {
-      // If no order exists, this is a "manual import" which might need a different handling in the future.
-      // For now, we'll just log it or return the existing profile.
-      console.log(`Manual config import for ${customer.public_id}: ${data.subscriptionUrl}`);
-    }
-
-    return this.getProfile(customer.public_id);
+    return this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
   }
 
   async resolveCryptSubscription(data: { userNumber: string; deviceId: string; encryptedLink: string }) {
@@ -344,7 +322,7 @@ export class CustomerService {
     }
 
     const profile = await this.getProfile(customer.public_id);
-    if (profile.status !== 'ACTIVE') {
+    if (!this.isPremiumAllowed(profile.entitlementState)) {
       throw new Error('Active access is required to resolve encrypted subscription payloads');
     }
 
@@ -353,12 +331,18 @@ export class CustomerService {
       throw new Error('Unsupported encrypted subscription format');
     }
 
-    return firstValueFrom(
+    const resolved = await firstValueFrom(
       this.vpnConfigClient.send(
         { cmd: 'resolve_swim_crypt_import' },
         { encryptedLink },
       ),
     );
+
+    if (resolved.rawConfig?.trim() !== profile.subscriptionUrl?.trim()) {
+      throw new Error('Encrypted subscription payload is not assigned to this customer');
+    }
+
+    return resolved;
   }
 
 
@@ -381,6 +365,10 @@ export class CustomerService {
 
     if (!customer) {
       throw new Error('Customer not found');
+    }
+
+    if (!data.deviceId?.trim() || !customer.device_id || customer.device_id !== data.deviceId.trim()) {
+      throw new Error('Device is not authorized for usage reporting');
     }
 
     const latestOrder = customer.orders[0];
@@ -845,12 +833,15 @@ export class CustomerService {
     return order?.plan?.quota_label || fallbackQuotaLabel || '';
   }
 
-  private resolveProfileStatus(params: {
+  private resolveEntitlementState(params: {
     hasCompletedProfile: boolean;
     hasOrder: boolean;
     fulfillmentStatus: string;
+    accessType: string;
+    hasActiveAssignment: boolean;
     subscriptionExpiresAt: string | null;
     quotaExceeded: boolean;
+    inventoryHealthStatus?: InventoryHealthStatus | null;
     sourceExhausted: boolean;
   }) {
     if (!params.hasCompletedProfile) {
@@ -865,15 +856,63 @@ export class CustomerService {
       return 'PENDING_FULFILLMENT';
     }
 
-    if (params.quotaExceeded || params.sourceExhausted) {
-      return 'EXPIRED';
+    const expiredState =
+      params.accessType === 'TRIAL' ? 'EXPIRED_TRIAL' : 'EXPIRED_SUBSCRIPTION';
+    const activeState =
+      params.accessType === 'TRIAL' ? 'ACTIVE_TRIAL' : 'ACTIVE_SUBSCRIPTION';
+
+    const inventoryUnavailable =
+      params.inventoryHealthStatus === InventoryHealthStatus.EXPIRED ||
+      params.inventoryHealthStatus === InventoryHealthStatus.DISABLED;
+
+    if (
+      !params.hasActiveAssignment ||
+      params.quotaExceeded ||
+      params.sourceExhausted ||
+      inventoryUnavailable
+    ) {
+      return expiredState;
     }
 
-    if (!params.subscriptionExpiresAt) {
+    if (
+      params.subscriptionExpiresAt &&
+      new Date(params.subscriptionExpiresAt).getTime() < Date.now()
+    ) {
+      return expiredState;
+    }
+
+    return activeState;
+  }
+
+  private toLegacyProfileStatus(entitlementState: string) {
+    if (this.isPremiumAllowed(entitlementState)) {
       return 'ACTIVE';
     }
 
-    return new Date(params.subscriptionExpiresAt).getTime() < Date.now() ? 'EXPIRED' : 'ACTIVE';
+    if (
+      entitlementState === 'EXPIRED_TRIAL' ||
+      entitlementState === 'EXPIRED_SUBSCRIPTION'
+    ) {
+      return 'EXPIRED';
+    }
+
+    return entitlementState;
+  }
+
+  private isPremiumAllowed(entitlementState: string) {
+    return entitlementState === 'ACTIVE_TRIAL' || entitlementState === 'ACTIVE_SUBSCRIPTION';
+  }
+
+  private pickEarlierIsoDate(first?: string | null, second?: string | null) {
+    if (!first) {
+      return second || null;
+    }
+
+    if (!second) {
+      return first;
+    }
+
+    return new Date(first).getTime() <= new Date(second).getTime() ? first : second;
   }
 
   private parseQuotaLabelToGb(quotaLabel: string) {

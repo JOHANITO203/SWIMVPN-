@@ -41,8 +41,10 @@ export class CustomerController {
   }
 
   @MessagePattern({ cmd: 'get_profile' })
-  async getProfile(@Payload() data: { userNumber: string }) {
-    return this.customerService.getProfile(data.userNumber);
+  async getProfile(@Payload() data: { userNumber: string; exposeRuntimeConfig?: boolean }) {
+    return this.customerService.getProfile(data.userNumber, {
+      exposeRuntimeConfig: data.exposeRuntimeConfig,
+    });
   }
 
   @MessagePattern({ cmd: 'import_subscription' })

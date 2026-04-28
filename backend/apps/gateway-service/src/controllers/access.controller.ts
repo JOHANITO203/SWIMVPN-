@@ -55,7 +55,10 @@ export class AccessController {
 
   @Get('access/:userNumber')
   async getAccessProfile(@Param('userNumber') userNumber: string) {
-    return this.customerClient.send({ cmd: 'get_profile' }, { userNumber });
+    return this.customerClient.send(
+      { cmd: 'get_profile' },
+      { userNumber, exposeRuntimeConfig: false },
+    );
   }
 
   @Post('subscription/import')
@@ -79,8 +82,11 @@ export class AccessController {
   }
 
   @Get('servers')
-  async getServers(@Headers('x-user-number') userNumber: string) {
-    return this.storeClient.send({ cmd: 'get_servers' }, { userNumber });
+  async getServers(
+    @Headers('x-user-number') userNumber: string,
+    @Headers('x-device-id') deviceId?: string,
+  ) {
+    return this.storeClient.send({ cmd: 'get_servers' }, { userNumber, deviceId });
   }
 
   private checkTcp(host: string, port: number): Promise<boolean> {

@@ -249,7 +249,7 @@ private fun SwimVpnAccessCard(
         ?.takeIf { it.isNotBlank() }
         ?.let(::formatMetadataExpiry)
         ?: context.getString(R.string.profile_unknown)
-    val isTrial = profile.accessType == "TRIAL"
+    val isTrial = profile.isActiveTrial
     val hasMeasuredLimit = profile.hasMeasuredLimit
     val showMeasuredAnalytics = hasMeasuredLimit && !isTrial
     val quotaValue = if (showMeasuredAnalytics) formatBytes(profile.dataLimitBytes) else stringResource(R.string.label_unlimited)
@@ -792,36 +792,26 @@ private fun calculateRemainingTime(
 }
 
 private fun profileBadgeText(profile: AccessProfileResponse, context: android.content.Context): String =
-    when (profile.status) {
+    when (profile.normalizedEntitlementState) {
         "PROFILE_INCOMPLETE" -> context.getString(R.string.profile_status_complete_profile)
         "TRIAL_AVAILABLE" -> context.getString(R.string.profile_status_trial_available)
         "PENDING_FULFILLMENT" -> context.getString(R.string.profile_status_pending_fulfillment)
-        "EXPIRED" -> context.getString(R.string.profile_status_expired)
-        "ACTIVE" -> {
-            if (profile.accessType == "TRIAL") {
-                context.getString(R.string.profile_status_trial_active)
-            } else {
-                context.getString(R.string.profile_status_paid_active)
-            }
-        }
+        "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> context.getString(R.string.profile_status_expired)
+        "ACTIVE_TRIAL" -> context.getString(R.string.profile_status_trial_active)
+        "ACTIVE_SUBSCRIPTION" -> context.getString(R.string.profile_status_paid_active)
         else -> context.getString(R.string.profile_status_inactive)
     }
 
 private fun profileStatusText(profile: AccessProfileResponse, context: android.content.Context): String =
-    when (profile.status) {
+    when (profile.normalizedEntitlementState) {
         "PROFILE_INCOMPLETE" -> context.getString(R.string.profile_status_complete_profile)
         "TRIAL_AVAILABLE" -> context.getString(R.string.profile_status_trial_available)
         "PENDING_FULFILLMENT" -> context.getString(R.string.profile_status_pending_fulfillment)
-        "EXPIRED" -> context.getString(R.string.profile_status_expired)
-        "ACTIVE" -> {
-            if (profile.accessType == "TRIAL") {
-                context.getString(R.string.profile_status_trial_active)
-            } else {
-                profileLocalizedPlanName(profile, context)?.takeIf { it.isNotBlank() }
-                    ?.let { context.getString(R.string.profile_status_offer_active, it) }
-                    ?: context.getString(R.string.profile_status_paid_active)
-            }
-        }
+        "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> context.getString(R.string.profile_status_expired)
+        "ACTIVE_TRIAL" -> context.getString(R.string.profile_status_trial_active)
+        "ACTIVE_SUBSCRIPTION" -> profileLocalizedPlanName(profile, context)?.takeIf { it.isNotBlank() }
+            ?.let { context.getString(R.string.profile_status_offer_active, it) }
+            ?: context.getString(R.string.profile_status_paid_active)
         else -> context.getString(R.string.profile_status_inactive)
     }
 
@@ -838,23 +828,23 @@ private fun profileLocalizedPlanName(
 
 @Composable
 private fun profileBadgeColor(profile: AccessProfileResponse): Color =
-    when (profile.status) {
+    when (profile.normalizedEntitlementState) {
         "PROFILE_INCOMPLETE" -> MaterialTheme.colorScheme.error
         "TRIAL_AVAILABLE" -> MaterialTheme.colorScheme.primary
         "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.error
-        "EXPIRED" -> MaterialTheme.colorScheme.error
-        "ACTIVE" -> MaterialTheme.colorScheme.primary
+        "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> MaterialTheme.colorScheme.error
+        "ACTIVE_TRIAL", "ACTIVE_SUBSCRIPTION" -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
 @Composable
 private fun profileBadgeBackground(profile: AccessProfileResponse): Color =
-    when (profile.status) {
+    when (profile.normalizedEntitlementState) {
         "PROFILE_INCOMPLETE" -> MaterialTheme.colorScheme.errorContainer
         "TRIAL_AVAILABLE" -> MaterialTheme.colorScheme.primaryContainer
         "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.errorContainer
-        "EXPIRED" -> MaterialTheme.colorScheme.errorContainer
-        "ACTIVE" -> MaterialTheme.colorScheme.primaryContainer
+        "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> MaterialTheme.colorScheme.errorContainer
+        "ACTIVE_TRIAL", "ACTIVE_SUBSCRIPTION" -> MaterialTheme.colorScheme.primaryContainer
       else -> MaterialTheme.colorScheme.surfaceVariant
   }
 
