@@ -1,70 +1,75 @@
 # Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Applied only when minifyEnabled is true.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
-
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
+# ----------------------------------------------------------------------
+# Debuggable stack traces
+# ----------------------------------------------------------------------
 -keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
 -renamesourcefileattribute SourceFile
 
 # ----------------------------------------------------------------------
-# Retrofit & GSON rules
+# Retrofit / OkHttp / Gson
 # ----------------------------------------------------------------------
-# Retrofit does reflection, request parameter types, return types,
-# annotations, and they must be kept.
 -keepattributes Signature
 -keepattributes *Annotation*
 -keepattributes EnclosingMethod
 
--keep class retrofit2.** { *; }
--dontwarn retrofit2.**
--keepclasseswithmembers class * {
+# Keep Retrofit API method annotations.
+-keepclasseswithmembers interface * {
     @retrofit2.http.* <methods>;
 }
 
-# Keep our data classes for GSON serialization / deserialization
+# Keep Retrofit annotations and internals used by reflection.
+-keep class retrofit2.http.** { *; }
+-dontwarn retrofit2.**
+
+# Gson needs model field names/types for JSON serialization.
+# Keep only your app data/network/model layer, not all Gson internals.
 -keep class com.swimvpn.app.data.network.** { *; }
 -keep class com.swimvpn.app.data.model.** { *; }
 
-# Gson specific rules
--keep class com.google.gson.** { *; }
--keep class sun.misc.Unsafe { *; }
+# Keep fields annotated for Gson if used.
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
 -dontwarn com.google.gson.**
+-dontwarn okhttp3.**
+-dontwarn okio.**
 
 # ----------------------------------------------------------------------
-# Core / Foundation
+# Kotlin / Compose
 # ----------------------------------------------------------------------
-# Do not obfuscate any Kotlin specific annotations
 -keep class kotlin.Metadata { *; }
+-dontwarn kotlin.**
 
-# Prevent obfuscating Android framework specifics
--keep public class * extends android.app.Activity
+# Compose generally works with R8 automatically.
+# Avoid broad keep rules for androidx.compose unless a specific crash appears.
+
+# ----------------------------------------------------------------------
+# Android framework entry points
+# ----------------------------------------------------------------------
 -keep public class * extends android.app.Application
+-keep public class * extends android.app.Activity
 -keep public class * extends android.app.Service
 -keep public class * extends android.content.BroadcastReceiver
 -keep public class * extends android.content.ContentProvider
 
 # ----------------------------------------------------------------------
-# C++ JNI Rules
+# JNI / Native VPN engine
 # ----------------------------------------------------------------------
-# Keep native methods and classes containing them so C++ code can find them.
+# Keep native methods so JNI bindings remain valid.
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+
+# Keep VPN package. This is intentionally broad because native/service code
+# can be fragile when obfuscated.
 -keep class com.swimvpn.app.vpn.** { *; }
 
-# Keep DataStore generated code safe
--keep class androidx.datastore.** { *; }
+# ----------------------------------------------------------------------
+# DataStore
+# ----------------------------------------------------------------------
+# DataStore normally does not need a broad keep rule.
+# Keep only if your app has runtime issues after minify.
+-dontwarn androidx.datastore.**
