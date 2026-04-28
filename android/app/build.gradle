@@ -21,17 +21,17 @@ def tun2SocksSharedLibraryByAbi = [
     "arm64-v8a": providers.gradleProperty("tun2socksArm64SoPath").orNull,
     "x86_64"   : providers.gradleProperty("tun2socksX8664SoPath").orNull,
 ]
-def generatedRuntimeAssetsDir = file("$buildDir/generated/runtimeAssets/main")
-def generatedRuntimeJniLibsDir = file("$buildDir/generated/runtimeJniLibs/main")
-def xrayDownloadsDir = file("$buildDir/downloads/xray/${xrayCoreVersion}")
-def xrayExtractDir = file("$buildDir/intermediates/xrayExtract")
-def tun2SocksSourceRoot = file("$buildDir/downloads/tun2socks/${tun2SocksUpstreamTag}")
+def generatedRuntimeAssetsDir = layout.buildDirectory.dir("generated/runtimeAssets/main").get().asFile
+def generatedRuntimeJniLibsDir = layout.buildDirectory.dir("generated/runtimeJniLibs/main").get().asFile
+def xrayDownloadsDir = layout.buildDirectory.dir("downloads/xray/${xrayCoreVersion}").get().asFile
+def xrayExtractDir = layout.buildDirectory.dir("intermediates/xrayExtract").get().asFile
+def tun2SocksSourceRoot = layout.buildDirectory.dir("downloads/tun2socks/${tun2SocksUpstreamTag}").get().asFile
 
 def ensureTun2SocksSourceCheckout = {
     def repoDir = file("${tun2SocksSourceRoot}/jni")
     if (!repoDir.exists()) {
         repoDir.parentFile.mkdirs()
-        exec {
+        providers.exec {
             workingDir(tun2SocksSourceRoot)
             commandLine("git", "clone", "--recursive", "--depth", "1", "--branch", tun2SocksUpstreamTag, "https://github.com/heiher/hev-socks5-tunnel", "jni")
         }
@@ -63,7 +63,7 @@ def buildTun2SocksSharedLibraries = { File repoDir, List<String> abis ->
         throw new GradleException("Android NDK ${android.ndkVersion} is not installed under ${android.sdkDirectory}/ndk")
     }
 
-    exec {
+    providers.exec {
         workingDir(repoDir)
         commandLine(
             new File(ndkDir, "ndk-build.cmd").absolutePath,
@@ -121,7 +121,8 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }

@@ -10,9 +10,9 @@ export const Footer = () => {
         </div>
         
         <div className="flex gap-8 text-slate-500 text-sm font-semibold">
-          <a href="#" className="hover:text-cyan-400 transition-colors">Privacy</a>
-          <a href="#" className="hover:text-cyan-400 transition-colors">Terms</a>
-          <a href="#" className="hover:text-cyan-400 transition-colors">Contact</a>
+          <a href="#privacy" className="hover:text-cyan-400 transition-colors">Privacy Policy</a>
+          <a href="#terms" className="hover:text-cyan-400 transition-colors">Terms of Service</a>
+          <a href="mailto:support@swimvpn.com" className="hover:text-cyan-400 transition-colors">Contact</a>
         </div>
         
         <div className="text-slate-600 text-sm">
