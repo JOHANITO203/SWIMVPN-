@@ -305,6 +305,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun continueFreemiumFromTrialSetup() {
+        viewModelScope.launch {
+            val currentState = _state.value as? AppState.TrialSetup ?: return@launch
+
+            try {
+                _state.value = AppState.Loading
+                val profile = api.getAccessProfile(currentState.userNumber)
+                val successState = buildSuccessState(
+                    profile = profile,
+                    isOnboardingDone = currentState.isOnboardingDone,
+                    routingMode = currentState.routingMode,
+                    autoConnect = currentState.autoConnect,
+                    language = currentState.language,
+                    themeMode = currentState.themeMode,
+                )
+
+                if (successState == null) {
+                    _state.value = currentState
+                    return@launch
+                }
+
+                _state.value = successState
+                refreshServerLatency()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Unable to continue in freemium mode", e)
+                _state.value = currentState
+                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_bootstrap_failed)))
+            }
+        }
+    }
+
     fun importVless(url: String) {
         viewModelScope.launch {
             val currentState = _state.value as? AppState.Success ?: return@launch

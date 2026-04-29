@@ -226,6 +226,7 @@ fun AppNavigation(
                         phone = currentState.phone,
                         trialEligible = currentState.trialEligible,
                         onActivateTrial = { email, phone -> viewModel.activateTrial(email, phone) },
+                        onContinueFreemium = { viewModel.continueFreemiumFromTrialSetup() },
                         onBack = { navController.popBackStack() },
                     )
                 }

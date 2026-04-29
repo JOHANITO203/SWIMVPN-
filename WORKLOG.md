@@ -1865,3 +1865,20 @@ pm run build PASSED.
   - `cd backend && npm run prisma:validate` PASSED.
 - **Note**:
   - If `prisma-migrate` later fails at runtime with a URL parsing/auth error, the clean fix is to provide an encoded `DATABASE_URL` through Dokploy env or rotate the DB password to URL-safe characters. The current patch intentionally prioritizes unblocking Dokploy interpolation without changing Dokploy variables.
+
+## [2026-04-29] [Release Trial Freemium Escape Hatch]
+- **Status**: DONE
+- **Changes**:
+  - Added an Android release-safe "continue without trial" path on the trial/profile completion screen.
+  - The freemium path reloads the backend profile and builds the normal app shell without granting premium access.
+  - Preserved backend-controlled premium access: premium servers/configs still depend on `ACTIVE_TRIAL` or `ACTIVE_SUBSCRIPTION`.
+  - Converted customer-service trial validation failures into `RpcException` messages so the gateway can map missing/invalid device ID, unauthorized device, and already-used trial cases to clear HTTP errors instead of opaque service errors.
+- **Verification**:
+  - ADB release capture showed the old signed APK was stuck on the trial activation screen with no freemium/subscription/import escape path.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\gradlew.bat :app:assembleRelease --no-daemon --console=plain` PASSED.
+  - `git diff --check` PASSED with CRLF warnings only.
+- **Note**:
+  - The local release artifact is unsigned, so it cannot be installed over the user's signed release without signing through the production signing flow first.
+  - Production API still returned `503` for missing `deviceId` before this backend patch is deployed; retest after Dokploy redeploy.

@@ -766,3 +766,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `/servers` requires both `x-user-number` and `x-device-id`.
   - Usage reporting validates the device before recording shared supplier usage.
   - Encrypted `crypt1` resolution is bound to the assigned raw config.
+
+## [2026-04-29] [Trial Activation Must Not Trap Freemium Users]
+- **Decision**: The trial/profile completion screen must offer a freemium escape path that loads the backend profile and enters the normal app shell without granting managed premium resources.
+- **Why**: ADB release validation showed a profile-incomplete user could be stuck on trial activation with no route to import configs, view offers, or continue without trial.
+- **Impact**:
+  - Trial activation remains backend-enforced and abuse-protected.
+  - Users who cannot or do not want to activate trial can still enter the app shell.
+  - Premium servers/configs remain restricted to backend `ACTIVE_TRIAL` or `ACTIVE_SUBSCRIPTION`.

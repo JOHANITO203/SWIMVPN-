@@ -622,3 +622,9 @@ u after each future language batch
   - `docker compose logs prisma-migrate --tail 200`
   - `docker compose logs prisma-seed --tail 200`
   - `curl -f https://api.swimvpn.pro/api/v1/health`
+
+## [2026-04-29] Release Trial/Freemium Retest
+- Sign the newly built release APK with the production key before installing over the user's signed release.
+- Re-test on signed release APK: profile/trial screen shows "Continue without trial" and enters the app shell without premium servers.
+- After Dokploy redeploy, verify `POST /api/v1/access/trial/activate` without `deviceId` returns `400`, already-used trial returns `409`, and unauthorized device returns `403`.
+- Confirm expired/trial-used users can still open the app shell, use imported configs, and reach subscription offers.

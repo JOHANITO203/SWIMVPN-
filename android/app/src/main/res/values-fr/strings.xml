@@ -161,6 +161,7 @@
     <string name="profile_email_label">Email</string>
     <string name="profile_phone_label">Numéro de téléphone</string>
     <string name="profile_activate_trial">Activer l’essai de 3 jours</string>
+    <string name="profile_continue_without_trial">Continuer sans essai</string>
     <string name="profile_trial_eligible_note">Votre essai s’active une seule fois après la complétion du profil.</string>
     <string name="profile_trial_ineligible_note">L’essai a déjà été utilisé pour cet appareil ou ces coordonnées.</string>
 

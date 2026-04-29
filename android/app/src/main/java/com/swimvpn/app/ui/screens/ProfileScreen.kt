@@ -658,6 +658,7 @@ fun TrialActivationProfileScreen(
     phone: String?,
     trialEligible: Boolean,
     onActivateTrial: (String, String) -> Unit,
+    onContinueFreemium: () -> Unit,
     onBack: () -> Unit,
 ) {
     var emailInput by remember { mutableStateOf(email.orEmpty()) }
@@ -758,6 +759,19 @@ fun TrialActivationProfileScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text(stringResource(R.string.profile_activate_trial), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = onContinueFreemium,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(26.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.profile_continue_without_trial),
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

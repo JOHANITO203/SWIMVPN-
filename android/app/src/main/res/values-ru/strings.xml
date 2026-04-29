@@ -161,6 +161,7 @@
     <string name="profile_email_label">Email</string>
     <string name="profile_phone_label">Номер телефона</string>
     <string name="profile_activate_trial">Активировать пробный период на 3 дня</string>
+    <string name="profile_continue_without_trial">Продолжить без пробного периода</string>
     <string name="profile_trial_eligible_note">Пробный период можно активировать только один раз после заполнения профиля.</string>
     <string name="profile_trial_ineligible_note">Пробный период уже использован для этого устройства или этих контактов.</string>
 

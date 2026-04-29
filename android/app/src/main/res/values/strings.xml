@@ -161,6 +161,7 @@
     <string name="profile_email_label">Email</string>
     <string name="profile_phone_label">Phone number</string>
     <string name="profile_activate_trial">Activate 3-day trial</string>
+    <string name="profile_continue_without_trial">Continue without trial</string>
     <string name="profile_trial_eligible_note">Your trial activates once after profile completion.</string>
     <string name="profile_trial_ineligible_note">Trial already used for this device or these contact details.</string>
 

@@ -131,7 +131,7 @@ export class CustomerService {
     const normalizedPhone = this.normalizePhone(data.phone);
 
     if (!normalizedPhone) {
-      throw new Error('Phone is required');
+      this.fail('Phone is required');
     }
 
     const customer = await this.prisma.customer.findUnique({
@@ -139,16 +139,16 @@ export class CustomerService {
     });
 
     if (!customer) {
-      throw new Error('Customer not found');
+      this.fail('Customer not found');
     }
 
     if (!customer.device_id || customer.device_id !== normalizedDeviceId) {
-      throw new Error('Device is not authorized for trial activation');
+      this.fail('Device is not authorized for trial activation');
     }
 
     const trialEligible = await this.isTrialEligible(customer, normalizedEmail, normalizedPhone);
     if (!trialEligible) {
-      throw new Error('Trial already used for this device or contact data');
+      this.fail('Trial already used for this device or contact data');
     }
 
     await this.prisma.customer.update({
@@ -164,7 +164,7 @@ export class CustomerService {
     });
 
     if (!trialPlan) {
-      throw new Error('Trial plan not configured in database');
+      this.fail('Trial plan not configured in database');
     }
 
     const order = await this.prisma.order.create({
@@ -724,7 +724,7 @@ export class CustomerService {
   private normalizeDeviceId(deviceId?: string) {
     const normalized = deviceId?.trim();
     if (!normalized || ['unknown_device_id', 'unknown', 'null'].includes(normalized.toLowerCase())) {
-      throw new Error('Valid device id is required');
+      this.fail('Valid device id is required');
     }
 
     return normalized;
