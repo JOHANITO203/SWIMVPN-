@@ -1,5 +1,23 @@
 # WORKLOG
 
+## [2026-04-29] [Android Release/Debug Trial Consistency Hardening]
+- **Status**: DONE
+- **Changes**:
+    - Audited debug vs release behavior with parallel agents across build variants, R8/ProGuard, Android trial flow, backend contract, device identity, network security, and validation readiness.
+    - Centralized Android device identity lookup and stopped sending the unsafe `unknown_device_id` fallback to backend access endpoints.
+    - Added device-bound trial activation so Android sends `deviceId` and backend verifies it matches the persisted customer device before creating a trial.
+    - Kept `TRIAL_AVAILABLE` users inside the freemium app shell while adding a profile CTA to activate the trial when eligible.
+    - Added R8 keep rules for imported config models persisted with Gson and for the native tun2socks bridge.
+    - Disabled HTTP body logging in release builds and disabled Android backup for sensitive local app state.
+- **Verification**:
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run prisma:validate` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd android && .\gradlew.bat :app:assembleDebug --no-daemon` PASSED.
+    - `cd android && .\gradlew.bat :app:assembleRelease --no-daemon` PASSED.
+    - `cd android && .\gradlew.bat :app:testDebugUnitTest --no-daemon` PASSED.
+
 ## [2026-04-25] [Android Final Review Follow-up - Active Config Source Truth]
 - **Status**: DONE
 - **Changes**:

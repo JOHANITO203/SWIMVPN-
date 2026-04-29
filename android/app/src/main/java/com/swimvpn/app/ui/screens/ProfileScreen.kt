@@ -53,6 +53,7 @@ fun ProfileScreen(
     onNavigateToTechnical: () -> Unit,
     onNavigateToImport: () -> Unit = {},
     onNavigateToSupport: () -> Unit = {},
+    onActivateTrial: (() -> Unit)? = null,
     onSignOut: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
@@ -168,6 +169,21 @@ fun ProfileScreen(
         SectionLabel(title = stringResource(R.string.profile_section_swimvpn_access))
         Spacer(modifier = Modifier.height(12.dp))
         SwimVpnAccessCard(profile = profile, badgeColor = badgeColor)
+        if (profile.isTrialAvailable && profile.trialEligible && onActivateTrial != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = onActivateTrial,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text(
+                    text = stringResource(R.string.profile_activate_trial),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Black
+                )
+            }
+        }
 
         if (activeConfigMetadata != null) {
             Spacer(modifier = Modifier.height(24.dp))

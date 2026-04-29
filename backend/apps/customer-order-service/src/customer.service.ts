@@ -119,12 +119,14 @@ export class CustomerService {
 
     return this.activateTrial({
       userNumber: customer.public_id,
+      deviceId: data.deviceId,
       email: customer.email,
       phone: customer.phone,
     });
   }
 
   async activateTrial(data: ActivateTrialDto) {
+    const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
     const normalizedEmail = data.email.trim().toLowerCase();
     const normalizedPhone = this.normalizePhone(data.phone);
 
@@ -138,6 +140,10 @@ export class CustomerService {
 
     if (!customer) {
       throw new Error('Customer not found');
+    }
+
+    if (!customer.device_id || customer.device_id !== normalizedDeviceId) {
+      throw new Error('Device is not authorized for trial activation');
     }
 
     const trialEligible = await this.isTrialEligible(customer, normalizedEmail, normalizedPhone);
@@ -309,6 +315,7 @@ export class CustomerService {
   }
 
   async resolveCryptSubscription(data: { userNumber: string; deviceId: string; encryptedLink: string }) {
+    const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
     const customer = await this.prisma.customer.findUnique({
       where: { public_id: data.userNumber },
     });
@@ -317,7 +324,7 @@ export class CustomerService {
       throw new Error('Customer not found');
     }
 
-    if (!customer.device_id || customer.device_id !== data.deviceId) {
+    if (!customer.device_id || customer.device_id !== normalizedDeviceId) {
       throw new Error('Device is not authorized for this customer');
     }
 
@@ -367,7 +374,8 @@ export class CustomerService {
       throw new Error('Customer not found');
     }
 
-    if (!data.deviceId?.trim() || !customer.device_id || customer.device_id !== data.deviceId.trim()) {
+    const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
+    if (!customer.device_id || customer.device_id !== normalizedDeviceId) {
       throw new Error('Device is not authorized for usage reporting');
     }
 
@@ -670,8 +678,9 @@ export class CustomerService {
   }
 
   private async findOrCreateCustomerByDevice(deviceId: string) {
+    const normalizedDeviceId = this.normalizeDeviceId(deviceId);
     const existing = await this.prisma.customer.findUnique({
-      where: { device_id: deviceId },
+      where: { device_id: normalizedDeviceId },
     });
 
     if (existing) {
@@ -680,7 +689,7 @@ export class CustomerService {
 
     return this.prisma.customer.create({
       data: {
-        device_id: deviceId,
+        device_id: normalizedDeviceId,
         public_id: await this.generatePublicUserNumber(),
       },
     });
@@ -710,6 +719,15 @@ export class CustomerService {
 
     const normalized = phone.replace(/[^\d+]/g, '');
     return normalized.trim();
+  }
+
+  private normalizeDeviceId(deviceId?: string) {
+    const normalized = deviceId?.trim();
+    if (!normalized || ['unknown_device_id', 'unknown', 'null'].includes(normalized.toLowerCase())) {
+      throw new Error('Valid device id is required');
+    }
+
+    return normalized;
   }
 
   private async isTrialEligible(customer: { id: string; device_id: string | null }, email?: string | null, phone?: string | null) {

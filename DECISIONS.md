@@ -1,5 +1,15 @@
 # DECISIONS
 
+## [2026-04-29] [Trial Activation Must Be Device-Bound]
+- **Decision**: Trial activation must include the Android `deviceId` and the backend must verify it against the persisted customer device before creating a trial order.
+- **Why**: Bootstrap, premium server access, encrypted config resolution, and usage reporting already rely on the `userNumber + deviceId` boundary. Leaving activation bound only to `userNumber/email/phone` allowed stale or restored local state to behave differently between debug and release.
+- **Impact**:
+  - Android no longer sends the sentinel `unknown_device_id` fallback to backend access calls.
+  - Backend rejects blank/sentinel device IDs and mismatched activation attempts.
+  - `TRIAL_AVAILABLE` remains an app-shell state, with activation exposed from the profile card instead of forcing a dead-end activation-only route.
+  - Release builds no longer log HTTP bodies for access calls.
+
+
 ## [2026-04-23] [Connectivity UI Direction - Proxy Recommended, Tunnel System Routing]
 - **Decision**: Expose the runtime modes with short product labels: `Proxy` and `Tunnel`.
 - **Why**: ADB measurements showed local proxy is faster than full tunnel on the tested imported VLESS node, while full tunnel remains useful for full-device routing.

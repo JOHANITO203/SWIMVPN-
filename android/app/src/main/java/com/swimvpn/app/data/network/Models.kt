@@ -113,6 +113,7 @@ data class AccessProfileResponse(
 
 data class ActivateTrialRequest(
     val userNumber: String,
+    val deviceId: String,
     val email: String,
     val phone: String
 )

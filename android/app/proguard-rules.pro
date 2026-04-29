@@ -27,6 +27,7 @@
 # Keep only your app data/network/model layer, not all Gson internals.
 -keep class com.swimvpn.app.data.network.** { *; }
 -keep class com.swimvpn.app.data.model.** { *; }
+-keep class com.swimvpn.app.config.** { *; }
 
 # Keep fields annotated for Gson if used.
 -keepclassmembers class * {
@@ -66,6 +67,7 @@
 # Keep VPN package. This is intentionally broad because native/service code
 # can be fragile when obfuscated.
 -keep class com.swimvpn.app.vpn.** { *; }
+-keep class com.swimvpn.app.runtime.Tun2SocksNativeBridge { *; }
 
 # ----------------------------------------------------------------------
 # DataStore

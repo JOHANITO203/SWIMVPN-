@@ -3,13 +3,13 @@ package com.swimvpn.app
 import android.app.Application
 import android.content.Context
 import android.content.Intent
-import android.provider.Settings
 import android.util.Log
 import android.net.VpnService
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.data.local.AutoConnectPayload
+import com.swimvpn.app.data.local.DeviceIdentityProvider
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ActivateCodeRequest
 import com.swimvpn.app.data.network.ActivateTrialRequest
@@ -105,7 +105,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val language = prefs.languageFlow.first()
                 val themeMode = prefs.themeModeFlow.first()
 
-                Log.d("MainViewModel", "Bootstrapping with deviceId: $deviceId, locale: $language")
+                if (deviceId == null) {
+                    Log.e("MainViewModel", "Device identity unavailable during bootstrap")
+                    _state.value = AppState.Error(s(R.string.err_bootstrap_failed))
+                    return@launch
+                }
+
+                Log.d("MainViewModel", "Bootstrapping access for locale: $language")
 
                 val bootstrap = try {
                     api.bootstrapAccess(
@@ -115,8 +121,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     )
                 } catch (e: retrofit2.HttpException) {
-                    val errorBody = e.response()?.errorBody()?.string()
-                    Log.e("MainViewModel", "HTTP ${e.code()} bootstrapping access: $errorBody", e)
+                    if (BuildConfig.DEBUG) {
+                        val errorBody = e.response()?.errorBody()?.string()
+                        Log.e("MainViewModel", "HTTP ${e.code()} bootstrapping access: $errorBody", e)
+                    } else {
+                        Log.e("MainViewModel", "HTTP ${e.code()} bootstrapping access", e)
+                    }
                     val msg = if (e.code() >= 500) {
                         s(R.string.err_server_maintenance, e.code())
                     } else {
@@ -252,9 +262,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             try {
                 _state.value = AppState.Loading
+                val deviceId = getDeviceId()
+                if (deviceId == null) {
+                    Log.e("MainViewModel", "Device identity unavailable during trial activation")
+                    _state.value = currentState
+                    _effect.emit(AppSideEffect.ShowToast(s(R.string.err_trial_activation)))
+                    return@launch
+                }
+
                 val profile = api.activateTrial(
                     ActivateTrialRequest(
                         userNumber = currentState.userNumber,
+                        deviceId = deviceId,
                         email = email,
                         phone = phone,
                     )
@@ -289,6 +308,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             Log.i("MainViewModel", "Local imported config refreshed without mutating backend inventory")
             _state.value = refreshSuccessState(currentState)
             refreshServerLatency()
+        }
+    }
+
+    fun activateTrialFromProfile() {
+        viewModelScope.launch {
+            val currentState = _state.value as? AppState.Success ?: return@launch
+            val email = currentState.profile.email?.trim().orEmpty()
+            val phone = currentState.profile.phone?.trim().orEmpty()
+            if (email.isBlank() || phone.isBlank()) {
+                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_trial_activation)))
+                return@launch
+            }
+
+            try {
+                _state.value = AppState.Loading
+                val deviceId = getDeviceId()
+                if (deviceId == null) {
+                    Log.e("MainViewModel", "Device identity unavailable during profile trial activation")
+                    _state.value = currentState
+                    _effect.emit(AppSideEffect.ShowToast(s(R.string.err_trial_activation)))
+                    return@launch
+                }
+
+                val profile = api.activateTrial(
+                    ActivateTrialRequest(
+                        userNumber = currentState.profile.userNumber,
+                        deviceId = deviceId,
+                        email = email,
+                        phone = phone,
+                    )
+                )
+
+                val successState = buildSuccessState(
+                    profile = profile,
+                    isOnboardingDone = currentState.isOnboardingDone,
+                    routingMode = currentState.routingMode,
+                    autoConnect = currentState.autoConnect,
+                    language = currentState.language,
+                    themeMode = currentState.themeMode,
+                )
+
+                if (successState == null) {
+                    return@launch
+                }
+
+                _state.value = successState
+                refreshServerLatency()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Profile trial activation failed", e)
+                _state.value = currentState
+                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_trial_activation)))
+            }
         }
     }
 
@@ -551,13 +622,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             else -> RuntimeMode.FULL_TUNNEL.name
         }
 
-    @android.annotation.SuppressLint("HardwareIds")
-    private fun getDeviceId(): String {
-        return Settings.Secure.getString(
-            getApplication<Application>().contentResolver,
-            Settings.Secure.ANDROID_ID
-        ) ?: "unknown_device_id"
-    }
+    private fun getDeviceId(): String? = DeviceIdentityProvider.getDeviceId(app)
 
     private suspend fun buildSuccessState(
         profile: AccessProfileResponse,
@@ -569,8 +634,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ): AppState.Success? {
         val pinnedIds = prefs.pinnedServerIdsFlow.first()
         val importedGroups = configRepository.getImportedProfileGroups()
+        val deviceId = getDeviceId()
         val backendServers = try {
-            api.getServers(profile.userNumber, getDeviceId())
+            if (deviceId == null) {
+                if (profile.isPremiumAllowed) {
+                    Log.e("MainViewModel", "Device identity unavailable while loading premium servers")
+                    _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
+                    return null
+                }
+                emptyList()
+            } else {
+                api.getServers(profile.userNumber, deviceId)
+            }
         } catch (e: Exception) {
             Log.e("MainViewModel", "API Error fetching servers", e)
             if (profile.isPremiumAllowed) {

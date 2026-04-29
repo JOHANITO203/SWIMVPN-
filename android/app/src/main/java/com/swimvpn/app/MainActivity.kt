@@ -211,6 +211,7 @@ fun AppNavigation(
                         onNavigateToTechnical = { navController.navigate("technical") },
                         onNavigateToImport = { navController.navigate("import") },
                         onNavigateToSupport = { navController.navigate("support") },
+                        onActivateTrial = { viewModel.activateTrialFromProfile() },
                         onSignOut = {
                             viewModel.signOut()
                             navController.navigate("loading") { popUpTo(0) }

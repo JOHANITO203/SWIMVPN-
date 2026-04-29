@@ -73,6 +73,11 @@ otification-bot-service event handoff.
 - Wire periodic `backup-db.sh` via Dockploy schedule or cron.
 
 ## Android Follow-up
+- Install and smoke-test the signed release APK on a real device:
+  - fresh profile -> `TRIAL_AVAILABLE` app shell
+  - profile CTA -> trial activation
+  - active trial relaunch -> premium servers/config available
+  - expired/no-access user -> imported config remains usable
 - In Android Studio: install the rebuilt APK on the affected device and confirm startup crash is resolved after scanner migration + Retrofit base URL fix.
 - Re-test on device after the Technical screen theme refactor and confirm `System`, `Light`, and `Dark` visibly differ.
 - Verify the new `Proxy` recommended badge and `Tunnel` tunneling badge on the Technical screen.

@@ -33,6 +33,10 @@ export class ActivateTrialDto {
   @IsNotEmpty()
   userNumber: string;
 
+  @IsString()
+  @IsNotEmpty()
+  deviceId: string;
+
   @IsEmail()
   email: string;
 
