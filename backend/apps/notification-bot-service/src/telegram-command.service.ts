@@ -5,6 +5,10 @@ import { PrismaService } from '@app/database';
 import { Telegraf, Markup } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
 import { NotificationService } from './notification.service';
+import {
+  buildManualPaymentContactReviewText,
+  parseManualPaymentConfirmation,
+} from './manual-card-confirmation';
 
 @Injectable()
 export class TelegramCommandService implements OnModuleInit {
@@ -264,6 +268,19 @@ export class TelegramCommandService implements OnModuleInit {
         await this.recoverPendingManualConfirmation(ctx.chat.id.toString());
       if (!pending) return;
 
+      const parsedConfirmation = parseManualPaymentConfirmation(text);
+      const order = await this.prisma.order.findUnique({
+        where: { order_ref: pending.orderRef },
+        include: {
+          customer: true,
+        },
+      });
+      if (!order || order.status !== 'PENDING') {
+        this.pendingManualConfirmations.delete(ctx.chat.id.toString());
+        await ctx.reply('This payment request is no longer active.');
+        return;
+      }
+
       await this.prisma.adminEvent.create({
         data: {
           event_type: 'CARD_PAYMENT_CONTACT_CONFIRMED',
@@ -275,24 +292,53 @@ export class TelegramCommandService implements OnModuleInit {
             telegramChatId: ctx.chat.id.toString(),
             telegramUserId: ctx.from.id.toString(),
             telegramUsername: ctx.from.username || null,
+            email: parsedConfirmation.email || null,
+            phone: parsedConfirmation.phone || null,
+            senderPhone: parsedConfirmation.senderPhone || null,
             confirmationText: text.slice(0, 2000),
             submittedAt: new Date().toISOString(),
           } as any,
         },
       });
 
-      if (this.bot && this.reviewChatId) {
+      if (parsedConfirmation.email || parsedConfirmation.phone) {
+        await this.prisma.customer.update({
+          where: { id: order.customer_id },
+          data: {
+            email: parsedConfirmation.email || order.customer.email,
+            phone: parsedConfirmation.phone || order.customer.phone,
+          },
+        });
+      }
+
+      if (!this.bot || !this.reviewChatId) {
+        this.logger.warn(`Manual payment contact confirmation cannot be forwarded for ${pending.orderRef}: review chat is not configured`);
+        await ctx.reply('Your details were received, but admin review chat is not configured. Please contact support.');
+        return;
+      }
+
+      try {
         await this.bot.telegram.sendMessage(
           this.reviewChatId,
-          [
-            'SWIMVPN+ CARD PAYMENT CONTACT CONFIRMATION',
-            `Order: ${pending.orderRef}`,
-            `Proof event: ${pending.proofEventId}`,
-            `Telegram: @${ctx.from.username || '-'} (${ctx.from.id})`,
-            '',
-            text.slice(0, 2000),
-          ].join('\n'),
+          buildManualPaymentContactReviewText({
+            orderRef: pending.orderRef,
+            proofEventId: pending.proofEventId,
+            telegramUsername: ctx.from.username || null,
+            telegramUserId: ctx.from.id.toString(),
+            confirmationText: text,
+            parsed: parsedConfirmation,
+          }),
+          Markup.inlineKeyboard([
+            [
+              Markup.button.callback('approve', `approve_card:${pending.orderRef}:${pending.proofEventId}`),
+              Markup.button.callback('reject', `reject_card:${pending.orderRef}:${pending.proofEventId}`),
+            ],
+          ]),
         );
+      } catch (error) {
+        this.logger.warn(`Failed to forward manual payment contact confirmation for ${pending.orderRef}: ${(error as Error).message}`);
+        await ctx.reply('Your details were received, but we could not forward them to admin review. Please try sending the same confirmation again.');
+        return;
       }
 
       this.pendingManualConfirmations.delete(ctx.chat.id.toString());
@@ -573,6 +619,10 @@ export class TelegramCommandService implements OnModuleInit {
           event_type: 'CARD_PAYMENT_CONTACT_CONFIRMED',
           entity_type: 'ORDER',
           entity_id: event.entity_id,
+          payload_json: {
+            path: ['proofEventId'],
+            equals: event.id,
+          },
         },
         orderBy: { created_at: 'desc' },
       });

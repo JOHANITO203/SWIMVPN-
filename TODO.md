@@ -653,3 +653,13 @@ u after each future language batch
 - Confirm Locations shows imported servers for trial-used/freemium users while backend premium servers remain protected.
 - Test manual card flow with live Telegram bot: `/start card_<orderRef>` -> screenshot -> confirmation prompt -> contact text -> admin review packet -> approve/reject.
 - Verify Dokploy env has `MANUAL_CARD_NUMBER`; without it the bot will correctly refuse to start card payment flow.
+
+## Manual Card Payment Retest
+- Redeploy backend notification-bot-service.
+- Re-test Telegram card flow end-to-end:
+  - open payment bot from app order link
+  - send proof screenshot
+  - send final email / phone / sender phone in one message
+  - verify admin review chat receives `SWIMVPN+ CARD PAYMENT FINAL REVIEW` with approve/reject buttons
+  - approve and confirm config delivery email goes to the confirmed final email
+- If final confirmation still does not reach admin chat, inspect Dokploy logs for `Failed to forward manual payment contact confirmation` and verify `PAYMENT_REVIEW_CHAT_ID` points to a chat where the bot is a member.

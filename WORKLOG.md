@@ -1936,3 +1936,19 @@ pm run build PASSED.
 - **Note**:
   - Local release output remains `app-release-unsigned.apk`; final ADB verification of the fixed release requires signing with the production key before installing over the user's signed APK.
   - Manual Telegram approval/rejection still requires live bot/admin-group QA because the terminal cannot act as the Telegram user/admin review group.
+
+## [2026-04-29] [Manual Card Final Confirmation Forwarding Fix]
+- **Status**: DONE
+- **Problem**: A live Telegram test showed the notification bot accepted the payment proof and asked for final email/phone/sender phone, but the final confirmation details were not reliably forwarded to the admin review flow.
+- **Root Cause**: The proof message and the final contact confirmation were handled as separate admin messages. The final contact message had no approve/reject controls, did not update the order customer contact for delivery, and Telegram forwarding failures could abort the handler before the user received feedback.
+- **Changes**:
+    - Added a small parser for final manual-card confirmation text: email, customer phone, and sender payment phone.
+    - Forward the final review packet to the payment review chat with approve/reject buttons attached to the complete contact context.
+    - Update the order customer email/phone from the confirmed final details before approval/delivery.
+    - Keep the pending confirmation open and notify the user if the admin review chat forwarding fails.
+    - Tightened pending confirmation recovery so previous confirmations for the same order do not block a new proof event.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/manual-card-confirmation.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
