@@ -1,0 +1,29 @@
+{
+    "generatedAt": "2026-04-28T04:02:58+03:00",
+    "entries": [
+        {
+            "abi": "arm64-v8a",
+            "available": true,
+            "preferredLaunchMode": "jni",
+            "executableAvailable": false,
+            "executableSourcePath": "",
+            "executableAssetPath": "",
+            "packagedSharedLibraryAvailable": true,
+            "packagedSharedLibrarySourcePath": "C:\\Users\\Lenovo\\StudioProjects\\SWIMVPN-\\android\\app\\build\\generated\\runtimeJniLibs\\main\\arm64-v8a\\libhev-socks5-tunnel.so",
+            "packagedSharedLibraryName": "libhev-socks5-tunnel.so",
+            "reason": "shared library packaged from local property or upstream source build"
+        },
+        {
+            "abi": "x86_64",
+            "available": true,
+            "preferredLaunchMode": "jni",
+            "executableAvailable": false,
+            "executableSourcePath": "",
+            "executableAssetPath": "",
+            "packagedSharedLibraryAvailable": true,
+            "packagedSharedLibrarySourcePath": "C:\\Users\\Lenovo\\StudioProjects\\SWIMVPN-\\android\\app\\build\\generated\\runtimeJniLibs\\main\\x86_64\\libhev-socks5-tunnel.so",
+            "packagedSharedLibraryName": "libhev-socks5-tunnel.so",
+            "reason": "shared library packaged from local property or upstream source build"
+        }
+    ]
+}

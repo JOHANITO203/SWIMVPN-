@@ -1,6 +1,19 @@
-import { Controller, Post, Get, Body, Param, Inject, Headers, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Controller,
+  ForbiddenException,
+  Get,
+  Body,
+  Param,
+  Inject,
+  Headers,
+  Post,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import * as net from 'net';
+import { firstValueFrom } from 'rxjs';
 
 @Controller()
 export class AccessController {
@@ -40,17 +53,17 @@ export class AccessController {
 
   @Post('access/bootstrap')
   async bootstrapAccess(@Body() data: any) {
-    return this.customerClient.send({ cmd: 'bootstrap_access' }, data);
+    return this.sendCustomer({ cmd: 'bootstrap_access' }, data);
   }
 
   @Post('access/trial')
   async startTrial(@Body() data: any) {
-    return this.customerClient.send({ cmd: 'start_trial' }, data);
+    return this.sendCustomer({ cmd: 'start_trial' }, data);
   }
 
   @Post('access/trial/activate')
   async activateTrial(@Body() data: any) {
-    return this.customerClient.send({ cmd: 'activate_trial' }, data);
+    return this.sendCustomer({ cmd: 'activate_trial' }, data);
   }
 
   @Get('access/:userNumber')
@@ -63,22 +76,22 @@ export class AccessController {
 
   @Post('subscription/import')
   async importSubscription(@Body() data: any) {
-    return this.customerClient.send({ cmd: 'import_subscription' }, data);
+    return this.sendCustomer({ cmd: 'import_subscription' }, data);
   }
 
   @Post('subscription/resolve-crypt')
   async resolveCryptSubscription(@Body() data: any) {
-    return this.customerClient.send({ cmd: 'resolve_crypt_subscription' }, data);
+    return this.sendCustomer({ cmd: 'resolve_crypt_subscription' }, data);
   }
 
   @Post('subscription/activate-code')
   async activateCode(@Body() data: any) {
-    return this.customerClient.send({ cmd: 'activate_code' }, data);
+    return this.sendCustomer({ cmd: 'activate_code' }, data);
   }
 
   @Post('subscription/usage')
   async reportUsage(@Body() data: any) {
-    return this.customerClient.send({ cmd: 'report_usage' }, data);
+    return this.sendCustomer({ cmd: 'report_usage' }, data);
   }
 
   @Get('servers')
@@ -106,5 +119,63 @@ export class AccessController {
       socket.on('timeout', () => done(false));
       socket.connect(port, host);
     });
+  }
+
+  private async sendCustomer(pattern: Record<string, string>, data: any) {
+    try {
+      return await firstValueFrom(this.customerClient.send(pattern, data));
+    } catch (error: any) {
+      const message = this.extractErrorMessage(error);
+      const normalized = message.toLowerCase();
+
+      if (normalized.includes('trial already used')) {
+        throw new ConflictException(message);
+      }
+
+      if (normalized.includes('not authorized')) {
+        throw new ForbiddenException(message);
+      }
+
+      if (
+        normalized.includes('required') ||
+        normalized.includes('not found') ||
+        normalized.includes('invalid') ||
+        normalized.includes('unsupported') ||
+        normalized.includes('should not be empty') ||
+        normalized.includes('must be')
+      ) {
+        throw new BadRequestException(message);
+      }
+
+      throw new ServiceUnavailableException(message || 'Access service unavailable');
+    }
+  }
+
+  private extractErrorMessage(error: any) {
+    if (typeof error?.error === 'string' && error.error.trim().length > 0) {
+      return error.error;
+    }
+
+    if (typeof error?.response?.message === 'string' && error.response.message.trim().length > 0) {
+      return error.response.message;
+    }
+
+    if (Array.isArray(error?.response?.message) && error.response.message.length > 0) {
+      return error.response.message.join(', ');
+    }
+
+    if (typeof error?.message === 'string' && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    if (typeof error?.error?.message === 'string' && error.error.message.trim().length > 0) {
+      return error.error.message;
+    }
+
+    if (Array.isArray(error?.error?.message) && error.error.message.length > 0) {
+      return error.error.message.join(', ');
+    }
+
+    return 'Access service unavailable';
   }
 }

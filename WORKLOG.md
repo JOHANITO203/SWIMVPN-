@@ -18,6 +18,20 @@
     - `cd android && .\gradlew.bat :app:assembleRelease --no-daemon` PASSED.
     - `cd android && .\gradlew.bat :app:testDebugUnitTest --no-daemon` PASSED.
 
+## [2026-04-29] [Signed Release Trial Activation Error Mapping]
+- **Status**: DONE
+- **Changes**:
+    - Captured ADB logs from the user-signed release APK and confirmed launch/bootstrap succeeds with no Android crash.
+    - Identified trial activation returning `HTTP 500` from the gateway while the app remained on profile/trial activation.
+    - Reproduced the opaque 500 with a safe malformed activation request, confirming access RPC errors were being surfaced as generic server errors.
+    - Updated `gateway-service` access endpoints to unwrap customer-service RPC errors and map access/business failures to explicit HTTP errors (`400`, `403`, `409`, or `503`).
+    - Updated Android trial activation catch paths to display backend error details through the existing activation error toast instead of a generic failure.
+- **Verification**:
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+    - `cd android && .\gradlew.bat :app:assembleRelease --no-daemon` PASSED.
+    - `cd android && .\gradlew.bat :app:testDebugUnitTest --no-daemon` PASSED.
+
 ## [2026-04-25] [Android Final Review Follow-up - Active Config Source Truth]
 - **Status**: DONE
 - **Changes**:

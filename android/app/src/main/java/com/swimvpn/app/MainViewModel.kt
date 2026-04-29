@@ -297,7 +297,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Trial activation failed", e)
                 _state.value = currentState
-                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_trial_activation)))
+                val message = extractApiErrorMessage(e)?.takeIf { it.isNotBlank() }
+                    ?.let { s(R.string.err_activation_failed, it) }
+                    ?: s(R.string.err_trial_activation)
+                _effect.emit(AppSideEffect.ShowToast(message))
             }
         }
     }
@@ -358,7 +361,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Profile trial activation failed", e)
                 _state.value = currentState
-                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_trial_activation)))
+                val message = extractApiErrorMessage(e)?.takeIf { it.isNotBlank() }
+                    ?.let { s(R.string.err_activation_failed, it) }
+                    ?: s(R.string.err_trial_activation)
+                _effect.emit(AppSideEffect.ShowToast(message))
             }
         }
     }
