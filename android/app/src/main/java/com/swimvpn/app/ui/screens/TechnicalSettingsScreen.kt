@@ -2,6 +2,7 @@ package com.swimvpn.app.ui.screens
 
 import android.content.Intent
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -209,10 +210,24 @@ fun TechnicalSettingsScreen(
                     chipText = killSwitchStatusChip(killSwitchStatus),
                     enabled = externalActionsArmed,
                     onClick = {
-                        val intent = Intent(Settings.ACTION_VPN_SETTINGS).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        val opened = runCatching {
+                            val intent = Intent(Settings.ACTION_VPN_SETTINGS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            context.startActivity(intent)
+                        }.isSuccess
+
+                        if (!opened) {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_SETTINGS).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    }
+                                )
+                            }.onFailure {
+                                Toast.makeText(context, R.string.err_open_settings_failed, Toast.LENGTH_SHORT).show()
+                            }
                         }
-                        context.startActivity(intent)
                     }
                 )
             }
@@ -603,19 +618,23 @@ private fun normalizeThemeMode(themeMode: String): String =
     }
 
 private fun readKillSwitchStatus(context: android.content.Context): KillSwitchStatus {
-    val alwaysOnPackage = Settings.Secure.getString(
-        context.contentResolver,
-        ALWAYS_ON_VPN_APP_KEY
-    )
-    val lockdownEnabled = runCatching {
-        Settings.Secure.getInt(context.contentResolver, ALWAYS_ON_VPN_LOCKDOWN_KEY, 0) == 1
-    }.getOrDefault(false)
+    return runCatching {
+        val alwaysOnPackage = Settings.Secure.getString(
+            context.contentResolver,
+            ALWAYS_ON_VPN_APP_KEY
+        )
+        val lockdownEnabled = Settings.Secure.getInt(
+            context.contentResolver,
+            ALWAYS_ON_VPN_LOCKDOWN_KEY,
+            0
+        ) == 1
 
-    return when {
-        alwaysOnPackage == context.packageName && lockdownEnabled -> KillSwitchStatus.LOCKDOWN
-        alwaysOnPackage == context.packageName -> KillSwitchStatus.ALWAYS_ON
-        else -> KillSwitchStatus.SYSTEM
-    }
+        when {
+            alwaysOnPackage == context.packageName && lockdownEnabled -> KillSwitchStatus.LOCKDOWN
+            alwaysOnPackage == context.packageName -> KillSwitchStatus.ALWAYS_ON
+            else -> KillSwitchStatus.SYSTEM
+        }
+    }.getOrDefault(KillSwitchStatus.SYSTEM)
 }
 
 @Composable

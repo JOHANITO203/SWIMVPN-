@@ -141,23 +141,21 @@ fun AppNavigation(
     val state by viewModel.state.collectAsState()
     val navController = rememberNavController()
     val context = LocalContext.current
+    val bootstrapDestination = when (val currentState = state) {
+        is AppState.Success -> if (!currentState.isOnboardingDone) "onboarding" else "home"
+        is AppState.TrialSetup -> if (!currentState.isOnboardingDone) "onboarding" else "profile"
+        else -> null
+    }
 
-    LaunchedEffect(state) {
+    LaunchedEffect(bootstrapDestination) {
+        val destination = bootstrapDestination ?: return@LaunchedEffect
         when (val currentState = state) {
             is AppState.Success -> {
                 viewModel.maybeRestoreAutoConnectFromBoot(context)
-                if (!currentState.isOnboardingDone) {
-                    navController.navigate("onboarding") { popUpTo(0) }
-                } else {
-                    navController.navigate("home") { popUpTo(0) }
-                }
+                navController.navigate(destination) { popUpTo(0) }
             }
             is AppState.TrialSetup -> {
-                if (!currentState.isOnboardingDone) {
-                    navController.navigate("onboarding") { popUpTo(0) }
-                } else {
-                    navController.navigate("profile") { popUpTo(0) }
-                }
+                navController.navigate(destination) { popUpTo(0) }
             }
             else -> {}
         }
@@ -226,7 +224,7 @@ fun AppNavigation(
                         phone = currentState.phone,
                         trialEligible = currentState.trialEligible,
                         onActivateTrial = { email, phone -> viewModel.activateTrial(email, phone) },
-                        onContinueFreemium = { viewModel.continueFreemiumFromTrialSetup() },
+                        onContinueFreemium = { email, phone -> viewModel.continueFreemiumFromTrialSetup(email, phone) },
                         onBack = { navController.popBackStack() },
                     )
                 }

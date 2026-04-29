@@ -21,6 +21,9 @@ interface ApiService {
     @POST("api/v1/access/trial/activate")
     suspend fun activateTrial(@Body request: ActivateTrialRequest): AccessProfileResponse
 
+    @POST("api/v1/access/profile/complete")
+    suspend fun completeProfile(@Body request: CompleteProfileRequest): AccessProfileResponse
+
     @GET("api/v1/access/{userNumber}")
     suspend fun getAccessProfile(@Path("userNumber") userNumber: String): AccessProfileResponse
 

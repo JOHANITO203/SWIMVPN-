@@ -6,6 +6,7 @@ import {
   CreateOrderDto,
   BootstrapAccessDto,
   ActivateTrialDto,
+  CompleteProfileDto,
   CreateCheckoutDto,
   CryptoWebhookDto,
   ReportUsageDto,
@@ -38,6 +39,11 @@ export class CustomerController {
   @MessagePattern({ cmd: 'activate_trial' })
   async activateTrial(@Payload() data: ActivateTrialDto) {
     return this.customerService.activateTrial(data);
+  }
+
+  @MessagePattern({ cmd: 'complete_profile' })
+  async completeProfile(@Payload() data: CompleteProfileDto) {
+    return this.customerService.completeProfile(data);
   }
 
   @MessagePattern({ cmd: 'get_profile' })

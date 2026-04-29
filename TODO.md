@@ -628,3 +628,11 @@ u after each future language batch
 - Re-test on signed release APK: profile/trial screen shows "Continue without trial" and enters the app shell without premium servers.
 - After Dokploy redeploy, verify `POST /api/v1/access/trial/activate` without `deviceId` returns `400`, already-used trial returns `409`, and unauthorized device returns `403`.
 - Confirm expired/trial-used users can still open the app shell, use imported configs, and reach subscription offers.
+
+## [2026-04-29] Release Trial Denial QA
+- Redeploy backend so `POST /api/v1/access/profile/complete` is available in production.
+- Produce a signed release APK from the current source; `assembleRelease` currently creates an unsigned local APK.
+- Test signed release: enter already-used email/phone -> trial denial -> Continue without trial -> profile shows contact info -> subscription checkout can be opened.
+- Test technical settings in signed release: opening the page, toggling routing/autoconnect/language/theme, kill-switch row, and back/save should not reset the app.
+- Consider adding explicit `@SerializedName` annotations to access DTOs after this hotfix, even though current ProGuard keeps protect them.
+- Bump `versionCode` before public release so APK provenance is not ambiguous.

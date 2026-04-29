@@ -8,6 +8,7 @@ import {
   CreateOrderDto,
   BootstrapAccessDto,
   ActivateTrialDto,
+  CompleteProfileDto,
   CreateCheckoutDto,
   getPublicPlanName,
   getPlanSlotCount,
@@ -146,11 +147,6 @@ export class CustomerService {
       this.fail('Device is not authorized for trial activation');
     }
 
-    const trialEligible = await this.isTrialEligible(customer, normalizedEmail, normalizedPhone);
-    if (!trialEligible) {
-      this.fail('Trial already used for this device or contact data');
-    }
-
     await this.prisma.customer.update({
       where: { id: customer.id },
       data: {
@@ -158,6 +154,11 @@ export class CustomerService {
         phone: normalizedPhone,
       },
     });
+
+    const trialEligible = await this.isTrialEligible(customer, normalizedEmail, normalizedPhone);
+    if (!trialEligible) {
+      this.fail('Trial already used for this device or contact data');
+    }
 
     const trialPlan = await this.prisma.plan.findFirst({
       where: { code: 'WEEK' },
@@ -187,6 +188,40 @@ export class CustomerService {
     }
 
     return this.getProfile(customer.public_id);
+  }
+
+  async completeProfile(data: CompleteProfileDto) {
+    const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
+    const normalizedEmail = data.email?.trim().toLowerCase() || undefined;
+    const normalizedPhone = this.normalizePhone(data.phone);
+
+    if (normalizedEmail && !this.looksLikeEmail(normalizedEmail)) {
+      this.fail('Valid email is required');
+    }
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { public_id: data.userNumber },
+    });
+
+    if (!customer) {
+      this.fail('Customer not found');
+    }
+
+    if (!customer.device_id || customer.device_id !== normalizedDeviceId) {
+      this.fail('Device is not authorized for profile completion');
+    }
+
+    if (normalizedEmail || normalizedPhone) {
+      await this.prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          email: normalizedEmail ?? customer.email,
+          phone: normalizedPhone ?? customer.phone,
+        },
+      });
+    }
+
+    return this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
   }
 
   async getProfile(userNumber: string, options: { exposeRuntimeConfig?: boolean } = {}) {
@@ -1000,6 +1035,10 @@ export class CustomerService {
 
   private looksLikeTelegramBotToken(value: string) {
     return /^\d+:[A-Za-z0-9_-]{20,}$/.test(value);
+  }
+
+  private looksLikeEmail(value: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   }
 
   private async fetchTelegramBotUsername(token: string) {

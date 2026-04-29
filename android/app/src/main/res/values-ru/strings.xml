@@ -155,6 +155,7 @@
     <string name="err_no_runtime_config">Для выбранного сервера нет runtime-конфигурации.</string>
     <string name="err_fetch_servers_failed">Не удалось загрузить список серверов. Проверьте соединение и повторите попытку.</string>
     <string name="err_fetch_plans_failed">Не удалось загрузить тарифы. Проверьте соединение и повторите попытку.</string>
+    <string name="err_open_settings_failed">Не удалось открыть настройки Android на этом устройстве.</string>
 
     <string name="profile_trial_id_label">ВАШ ID SWIMVPN+</string>
     <string name="profile_trial_description">Заполните профиль, чтобы открыть пробный период на 3 дня. Мы используем устройство, email и телефон для защиты от злоупотреблений.</string>

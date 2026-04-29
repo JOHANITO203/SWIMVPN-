@@ -14,6 +14,7 @@ import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ActivateCodeRequest
 import com.swimvpn.app.data.network.ActivateTrialRequest
 import com.swimvpn.app.data.network.BootstrapAccessRequest
+import com.swimvpn.app.data.network.CompleteProfileRequest
 import com.swimvpn.app.data.model.CheckoutRequest
 import com.swimvpn.app.data.network.ReportUsageRequest
 import com.swimvpn.app.data.network.RetrofitClient
@@ -305,13 +306,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun continueFreemiumFromTrialSetup() {
+    fun continueFreemiumFromTrialSetup(email: String? = null, phone: String? = null) {
         viewModelScope.launch {
             val currentState = _state.value as? AppState.TrialSetup ?: return@launch
 
             try {
                 _state.value = AppState.Loading
-                val profile = api.getAccessProfile(currentState.userNumber)
+                val deviceId = getDeviceId()
+                if (deviceId == null) {
+                    Log.e("MainViewModel", "Device identity unavailable while continuing freemium")
+                    _state.value = currentState
+                    _effect.emit(AppSideEffect.ShowToast(s(R.string.err_bootstrap_failed)))
+                    return@launch
+                }
+
+                val profile = api.completeProfile(
+                    CompleteProfileRequest(
+                        userNumber = currentState.userNumber,
+                        deviceId = deviceId,
+                        email = email?.trim()?.takeIf { it.isNotBlank() },
+                        phone = phone?.trim()?.takeIf { it.isNotBlank() },
+                    )
+                )
                 val successState = buildSuccessState(
                     profile = profile,
                     isOnboardingDone = currentState.isOnboardingDone,

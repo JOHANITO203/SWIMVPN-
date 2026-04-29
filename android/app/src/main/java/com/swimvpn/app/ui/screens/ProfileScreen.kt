@@ -658,7 +658,7 @@ fun TrialActivationProfileScreen(
     phone: String?,
     trialEligible: Boolean,
     onActivateTrial: (String, String) -> Unit,
-    onContinueFreemium: () -> Unit,
+    onContinueFreemium: (String?, String?) -> Unit,
     onBack: () -> Unit,
 ) {
     var emailInput by remember { mutableStateOf(email.orEmpty()) }
@@ -764,7 +764,12 @@ fun TrialActivationProfileScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedButton(
-                    onClick = onContinueFreemium,
+                    onClick = {
+                        onContinueFreemium(
+                            emailInput.trim().takeIf { isEmailValid },
+                            phoneInput.trim().takeIf { isPhoneValid },
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(26.dp),
                 ) {

@@ -1882,3 +1882,20 @@ pm run build PASSED.
 - **Note**:
   - The local release artifact is unsigned, so it cannot be installed over the user's signed release without signing through the production signing flow first.
   - Production API still returned `503` for missing `deviceId` before this backend patch is deployed; retest after Dokploy redeploy.
+
+## [2026-04-29] [Release Trial Denial Freemium/Profile Recovery]
+- **Status**: DONE
+- **Changes**:
+  - Added backend `complete_profile` RPC and gateway `POST /api/v1/access/profile/complete` for device-bound profile contact persistence without granting premium access.
+  - Trial activation now persists normalized contact info before returning a trial-used denial, so payment/freemium profile data is not lost.
+  - Android `Continue without trial` now sends valid typed email/phone to the backend profile-completion endpoint before entering the app shell.
+  - Stabilized root navigation so technical/settings state changes do not force the app back to Home.
+  - Hardened technical settings against secure-settings read failures and unavailable Android settings activities.
+- **Verification**:
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd android && .\gradlew.bat :app:assembleRelease --no-daemon --console=plain` PASSED.
+  - `git diff --check` PASSED with CRLF warnings only.
+- **Note**:
+  - The generated local APK is unsigned; a signed release must be produced before device QA.
+  - The untracked `adb-captures/package-dumpsys-current.txt` is an ADB diagnostic artifact, not source code.

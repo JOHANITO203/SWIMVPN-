@@ -66,6 +66,11 @@ export class AccessController {
     return this.sendCustomer({ cmd: 'activate_trial' }, data);
   }
 
+  @Post('access/profile/complete')
+  async completeProfile(@Body() data: any) {
+    return this.sendCustomer({ cmd: 'complete_profile' }, data);
+  }
+
   @Get('access/:userNumber')
   async getAccessProfile(@Param('userNumber') userNumber: string) {
     return this.customerClient.send(

@@ -774,3 +774,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Trial activation remains backend-enforced and abuse-protected.
   - Users who cannot or do not want to activate trial can still enter the app shell.
   - Premium servers/configs remain restricted to backend `ACTIVE_TRIAL` or `ACTIVE_SUBSCRIPTION`.
+
+## [2026-04-29] [Profile Completion Is Separate From Trial Entitlement]
+- **Decision**: Completing or updating profile contact data is allowed without granting trial or premium access.
+- **Why**: A user whose trial is denied must still be able to enter freemium, import configs, and subscribe. Coupling contact persistence to successful trial activation created a dead-end and blocked checkout.
+- **Impact**:
+  - `POST /api/v1/access/profile/complete` updates only the device-bound customer's contact data.
+  - Trial anti-abuse remains enforced; trial denial does not become premium access.
+  - Existing paid access is not recovered by unauthenticated email/phone lookup, avoiding account takeover risk.

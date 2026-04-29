@@ -155,6 +155,7 @@
     <string name="err_no_runtime_config">Aucune configuration runtime disponible pour le serveur sélectionné.</string>
     <string name="err_fetch_servers_failed">Impossible de charger la liste des serveurs. Vérifiez votre connexion et réessayez.</string>
     <string name="err_fetch_plans_failed">Impossible de charger les offres d’abonnement. Vérifiez votre connexion et réessayez.</string>
+    <string name="err_open_settings_failed">Impossible d’ouvrir les paramètres Android sur cet appareil.</string>
 
     <string name="profile_trial_id_label">VOTRE ID SWIMVPN+</string>
     <string name="profile_trial_description">Complétez votre profil pour débloquer l’essai de 3 jours. Nous utilisons votre appareil, votre email et votre téléphone pour éviter les abus.</string>

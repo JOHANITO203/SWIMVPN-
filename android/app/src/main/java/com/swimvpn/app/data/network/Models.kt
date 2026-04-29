@@ -118,6 +118,13 @@ data class ActivateTrialRequest(
     val phone: String
 )
 
+data class CompleteProfileRequest(
+    val userNumber: String,
+    val deviceId: String,
+    val email: String?,
+    val phone: String?
+)
+
 data class ImportSubscriptionRequest(
     val userNumber: String,
     val subscriptionUrl: String

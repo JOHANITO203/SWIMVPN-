@@ -45,6 +45,24 @@ export class ActivateTrialDto {
   phone: string;
 }
 
+export class CompleteProfileDto {
+  @IsString()
+  @IsNotEmpty()
+  userNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  deviceId: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+}
+
 export class CreateOrderDto {
   @IsEmail()
   @IsOptional()
