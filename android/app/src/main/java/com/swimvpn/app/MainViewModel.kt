@@ -353,6 +353,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun importVless(url: String) {
+        refreshImportedServers()
+    }
+
+    fun refreshImportedServers() {
         viewModelScope.launch {
             val currentState = _state.value as? AppState.Success ?: return@launch
             Log.i("MainViewModel", "Local imported config refreshed without mutating backend inventory")

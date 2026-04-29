@@ -245,8 +245,10 @@ fun AppNavigation(
                 onProfileSelected = { profile ->
                     viewModel.selectImportedProfile(profile)
                 },
-                onImportToProfile = { rawConfig ->
-                    viewModel.importVless(rawConfig)
+                onProfilesImported = { profiles ->
+                    profiles.firstOrNull()?.let { profile ->
+                        viewModel.selectImportedProfile(profile)
+                    } ?: viewModel.refreshImportedServers()
                 },
                 showToast = { message ->
                     android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()

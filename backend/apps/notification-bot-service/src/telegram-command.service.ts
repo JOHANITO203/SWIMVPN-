@@ -13,6 +13,7 @@ export class TelegramCommandService implements OnModuleInit {
   private adminChatId?: string;
   private reviewChatId?: string;
   private readonly pendingManualPayments = new Map<string, { orderRef: string; startedAt: number }>();
+  private readonly pendingManualConfirmations = new Map<string, { orderRef: string; proofEventId: string }>();
   private readonly cardNumber?: string;
 
   constructor(
@@ -91,7 +92,7 @@ export class TelegramCommandService implements OnModuleInit {
       }
 
       const chatId = ctx.chat.id.toString();
-      const pending = this.pendingManualPayments.get(chatId);
+      const pending = this.pendingManualPayments.get(chatId) || await this.recoverPendingManualPayment(chatId, ctx.message.caption);
       if (!pending) {
         await ctx.reply('Open the card payment flow from the SWIMVPN+ app first.');
         return;
@@ -123,6 +124,7 @@ export class TelegramCommandService implements OnModuleInit {
             telegramUserId: ctx.from.id.toString(),
             telegramUsername: ctx.from.username || null,
             firstName: ctx.from.first_name || null,
+            proofType: 'photo',
             fileId: photo.file_id,
             caption: ctx.message.caption || null,
             submittedAt: new Date().toISOString(),
@@ -155,7 +157,131 @@ export class TelegramCommandService implements OnModuleInit {
       }
 
       this.pendingManualPayments.delete(chatId);
-      await ctx.reply('Payment proof received. We will review it and reply by email.');
+      this.pendingManualConfirmations.set(chatId, {
+        orderRef: order.order_ref,
+        proofEventId: proofEvent.id,
+      });
+      await ctx.reply(this.buildManualPaymentConfirmationPrompt(order.customer.email, order.customer.phone));
+    });
+
+    this.bot.on('document', async (ctx) => {
+      if (this.isAdmin(ctx)) {
+        return;
+      }
+
+      const document = ctx.message.document;
+      const mimeType = document.mime_type || '';
+      if (!mimeType.startsWith('image/')) {
+        await ctx.reply('Please send the payment proof as an image screenshot.');
+        return;
+      }
+
+      const chatId = ctx.chat.id.toString();
+      const pending = this.pendingManualPayments.get(chatId) || await this.recoverPendingManualPayment(chatId, ctx.message.caption);
+      if (!pending) {
+        await ctx.reply('Open the card payment flow from the SWIMVPN+ app first.');
+        return;
+      }
+
+      const order = await this.prisma.order.findUnique({
+        where: { order_ref: pending.orderRef },
+        include: {
+          customer: true,
+          plan: true,
+        },
+      });
+
+      if (!order || order.status !== 'PENDING') {
+        this.pendingManualPayments.delete(chatId);
+        await ctx.reply('This payment request is no longer active.');
+        return;
+      }
+
+      const proofEvent = await this.prisma.adminEvent.create({
+        data: {
+          event_type: 'CARD_PAYMENT_PROOF_SUBMITTED',
+          entity_type: 'ORDER',
+          entity_id: order.order_ref,
+          payload_json: {
+            orderRef: order.order_ref,
+            telegramChatId: chatId,
+            telegramUserId: ctx.from.id.toString(),
+            telegramUsername: ctx.from.username || null,
+            firstName: ctx.from.first_name || null,
+            proofType: 'document',
+            mimeType,
+            fileId: document.file_id,
+            caption: ctx.message.caption || null,
+            submittedAt: new Date().toISOString(),
+          } as any,
+        },
+      });
+
+      if (this.bot && this.reviewChatId) {
+        await this.bot.telegram.sendDocument(
+          this.reviewChatId,
+          document.file_id,
+          {
+            caption: this.buildManualPaymentReviewCaption(order, ctx.from),
+            ...Markup.inlineKeyboard([
+              [
+                Markup.button.callback('approve', `approve_card:${order.order_ref}:${proofEvent.id}`),
+                Markup.button.callback('reject', `reject_card:${order.order_ref}:${proofEvent.id}`),
+              ],
+            ]),
+          },
+        );
+      }
+
+      this.pendingManualPayments.delete(chatId);
+      this.pendingManualConfirmations.set(chatId, {
+        orderRef: order.order_ref,
+        proofEventId: proofEvent.id,
+      });
+      await ctx.reply(this.buildManualPaymentConfirmationPrompt(order.customer.email, order.customer.phone));
+    });
+
+    this.bot.on('text', async (ctx) => {
+      if (this.isAdmin(ctx)) return;
+      const text = ctx.message.text?.trim() || '';
+      if (!text || text.startsWith('/')) return;
+
+      const pending = this.pendingManualConfirmations.get(ctx.chat.id.toString());
+      if (!pending) return;
+
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: 'CARD_PAYMENT_CONTACT_CONFIRMED',
+          entity_type: 'ORDER',
+          entity_id: pending.orderRef,
+          payload_json: {
+            orderRef: pending.orderRef,
+            proofEventId: pending.proofEventId,
+            telegramChatId: ctx.chat.id.toString(),
+            telegramUserId: ctx.from.id.toString(),
+            telegramUsername: ctx.from.username || null,
+            confirmationText: text.slice(0, 2000),
+            submittedAt: new Date().toISOString(),
+          } as any,
+        },
+      });
+
+      if (this.bot && this.reviewChatId) {
+        await this.bot.telegram.sendMessage(
+          this.reviewChatId,
+          [
+            'SWIMVPN+ CARD PAYMENT CONTACT CONFIRMATION',
+            `Order: ${pending.orderRef}`,
+            `Proof event: ${pending.proofEventId}`,
+            `Telegram: @${ctx.from.username || '-'} (${ctx.from.id})`,
+            '',
+            text.slice(0, 2000),
+          ].join('\n'),
+        );
+      }
+
+      this.pendingManualConfirmations.delete(ctx.chat.id.toString());
+      await ctx.reply('Thank you. Your payment proof and contact details are now under admin review.');
     });
 
     this.bot.action(/resend:(.+)/, async (ctx) => {
@@ -358,8 +484,83 @@ export class TelegramCommandService implements OnModuleInit {
     );
   }
 
+  private async recoverPendingManualPayment(chatId: string, caption?: string) {
+    const captionOrderRef = caption ? this.extractOrderRefFromText(caption) : null;
+    if (captionOrderRef) {
+      const order = await this.prisma.order.findUnique({
+        where: { order_ref: captionOrderRef },
+        select: { order_ref: true, status: true },
+      });
+      if (order?.status === 'PENDING') {
+        return { orderRef: order.order_ref, startedAt: Date.now() };
+      }
+    }
+
+    const events = await this.prisma.adminEvent.findMany({
+      where: {
+        event_type: 'CARD_PAYMENT_FLOW_OPENED',
+        entity_type: 'ORDER',
+      },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+    });
+
+    const maxAgeMs = 24 * 60 * 60 * 1000;
+    const event = events.find((item) => {
+      const payload = item.payload_json as any;
+      if (payload?.chatId !== chatId) return false;
+      return Date.now() - item.created_at.getTime() <= maxAgeMs;
+    });
+
+    if (!event) {
+      return null;
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { order_ref: event.entity_id },
+      select: { order_ref: true, status: true },
+    });
+
+    if (order?.status !== 'PENDING') {
+      return null;
+    }
+
+    const recovered = { orderRef: order.order_ref, startedAt: Date.now() };
+    this.pendingManualPayments.set(chatId, recovered);
+    return recovered;
+  }
+
+  private buildManualPaymentReviewCaption(order: any, from: any) {
+    return [
+      'SWIMVPN+ CARD PAYMENT PROOF',
+      `Order: ${order.order_ref}`,
+      `Email: ${order.customer.email || '-'}`,
+      `Phone: ${order.customer.phone || '-'}`,
+      `Plan: ${order.plan.name}`,
+      `Amount: ${order.amount_rub.toString()} RUB`,
+      `Telegram: @${from.username || '-'} (${from.id})`,
+    ].join('\n');
+  }
+
+  private buildManualPaymentConfirmationPrompt(email?: string | null, phone?: string | null) {
+    return [
+      'Payment proof received.',
+      '',
+      'Please reply in one message with final confirmation:',
+      `Email: ${email || ''}`,
+      `Phone: ${phone || ''}`,
+      'Sender phone: ',
+      '',
+      'Your proof is under admin review. We will deliver access by email after approval.',
+    ].join('\n');
+  }
+
   private extractOrderRef(text: string): string | null {
     const parts = text.trim().split(/\s+/);
     return parts.length >= 2 ? parts[1] : null;
+  }
+
+  private extractOrderRefFromText(text: string): string | null {
+    return text.match(/\b(?:ORD|SW|TRIAL|CODE)-[A-Za-z0-9-]+/i)?.[0] || null;
   }
 }

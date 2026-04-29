@@ -103,6 +103,10 @@
     <string name="profile_metric_trial_access">TRIAL ACCESS</string>
     <string name="profile_metric_used">USED</string>
     <string name="profile_trial_unlimited_note">Trial access is shown as unlimited while the trial is active.</string>
+    <string name="profile_quota_provider_managed">PROVIDER MANAGED</string>
+    <string name="profile_quota_provider_managed_note">Quota and expiry come from the assigned provider config.</string>
+    <string name="profile_quota_freemium">FREE / IMPORTED</string>
+    <string name="profile_quota_freemium_note">Premium quota is inactive. Imported configs remain available.</string>
     <string name="active_config_source_managed">SWIMVPN Managed</string>
     <string name="active_config_source_imported">Imported Config</string>
     <string name="active_config_protocol">Protocol</string>

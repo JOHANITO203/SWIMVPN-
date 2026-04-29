@@ -1,0 +1,822 @@
+﻿
+04-29 16:00:48.958 V/WindowManager(25069): Collecting in transition 1685: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity, caller=com.android.server.wm.TransitionController.collect:7 
+com.android.server.wm.ActivityStarter.startActivityUnchecked:98 
+com.android.server.wm.ActivityStarter.executeRequest:3559 com.android.server.wm.ActivityStarter.execute:1752 
+com.android.server.wm.ActivityTaskManagerService.startActivityAsUser:95 
+04-29 16:00:48.958 D/ActivityTaskManager(25069): DesktopModeLaunchParamsModifier: task=null 
+activity=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t-1} task null, skipping
+04-29 16:00:48.958 D/ActivityTaskManager(25069): TaskLaunchParamsModifier:task=null activity=ActivityRecord{226471766 
+u0 com.swimvpn.app/.MainActivity t-1} display-area-from-current-params=null 
+display-area-for-record=DefaultTaskDisplayArea_d0@40033895 display-id=0 task-display-area-windowing-mode=1 
+suggested-display-area=DefaultTaskDisplayArea_d0@40033895
+04-29 16:00:48.958 D/ActivityTaskManager(25069): DesktopModeLaunchParamsModifier: task=Task{ad64dcc #266 type=standard 
+A=10542:com.swimvpn.app} activity=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t-1} non-desktop, skipping
+04-29 16:00:48.959 D/ActivityTaskManager(25069): TaskLaunchParamsModifier:task=Task{ad64dcc #266 type=standard 
+A=10542:com.swimvpn.app} activity=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t-1} display-from-task=0 
+display-id=0 task-display-area-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea_d0@40033895 
+inherit-from-task=fullscreen non-freeform-task-display-area display-area=DefaultTaskDisplayArea_d0@40033895 
+default-portrait freeform-size-mismatch=Rect(86, 605 - 994, 1762)
+04-29 16:00:48.959 D/ActivityTaskManager(25069): DesktopModeLaunchParamsModifier: task=Task{ad64dcc #266 type=standard 
+A=10542:com.swimvpn.app} activity=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t-1} non-desktop, skipping
+04-29 16:00:48.960 D/ActivityTaskManager(25069): TaskLaunchParamsModifier:task=Task{ad64dcc #266 type=standard 
+A=10542:com.swimvpn.app} activity=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t-1} display-from-task=0 
+display-id=0 task-display-area-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea_d0@40033895 
+inherit-from-task=fullscreen non-freeform-task-display-area display-area=DefaultTaskDisplayArea_d0@40033895 
+default-portrait freeform-size-mismatch=Rect(86, 605 - 994, 1762)
+04-29 16:00:48.961 I/SurfaceFlinger( 2163): id=110907 createSurf, flag=84004, ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110907
+04-29 16:00:48.964 D/ActivityTaskManager(25069): scheduleTopResumedActivityChanged, onTop=false, 
+r=ActivityRecord{226900397 u0 com.swimvpn.app/.MainActivity t266}, 
+caller=com.android.server.wm.ActivityTaskSupervisor.scheduleTopResumedActivityStateLossIfNeeded:19 
+com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:20 
+com.android.server.wm.TaskFragment.setResumedActivity:30 com.android.server.wm.ActivityRecord.setState:91 
+com.android.server.wm.TaskFragment.startPausing$1:209 com.android.server.wm.TaskFragment.resumeTopActivity:699 
+04-29 16:00:48.965 V/WindowManager(25069): Collecting in transition 1685: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}, caller=com.android.server.wm.Transition.collectExistenceChange:40 
+com.android.server.wm.ActivityStarter.handleStartResult:761 
+com.android.server.wm.ActivityStarter.startActivityUnchecked:124 
+com.android.server.wm.ActivityStarter.executeRequest:3559 com.android.server.wm.ActivityStarter.execute:1752 
+04-29 16:00:48.965 V/WindowManager(25069):    ChangeInfo{57d8e73 container=Task{ad64dcc #266 type=standard 
+A=10542:com.swimvpn.app} flags=0x0}
+04-29 16:00:48.965 V/WindowManager(25069):    ChangeInfo{7cee130 container=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}
+04-29 16:00:48.965 V/WindowManagerShell(26107): Transition requested (#1685): android.os.BinderProxy@9c7c913 
+TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=266 effectiveUid=10542 displayId=0 
+isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] 
+flg=0x34000000 pkg=com.swimvpn.app cmp=com.swimvpn.app/.MainActivity } 
+baseActivity=ComponentInfo{com.swimvpn.app/com.swimvpn.app.MainActivity} 
+topActivity=ComponentInfo{com.swimvpn.app/com.swimvpn.app.MainActivity} origActivity=null 
+realActivity=ComponentInfo{com.swimvpn.app/com.swimvpn.app.MainActivity} numActivities=3 lastActiveTime=404802433 
+supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 
+defaultMinSize=220 desktopDefaultMinSize=304 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@1069750} 
+topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 
+lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 0 - 0, 0) topActivityInfo=ActivityInfo{9c8fd49 
+com.swimvpn.app.MainActivity} launchCookies=[android.os.BinderProxy@5290dba] positionInParent=Point(0, 0) 
+parentTaskId=-1 isFocused=true isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false 
+locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false 
+lastNonFullscreenBounds=Rect(86, 605 - 994, 1762) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 
+topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { 
+topActivityInSizeCompat=false eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false 
+isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false 
+isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 
+topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 74 - 1080, 2292) 
+isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false 
+topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive} 
+topActivityBounds=null topActivityInDisplayCompat=false singleTapFromLetterbox=false} topActivityMainWindowFrame=null 
+originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10542:com.swimvpn.app isTopTaskInStage=false 
+CoverLauncherWidgetTask=false LaunchedFromAppsCoverLauncherTask=false LaunchedFromMultistarCoverLauncherTask=false 
+isAllowedSeamlessRotation=false isTopTransparentActivity=false isAliasManaged=false hasConfigChanged=false 
+snappingGuideBounds=null isAiKeyRemoveAppTask=false lastDesktopWindowingBounds=null 
+lastExternalDesktopWindowingBounds=null safeCutoutInsets=null}, pipChange = null, remoteTransition = null, 
+displayChange = null, flags = 0, debugId = 1685 }
+04-29 16:00:48.966 I/ActivityTaskManager(25069): START u0 {flg=0x10000000 xflg=0x5 cmp=com.swimvpn.app/.MainActivity} 
+with LAUNCH_MULTIPLE from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+04-29 16:00:48.967 D/SGM:FgCheckThread(25069): notePauseComponent(), received pkgName: com.swimvpn.app, userId: 0
+04-29 16:00:48.967 V/WindowManager(25069): Collecting in transition 1685: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}, caller=com.android.server.wm.TransitionController.collect:7 
+com.android.server.wm.ActivityRecord.setVisibility:132 com.android.server.wm.ActivityRecord.makeVisibleIfNeeded:36 
+com.android.server.wm.EnsureActivitiesVisibleHelper.process:538 
+com.android.server.wm.TaskFragment.updateActivityVisibilities:12 
+04-29 16:00:48.967 V/WindowManager(25069): Collecting in transition 1685: ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266}, caller=com.android.server.wm.TransitionController.collect:7 
+com.android.server.wm.ActivityRecord.setVisibility:132 com.android.server.wm.ActivityRecord.makeInvisible:32 
+com.android.server.wm.EnsureActivitiesVisibleHelper.process:542 
+com.android.server.wm.TaskFragment.updateActivityVisibilities:12 
+04-29 16:00:48.968 D/WindowManager(25069): prepareSync <SYNC_STATE_WAITING_FOR_DRAW>, mPrepareSyncSeqId=0, 
+win=Window{a8c9247 u0 com.swimvpn.app/com.swimvpn.app.MainActivity}
+04-29 16:00:48.968 D/WindowManager(25069): rotationForOrientation, orientationSource=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}
+04-29 16:00:48.968 V/WindowManager(25069): Collecting in transition 1685: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}, caller=com.android.server.wm.TransitionController.collect:7 
+com.android.server.wm.ActivityRecord.setVisibility:132 
+com.android.server.wm.ActivityTaskSupervisor.realStartActivityLocked:203 
+com.android.server.wm.ActivityTaskSupervisor.startSpecificActivity:27 
+com.android.server.wm.TaskFragment.resumeTopActivity:2089 
+04-29 16:00:48.968 D/SGM:FgCheckThread(25069): notifyAppCreated(), packageName: com.swimvpn.app, userId: 0, sendRet: 
+true
+04-29 16:00:48.968 D/SGM:FgCheckThread(25069): onLooperPrepared(), msg: MSG_APP_CREATE, pkgName: com.swimvpn.app, 
+userId: 0
+04-29 16:00:48.968 D/InputDispatcher(25069): Focused application(0): ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}
+04-29 16:00:48.969 D/WindowManager(25069): Changing focus from Window{a8c9247 u0 
+com.swimvpn.app/com.swimvpn.app.MainActivity} to null displayId=0 
+Callers=com.android.server.wm.ActivityTaskManagerService.setLastResumedActivityUncheckLocked:264 
+com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:51 
+com.android.server.wm.TaskFragment.setResumedActivity:30 com.android.server.wm.ActivityRecord.setState:100 
+04-29 16:00:48.969 D/ActivityTaskManager(25069): scheduleTopResumedActivityChanged, onTop=true, 
+r=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}, 
+caller=com.android.server.wm.ActivityTaskSupervisor.scheduleTopResumedActivityStateIfNeeded:18 
+com.android.server.wm.ActivityTaskSupervisor.updateTopResumedActivityIfNeeded:54 
+com.android.server.wm.TaskFragment.setResumedActivity:30 com.android.server.wm.ActivityRecord.setState:100 
+com.android.server.wm.ActivityTaskSupervisor.realStartActivityLocked:477 
+com.android.server.wm.ActivityTaskSupervisor.startSpecificActivity:27 
+04-29 16:00:48.969 D/WindowManagerServiceExt(25069): updateTaskbarTargetIfNeeded: 
+cn=ComponentInfo{com.swimvpn.app/com.swimvpn.app.MainActivity} occludesParent=true isInSplitScreenMode=false
+04-29 16:00:48.970 D/BLASTSyncEngine(25069): SyncGroup 1685:  Unfinished container: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} mSyncState=2
+04-29 16:00:48.971 D/GraphicsStatsService(25069): requestRenderEngineFor(com.swimvpn.app)
+04-29 16:00:48.971 D/ActivityThread( 7728): com.swimvpn.app will use render engine as VK
+04-29 16:00:48.976 D/SGM:FgCheckThread(25069): noteResumeComponent(), received pkgName: com.swimvpn.app, userId: 0
+04-29 16:00:48.976 D/SGM:FgCheckThread(25069): onLooperPrepared(), msg: MSG_APP_RESUME, pkgName: com.swimvpn.app, 
+userid: 0
+04-29 16:00:48.976 D/SGM:FgCheckThread(25069):   handleResume(). pkgName: com.swimvpn.app, userId: 0, category: 
+non-game
+04-29 16:00:48.976 D/SGM:FgCheckThread(25069): notifyFocusInOut(). of pkg: com.swimvpn.app, type: 4, isSecGameFamily: 
+false, userId: 0
+04-29 16:00:48.976 I/SDHMS:k (27463): handleResumeComponent : put = com.swimvpn.app, userid = 0 instanceid =156109783
+04-29 16:00:48.976 I/HoneySpace.EdgePanel.EdgePanelContainerViewModel(26482): 
+cocktailHostRepository.edgePanelOperation 
+NoteResumeComponent(componentName=ComponentInfo{com.swimvpn.app/com.swimvpn.app.MainActivity})
+04-29 16:00:48.976 I/HoneySpace.EdgePanel.ActivityUtils(26482): HomePackage : com.sec.android.app.launcher, 
+resumePackageName : com.swimvpn.app, className : com.swimvpn.app.MainActivity
+04-29 16:00:48.983 D/WindowManager(25069): prepareSync <SYNC_STATE_WAITING_FOR_DRAW>, mPrepareSyncSeqId=0, 
+win=Window{5fb761d u0 com.swimvpn.app/com.swimvpn.app.MainActivity}
+04-29 16:00:48.983 I/SurfaceFlinger( 2163): id=110908 createSurf, flag=84004, 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908
+04-29 16:00:48.985 I/InsetsController( 7728): onStateChanged: host=com.swimvpn.app/com.swimvpn.app.MainActivity, 
+from=android.view.ViewRootImpl.onInsetsStateChanged:3026, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2340), 
+mDisplayCutout=DisplayCutout{insets=Rect(0, 74 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} 
+boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(514, 0 - 566, 74), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} 
+cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2340 physicalDisplayWidth=1080 
+physicalDisplayHeight=2340 density={2.8125} cutoutSpec={M 0,0 H -9.244444444444444‬ V 26.31111111111111 H 
+9.244444444444444‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, 
+mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=115, center=Point(115, 115)}, 
+RoundedCorner{position=TopRight, radius=115, center=Point(965, 115)}, RoundedCorner{position=BottomRight, radius=115, 
+center=Point(965, 2225)}, RoundedCorner{position=BottomLeft, radius=115, center=Point(115, 2225)}]}  
+mRoundedCornerFrame=Rect(0, 0 - 1080, 2340), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(939, 0 
+- 1080, 74) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2340 
+physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {a6490001 
+mType=navigationBars mFrame=[0,2292][1080,2340] mVisible=true mFlags=SUPPRESS_SCRIM mSideHint=BOTTOM 
+mBoundingRects=null}, InsetsSource: {a6490004 mType=systemGestures mFrame=[0,0][95,2340] mVisible=true mFlags= 
+mSideHint=LEFT mBoundingRects=null}, InsetsSource: {a6490005 mType=mandatorySystemGestures mFrame=[0,2238][1080,2340] 
+mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {a6490006 mType=tappableElement 
+mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {a6490024 
+mType=systemGestures mFrame=[985,0][1080,2340] mVisible=true mFlags= mSideHint=RIGHT mBoundingRects=null}, 
+InsetsSource: {aa0f0000 mType=statusBars mFrame=[0,0][1080,74] mVisible=true mFlags= mSideHint=TOP 
+mBoundingRects=null}, InsetsSource: {aa0f0005 mType=mandatorySystemGestures mFrame=[0,0][1080,112] mVisible=true 
+mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {aa0f0006 mType=tappableElement mFrame=[0,0][1080,74] 
+mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {3 mType=ime mFrame=[0,0][0,0] mVisible=false 
+mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,74] mVisible=true 
+mFlags= mSideHint=TOP mBoundingRects=null} }
+04-29 16:00:48.987 D/MainViewModel( 7728): Bootstrapping access for locale: en
+04-29 16:00:48.999 I/SurfaceFlinger( 2163): [ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}#110907] 
+attach to parent LayerHierarchy{RequestedLayerState{Task=266#106668 parentId=90948 z=27} 3 children}
+04-29 16:00:48.999 I/SurfaceFlinger( 2163): [5fb761d com.swimvpn.app/com.swimvpn.app.MainActivity#110908] attach to 
+parent LayerHierarchy{RequestedLayerState{ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}#110907 
+parentId=106668} 1 children}
+04-29 16:00:49.003 I/LayerHistory( 2163): com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895 voted 
+ExplicitCategory with category: High
+04-29 16:00:49.005 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.005 D/BLASTSyncEngine(25069): SyncGroup 1685:  Unfinished container: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} mSyncState=2
+04-29 16:00:49.036 D/CoreBackPreview(25069): Window{5fb761d u0 com.swimvpn.app/com.swimvpn.app.MainActivity}: Setting 
+back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@8b4f660, 
+mPriority=0, mIsAnimationCallback=false, mOverrideBehavior=0}
+04-29 16:00:49.037 I/WindowManager(25069): Relayout Window{5fb761d u0 com.swimvpn.app/com.swimvpn.app.MainActivity}: 
+viewVisibility=0 req=1080x2340 ty=1 d0
+04-29 16:00:49.037 I/SurfaceFlinger( 2163): id=110909 createSurf, flag=44004, 
+com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909
+04-29 16:00:49.038 D/WindowManager(25069): makeSurface duration=1 
+name=com.swimvpn.app/com.swimvpn.app.MainActivity$_7728
+04-29 16:00:49.038 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.039 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.039 D/BLASTSyncEngine(25069): SyncGroup 1685:  Unfinished container: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} mSyncState=2
+04-29 16:00:49.040 D/WindowManager(25069): Changing focus from null to Window{5fb761d u0 
+com.swimvpn.app/com.swimvpn.app.MainActivity} displayId=0 
+Callers=com.android.server.wm.WindowManagerService.relayoutWindow:1366 com.android.server.wm.Session.relayout:27 
+android.view.IWindowSession$Stub.onTransact:829 com.android.server.wm.Session.onTransact:1 
+04-29 16:00:49.041 D/InsetsSourceProvider(25069): updateControlForTarget: control=InsetsSourceControl: {aa0f0000 
+mType=statusBars initiallyVisible mSurfacePosition=Point(0, 0) mInsetsHint=Insets{left=0, top=74, right=0, bottom=0}}, 
+target=Window{5fb761d u0 com.swimvpn.app/com.swimvpn.app.MainActivity}, 
+from=com.android.server.wm.InsetsStateController.onControlTargetChanged:83 
+com.android.server.wm.InsetsPolicy.updateBarControlTarget:212 
+com.android.server.wm.DisplayPolicy.updateSystemBarAttributes:262 
+com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:372 
+com.android.server.wm.WindowManagerService.relayoutWindow:1366 
+04-29 16:00:49.041 I/SurfaceFlinger( 2163): [com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909] attach to 
+parent LayerHierarchy{RequestedLayerState{5fb761d com.swimvpn.app/com.swimvpn.app.MainActivity#110908 parentId=110907} 
+1 children}
+04-29 16:00:49.042 D/InsetsSourceProvider(25069): updateControlForTarget: control=InsetsSourceControl: {a6490001 
+mType=navigationBars initiallyVisible mSurfacePosition=Point(0, 2187) mInsetsHint=Insets{left=0, top=0, right=0, 
+bottom=48}}, target=Window{5fb761d u0 com.swimvpn.app/com.swimvpn.app.MainActivity}, 
+from=com.android.server.wm.InsetsStateController.onControlTargetChanged:83 
+com.android.server.wm.InsetsPolicy.updateBarControlTarget:225 
+com.android.server.wm.DisplayPolicy.updateSystemBarAttributes:262 
+com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:372 
+com.android.server.wm.WindowManagerService.relayoutWindow:1366 
+04-29 16:00:49.042 V/SystemKeyManager(25069): updateFocusedWindow() is called, 
+com.swimvpn.app/com.swimvpn.app.MainActivity
+04-29 16:00:49.043 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.043 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.043 D/BLASTSyncEngine(25069): SyncGroup 1685:  Unfinished container: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} mSyncState=2
+04-29 16:00:49.043 W/libc    ( 7728): Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-29 16:00:49.045 W/libc    ( 7728): Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-29 16:00:49.046 D/InputDispatcher(25069): Focus left window (0): a8c9247 
+com.swimvpn.app/com.swimvpn.app.MainActivity
+04-29 16:00:49.050 I/SurfaceFlinger( 2163): [com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909] 
+setTransactionState with the first frame. bufferData(ID: 33191507263493, frameNumber: 1)
+04-29 16:00:49.050 D/WindowManager(25069): finishDrawingWindow: Window{5fb761d u0 
+com.swimvpn.app/com.swimvpn.app.MainActivity} mDrawState=DRAW_PENDING seqId=0
+04-29 16:00:49.050 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.051 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.052 V/WindowManager(25069): performShowLocked: mDrawState=HAS_DRAWN in Window{5fb761d u0 
+com.swimvpn.app/com.swimvpn.app.MainActivity}
+04-29 16:00:49.052 D/ChangeTransitionController(25069):    ChangeInfo{57d8e73 container=Task{ad64dcc #266 
+type=standard A=10542:com.swimvpn.app} flags=0x0}
+04-29 16:00:49.052 D/ChangeTransitionController(25069):    ChangeInfo{7cee130 container=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}
+04-29 16:00:49.052 D/ChangeTransitionController(25069):    ChangeInfo{8744bd5 container=ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}
+04-29 16:00:49.052 V/WindowManager(25069): Start calculating TransitionInfo based on participants: 
+{ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}, ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266}}
+04-29 16:00:49.052 V/WindowManager(25069):   Final targets: [ChangeInfo{7cee130 container=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}, ChangeInfo{8744bd5 container=ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}]
+04-29 16:00:49.052 I/SurfaceFlinger( 2163): id=110912 createSurf, flag=84004, Transition Root: 
+ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}#110912
+04-29 16:00:49.054 I/SurfaceControlRegistry(25069): show, t=StartTransaction_SyncId<1685> sc=ActivityRecord{226471766 
+u0 com.swimvpn.app/.MainActivity t266}, caller=android.view.SurfaceControl$Transaction.show:3557 
+com.android.server.wm.Transition.onTransactionReady:2048 com.android.server.wm.BLASTSyncEngine$SyncGroup.finishNow:240 
+com.android.server.wm.BLASTSyncEngine.onSurfacePlacement:263 
+com.android.server.wm.RootWindowContainer.performSurfacePlacementNoTrace:1083 
+com.android.server.wm.WindowSurfacePlacer.performSurfacePlacement:166 
+04-29 16:00:49.054 D/SurfaceComposerClient(25069): setCornerRadius ## ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266}#110887 cornerRadius=0.000000
+04-29 16:00:49.055 D/SurfaceComposerClient(25069): setCornerRadius ## ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110907 cornerRadius=0.000000
+04-29 16:00:49.055 V/WindowManager(25069):         {m=OPEN f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x45d5fea sb=Rect(0, 0 - 0, 0) 
+eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=-1->0 r=-1->0:-1 bc=fffafafa 
+component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) dim=true 
+taskIdForActivity=266},
+04-29 16:00:49.055 V/WindowManager(25069):         {m=TO_BACK f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226900397 u0 com.swimvpn.app/.MainActivity t266})/@0x627145b sb=Rect(0, 0 - 1080, 
+2340) eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=0 bc=fffafafa component=com.swimvpn.app/.MainActivity 
+opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) taskIdForActivity=266}
+04-29 16:00:49.055 I/ActivityTaskManager(25069): done cause=notifyTransitionStarting drawn timestamp=292184638329892 
+info=TransitionInfo{fef3178 a=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266} d=true}
+04-29 16:00:49.055 I/ActivityTaskManager(25069): Displayed com.swimvpn.app/.MainActivity for user 0: +98ms
+04-29 16:00:49.055 I/Pageboost(25069): Launch time gathered : pid 7728 com.swimvpn.app 98
+04-29 16:00:49.056 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.056 V/WindowManagerShell(26107):         {m=OPEN f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e sb=Rect(0, 0 - 0, 0) 
+eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=-1->0 r=-1->0:-1 bc=fffafafa 
+component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) dim=true 
+taskIdForActivity=266},
+04-29 16:00:49.056 V/WindowManagerShell(26107):         {m=TO_BACK f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226900397 u0 com.swimvpn.app/.MainActivity t266})/@0x9dbe36f sb=Rect(0, 0 - 1080, 
+2340) eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=0 bc=fffafafa component=com.swimvpn.app/.MainActivity 
+opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) taskIdForActivity=266}
+04-29 16:00:49.056 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.056 V/WindowManager(25069): Sent Transition (#1685) createdAt=04-29 16:00:48.957 via 
+request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=266 effectiveUid=10542 displayId=0 
+isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] 
+flg=0x34000000 pkg=com.swimvpn.app cmp=com.swimvpn.app/.MainActivity } 
+baseActivity=ComponentInfo{com.swimvpn.app/com.swimvpn.app.MainActivity} 
+topActivity=ComponentInfo{com.swimvpn.app/com.swimvpn.app.MainActivity} origActivity=null 
+realActivity=ComponentInfo{com.swimvpn.app/com.swimvpn.app.MainActivity} numActivities=3 lastActiveTime=404802433 
+supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 maxWidth=-1 maxHeight=-1 
+defaultMinSize=220 desktopDefaultMinSize=304 token=WCT{RemoteToken{5027867 Task{ad64dcc #266 type=standard 
+A=10542:com.swimvpn.app}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false 
+launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 0 - 0, 0) 
+topActivityInfo=ActivityInfo{4bad051 com.swimvpn.app.MainActivity} launchCookies=[android.os.BinderProxy@1489176] 
+positionInParent=Point(0, 0) parentTaskId=-1 isFocused=true isVisible=true isVisibleRequested=true 
+isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false 
+isActivityStackTransparent=false lastNonFullscreenBounds=Rect(86, 605 - 994, 1762) capturedLink=null 
+capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOpenInBrowserEducationTimestamp=0 
+appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEducation= false 
+isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false 
+topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 
+topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 
+topActivityAppBounds=Rect(0, 74 - 1080, 2292) isUserFullscreenOverrideEnabled=false 
+isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null 
+cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive} topActivityBounds=null 
+topActivityInDisplayCompat=false singleTapFromLetterbox=false} topActivityMainWindowFrame=null 
+originallySupportedMultiWindow=true hasWallpaper=false rootAffinity=10542:com.swimvpn.app isTopTaskInStage=false 
+CoverLauncherWidgetTask=false LaunchedFromAppsCoverLauncherTask=false LaunchedFromMultistarCoverLauncherTask=false 
+isAllowedSeamlessRotation=false isTopTransparentActivity=false isAliasManaged=false hasConfigChanged=false 
+snappingGuideBounds=null isAiKeyRemoveAppTask=false lastDesktopWindowingBounds=null 
+lastExternalDesktopWindowingBounds=null safeCutoutInsets=null}, pipChange = null, remoteTransition = null, 
+displayChange = null, flags = 0, debugId = 1685 }
+04-29 16:00:49.056 I/SurfaceControlRegistry(26107): hide, t=FinishTransaction_SyncId<1685> sc=ActivityRecord{226900397 
+u0 com.swimvpn.app/.MainActivity t266}, caller=android.view.SurfaceControl$Transaction.hide:3583 
+com.android.wm.shell.transition.Transitions.dispatchReady:1263 
+com.android.wm.shell.transition.Transitions.onTransitionReady:251 
+com.android.wm.shell.transition.Transitions$TransitionPlayerImpl$$ExternalSyntheticLambda0.run:13 
+android.os.Handler.handleCallback:995 android.os.Handler.dispatchMessage:103 
+04-29 16:00:49.056 V/WindowManager(25069):         {m=OPEN f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x45d5fea sb=Rect(0, 0 - 0, 0) 
+eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=-1->0 r=-1->0:-1 bc=fffafafa 
+component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) dim=true 
+taskIdForActivity=266},
+04-29 16:00:49.056 V/WindowManager(25069):         {m=TO_BACK f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226900397 u0 com.swimvpn.app/.MainActivity t266})/@0x627145b sb=Rect(0, 0 - 1080, 
+2340) eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=0 bc=fffafafa component=com.swimvpn.app/.MainActivity 
+opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) taskIdForActivity=266}
+04-29 16:00:49.056 I/SurfaceControlRegistry(26107): show, t=StartTransaction_SyncId<1685> sc=ActivityRecord{226471766 
+u0 com.swimvpn.app/.MainActivity t266}, caller=android.view.SurfaceControl$Transaction.show:3557 
+com.android.wm.shell.transition.Transitions.dispatchReady:1279 
+com.android.wm.shell.transition.Transitions.onTransitionReady:251 
+com.android.wm.shell.transition.Transitions$TransitionPlayerImpl$$ExternalSyntheticLambda0.run:13 
+android.os.Handler.handleCallback:995 android.os.Handler.dispatchMessage:103 
+04-29 16:00:49.056 I/SurfaceControlRegistry(26107): show, t=FinishTransaction_SyncId<1685> sc=ActivityRecord{226471766 
+u0 com.swimvpn.app/.MainActivity t266}, caller=android.view.SurfaceControl$Transaction.show:3557 
+com.android.wm.shell.transition.Transitions.dispatchReady:1330 
+com.android.wm.shell.transition.Transitions.onTransitionReady:251 
+com.android.wm.shell.transition.Transitions$TransitionPlayerImpl$$ExternalSyntheticLambda0.run:13 
+android.os.Handler.handleCallback:995 android.os.Handler.dispatchMessage:103 
+04-29 16:00:49.056 I/SurfaceControlRegistry(26107): show, t=StartTransaction_SyncId<1685> sc=Transition Root: 
+ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}, 
+caller=android.view.SurfaceControl$Transaction.show:3557 com.android.wm.shell.transition.Transitions.playTransition:79 
+com.android.wm.shell.transition.Transitions.processReadyQueue:239 
+com.android.wm.shell.transition.Transitions.dispatchReady:1352 
+com.android.wm.shell.transition.Transitions.onTransitionReady:251 
+com.android.wm.shell.transition.Transitions$TransitionPlayerImpl$$ExternalSyntheticLambda0.run:13 
+04-29 16:00:49.056 V/WindowManagerShell(26107): Transition doesn't have explicit remote, search filters for match for 
+{id=1685 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{m=OPEN f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e sb=Rect(0, 0 - 0, 0) 
+eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=-1->0 r=-1->0:-1 bc=fffafafa 
+component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) dim=true 
+taskIdForActivity=266},{m=TO_BACK f=FILLS_TASK|IS_ACTIVITY leash=Surface(name=ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266})/@0x9dbe36f sb=Rect(0, 0 - 1080, 2340) eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 
+2340) d=0 bc=fffafafa component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) 
+taskIdForActivity=266}]}
+04-29 16:00:49.057 V/WindowManagerShell(26107): start default transition animation, info = {id=1685 t=OPEN f=0x0 trk=0 
+r=[0@Point(0, 0)] c=[{m=OPEN f=FILLS_TASK|IS_ACTIVITY leash=Surface(name=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266})/@0x736464e sb=Rect(0, 0 - 0, 0) eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) 
+d=-1->0 r=-1->0:-1 bc=fffafafa component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 
+0, 0) dim=true taskIdForActivity=266},{m=TO_BACK f=FILLS_TASK|IS_ACTIVITY leash=Surface(name=ActivityRecord{226900397 
+u0 com.swimvpn.app/.MainActivity t266})/@0x9dbe36f sb=Rect(0, 0 - 1080, 2340) eb=Rect(0, 0 - 1080, 2340) 
+epz=Point(1080, 2340) d=0 bc=fffafafa component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} 
+inset=Rect(0, 0 - 0, 0) taskIdForActivity=266}]}
+04-29 16:00:49.057 V/WindowManagerShell(26107):    change={m=TO_BACK f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226900397 u0 com.swimvpn.app/.MainActivity t266})/@0x9dbe36f sb=Rect(0, 0 - 1080, 
+2340) eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=0 bc=fffafafa component=com.swimvpn.app/.MainActivity 
+opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) taskIdForActivity=266}
+04-29 16:00:49.057 D/SurfaceComposerClient(26107): [ActivityRecord{226900397 u0 com.swimvpn.app/.MainActivity 
+t266}#110887] setEdgeExtension Right
+04-29 16:00:49.058 I/SurfaceFlinger( 2163): [Transition Root: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110912] attach to parent LayerHierarchy{RequestedLayerState{Task=266#106668 
+parentId=90948 z=27} 4 children}
+04-29 16:00:49.058 V/WindowManagerShell(26107):    change={m=OPEN f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e sb=Rect(0, 0 - 0, 0) 
+eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=-1->0 r=-1->0:-1 bc=fffafafa 
+component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) dim=true 
+taskIdForActivity=266}
+04-29 16:00:49.058 I/SurfaceFlinger( 2163): id=110913 createSurf, flag=20004, DimTransitionLayer for 
+Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e#110913
+04-29 16:00:49.058 I/SurfaceControlRegistry(26107): show, t=StartTransaction_SyncId<1685> sc=DimTransitionLayer for 
+Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e, 
+caller=android.view.SurfaceControl$Transaction.show:3557 
+com.android.wm.shell.transition.DefaultTransitionHandler.startAnimation:2931 
+com.android.wm.shell.transition.Transitions.dispatchTransition:90 
+com.android.wm.shell.transition.Transitions.playTransition:774 
+com.android.wm.shell.transition.Transitions.processReadyQueue:239 
+com.android.wm.shell.transition.Transitions.dispatchReady:1352 
+04-29 16:00:49.058 V/WindowManagerShell(26107): attach dim transition, change={m=OPEN f=FILLS_TASK|IS_ACTIVITY 
+leash=Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e sb=Rect(0, 0 - 0, 0) 
+eb=Rect(0, 0 - 1080, 2340) epz=Point(1080, 2340) d=-1->0 r=-1->0:-1 bc=fffafafa 
+component=com.swimvpn.app/.MainActivity opt={t=FROM_STYLE mUserId=0} inset=Rect(0, 0 - 0, 0) dim=true 
+taskIdForActivity=266}
+04-29 16:00:49.059 D/SurfaceFlinger( 2163): [input] setFocusedWindow: 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity
+04-29 16:00:49.060 D/InputDispatcher(25069): Once focus requested (0): 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity
+04-29 16:00:49.060 D/InputDispatcher(25069): Focus request (0): 5fb761d com.swimvpn.app/com.swimvpn.app.MainActivity 
+but waiting because NO_WINDOW
+04-29 16:00:49.060 I/InsetsSourceConsumer( 7728): applyRequestedVisibilityToControl: visible=true, type=statusBars, 
+host=com.swimvpn.app/com.swimvpn.app.MainActivity
+04-29 16:00:49.060 I/InsetsSourceConsumer( 7728): applyRequestedVisibilityToControl: visible=true, 
+type=navigationBars, host=com.swimvpn.app/com.swimvpn.app.MainActivity
+04-29 16:00:49.066 I/SurfaceFlinger( 2163): RequestedLayer [ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity 
+t266}#110907] hidden!! flag  from(1) --> to(0)
+04-29 16:00:49.066 E/SurfaceFlinger( 2163): alpha changed 1.000 -> 0.000 - ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110907
+04-29 16:00:49.066 I/SurfaceFlinger( 2163): RequestedLayer [5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908] hidden!! flag  from(1) --> to(0)
+04-29 16:00:49.066 I/SurfaceFlinger( 2163): RequestedLayer [com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909] 
+hidden!! flag  from(1) --> to(0)
+04-29 16:00:49.066 E/SurfaceFlinger( 2163): alpha changed 1.000 -> 0.000 - DimTransitionLayer for 
+Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e#110913
+04-29 16:00:49.066 E/SurfaceFlinger( 2163): alpha changed 0.000 -> 1.000 - ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110907
+04-29 16:00:49.066 E/SurfaceFlinger( 2163): alpha changed 0.000 -> 0.000 - DimTransitionLayer for 
+Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e#110913
+04-29 16:00:49.066 I/SurfaceFlinger( 2163): [DimTransitionLayer for Surface(name=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266})/@0x736464e#110913] attach to parent LayerHierarchy{RequestedLayerState{Transition 
+Root: ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}#110912 parentId=106668 z=2} 1 children}
+04-29 16:00:49.066 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266}#110887 parentId=110912 z=2} 3 children}] reparent to 
+LayerHierarchy{RequestedLayerState{Transition Root: ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity 
+t266}#110912 parentId=106668 z=2} 2 children}
+04-29 16:00:49.066 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110907 parentId=110912 z=5} 2 children}] reparent to 
+LayerHierarchy{RequestedLayerState{Transition Root: ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity 
+t266}#110912 parentId=106668 z=2} 3 children}
+04-29 16:00:49.071 D/InputDispatcher(25069): Focus entered window (0): 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity
+04-29 16:00:49.077 I/ImeTracker(25069): com.swimvpn.app:a53ed84: onRequestHide at ORIGIN_SERVER reason 
+HIDE_UNSPECIFIED_WINDOW fromUser false
+04-29 16:00:49.077 V/InputMethodManagerService(25069): Creating new accessibility sessions for client 
+ClientState{119ba2f mUid=10542 mPid=7728 mSelfReportedDisplayId=0}
+04-29 16:00:49.078 I/ImeTracker( 7728): com.swimvpn.app:a53ed84: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-29 16:00:49.081 D/InsetsSourceProvider(25069): updateControlForTarget: control=InsetsSourceControl: {3 mType=ime 
+mSurfacePosition=Point(0, 74) mInsetsHint=Insets{left=0, top=0, right=0, bottom=1043}}, target=Window{5fb761d u0 
+com.swimvpn.app/com.swimvpn.app.MainActivity}, 
+from=com.android.server.wm.ImeInsetsSourceProvider.updateControlForTarget:17 
+com.android.server.wm.InsetsStateController.onControlTargetChanged:83 
+com.android.server.wm.DisplayContent.updateImeControlTarget:21 
+com.android.server.wm.DisplayContent.updateImeInputAndControlTarget:156 
+com.android.server.wm.WindowManagerService$LocalService.updateInputMethodTargetWindow:64 
+04-29 16:00:49.081 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.082 E/SurfaceFlinger( 2163): alpha changed 0.000 -> 0.010 - DimTransitionLayer for 
+Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e#110913
+04-29 16:00:49.084 I/SamsungAccount(30907): [AccountManagerProvider] This is the access of the allowed application
+04-29 16:00:49.086 D/SurfaceFlinger( 2163):        CLIENT |           33191507263488 | 00002102 | RGBA_8888    |   
+17.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895 (397)
+04-29 16:00:49.086 D/SurfaceFlinger( 2163):        DEVICE |           33191507263492 | 00002102 | RGBA_8888    |    
+0.0    0.0   49.0 2340.0 | 1031    0 1080 2340 | com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 (4)
+04-29 16:00:49.088 I/HBD     (28176): b [AiWriter] setContact : com.swimvpn.app
+04-29 16:00:49.091 I/SurfaceFlinger( 2163): id=110915 createSurf, flag=84000, ec24718 ActivityRecordInputSink 
+com.swimvpn.app/.MainActivity#110915
+04-29 16:00:49.099 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{ImeContainer#90953 parentId=110907 
+relativeParentId=110908 z=1} 1 children}] reparent to LayerHierarchy{RequestedLayerState{ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110907 parentId=110912 z=5} 3 children}
+04-29 16:00:49.099 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{ImeContainer#90953 parentId=110907 
+relativeParentId=110908 z=1} 1 children}] RelativeParent to LayerHierarchy{RequestedLayerState{5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 parentId=110907} 2 children}
+04-29 16:00:49.099 I/SurfaceFlinger( 2163): [ec24718 ActivityRecordInputSink com.swimvpn.app/.MainActivity#110915] 
+attach to parent LayerHierarchy{RequestedLayerState{ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity 
+t266}#110907 parentId=110912 z=5} 4 children}
+04-29 16:00:49.140 E/ConfigRepository( 7728): Error reading profiles
+04-29 16:00:49.140 E/ConfigRepository( 7728): java.lang.IllegalStateException: TypeToken must be created with a type 
+argument: new TypeToken<...>() {}; When using code shrinkers (ProGuard, R8, ...) make sure that generic signatures are 
+preserved.
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at S2.a.<init>(SourceFile:10)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at 
+com.swimvpn.app.config.ConfigRepository$getAllProfiles$typeToken$1.<init>(Unknown Source:0)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at com.swimvpn.app.config.ConfigRepository.getAllProfiles(Unknown 
+Source:103)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at 
+com.swimvpn.app.config.ConfigRepository$getAllProfiles$1.invokeSuspend(Unknown Source:11)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at s3.a.resumeWith(Unknown Source:8)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at K3.K.run(Unknown Source:111)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at android.os.Handler.handleCallback(Handler.java:995)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at android.os.Handler.dispatchMessage(Handler.java:103)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at android.os.Looper.loopOnce(Looper.java:273)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at android.os.Looper.loop(Looper.java:363)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at android.app.ActivityThread.main(ActivityThread.java:10060)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at java.lang.reflect.Method.invoke(Native Method)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at 
+com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:632)
+04-29 16:00:49.140 E/ConfigRepository( 7728): 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:975)
+04-29 16:00:49.519 D/SurfaceFlinger( 2163):        DEVICE |           33191507263495 | 00002102 | RGBA_8888    |    
+0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 (54)
+04-29 16:00:49.522 V/WindowManager(25069):    ChangeInfo{57d8e73 container=Task{ad64dcc #266 type=standard 
+A=10542:com.swimvpn.app} flags=0x0}
+04-29 16:00:49.522 V/WindowManager(25069):    ChangeInfo{7cee130 container=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}
+04-29 16:00:49.522 V/WindowManager(25069):    ChangeInfo{8744bd5 container=ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}
+04-29 16:00:49.523 V/WindowManager(25069): Setting visibility of Window{a8c9247 u0 
+com.swimvpn.app/com.swimvpn.app.MainActivity}: false, 
+caller=com.android.server.wm.WindowContainer.sendAppVisibilityToClients:19 
+com.android.server.wm.WindowToken.setClientVisible:48 com.android.server.wm.ActivityRecord.commitVisibility:186 
+com.android.server.wm.TransitionController.finishTransition:846 
+com.android.server.wm.WindowOrganizerController.finishTransitionInner:31 
+04-29 16:00:49.523 D/PersonaActivityHelper(25069): token.toString()  Token{94e0bd7 ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}}
+04-29 16:00:49.523 D/PersonaActivityHelper(25069): token.toString()  Token{8774e2 ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266}}
+04-29 16:00:49.523 D/ChangeTransitionController(25069):    ChangeInfo{57d8e73 container=Task{ad64dcc #266 
+type=standard A=10542:com.swimvpn.app} flags=0x0}
+04-29 16:00:49.523 D/ChangeTransitionController(25069):    ChangeInfo{7cee130 container=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}
+04-29 16:00:49.523 D/ChangeTransitionController(25069):    ChangeInfo{8744bd5 container=ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266} flags=0x0}
+04-29 16:00:49.525 I/SurfaceFlinger( 2163): RequestedLayer [ActivityRecord{226900397 u0 com.swimvpn.app/.MainActivity 
+t266}#110887] hidden!! flag  from(0) --> to(1)
+04-29 16:00:49.525 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{DimTransitionLayer for 
+Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e#110913 z=-1} no children}] 
+reparent to OffscreenRoot
+04-29 16:00:49.525 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{DimTransitionLayer for 
+Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e#110913 z=-1} no children}] 
+RelativeParent to null
+04-29 16:00:49.525 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{Transition Root: 
+ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}#110912 z=2} 2 children}] reparent to OffscreenRoot
+04-29 16:00:49.525 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{Transition Root: 
+ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266}#110912 z=2} 2 children}] RelativeParent to null
+04-29 16:00:49.525 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{ActivityRecord{226900397 u0 
+com.swimvpn.app/.MainActivity t266}#110887 parentId=106668 z=1} 2 children}] reparent to 
+LayerHierarchy{RequestedLayerState{Task=266#106668 parentId=90948 z=27} 2 children}
+04-29 16:00:49.525 I/SurfaceFlinger( 2163): [LayerHierarchy{RequestedLayerState{ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110907 parentId=106668 z=2} 3 children}] reparent to 
+LayerHierarchy{RequestedLayerState{Task=266#106668 parentId=90948 z=27} 3 children}
+04-29 16:00:49.526 I/SurfaceFlinger( 2163): id=110913 Removed DimTransitionLayer for 
+Surface(name=ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity t266})/@0x736464e#110913 (245)
+04-29 16:00:49.526 I/SurfaceFlinger( 2163): id=110912 Removed Transition Root: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110912 (245)
+04-29 16:00:49.528 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.529 I/WindowManager(25069): Relayout Window{a8c9247 u0 com.swimvpn.app/com.swimvpn.app.MainActivity}: 
+viewVisibility=8 req=1080x2340 ty=1 d0
+04-29 16:00:49.529 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.529 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:49.532 D/VRI[MainActivity]@b0591d4( 7728): WindowStopped on com.swimvpn.app/com.swimvpn.app.MainActivity 
+set to true
+04-29 16:00:49.533 I/SurfaceFlinger( 2163): RequestedLayer [com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895] 
+hidden!! flag  from(0) --> to(1)
+04-29 16:00:49.533 I/SurfaceFlinger( 2163): destroyed DimTransitionLayer for Surface(name=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266})/@0x736464e#110913 form LifecycleManager
+04-29 16:00:49.533 I/SurfaceFlinger( 2163): destroyed Transition Root: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110912 form LifecycleManager
+04-29 16:00:49.533 I/SurfaceFlinger( 2163): id=110913 onLayerDestroyed from 
+LayerHierarchyBuilder(RequestedLayerState{DimTransitionLayer for Surface(name=ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266})/@0x736464e#110913 !handle z=-1})
+04-29 16:00:49.533 I/SurfaceFlinger( 2163): id=110912 onLayerDestroyed from 
+LayerHierarchyBuilder(RequestedLayerState{Transition Root: ActivityRecord{226471766 u0 com.swimvpn.app/.MainActivity 
+t266}#110912 !handle z=2})
+04-29 16:00:49.533 I/Layer   ( 2163): id=110913 Destroyed DimTransitionLayer for Surface(name=ActivityRecord{226471766 
+u0 com.swimvpn.app/.MainActivity t266})/@0x736464e#110913
+04-29 16:00:49.534 I/Layer   ( 2163): id=110912 Destroyed Transition Root: ActivityRecord{226471766 u0 
+com.swimvpn.app/.MainActivity t266}#110912
+04-29 16:00:49.536 E/WindowManager(25069): win=Window{a8c9247 u0 com.swimvpn.app/com.swimvpn.app.MainActivity} 
+destroySurfaces: appStopped=true cleanupOnResume=false win.mWindowRemovalAllowed=false win.mRemoveOnExit=false 
+win.mViewVisibility=8 caller=com.android.server.wm.ActivityRecord.destroySurfaces:25 
+com.android.server.wm.ActivityRecord.activityStopped:192 
+com.android.server.wm.ActivityClientController.activityStopped:97 
+android.app.IActivityClientController$Stub.onTransact:740 com.android.server.wm.ActivityClientController.onTransact:1 
+android.os.Binder.execTransactInternal:1462 android.os.Binder.execTransact:1401 
+04-29 16:00:49.536 D/SGM:FgCheckThread(25069): getForegroundApp(), foregroundPkgName=com.swimvpn.app
+04-29 16:00:49.536 D/SGM:FgCheckThread(25069): pkgName: com.swimvpn.app is in foreground
+04-29 16:00:49.538 W/AccessibilityWindowsPopulator(25069): Windows change within in 2 frames continuously over 500 ms 
+and notify windows changed immediately
+04-29 16:00:49.541 I/SurfaceFlinger( 2163): 
+[LayerHierarchy{RequestedLayerState{com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895} no children}] reparent 
+to OffscreenRoot
+04-29 16:00:49.541 I/SurfaceFlinger( 2163): 
+[LayerHierarchy{RequestedLayerState{com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895} no children}] 
+RelativeParent to null
+04-29 16:00:49.542 I/SurfaceFlinger( 2163): id=110895 Removed 
+com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895 (243)
+04-29 16:00:49.550 I/SurfaceFlinger( 2163): destroyed com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895 form 
+LifecycleManager
+04-29 16:00:49.550 I/SurfaceFlinger( 2163): id=110895 onLayerDestroyed from 
+LayerHierarchyBuilder(RequestedLayerState{com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895 !handle})
+04-29 16:00:49.550 I/Layer   ( 2163): id=110895 Destroyed com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110895
+04-29 16:00:49.581 D/SGM:GameManager(25069): identifyForegroundApp. com.swimvpn.app, mCurrentUserId: 0, callerUserId: 0
+04-29 16:00:50.420 I/LayerHistory( 2163): com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 Max (can't resolve 
+refresh rate)
+04-29 16:00:50.753 W/com.swimvpn.app( 7728): userfaultfd: MOVE ioctl seems unsupported: Connection timed out
+04-29 16:00:50.862 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.863 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.864 I/WindowManager(25069): Relayout hash=77680da, pid=0, syncId=-1: mAttrs={(471,-21)(136x134) gr=TOP 
+START CENTER sim={adjust=pan} layoutInDisplayCutoutMode=always ty=ACCESSIBILITY_OVERLAY fmt=TRANSLUCENT
+04-29 16:00:50.897 I/LayerHistory( 2163): com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 Max (can't resolve 
+refresh rate)
+04-29 16:00:50.933 D/BufferPoolAccessor2.0(24667): bufferpool2 0xb400007d10278028 : 8(65536 size) total buffers - 
+5(40960 size) used buffers - 3210/3218 (recycle/alloc) - 8/6432 (fetch/transfer)
+04-29 16:00:50.936 D/BufferPoolAccessor2.0( 2109): bufferpool2 0xb400007c5b401828 : 4(1843200 size) total buffers - 
+1(460800 size) used buffers - 3213/3217 (recycle/alloc) - 22/3216 (fetch/transfer)
+04-29 16:00:50.954 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.955 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.956 I/WindowManager(25069): Relayout hash=7adccec, pid=29070, syncId=-1: mAttrs={(0,0)(1080xwrap) 
+gr=TOP START CENTER sim={adjust=pan} layoutInDisplayCutoutMode=always ty=ACCESSIBILITY_OVERLAY fmt=TRANSLUCENT
+04-29 16:00:50.957 W/libc    (29070): Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-29 16:00:50.958 W/libc    (29070): Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-29 16:00:50.966 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.966 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.967 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.970 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.971 I/WindowManager(25069): Relayout hash=77680da, pid=29070, syncId=-1: mAttrs={(413,-21)(252x134) 
+gr=TOP START CENTER sim={adjust=pan} layoutInDisplayCutoutMode=always ty=ACCESSIBILITY_OVERLAY fmt=TRANSLUCENT
+04-29 16:00:50.981 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.983 D/SurfaceFlinger( 2163):        DEVICE |           33191507263492 | 00002102 | RGBA_8888    |    
+0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 (132)
+04-29 16:00:50.993 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:50.994 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:51.004 D/SurfaceFlinger( 2163):        DEVICE |           33191507263492 | 00002102 | RGBA_8888    |    
+0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 (132)
+04-29 16:00:51.380 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:51.388 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:51.404 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:51.462 W/AccessibilityManagerService(25069):  wait for adding window timeout: 1617
+04-29 16:00:51.530 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:51.531 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:51.534 I/WindowManager(25069): Relayout hash=77680da, pid=0, syncId=-1: mAttrs={(413,-21)(252x134) gr=TOP 
+START CENTER sim={adjust=pan} layoutInDisplayCutoutMode=always ty=ACCESSIBILITY_OVERLAY fmt=TRANSLUCENT
+04-29 16:00:51.971 E/TaskPersister(25069): File error accessing recents directory (directory doesn't exist?).
+04-29 16:00:51.973 E/TaskPersister(25069): File error accessing recents directory (directory doesn't exist?).
+04-29 16:00:51.973 E/TaskPersister(25069): File error accessing recents directory (directory doesn't exist?).
+04-29 16:00:52.873 D/WifiPickerTracker(26107): update AutoHotspot Entries() : bleAccessPoints -> 0
+04-29 16:00:52.876 I/NullBinder(25864): NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote 
+TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+04-29 16:00:52.962 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:54.254 D/AndroidRuntime( 7926): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+04-29 16:00:54.257 I/AndroidRuntime( 7926): Using default boot image
+04-29 16:00:54.257 I/AndroidRuntime( 7926): Leaving lock profiling enabled
+04-29 16:00:54.332 D/AndroidRuntime( 7926): Calling main entry com.android.commands.uiautomator.Launcher
+04-29 16:00:54.334 W/PlatformAconfigPackage( 7926): android.os.flagging.AconfigStorageReadException: 
+ERROR_CANNOT_READ_STORAGE_FILE: Fail to mmap storage
+04-29 16:00:54.336 E/FeatureFlagsImplExport( 7926): android.os.flagging.AconfigStorageReadException: 
+ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+04-29 16:00:54.339 D/AccessibilityManagerService(25069): changeCurrentUserForTestAutomationIfNeededLocked(0): ignoring 
+because device doesn't support visible background users
+04-29 16:00:54.339 I/UiAutomationManager(25069): Registering UiTestAutomationService 
+(id=com.android.server.accessibility/UiAutomation, flags=0x0) when called by user 0
+04-29 16:00:54.339 V/AccessibilityManagerService(25069): onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-29 16:00:54.345 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:54.346 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:54.347 V/WindowManager(25069): Remove Window{7adccec u0 com.pryshedko.mtisland}: 
+mSurfaceControl=Surface(name=$_29070)/@0xee6ce05 mAnimatingExit=false mRemoveOnExit=false mHasSurface=true 
+surfaceShowing=true animating=false app-animation=false 
+callers=com.android.server.wm.WindowToken.removeAllWindowsIfPossible:45 
+com.android.server.wm.WindowManagerService.removeWindowToken:29 
+com.android.server.wm.WindowManagerService$LocalService.removeWindowToken:3 
+com.android.server.wm.WindowManagerInternal.removeWindowToken:1 
+com.android.server.accessibility.AbstractAccessibilityServiceConnection.onDisplayRemoved:58 
+com.android.server.accessibility.AbstractAccessibilityServiceConnection.onRemoved:27 
+04-29 16:00:54.348 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:54.349 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:54.350 V/WindowManager(25069): Remove Window{77680da u0 com.pryshedko.mtisland}: 
+mSurfaceControl=Surface(name=$_29070)/@0x19f988b mAnimatingExit=false mRemoveOnExit=false mHasSurface=true 
+surfaceShowing=true animating=false app-animation=false 
+callers=com.android.server.wm.WindowToken.removeAllWindowsIfPossible:45 
+com.android.server.wm.WindowManagerService.removeWindowToken:29 
+com.android.server.wm.WindowManagerService$LocalService.removeWindowToken:3 
+com.android.server.wm.WindowManagerInternal.removeWindowToken:1 
+com.android.server.accessibility.AbstractAccessibilityServiceConnection.onDisplayRemoved:58 
+com.android.server.accessibility.AbstractAccessibilityServiceConnection.onRemoved:27 
+04-29 16:00:54.351 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:54.352 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:54.357 D/KNOX_MDM_SettingsProvider(25069): isChangeAllowed() : name = accessibility_enabled
+04-29 16:00:54.365 V/AccessibilityManagerService(25069): onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-29 16:00:54.366 D/KNOX_MDM_SettingsProvider(25069): isChangeAllowed() : name = accessibility_enabled
+04-29 16:00:54.384 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:54.384 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:54.385 W/WindowManager(25069): Cannot find window which accessibility connection is added to
+04-29 16:00:54.385 D/AS.AudioService(25069): Accessibility volume enabled = false
+04-29 16:00:54.385 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:54.385 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:54.385 D/AS.AudioService(25069): Accessibility volume enabled = false
+04-29 16:00:54.385 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:54.385 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:54.386 D/AS.AudioService(25069): Accessibility volume enabled = false
+04-29 16:00:54.388 W/WindowManager(25069): Cannot find window which accessibility connection is added to
+04-29 16:00:54.437 D/SurfaceFlinger( 2163):        DEVICE |           33191507263492 | 00002102 | RGBA_8888    |    
+0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 (132)
+04-29 16:00:54.453 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.394 W/AccessibilityNodeInfoDumper( 7926): Fetch time: 2ms
+04-29 16:00:55.395 V/AccessibilityManagerService(25069): onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-29 16:00:55.409 D/KNOX_MDM_SettingsProvider(25069): isChangeAllowed() : name = accessibility_enabled
+04-29 16:00:55.410 D/AccessibilityManagerService(25069): restoreCurrentUserForTestAutomationIfNeededLocked(): ignoring 
+because device doesn't support visible background users
+04-29 16:00:55.416 D/AndroidRuntime( 7926): Shutting down VM
+04-29 16:00:55.425 V/AccessibilityManagerService(25069): onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-29 16:00:55.425 D/KNOX_MDM_SettingsProvider(25069): isChangeAllowed() : name = accessibility_enabled
+04-29 16:00:55.429 D/ConnectivityManager(29070): StackLog: 
+[android.net.ConnectivityManager.sendRequestForNetwork(ConnectivityManager.java:4740)] 
+[android.net.ConnectivityManager.sendRequestForNetwork(ConnectivityManager.java:4908)] 
+[android.net.ConnectivityManager.registerNetworkCallback(ConnectivityManager.java:5325)] 
+[android.net.ConnectivityManager.registerNetworkCallback(ConnectivityManager.java:5295)] 
+[com.pryshedko.mtisland.br.wifi.WifiConnectReceiver.observeWifiConnected(WifiConnectReceiver.kt:58)] 
+[com.pryshedko.mtisland.br.wifi.WifiConnectReceiver.register(WifiConnectReceiver.kt:24)] 
+[com.pryshedko.mtisland.utils.UtilsKt.safeRegisterReceiver(Utils.kt:541)] 
+[com.pryshedko.mtisland.utils.UtilsKt.safeRegisterReceiver$default(Utils.kt:538)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil.setReceiverEnabled(BroadcastUtil.kt:280)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil.access$setReceiverEnabled(BroadcastUtil.kt:41)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil$3.invokeSuspend(BroadcastUtil.kt:269)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil$3.invoke(Unknown Source:8)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil$3.invoke(Unknown Source:4)] 
+[kotlinx.coroutines.flow.FlowKt__TransformKt$onEach$$inlined$unsafeTransform$1$2.emit(Emitters.kt:50)] 
+[kotlinx.coroutines.flow.FlowKt__ChannelsKt.emitAllImpl$FlowKt__ChannelsKt(Channels.kt:33)] 
+[kotlinx.coroutines.flow.FlowKt__ChannelsKt.access$emitAllImpl$FlowKt__ChannelsKt(Channels.kt:1)] 
+[kotlinx.coroutines.flow.FlowKt__ChannelsKt$emitAllImpl$1.invokeSuspend(Unknown Source:13)] 
+[kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)] 
+[kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)] 
+[kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)] 
+[kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)] 
+[kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)] 
+[kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)] 
+[kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)] 
+[kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)]
+04-29 16:00:55.431 D/ConnectivityManager(29070): StackLog: 
+[android.net.ConnectivityManager.sendRequestForNetwork(ConnectivityManager.java:4740)] 
+[android.net.ConnectivityManager.sendRequestForNetwork(ConnectivityManager.java:4908)] 
+[android.net.ConnectivityManager.registerNetworkCallback(ConnectivityManager.java:5325)] 
+[android.net.ConnectivityManager.registerNetworkCallback(ConnectivityManager.java:5295)] 
+[com.pryshedko.mtisland.br.wifi.WifiDisconnectReceiver.observeWifiDisconnect(WifiDisconnectReceiver.kt:56)] 
+[com.pryshedko.mtisland.br.wifi.WifiDisconnectReceiver.register(WifiDisconnectReceiver.kt:24)] 
+[com.pryshedko.mtisland.utils.UtilsKt.safeRegisterReceiver(Utils.kt:541)] 
+[com.pryshedko.mtisland.utils.UtilsKt.safeRegisterReceiver$default(Utils.kt:538)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil.setReceiverEnabled(BroadcastUtil.kt:280)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil.access$setReceiverEnabled(BroadcastUtil.kt:41)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil$3.invokeSuspend(BroadcastUtil.kt:269)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil$3.invoke(Unknown Source:8)] 
+[com.pryshedko.mtisland.utils.BroadcastUtil$3.invoke(Unknown Source:4)] 
+[kotlinx.coroutines.flow.FlowKt__TransformKt$onEach$$inlined$unsafeTransform$1$2.emit(Emitters.kt:50)] 
+[kotlinx.coroutines.flow.FlowKt__ChannelsKt.emitAllImpl$FlowKt__ChannelsKt(Channels.kt:33)] 
+[kotlinx.coroutines.flow.FlowKt__ChannelsKt.access$emitAllImpl$FlowKt__ChannelsKt(Channels.kt:1)] 
+[kotlinx.coroutines.flow.FlowKt__ChannelsKt$emitAllImpl$1.invokeSuspend(Unknown Source:13)] 
+[kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)] 
+[kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)] 
+[kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)] 
+[kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)] 
+[kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)] 
+[kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)] 
+[kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)] 
+[kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)]
+04-29 16:00:55.433 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:55.434 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:55.434 D/AS.AudioService(25069): Accessibility volume enabled = false
+04-29 16:00:55.436 V/AccessibilityManagerService(25069): onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-29 16:00:55.436 D/KNOX_MDM_SettingsProvider(25069): isChangeAllowed() : name = accessibility_enabled
+04-29 16:00:55.441 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:55.441 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:55.441 D/AS.AudioService(25069): Accessibility volume enabled = false
+04-29 16:00:55.443 V/AccessibilityManagerService(25069): onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-29 16:00:55.443 D/KNOX_MDM_SettingsProvider(25069): isChangeAllowed() : name = accessibility_enabled
+04-29 16:00:55.446 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:55.446 I/AccessibilityManagerService(25069): semIsAccessibilityServiceEnabled()
+04-29 16:00:55.446 D/AS.AudioService(25069): Accessibility volume enabled = false
+04-29 16:00:55.507 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.508 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.510 I/WindowManager(25069): Relayout hash=89f55b3, pid=29070, syncId=-1: mAttrs={(0,0)(10x10) gr=TOP 
+START CENTER sim={adjust=pan} ty=ACCESSIBILITY_OVERLAY fmt=TRANSLUCENT
+04-29 16:00:55.511 W/libc    (29070): Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-29 16:00:55.513 W/libc    (29070): Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-29 16:00:55.538 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.539 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.550 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.551 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.552 I/WindowManager(25069): Relayout hash=af9a0f, pid=29070, syncId=-1: mAttrs={(471,-21)(136x134) 
+gr=TOP START CENTER sim={adjust=pan} layoutInDisplayCutoutMode=always ty=ACCESSIBILITY_OVERLAY fmt=TRANSLUCENT
+04-29 16:00:55.554 W/libc    (29070): Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-29 16:00:55.556 W/libc    (29070): Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-29 16:00:55.556 D/SurfaceFlinger( 2163):        DEVICE |           33191507263492 | 00002102 | RGBA_8888    |    
+0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 (132)
+04-29 16:00:55.572 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.573 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.590 D/SurfaceFlinger( 2163):        DEVICE |           33191507263492 | 00002102 | RGBA_8888    |    
+0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.swimvpn.app/com.swimvpn.app.MainActivity$_7728#110909 (132)
+04-29 16:00:55.598 D/SurfaceComposerClient(25069): setCornerRadius ## 5fb761d 
+com.swimvpn.app/com.swimvpn.app.MainActivity#110908 cornerRadius=0.000000
+04-29 16:00:55.902 D/WifiPickerTracker(26107): update AutoHotspot Entries() : bleAccessPoints -> 0
+04-29 16:00:55.939 I/NullBinder(25864): NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote 
+TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+04-29 16:00:56.016 I/Telecom (25069): SamsungTelecomServiceImpl : isInManagedCall - callingPackage : android / 
+callingUser : UserHandle{0} / hasCrossUserAccess : true
+04-29 16:00:56.172 D/BufferPoolAccessor2.0(24667): bufferpool2 0xb400007d10278028 : 8(65536 size) total buffers - 
+5(40960 size) used buffers - 3411/3419 (recycle/alloc) - 8/6834 (fetch/transfer)
+04-29 16:00:56.174 D/BufferPoolAccessor2.0( 2109): bufferpool2 0xb400007c5b401828 : 4(1843200 size) total buffers - 
+1(460800 size) used buffers - 3414/3418 (recycle/alloc) - 25/3417 (fetch/transfer)
+
+

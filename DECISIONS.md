@@ -1,4 +1,12 @@
-# DECISIONS
+ï»¿# DECISIONS
+
+## [2026-04-29] [Manual Card Proof Uses AdminEvent Recovery For MVP]
+- **Decision**: Keep manual card payment proof state on the existing `AdminEvent` audit trail for this MVP batch instead of introducing a new Prisma `PaymentProof` table.
+- **Why**: The production regression was caused by volatile Telegram memory, not by missing order/payment records. Recovering recent `CARD_PAYMENT_FLOW_OPENED` events gives the bot a durable fallback without a migration or broad payment refactor.
+- **Impact**:
+  - Telegram remains a transport/review layer, not payment truth.
+  - PostgreSQL remains the recovery source through `AdminEvent`.
+  - A dedicated payment-proof model can still be added later if admin reporting needs richer querying.
 
 ## [2026-04-29] [Trial Activation Must Be Device-Bound]
 - **Decision**: Trial activation must include the Android `deviceId` and the backend must verify it against the persisted customer device before creating a trial order.
@@ -608,7 +616,7 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Impact**:
   - Local environment setup is now deterministic.
   - Future migration recovery on blank databases should start with `202604230001_init_schema` before any follow-up migration.
-  - This avoids a misleading state where Prisma history says “applied” while SQL never actually ran.
+  - This avoids a misleading state where Prisma history says ï¿½appliedï¿½ while SQL never actually ran.
 
 ## [2026-04-24] [Trial Must Stay Outside The Public Subscription Catalog]
 - **Decision**: The trial remains an access-state feature and badge, not a purchasable store plan shown on the subscription page.
@@ -630,7 +638,7 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Trial profiles must not expose a paid-offer code in API/UI state, even if the internal plan category uses `WEEK` for inventory grouping.
 - **Why**: The user-facing meaning of a trial is different from a paid weekly offer. Reusing `WEEK` at the profile surface creates false status, confusing analytics, and misleading subscription labels.
 - **Impact**:
-  - Trial account cards stop showing `Offer • WEEK`.
+  - Trial account cards stop showing `Offer ï¿½ WEEK`.
   - A future paid weekly offer can still exist independently.
   - Internal inventory grouping can remain separate from public subscription meaning.
 ## [2026-04-25] [Weekly Paid Offer And Trial Must Share Category But Not Product Meaning]
@@ -693,7 +701,7 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Why**: A paid order that has been confirmed but not yet assigned is neither active nor absent. Hiding this state causes contradictory UI and breaks the truth of the fulfillment model.
 - **Impact**:
   - Home badge and profile status now stay aligned with backend fulfillment truth.
-  - Users can distinguish “paid and being prepared” from “active” and “expired”.
+  - Users can distinguish ï¿½paid and being preparedï¿½ from ï¿½activeï¿½ and ï¿½expiredï¿½.
   - Support/debugging becomes easier because the UI no longer masks pending delivery as inactivity.
 
 ## [2026-04-25] [Card Checkout Redirect Must Follow The Real Command Bot]
@@ -706,7 +714,7 @@ otification-bot-service with Resend API for transactional delivery emails.
 
 ## [2026-04-25] [Trial Must Stay Separate From Paid Analytics]
 - **Decision**: Trial access must not present quota-limited analytics in `SWIMVPN Access`; it is shown as unlimited while active, and imported-config analytics remain a separate truth in `Active Config`.
-- **Why**: The product trial is not a paid offer and should not visually compete with a supplier-backed paid plan or an imported config’s parsed metadata. Showing the historical `5 GB` backend fallback made the profile look like trial was a normal limited plan, which created hidden confusion.
+- **Why**: The product trial is not a paid offer and should not visually compete with a supplier-backed paid plan or an imported configï¿½s parsed metadata. Showing the historical `5 GB` backend fallback made the profile look like trial was a normal limited plan, which created hidden confusion.
 - **Impact**:
   - Backend profile payloads no longer expose a measured quota limit for trial.
   - Android trial UI now shows `Unlimited` instead of a quota progress bar.

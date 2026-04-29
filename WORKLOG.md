@@ -1,5 +1,19 @@
 # WORKLOG
 
+## [2026-04-29] [Production Regression Batch - Imported Config, Freemium Quota, Manual Proof]
+- **Status**: DONE
+- **Changes**:
+    - Audited the remaining production regressions with parallel agents and ADB/source inspection.
+    - Fixed imported config handoff so successful imports select the first imported profile immediately and refresh the global server catalog from local DataStore.
+    - Preserved freemium/imported-config security: imported configs remain local and usable without granting backend premium servers.
+    - Fixed the profile quota card so `UNLIMITED` is shown only for `ACTIVE_TRIAL`, not for trial-used, expired, profile-incomplete, or freemium states.
+    - Added explicit freemium/provider-managed quota copy in English, French, and Russian.
+    - Hardened the manual card proof bot so it can recover recent payment sessions from persisted `AdminEvent` records if the in-memory Telegram state is lost.
+    - Added support for image screenshots sent as Telegram documents and added a post-proof contact confirmation prompt forwarded to the admin review chat.
+- **Verification**:
+    - Pending final build/check output in the active Codex batch.
+    - ADB launch capture confirmed the installed release opens Home and currently showed no selected server before this patch.
+
 ## [2026-04-29] [Android Release/Debug Trial Consistency Hardening]
 - **Status**: DONE
 - **Changes**:

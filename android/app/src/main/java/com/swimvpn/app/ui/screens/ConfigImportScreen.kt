@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.swimvpn.app.QrScannerView
 import com.swimvpn.app.config.ConfigPreview
 import com.swimvpn.app.config.ConfigRepository
+import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.ui.components.ClipboardImportSheet
 import com.swimvpn.app.ui.components.ConfigPreviewCard
@@ -34,7 +35,7 @@ fun ConfigImportScreen(
     configRepository: ConfigRepository,
     onBack: () -> Unit,
     onProfileSelected: (SwimVpnProfile) -> Unit = {},
-    onImportToProfile: (String) -> Unit = {},
+    onProfilesImported: (List<SwimVpnProfile>) -> Unit = {},
     showToast: (String) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
@@ -323,12 +324,13 @@ fun ConfigImportScreen(
             },
             onImport = { text ->
                 scope.launch {
-                    when (val result = configRepository.importConfig(text)) {
+                    when (val result = configRepository.importConfig(text, SourceType.MANUAL_ENTRY)) {
                         is com.swimvpn.app.config.ImportResult.Success -> {
                             importedProfiles = configRepository.getAllProfiles()
+                            activeProfileId = result.profile.id
                             @Suppress("UNUSED_VALUE")
                             showImportDialog = false
-                            onImportToProfile(text)
+                            onProfilesImported(result.importedProfiles)
                             showToast(formatImportSuccessMessage(result.importedCount))
                         }
                         is com.swimvpn.app.config.ImportResult.Error -> {
@@ -360,10 +362,11 @@ fun ConfigImportScreen(
                 onDismiss = onDismissClipboardSheet,
                 onImport = { content ->
                     scope.launch {
-                        when (val result = configRepository.importConfig(content)) {
+                        when (val result = configRepository.importConfig(content, SourceType.CLIPBOARD)) {
                             is com.swimvpn.app.config.ImportResult.Success -> {
                                 importedProfiles = configRepository.getAllProfiles()
-                                onImportToProfile(content)
+                                activeProfileId = result.profile.id
+                                onProfilesImported(result.importedProfiles)
                                 onDismissClipboardSheet()
                                 showToast(formatImportSuccessMessage(result.importedCount, "from clipboard"))
                             }
@@ -393,10 +396,11 @@ fun ConfigImportScreen(
             QrScannerView(
                 onCodeScanned = { qrText ->
                     scope.launch {
-                        when (val result = configRepository.importConfig(qrText)) {
+                        when (val result = configRepository.importConfig(qrText, SourceType.QR_CODE)) {
                             is com.swimvpn.app.config.ImportResult.Success -> {
                                 importedProfiles = configRepository.getAllProfiles()
-                                onImportToProfile(qrText)
+                                activeProfileId = result.profile.id
+                                onProfilesImported(result.importedProfiles)
                                 onCloseQrScanner()
                                 showToast(formatImportSuccessMessage(result.importedCount, "from QR code"))
                             }

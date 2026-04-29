@@ -265,10 +265,21 @@ private fun SwimVpnAccessCard(
         ?.takeIf { it.isNotBlank() }
         ?.let(::formatMetadataExpiry)
         ?: context.getString(R.string.profile_unknown)
-    val isTrial = profile.isActiveTrial
+    val isActiveTrial = profile.isActiveTrial
+    val isActiveSubscription = profile.isActiveSubscription
     val hasMeasuredLimit = profile.hasMeasuredLimit
-    val showMeasuredAnalytics = hasMeasuredLimit && !isTrial
-    val quotaValue = if (showMeasuredAnalytics) formatBytes(profile.dataLimitBytes) else stringResource(R.string.label_unlimited)
+    val showMeasuredAnalytics = isActiveSubscription && hasMeasuredLimit
+    val quotaValue = when {
+        showMeasuredAnalytics -> formatBytes(profile.dataLimitBytes)
+        isActiveTrial -> stringResource(R.string.label_unlimited)
+        isActiveSubscription -> stringResource(R.string.profile_quota_provider_managed)
+        else -> stringResource(R.string.profile_quota_freemium)
+    }
+    val quotaNote = when {
+        isActiveTrial -> stringResource(R.string.profile_trial_unlimited_note)
+        isActiveSubscription -> stringResource(R.string.profile_quota_provider_managed_note)
+        else -> stringResource(R.string.profile_quota_freemium_note)
+    }
     val measuredUsedBytes = profile.parsedDataUsedBytes
     val remainingBytes = if (showMeasuredAnalytics) {
         (profile.dataLimitBytes - measuredUsedBytes).coerceAtLeast(0L)
@@ -281,7 +292,7 @@ private fun SwimVpnAccessCard(
         0f
     }
     val statusColor = when {
-        isTrial -> MaterialTheme.colorScheme.primary
+        isActiveTrial -> MaterialTheme.colorScheme.primary
         profile.isExpired -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.primary // Green/Success generally represented by positive theme color or primary
     }
@@ -302,7 +313,7 @@ private fun SwimVpnAccessCard(
                 Column {
                     Text(
                         text = stringResource(
-                            if (isTrial) R.string.profile_metric_trial_access
+                            if (isActiveTrial) R.string.profile_metric_trial_access
                             else R.string.profile_metric_plan_quota
                         ),
                         fontWeight = FontWeight.Bold,
@@ -361,7 +372,7 @@ private fun SwimVpnAccessCard(
                     color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Text(
-                        text = stringResource(R.string.profile_trial_unlimited_note),
+                        text = quotaNote,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,

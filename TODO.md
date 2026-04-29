@@ -36,6 +36,13 @@
 - Add explicit delivery history endpoint contract for admin panel consumption.
 - Add integration tests for inventory-delivery-service -> 
 otification-bot-service event handoff.
+- Re-test manual card proof flow on Telegram after redeploy:
+  - checkout deep link opens `start=card_<orderRef>`
+  - screenshot as photo is accepted
+  - screenshot as image document is accepted
+  - proof after bot restart is recovered from persisted `CARD_PAYMENT_FLOW_OPENED`
+  - user contact confirmation is forwarded to the review chat
+  - admin approve/reject still triggers fulfillment/rejection email
 
 
 ## Admin Support Bot Next Steps
@@ -96,7 +103,7 @@ otification-bot-service event handoff.
   - trial profile -> home
 - Validate one-time trial protection by retrying activation with the same device, email, and phone.
 - Decide whether the frontend should show `offerCode` (`WEEK` / `MONTH` / `QUARTER`) more explicitly in premium badges or keep the current `accessType` labeling.
-- Replace the placeholder Android payment URL flow once the client-side checkout contract is approved.
+- Re-test the implemented backend checkout redirect flow for both `CARD_MANUAL` and `CRYPTO` on the signed release APK.
 
 ## Home Screen Follow-up
 - Re-test the rebuilt Android home screen on device:
@@ -112,6 +119,8 @@ otification-bot-service event handoff.
 - Confirm QR, paste, and manual input all:
   - preserve raw config locally
   - update the visible imported profile list
+  - select the first newly imported server immediately
+  - show the imported server on Home and Locations without requiring app restart
   - attempt backend profile sync without throwing a blocking full-screen error
 - Decide later whether code activation should return as a separate approved product flow instead of a hidden generic import action.
 - If backend usage metering is introduced later, replace the current honest hybrid display (`backend dataUsedBytes + local session bytes`) with a fully server-driven total.

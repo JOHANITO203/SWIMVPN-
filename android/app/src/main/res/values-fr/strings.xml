@@ -103,6 +103,10 @@
     <string name="profile_metric_trial_access">ACCÈS D’ESSAI</string>
     <string name="profile_metric_used">UTILISÉ</string>
     <string name="profile_trial_unlimited_note">L’accès d’essai est affiché comme illimité tant que l’essai est actif.</string>
+    <string name="profile_quota_provider_managed">GÉRÉ PAR LE FOURNISSEUR</string>
+    <string name="profile_quota_provider_managed_note">Le quota et l’expiration viennent de la configuration fournisseur assignée.</string>
+    <string name="profile_quota_freemium">GRATUIT / IMPORTÉ</string>
+    <string name="profile_quota_freemium_note">Le quota premium est inactif. Les configurations importées restent disponibles.</string>
     <string name="active_config_source_managed">Géré par SWIMVPN</string>
     <string name="active_config_source_imported">Configuration importée</string>
     <string name="active_config_protocol">Protocole</string>

@@ -1,0 +1,22 @@
+﻿
+04-29 16:00:33.302 D/AndroidRuntime( 7664): >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+04-29 16:00:33.308 I/AndroidRuntime( 7664): Using default boot image
+04-29 16:00:33.308 I/AndroidRuntime( 7664): Leaving lock profiling enabled
+04-29 16:00:33.526 D/AndroidRuntime( 7664): Calling main entry com.android.commands.uiautomator.Launcher
+04-29 16:00:33.535 W/PlatformAconfigPackage( 7664): android.os.flagging.AconfigStorageReadException: 
+ERROR_CANNOT_READ_STORAGE_FILE: Fail to mmap storage
+04-29 16:00:33.553 E/FeatureFlagsImplExport( 7664): android.os.flagging.AconfigStorageReadException: 
+ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+04-29 16:00:34.662 I/AccessibilityNodeInfoDumper( 7664): Skipping invisible child: 
+android.view.accessibility.AccessibilityNodeInfo@c6d9; boundsInParent: Rect(0, 0 - 998, 2108); boundsInScreen: Rect(0, 
+0 - 0, 2008); boundsInWindow: Rect(0, 0 - 0, 2008); packageName: com.sec.android.app.launcher; className: 
+android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: 
+null; tooltipText: null; containerTitle: null; viewIdResName: null; uniqueId: null; checkable: false; checked: false; 
+focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; 
+enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: 
+false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: 
+ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: 
+ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+04-29 16:00:34.779 D/AndroidRuntime( 7664): Shutting down VM
+
+
