@@ -9,6 +9,7 @@ import {
   buildManualPaymentContactReviewText,
   parseManualPaymentConfirmation,
 } from './manual-card-confirmation';
+import { isTelegramAdminContext, parseAdminUserIds } from './telegram-admin-auth';
 
 @Injectable()
 export class TelegramCommandService implements OnModuleInit {
@@ -19,6 +20,7 @@ export class TelegramCommandService implements OnModuleInit {
   private readonly pendingManualPayments = new Map<string, { orderRef: string; startedAt: number }>();
   private readonly pendingManualConfirmations = new Map<string, { orderRef: string; proofEventId: string }>();
   private readonly cardNumber?: string;
+  private readonly adminUserIds: string[];
 
   constructor(
     private readonly configService: ConfigService,
@@ -31,6 +33,7 @@ export class TelegramCommandService implements OnModuleInit {
     this.reviewChatId =
       this.configService.get<string>('PAYMENT_REVIEW_CHAT_ID') || this.adminChatId;
     this.cardNumber = this.configService.get<string>('MANUAL_CARD_NUMBER')?.trim() || undefined;
+    this.adminUserIds = parseAdminUserIds(this.configService.get<string>('ADMIN_USER_IDS'));
 
     if (!token || !this.adminChatId) {
       this.logger.warn('Telegram command bot disabled: NOTIFICATION_BOT_TOKEN or ADMIN_CHAT_ID is missing');
@@ -494,8 +497,15 @@ export class TelegramCommandService implements OnModuleInit {
     });
   }
 
-  private isAdmin(ctx: { from?: { id: number } }) {
-    return ctx.from?.id?.toString() === this.adminChatId;
+  private isAdmin(ctx: any) {
+    return isTelegramAdminContext({
+      fromId: ctx.from?.id,
+      chatId: ctx.chat?.id,
+      messageChatId: ctx.callbackQuery?.message?.chat?.id,
+      adminChatId: this.adminChatId,
+      reviewChatId: this.reviewChatId,
+      adminUserIds: this.adminUserIds,
+    });
   }
 
   private async handleCardStart(ctx: any, orderRef: string) {

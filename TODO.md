@@ -663,3 +663,19 @@ u after each future language batch
   - verify admin review chat receives `SWIMVPN+ CARD PAYMENT FINAL REVIEW` with approve/reject buttons
   - approve and confirm config delivery email goes to the confirmed final email
 - If final confirmation still does not reach admin chat, inspect Dokploy logs for `Failed to forward manual payment contact confirmation` and verify `PAYMENT_REVIEW_CHAT_ID` points to a chat where the bot is a member.
+
+## Manual Payment Approval Retest
+- In Dokploy env, verify masked presence of:
+  - `NOTIFICATION_BOT_TOKEN`
+  - `ADMIN_CHAT_ID`
+  - `PAYMENT_REVIEW_CHAT_ID`
+  - `PAYMENT_BOT_USERNAME`
+  - `MANUAL_CARD_NUMBER`
+  - `RESEND_API_KEY`
+  - `MAILER_FROM_EMAIL`
+- Optional hardening: set `ADMIN_USER_IDS` to the comma-separated Telegram user ids allowed to click approve/reject.
+- After redeploy, click approve/reject from the configured review group and verify:
+  - approve marks order paid/fulfilled or pending fulfillment
+  - delivery email record is created
+  - Resend sends email or logs `EMAIL_FAILED`
+  - reject marks pending order failed and sends rejection email

@@ -1952,3 +1952,19 @@ pm run build PASSED.
     - `cd backend && npm run lint` PASSED.
     - `cd backend && npm run test:policy` PASSED.
     - `cd backend && npm run build:all` PASSED.
+
+## [2026-04-29] [Manual Payment Approval Email Workflow Audit]
+- **Status**: DONE
+- **Findings**:
+    - Verified approval path: Telegram approve button -> `customer-order-service.approveManualCardPayment` -> `fulfillOrderByRef` -> `inventory-delivery-service.fulfillOrder` -> `notification-bot-service.processPostPurchaseDelivery` -> Resend email.
+    - Verified rejection path: Telegram reject button -> `customer-order-service.rejectManualCardPayment` -> rejection email via notification bot.
+    - Found admin authorization contradiction: `ADMIN_CHAT_ID` was being used as both notification destination and admin identity, while current env values use group-shaped chat ids. Telegram callback `from.id` is a user id, so approve/reject could be denied even when clicked from the admin group.
+- **Changes**:
+    - Added a tested Telegram admin authorization helper that supports explicit `ADMIN_USER_IDS`, personal `ADMIN_CHAT_ID`, and configured admin/review group callback context.
+    - Wired notification bot approve/reject/resend/admin actions through the helper.
+    - Added optional `ADMIN_USER_IDS` env pass-through and examples.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/telegram-admin-auth.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.

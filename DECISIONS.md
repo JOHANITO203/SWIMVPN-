@@ -798,3 +798,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Imported config UI can show real traffic/quota/expiry for providers that follow the common subscription header convention.
   - Parser remains data-only and does not decide entitlement or premium access.
   - Missing headers remain safe: UI shows unknown/inactive states rather than fake unlimited quota.
+
+## [2026-04-29] [Telegram Admin Authorization Supports Review Group Context]
+- **Decision**: Telegram payment admin actions may be authorized either by explicit `ADMIN_USER_IDS`, by a personal `ADMIN_CHAT_ID`, or by callback/message context inside the configured admin/review group chat.
+- **Why**: The existing implementation compared `ctx.from.id` to `ADMIN_CHAT_ID`, but production env commonly uses group chat ids for admin/review destinations. A group chat id cannot equal a human Telegram user id, which blocks approve/reject callbacks.
+- **Impact**:
+  - `PAYMENT_REVIEW_CHAT_ID` can remain the group that receives proof packets.
+  - `ADMIN_USER_IDS` can be added for stricter personal admin allow-listing.
+  - Ordinary private chats remain unauthorized.
