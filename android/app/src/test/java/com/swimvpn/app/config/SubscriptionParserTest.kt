@@ -1,6 +1,7 @@
 ﻿package com.swimvpn.app.config
 
 import com.swimvpn.app.config.subscriptionparser.SubscriptionParser
+import com.swimvpn.app.config.subscriptionparser.SubscriptionHeaderMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -66,6 +67,33 @@ class SubscriptionParserTest {
         assertEquals("PUBLICKEY123", profile.publicKey)
         assertEquals("ab12", profile.shortId)
         assertEquals("www.google.com", profile.sni)
+    }
+
+    @Test
+    fun `uses subscription userinfo header metadata for remote subscriptions`() {
+        val payload = "vless://11111111-1111-1111-1111-111111111111@run.cloudrt.ru:443?security=reality&type=tcp&sni=run.cloudrt.ru&fp=chrome&pbk=PUBLICKEY123&sid=ab12#🇷🇺%20Россия%20%7C%20YouTube"
+        val headerMetadata = SubscriptionHeaderMetadata(
+            providerName = "wb.routerwb.ru",
+            trafficUsedBytes = 59_322_736_383L,
+            trafficTotalBytes = 1_073_741_824_000L,
+            expiresAt = "2026-05-21T23:04:09Z",
+            autoUpdateIntervalHours = 1,
+        )
+
+        val parsed = SubscriptionParser.parse(
+            input = payload,
+            sourceType = SourceType.SUBSCRIPTION_URL,
+            sourceUrl = "https://wb.routerwb.ru/jtz5386jCHkztYRZ",
+            headerMetadata = headerMetadata,
+        )
+
+        assertEquals(1, parsed.profiles.size)
+        assertEquals("wb.routerwb.ru", parsed.providerName)
+        assertEquals(59_322_736_383L, parsed.trafficUsedBytes)
+        assertEquals(1_073_741_824_000L, parsed.trafficTotalBytes)
+        assertEquals("2026-05-21T23:04:09Z", parsed.expiresAt)
+        assertEquals(1, parsed.autoUpdateIntervalHours)
+        assertEquals("🇷🇺 Россия | YouTube", parsed.profiles.single().displayName)
     }
 
     @Test

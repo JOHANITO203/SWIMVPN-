@@ -1,6 +1,7 @@
 ﻿package com.swimvpn.app.config.subscriptionparser
 
 import java.net.URI
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -52,7 +53,11 @@ internal object SubscriptionMetadataParser {
         """(?iu)(?:autoupdate|auto[-\s]?update|автообновление)\s*[-: ]*\s*(\d+)\s*(?:h|hr|hrs|hour|hours|ч|час|часа|часов)\.?"""
     )
 
-    fun parse(payload: String, sourceUrl: String? = null): SubscriptionMetadataEnvelope {
+    fun parse(
+        payload: String,
+        sourceUrl: String? = null,
+        headerMetadata: SubscriptionHeaderMetadata? = null,
+    ): SubscriptionMetadataEnvelope {
         val normalized = payload.replace("\r", "\n")
         val traffic = parseTraffic(normalized)
         val expiresAt = parseExpiry(normalized)
@@ -60,14 +65,67 @@ internal object SubscriptionMetadataParser {
         val autoUpdateHours = parseAutoUpdateHours(normalized)
         val warnings = buildList {
             addAll(traffic.warnings)
+            addAll(headerMetadata?.warnings.orEmpty())
         }
 
         return SubscriptionMetadataEnvelope(
-            providerName = providerName,
-            trafficUsedBytes = traffic.usedBytes,
-            trafficTotalBytes = traffic.totalBytes,
+            providerName = headerMetadata?.providerName ?: providerName,
+            trafficUsedBytes = headerMetadata?.trafficUsedBytes ?: traffic.usedBytes,
+            trafficTotalBytes = headerMetadata?.trafficTotalBytes ?: traffic.totalBytes,
+            expiresAt = headerMetadata?.expiresAt ?: expiresAt,
+            autoUpdateIntervalHours = headerMetadata?.autoUpdateIntervalHours ?: autoUpdateHours,
+            warnings = warnings,
+        )
+    }
+
+    fun parseHttpHeaders(
+        subscriptionUserInfo: String?,
+        profileUpdateInterval: String?,
+        sourceUrl: String? = null,
+    ): SubscriptionHeaderMetadata {
+        val userInfoFields = subscriptionUserInfo
+            ?.split(';')
+            ?.mapNotNull { part ->
+                val key = part.substringBefore('=', "").trim().lowercase(Locale.ROOT)
+                val value = part.substringAfter('=', "").trim()
+                if (key.isBlank() || value.isBlank()) null else key to value
+            }
+            ?.toMap()
+            .orEmpty()
+
+        val upload = userInfoFields["upload"]?.toLongOrNull()
+        val download = userInfoFields["download"]?.toLongOrNull()
+        val total = userInfoFields["total"]?.toLongOrNull()
+        val expiresAt = userInfoFields["expire"]
+            ?.toLongOrNull()
+            ?.takeIf { it > 0L }
+            ?.let { epochSeconds ->
+                runCatching { Instant.ofEpochSecond(epochSeconds).toString() }.getOrNull()
+            }
+        val intervalHours = profileUpdateInterval
+            ?.trim()
+            ?.toIntOrNull()
+            ?.takeIf { it > 0 }
+
+        val used = listOfNotNull(upload, download)
+            .takeIf { it.isNotEmpty() }
+            ?.sum()
+
+        val warnings = buildList {
+            if (!subscriptionUserInfo.isNullOrBlank()) {
+                add("Parsed subscription-userinfo response header")
+            }
+            if (!profileUpdateInterval.isNullOrBlank()) {
+                add("Parsed profile-update-interval response header")
+            }
+        }
+
+        return SubscriptionHeaderMetadata(
+            providerName = sourceUrl?.let { runCatching { URI(it).host }.getOrNull() }?.removePrefix("www."),
+            trafficUsedBytes = used,
+            trafficTotalBytes = total,
             expiresAt = expiresAt,
-            autoUpdateIntervalHours = autoUpdateHours,
+            autoUpdateIntervalHours = intervalHours,
             warnings = warnings,
         )
     }

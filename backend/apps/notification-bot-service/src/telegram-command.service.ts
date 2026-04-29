@@ -92,6 +92,13 @@ export class TelegramCommandService implements OnModuleInit {
       }
 
       const chatId = ctx.chat.id.toString();
+      const awaitingConfirmation =
+        this.pendingManualConfirmations.get(chatId) || await this.recoverPendingManualConfirmation(chatId);
+      if (awaitingConfirmation) {
+        await ctx.reply(this.buildManualPaymentConfirmationPrompt(undefined, undefined));
+        return;
+      }
+
       const pending = this.pendingManualPayments.get(chatId) || await this.recoverPendingManualPayment(chatId, ctx.message.caption);
       if (!pending) {
         await ctx.reply('Open the card payment flow from the SWIMVPN+ app first.');
@@ -177,6 +184,13 @@ export class TelegramCommandService implements OnModuleInit {
       }
 
       const chatId = ctx.chat.id.toString();
+      const awaitingConfirmation =
+        this.pendingManualConfirmations.get(chatId) || await this.recoverPendingManualConfirmation(chatId);
+      if (awaitingConfirmation) {
+        await ctx.reply(this.buildManualPaymentConfirmationPrompt(undefined, undefined));
+        return;
+      }
+
       const pending = this.pendingManualPayments.get(chatId) || await this.recoverPendingManualPayment(chatId, ctx.message.caption);
       if (!pending) {
         await ctx.reply('Open the card payment flow from the SWIMVPN+ app first.');
@@ -246,7 +260,8 @@ export class TelegramCommandService implements OnModuleInit {
       const text = ctx.message.text?.trim() || '';
       if (!text || text.startsWith('/')) return;
 
-      const pending = this.pendingManualConfirmations.get(ctx.chat.id.toString());
+      const pending = this.pendingManualConfirmations.get(ctx.chat.id.toString()) ||
+        await this.recoverPendingManualConfirmation(ctx.chat.id.toString());
       if (!pending) return;
 
       await this.prisma.adminEvent.create({
@@ -365,7 +380,12 @@ export class TelegramCommandService implements OnModuleInit {
 
       await ctx.answerCbQuery(result?.success ? 'Payment approved' : 'Approval failed');
       if (result?.success) {
-        await ctx.reply(`Approved ${orderRef}. Fulfillment triggered.`);
+        const suffix = result?.alreadyProcessed
+          ? `Already processed (${result.currentStatus || 'unknown'}).`
+          : 'Fulfillment triggered.';
+        await ctx.reply(`Approved ${orderRef}. ${suffix}`);
+      } else {
+        await ctx.reply(`Approval failed for ${orderRef}: ${result?.error || 'unknown error'}`);
       }
     });
 
@@ -387,7 +407,7 @@ export class TelegramCommandService implements OnModuleInit {
         ),
       );
 
-      if (result?.customerEmail && result?.planName) {
+      if (result?.rejected && result?.customerEmail && result?.planName) {
         await this.notificationService.sendManualPaymentReviewEmail({
           to: result.customerEmail,
           orderRef,
@@ -411,9 +431,11 @@ export class TelegramCommandService implements OnModuleInit {
         },
       });
 
-      await ctx.answerCbQuery(result?.success ? 'Payment rejected' : 'Reject failed');
-      if (result?.success) {
+      await ctx.answerCbQuery(result?.rejected ? 'Payment rejected' : 'Rejection skipped');
+      if (result?.rejected) {
         await ctx.reply(`Rejected ${orderRef}. Customer will be notified by email.`);
+      } else {
+        await ctx.reply(`Rejection skipped for ${orderRef}: ${result?.currentStatus || result?.error || 'already processed'}.`);
       }
     });
 
@@ -528,6 +550,46 @@ export class TelegramCommandService implements OnModuleInit {
     const recovered = { orderRef: order.order_ref, startedAt: Date.now() };
     this.pendingManualPayments.set(chatId, recovered);
     return recovered;
+  }
+
+  private async recoverPendingManualConfirmation(chatId: string) {
+    const events = await this.prisma.adminEvent.findMany({
+      where: {
+        event_type: 'CARD_PAYMENT_PROOF_SUBMITTED',
+        entity_type: 'ORDER',
+      },
+      orderBy: { created_at: 'desc' },
+      take: 50,
+    });
+
+    const maxAgeMs = 24 * 60 * 60 * 1000;
+    for (const event of events) {
+      const payload = event.payload_json as any;
+      if (payload?.telegramChatId !== chatId) continue;
+      if (Date.now() - event.created_at.getTime() > maxAgeMs) continue;
+
+      const alreadyConfirmed = await this.prisma.adminEvent.findFirst({
+        where: {
+          event_type: 'CARD_PAYMENT_CONTACT_CONFIRMED',
+          entity_type: 'ORDER',
+          entity_id: event.entity_id,
+        },
+        orderBy: { created_at: 'desc' },
+      });
+      if (alreadyConfirmed) continue;
+
+      const order = await this.prisma.order.findUnique({
+        where: { order_ref: event.entity_id },
+        select: { order_ref: true, status: true },
+      });
+      if (order?.status !== 'PENDING') continue;
+
+      const recovered = { orderRef: order.order_ref, proofEventId: event.id };
+      this.pendingManualConfirmations.set(chatId, recovered);
+      return recovered;
+    }
+
+    return null;
   }
 
   private buildManualPaymentReviewCaption(order: any, from: any) {

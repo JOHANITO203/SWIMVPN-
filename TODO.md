@@ -645,3 +645,11 @@ u after each future language batch
 - Test technical settings in signed release: opening the page, toggling routing/autoconnect/language/theme, kill-switch row, and back/save should not reset the app.
 - Consider adding explicit `@SerializedName` annotations to access DTOs after this hotfix, even though current ProGuard keeps protect them.
 - Bump `versionCode` before public release so APK provenance is not ambiguous.
+
+## [2026-04-29] Release Import/Payment QA
+- Sign and install the rebuilt release APK, then import `https://wb.routerwb.ru/jtz5386jCHkztYRZ` again.
+- Confirm Access Configurations shows the 11 imported VLESS Reality profiles after import.
+- Confirm Profile -> Active Config shows source `Imported`, traffic used/total from `subscription-userinfo`, and expiry from the provider header.
+- Confirm Locations shows imported servers for trial-used/freemium users while backend premium servers remain protected.
+- Test manual card flow with live Telegram bot: `/start card_<orderRef>` -> screenshot -> confirmation prompt -> contact text -> admin review packet -> approve/reject.
+- Verify Dokploy env has `MANUAL_CARD_NUMBER`; without it the bot will correctly refuse to start card payment flow.

@@ -790,3 +790,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `POST /api/v1/access/profile/complete` updates only the device-bound customer's contact data.
   - Trial anti-abuse remains enforced; trial denial does not become premium access.
   - Existing paid access is not recovered by unauthenticated email/phone lookup, avoiding account takeover risk.
+
+## [2026-04-29] [Provider Metadata Comes From Subscription Headers When Available]
+- **Decision**: For imported subscription URLs, Android treats HTTP `subscription-userinfo` and `profile-update-interval` headers as provider metadata inputs while preserving raw VPN config body unchanged.
+- **Why**: Runtime ADB testing of the real supplier URL showed traffic, quota, expiry, and refresh interval are supplied in headers, not in the Base64 profile body.
+- **Impact**:
+  - Imported config UI can show real traffic/quota/expiry for providers that follow the common subscription header convention.
+  - Parser remains data-only and does not decide entitlement or premium access.
+  - Missing headers remain safe: UI shows unknown/inactive states rather than fake unlimited quota.

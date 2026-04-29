@@ -10,9 +10,7 @@
 # ----------------------------------------------------------------------
 # Retrofit / OkHttp / Gson
 # ----------------------------------------------------------------------
--keepattributes Signature
--keepattributes *Annotation*
--keepattributes EnclosingMethod
+-keepattributes Signature,*Annotation*,EnclosingMethod,InnerClasses
 
 # Keep Retrofit API method annotations.
 -keepclasseswithmembers interface * {
@@ -28,6 +26,12 @@
 -keep class com.swimvpn.app.data.network.** { *; }
 -keep class com.swimvpn.app.data.model.** { *; }
 -keep class com.swimvpn.app.config.** { *; }
+
+# Gson TypeToken relies on generic signatures at runtime. The release APK
+# imports profiles through TypeToken<List<SwimVpnProfile>>, so shrinking must
+# preserve TypeToken subclasses as well as the Signature attribute.
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken { *; }
 
 # Keep fields annotated for Gson if used.
 -keepclassmembers class * {

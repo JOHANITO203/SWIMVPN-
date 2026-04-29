@@ -83,8 +83,8 @@
     <!-- Servers -->
     <string name="title_locations">LOCALISATIONS</string>
     <string name="search_hint">Rechercher un lieu</string>
-    <string name="server_group_access">Serveurs d’accès</string>
-    <string name="server_group_backend_count">%1$d serveur(s) backend</string>
+    <string name="server_group_access">Serveurs Premium</string>
+    <string name="server_group_backend_count">%1$d serveur(s) premium</string>
     <string name="server_group_imported_count">%1$d serveur(s) importé(s)</string>
 
     <!-- Profile -->
@@ -102,13 +102,14 @@
     <string name="profile_metric_plan_quota">QUOTA DU FORFAIT</string>
     <string name="profile_metric_trial_access">ACCÈS D’ESSAI</string>
     <string name="profile_metric_used">UTILISÉ</string>
-    <string name="profile_trial_unlimited_note">L’accès d’essai est affiché comme illimité tant que l’essai est actif.</string>
+    <string name="profile_trial_access_active">ESSAI PREMIUM</string>
+    <string name="profile_trial_unlimited_note">Les serveurs premium et configs assignées sont disponibles pendant l’essai actif.</string>
     <string name="profile_quota_provider_managed">GÉRÉ PAR LE FOURNISSEUR</string>
     <string name="profile_quota_provider_managed_note">Le quota et l’expiration viennent de la configuration fournisseur assignée.</string>
-    <string name="profile_quota_freemium">GRATUIT / IMPORTÉ</string>
-    <string name="profile_quota_freemium_note">Le quota premium est inactif. Les configurations importées restent disponibles.</string>
-    <string name="active_config_source_managed">Géré par SWIMVPN</string>
-    <string name="active_config_source_imported">Configuration importée</string>
+    <string name="profile_quota_freemium">PREMIUM INACTIF</string>
+    <string name="profile_quota_freemium_note">Aucun quota premium actif. Les configurations importées restent séparées et disponibles.</string>
+    <string name="active_config_source_managed">Premium</string>
+    <string name="active_config_source_imported">Importée</string>
     <string name="active_config_protocol">Protocole</string>
     <string name="active_config_provider">Fournisseur</string>
     <string name="active_config_expiration">Expiration de la configuration</string>

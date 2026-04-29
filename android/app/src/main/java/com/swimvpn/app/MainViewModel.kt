@@ -485,7 +485,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             val current = _state.value
             if (current is AppState.Success) {
-                val activeConfigMetadata = resolveActiveConfigMetadata(server)
+                val activeConfigMetadata = resolveActiveConfigMetadata(server, current.profile)
                 _state.value = current.copy(
                     activeServer = server,
                     activeConfigMetadata = activeConfigMetadata,
@@ -724,7 +724,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val servers = serverGroups.flatMap { it.servers }
         val savedServerId = prefs.selectedServerIdFlow.first()
         val activeServer = servers.find { it.id == savedServerId } ?: servers.firstOrNull()
-        val activeConfigMetadata = resolveActiveConfigMetadata(activeServer)
+        val activeConfigMetadata = resolveActiveConfigMetadata(activeServer, profile)
 
         return AppState.Success(
             profile = profile,
@@ -741,14 +741,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private suspend fun resolveActiveConfigMetadata(activeServer: ServerNode?): ActiveConfigMetadata? {
+    private suspend fun resolveActiveConfigMetadata(
+        activeServer: ServerNode?,
+        profile: AccessProfileResponse,
+    ): ActiveConfigMetadata? {
         if (activeServer == null) {
             return null
         }
 
         return when (activeServer.source) {
             "imported" -> runCatching { configRepository.getImportedConfigMetadata(activeServer.id) }.getOrNull()
-            "backend" -> ActiveConfigMetadata.fromManagedServer(activeServer)
+            "backend" -> ActiveConfigMetadata.fromManagedProfile(profile, activeServer)
             else -> activeServer.rawConfig?.let { rawConfig ->
                 ActiveConfigMetadata.fromRawConfig(
                     rawConfig = rawConfig,
@@ -780,7 +783,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val activeServer = servers.find { it.id == savedServerId }
             ?: servers.find { it.id == currentState.activeServer?.id }
             ?: servers.firstOrNull()
-        val activeConfigMetadata = resolveActiveConfigMetadata(activeServer)
+        val activeConfigMetadata = resolveActiveConfigMetadata(activeServer, currentState.profile)
 
         return currentState.copy(
             servers = servers,

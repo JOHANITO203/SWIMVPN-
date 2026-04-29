@@ -13,9 +13,10 @@ object SubscriptionParser {
         input: String,
         sourceType: SourceType = SourceType.MANUAL_ENTRY,
         sourceUrl: String? = null,
+        headerMetadata: SubscriptionHeaderMetadata? = null,
     ): ParsedSubscription {
         val decoded = SubscriptionPayloadDecoder.decode(input)
-        val metadata = SubscriptionMetadataParser.parse(decoded.payload, sourceUrl)
+        val metadata = SubscriptionMetadataParser.parse(decoded.payload, sourceUrl, headerMetadata)
         val warnings = (decoded.warnings + metadata.warnings).toMutableList()
         val entries = SubscriptionPayloadDecoder.extractEntries(decoded.payload)
 

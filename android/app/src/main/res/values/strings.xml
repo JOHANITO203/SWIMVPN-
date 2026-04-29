@@ -83,8 +83,8 @@
     <!-- Servers -->
     <string name="title_locations">LOCATIONS</string>
     <string name="search_hint">Search location</string>
-    <string name="server_group_access">Access Servers</string>
-    <string name="server_group_backend_count">%1$d backend server(s)</string>
+    <string name="server_group_access">Premium Servers</string>
+    <string name="server_group_backend_count">%1$d premium server(s)</string>
     <string name="server_group_imported_count">%1$d imported server(s)</string>
 
     <!-- Profile -->
@@ -102,13 +102,14 @@
     <string name="profile_metric_plan_quota">PLAN QUOTA</string>
     <string name="profile_metric_trial_access">TRIAL ACCESS</string>
     <string name="profile_metric_used">USED</string>
-    <string name="profile_trial_unlimited_note">Trial access is shown as unlimited while the trial is active.</string>
+    <string name="profile_trial_access_active">PREMIUM TRIAL</string>
+    <string name="profile_trial_unlimited_note">Premium servers and assigned configs are available while the trial is active.</string>
     <string name="profile_quota_provider_managed">PROVIDER MANAGED</string>
     <string name="profile_quota_provider_managed_note">Quota and expiry come from the assigned provider config.</string>
-    <string name="profile_quota_freemium">FREE / IMPORTED</string>
-    <string name="profile_quota_freemium_note">Premium quota is inactive. Imported configs remain available.</string>
-    <string name="active_config_source_managed">SWIMVPN Managed</string>
-    <string name="active_config_source_imported">Imported Config</string>
+    <string name="profile_quota_freemium">PREMIUM INACTIVE</string>
+    <string name="profile_quota_freemium_note">No active premium quota. Imported configs remain separate and available.</string>
+    <string name="active_config_source_managed">Premium</string>
+    <string name="active_config_source_imported">Imported</string>
     <string name="active_config_protocol">Protocol</string>
     <string name="active_config_provider">Provider</string>
     <string name="active_config_expiration">Config expiration</string>

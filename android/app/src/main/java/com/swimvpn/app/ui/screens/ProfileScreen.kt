@@ -271,7 +271,7 @@ private fun SwimVpnAccessCard(
     val showMeasuredAnalytics = isActiveSubscription && hasMeasuredLimit
     val quotaValue = when {
         showMeasuredAnalytics -> formatBytes(profile.dataLimitBytes)
-        isActiveTrial -> stringResource(R.string.label_unlimited)
+        isActiveTrial -> stringResource(R.string.profile_trial_access_active)
         isActiveSubscription -> stringResource(R.string.profile_quota_provider_managed)
         else -> stringResource(R.string.profile_quota_freemium)
     }

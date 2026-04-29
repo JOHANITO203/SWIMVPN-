@@ -567,8 +567,9 @@ export class CustomerService {
 
     if (order.status !== OrderStatus.PENDING) {
       return {
-        success: true,
+        success: false,
         alreadyProcessed: true,
+        currentStatus: order.status,
         orderRef: data.orderRef,
         customerEmail: order.customer.email,
         planName: order.plan.name,
@@ -615,9 +616,14 @@ export class CustomerService {
     if (!order) return { success: false, error: 'Order not found' };
     if (
       order.status !== OrderStatus.PENDING &&
-      order.status !== OrderStatus.PENDING_FULFILLMENT
+      order.status !== OrderStatus.PENDING_FULFILLMENT &&
+      order.status !== OrderStatus.PAID
     ) {
-      return { success: true, alreadyProcessed: true };
+      return {
+        success: order.status === OrderStatus.FULFILLED,
+        alreadyProcessed: true,
+        currentStatus: order.status,
+      };
     }
 
     await this.prisma.order.update({

@@ -83,8 +83,8 @@
     <!-- Servers -->
     <string name="title_locations">ЛОКАЦИИ</string>
     <string name="search_hint">Поиск локации</string>
-    <string name="server_group_access">Серверы доступа</string>
-    <string name="server_group_backend_count">%1$d сервер(ов) backend</string>
+    <string name="server_group_access">Premium серверы</string>
+    <string name="server_group_backend_count">%1$d premium сервер(ов)</string>
     <string name="server_group_imported_count">%1$d импортирован(ных) сервер(ов)</string>
 
     <!-- Profile -->
@@ -102,13 +102,14 @@
     <string name="profile_metric_plan_quota">КВОТА ПЛАНА</string>
     <string name="profile_metric_trial_access">ПРОБНЫЙ ДОСТУП</string>
     <string name="profile_metric_used">ИСПОЛЬЗОВАНО</string>
-    <string name="profile_trial_unlimited_note">Пробный доступ отображается как безлимитный, пока действует пробный период.</string>
+    <string name="profile_trial_access_active">PREMIUM ПРОБНЫЙ</string>
+    <string name="profile_trial_unlimited_note">Premium серверы и назначенные конфигурации доступны, пока пробный период активен.</string>
     <string name="profile_quota_provider_managed">УПРАВЛЯЕТСЯ ПРОВАЙДЕРОМ</string>
     <string name="profile_quota_provider_managed_note">Квота и срок действия берутся из назначенной конфигурации провайдера.</string>
-    <string name="profile_quota_freemium">БЕСПЛАТНО / ИМПОРТ</string>
-    <string name="profile_quota_freemium_note">Премиум-квота неактивна. Импортированные конфигурации остаются доступными.</string>
-    <string name="active_config_source_managed">Под управлением SWIMVPN</string>
-    <string name="active_config_source_imported">Импортированная конфигурация</string>
+    <string name="profile_quota_freemium">PREMIUM НЕАКТИВЕН</string>
+    <string name="profile_quota_freemium_note">Активной premium-квоты нет. Импортированные конфигурации остаются отдельными и доступными.</string>
+    <string name="active_config_source_managed">Premium</string>
+    <string name="active_config_source_imported">Импорт</string>
     <string name="active_config_protocol">Протокол</string>
     <string name="active_config_provider">Провайдер</string>
     <string name="active_config_expiration">Срок конфигурации</string>

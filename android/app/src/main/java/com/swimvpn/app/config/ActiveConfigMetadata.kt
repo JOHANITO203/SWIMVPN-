@@ -2,6 +2,7 @@ package com.swimvpn.app.config
 
 import com.swimvpn.app.config.subscriptionparser.ParsedSubscription
 import com.swimvpn.app.config.subscriptionparser.ParsedVpnProfile
+import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ServerNode
 
 enum class ActiveConfigSource {
@@ -139,6 +140,31 @@ data class ActiveConfigMetadata(
                 displayName = displayName,
                 protocol = server.protocol.takeIf { it.isNotBlank() },
                 serverHost = server.host.takeIf { it.isNotBlank() },
+            )
+        }
+
+        fun fromManagedProfile(
+            profile: AccessProfileResponse,
+            server: ServerNode?,
+        ): ActiveConfigMetadata {
+            val base = server?.let { fromManagedServer(it, profile.isPremiumAllowed) }
+            val displayName = profile.planDisplayName
+                ?: base?.displayName
+                ?: profile.offerCode
+                ?: "SWIMVPN Premium"
+            val totalBytes = profile.dataLimitBytes.takeIf { profile.hasMeasuredLimit }
+
+            return (base ?: ActiveConfigMetadata(
+                source = ActiveConfigSource.SWIMVPN_MANAGED,
+                isActive = profile.isPremiumAllowed,
+                displayName = displayName,
+            )).copy(
+                isActive = profile.isPremiumAllowed,
+                displayName = displayName,
+                providerName = profile.supplierProviderName ?: base?.providerName,
+                trafficUsedBytes = profile.parsedDataUsedBytes.takeIf { totalBytes != null || it > 0L },
+                trafficTotalBytes = totalBytes,
+                expiresAt = profile.supplierExpiresAt ?: profile.effectiveExpiryAt,
             )
         }
     }

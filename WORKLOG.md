@@ -1913,3 +1913,26 @@ pm run build PASSED.
 - **Note**:
   - The generated local APK is unsigned; a signed release must be produced before device QA.
   - The untracked `adb-captures/package-dumpsys-current.txt` is an ADB diagnostic artifact, not source code.
+
+## [2026-04-29] [Release Import Metadata + Manual Payment Audit Fix]
+- **Status**: DONE
+- **Runtime evidence**:
+  - ADB import of `https://wb.routerwb.ru/jtz5386jCHkztYRZ` on the signed release parsed and imported 11 configs, then failed to read local profiles because R8 stripped Gson TypeToken generic signature metadata.
+  - The provider URL returns quota/expiry through `subscription-userinfo` headers: used/download bytes, total bytes, expiry epoch, and update interval.
+- **Changes**:
+  - Hardened release ProGuard/R8 rules for Gson `TypeToken` and generic signatures.
+  - Android subscription URL imports now preserve `subscription-userinfo` and `profile-update-interval` response metadata.
+  - Imported config metadata now carries traffic used, total quota, expiry, provider/source URL, and update interval into persisted profiles.
+  - Premium managed active config metadata now merges backend profile quota/expiry/provider fields instead of using server catalog rows only.
+  - Updated Access/Profile copy to use `Premium` and `Imported`, and removed misleading `FREE / IMPORTED` / trial `UNLIMITED` labels.
+  - Hardened manual card proof bot flow against duplicate screenshot loops and restart-lost contact confirmation state.
+  - Manual card approve/reject paths now report already-processed order status more truthfully and avoid rejection emails when no rejection transition happened.
+- **Verification**:
+  - `cd android && .\gradlew.bat :app:testDebugUnitTest --tests "*SubscriptionParserTest" --tests "*ActiveConfigMetadataMappingTest" --console=plain` PASSED.
+  - `cd android && .\gradlew.bat :app:assembleRelease --console=plain` PASSED, including `minifyReleaseWithR8`.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+  - `cd backend && npm run test:policy` PASSED.
+- **Note**:
+  - Local release output remains `app-release-unsigned.apk`; final ADB verification of the fixed release requires signing with the production key before installing over the user's signed APK.
+  - Manual Telegram approval/rejection still requires live bot/admin-group QA because the terminal cannot act as the Telegram user/admin review group.

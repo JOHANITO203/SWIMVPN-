@@ -42,6 +42,7 @@ data class AccessProfileResponse(
     val dataLimitGB: Double,
     val dataUsedBytes: String,
     val fulfillmentStatus: String? = null,
+    val supplierProviderName: String? = null,
     val supplierExpiresAt: String? = null,
     val profileCompletionRequired: Boolean,
     val trialEligible: Boolean

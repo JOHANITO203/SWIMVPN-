@@ -9,6 +9,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.swimvpn.app.config.subscriptionparser.SubscriptionHeaderMetadata
+import com.swimvpn.app.config.subscriptionparser.SubscriptionMetadataParser
 import com.swimvpn.app.config.subscriptionparser.SubscriptionParser
 import com.swimvpn.app.data.local.DeviceIdentityProvider
 import com.swimvpn.app.data.local.PreferencesManager
@@ -95,6 +97,8 @@ class ConfigRepository(private val context: Context) {
                         resolution = ResolvedImportInput.DirectConfig(
                             payload = fetched.payload,
                             warnings = resolution.warnings + fetched.warnings,
+                            sourceUrl = resolution.url,
+                            headerMetadata = fetched.headerMetadata,
                         ),
                         sourceType = SourceType.SUBSCRIPTION_URL,
                     )
@@ -420,6 +424,8 @@ class ConfigRepository(private val context: Context) {
         val parsedSubscription = SubscriptionParser.parse(
             input = resolution.payload,
             sourceType = sourceType,
+            sourceUrl = resolution.sourceUrl,
+            headerMetadata = resolution.headerMetadata,
         )
         val existingProfiles = getAllProfiles()
         val warnings = (resolution.warnings + parsedSubscription.warnings).toMutableList()
@@ -553,12 +559,19 @@ class ConfigRepository(private val context: Context) {
                     }
                     val raw = body.string().take(MAX_SUBSCRIPTION_CHARS)
                     val normalized = normalizeSubscriptionPayload(raw)
+                    val headerMetadata = SubscriptionMetadataParser.parseHttpHeaders(
+                        subscriptionUserInfo = response.header("subscription-userinfo"),
+                        profileUpdateInterval = response.header("profile-update-interval"),
+                        sourceUrl = url,
+                    )
                     val result = SubscriptionFetchResult(
                         payload = normalized.payload,
+                        headerMetadata = headerMetadata.takeIf { it.hasValues },
                         warnings = buildList {
                             add("Fetched remote subscription URL")
                             add("Subscription fetched with ${attempt.label}")
                             addAll(normalized.warnings)
+                            addAll(headerMetadata.warnings)
                             if (raw.length >= MAX_SUBSCRIPTION_CHARS) {
                                 add("Subscription response was truncated to $MAX_SUBSCRIPTION_CHARS characters")
                             }
@@ -766,6 +779,7 @@ private const val MAX_SUBSCRIPTION_CHARS = 1_000_000
 
 private data class SubscriptionFetchResult(
     val payload: String,
+    val headerMetadata: SubscriptionHeaderMetadata? = null,
     val warnings: List<String> = emptyList(),
 )
 
@@ -783,6 +797,8 @@ private sealed class ResolvedImportInput {
     data class DirectConfig(
         val payload: String,
         val warnings: List<String> = emptyList(),
+        val sourceUrl: String? = null,
+        val headerMetadata: SubscriptionHeaderMetadata? = null,
     ) : ResolvedImportInput()
 
     data class SubscriptionUrl(

@@ -59,6 +59,23 @@ internal data class ParsedSubscriptionMetadata(
     val warnings: List<String> = emptyList(),
 )
 
+data class SubscriptionHeaderMetadata(
+    val providerName: String? = null,
+    val trafficUsedBytes: Long? = null,
+    val trafficTotalBytes: Long? = null,
+    val expiresAt: String? = null,
+    val autoUpdateIntervalHours: Int? = null,
+    val warnings: List<String> = emptyList(),
+) {
+    val hasValues: Boolean
+        get() = providerName != null ||
+            trafficUsedBytes != null ||
+            trafficTotalBytes != null ||
+            expiresAt != null ||
+            autoUpdateIntervalHours != null ||
+            warnings.isNotEmpty()
+}
+
 internal data class DecodedPayload(
     val payload: String,
     val warnings: List<String> = emptyList(),
