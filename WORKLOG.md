@@ -2017,3 +2017,21 @@ pm run build PASSED.
     - `cd backend && npm run build:all` PASSED.
 - **Note**:
     - Live Telegram QA still requires Dokploy env `ADMIN_USER_IDS` to contain the allowed human Telegram user IDs, then redeploy `admin-control-service`.
+
+## [2026-04-30] [Docker Prisma Migrate Startup Fix]
+- **Status**: DONE
+- **Problem**: Docker/Dokploy stopped at `prisma-migrate` with exit 1, blocking all app tests.
+- **Root Cause**:
+    - Root `docker-compose.yml` rebuilt `DATABASE_URL` from raw `POSTGRES_PASSWORD`; the current password contains URL-sensitive characters, so Prisma failed with `P1013 invalid port number in database URL`.
+    - The new migration `20260430093000_resale_cap_two_orders` also contained a UTF-8 BOM, causing PostgreSQL to fail at `syntax error at or near "﻿ALTER"`.
+- **Changes**:
+    - Updated all root compose backend services to consume `${DATABASE_URL}` directly instead of reconstructing it from raw Postgres credentials.
+    - Rewrote `backend/prisma/migrations/20260430093000_resale_cap_two_orders/migration.sql` without BOM while preserving its SQL logic.
+- **Verification**:
+    - `docker compose build prisma-migrate` PASSED.
+    - `docker compose run --rm --no-deps prisma-migrate npx prisma migrate resolve --rolled-back 20260430093000_resale_cap_two_orders` PASSED locally after the failed attempt.
+    - `docker compose run --rm --no-deps prisma-migrate npm run prisma:migrate:deploy` PASSED.
+    - `docker compose build prisma-seed` PASSED.
+    - `docker compose up prisma-seed --abort-on-container-exit --exit-code-from prisma-seed` PASSED.
+- **Production note**:
+    - If Dokploy already recorded the failed migration before this fix, run the same one-time Prisma resolve command on the VPS/Dokploy shell before redeploying.

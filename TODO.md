@@ -692,3 +692,10 @@ u after each future language batch
 - [DONE] `/add basic|premium|platinum <config-or-url>` imports supplier configs through `inventory-delivery-service` with `maxResaleSlots = 2` and supplier device metadata defaulting to 5.
 - [DONE] Root `docker-compose.yml` passes `ADMIN_USER_IDS` into `admin-control-service`.
 - Next: implement the richer admin wizard/accounting ledger only after live Telegram QA proves the secure import MVP works.
+
+## [2026-04-30] Dokploy Prisma Migration Recovery
+- If Dokploy already failed on migration `20260430093000_resale_cap_two_orders`, run once after pulling the fixed code/image:
+  - `docker compose run --rm prisma-migrate npx prisma migrate resolve --rolled-back 20260430093000_resale_cap_two_orders`
+- Then redeploy or run:
+  - `docker compose run --rm prisma-migrate npm run prisma:migrate:deploy`
+- Keep `DATABASE_URL` URL-encoded in Dokploy env. Do not rely on composing it from raw `POSTGRES_PASSWORD` when the password contains `@`, `#`, `/`, `:` or similar URL-sensitive characters.

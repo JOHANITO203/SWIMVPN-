@@ -1,4 +1,4 @@
-﻿ALTER TABLE "InventoryItem"
+ALTER TABLE "InventoryItem"
   ALTER COLUMN "max_resale_slots" SET DEFAULT 2;
 
 UPDATE "Plan"
