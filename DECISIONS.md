@@ -806,3 +806,21 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `PAYMENT_REVIEW_CHAT_ID` can remain the group that receives proof packets.
   - `ADMIN_USER_IDS` can be added for stricter personal admin allow-listing.
   - Ordinary private chats remain unauthorized.
+
+## [2026-04-29] [Resale Slot Means One Customer Order]
+- **Decision**: Supplier resale capacity is counted per customer order, not by commercial plan tier. Basic, Premium, and Platinum each consume exactly one resale slot on one supplier config link.
+- **Why**: A supplier link can technically work on up to 5 devices, but SWIMVPN intentionally resells it to at most 4 customer orders and keeps one supplier device capacity unused as a quality buffer.
+- **Impact**:
+  - `max_resale_slots` remains `4` for every supplier config.
+  - `supplier_device_limit` may remain `5` as provider metadata.
+  - The old `Basic=1`, `Premium=2`, `Platinum=4` slot-consumption rule must be replaced in a later implementation batch.
+  - Plan category continues to select the inventory bucket and commercial offer, not the number of resale slots consumed.
+
+## [2026-04-29] [Supplier Link Resale Cap Is Two Orders]
+- **Decision**: Every supplier config link may be resold to at most two customer orders, regardless of whether the provider technically supports up to five devices.
+- **Why**: The product should not be greedy with shared provider capacity. Limiting resale to two customer orders preserves performance and makes the customer-facing promise `up to 2 devices` easier to reason about.
+- **Impact**:
+  - `max_resale_slots` should become `2` for supplier configs.
+  - Every paid order still consumes one resale slot.
+  - Basic, Premium, and Platinum remain commercial/inventory categories, not different resale-slot multipliers.
+  - The subscription UI should advertise `up to 2 devices` for each plan.

@@ -125,6 +125,7 @@ fun SubscriptionScreen(
                 price = formatPlanPrice(plan.priceRub),
                 quota = plan.quotaLabel,
                 duration = plan.durationLabel,
+                deviceAllowance = stringResource(R.string.plan_devices_up_to_two),
                 isSelected = selectedPlanId == plan.id,
                 badge = localizedPlanCode(plan.code),
                 badgeColor = badgeColor,
@@ -296,6 +297,7 @@ fun PlanCard(
     price: String,
     quota: String,
     duration: String,
+    deviceAllowance: String,
     isSelected: Boolean,
     badge: String,
     badgeColor: Color,
@@ -353,6 +355,8 @@ fun PlanCard(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(duration, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(deviceAllowance, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(price, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, fontSize = 24.sp)
             }

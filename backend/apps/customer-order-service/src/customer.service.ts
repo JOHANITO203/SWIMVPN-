@@ -10,8 +10,8 @@ import {
   ActivateTrialDto,
   CompleteProfileDto,
   CreateCheckoutDto,
+  getPlanDeviceAllowance,
   getPublicPlanName,
-  getPlanSlotCount,
   ReportUsageDto,
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
@@ -320,11 +320,7 @@ export class CustomerService {
       subscriptionUrl: exposeRuntimeConfig && this.isPremiumAllowed(entitlementState)
         ? (inventoryItem?.raw_config || null)
         : null,
-      devicesAllowed: latestOrder
-        ? isTrialOrder
-          ? 1
-          : getPlanSlotCount(latestOrder.plan.code)
-        : 0,
+      devicesAllowed: latestOrder ? getPlanDeviceAllowance(latestOrder.plan.code) : 0,
       fulfillmentStatus,
       dataLimitGB: isTrialOrder ? 0 : measuredDataLimitGb,
       dataUsedBytes: isTrialOrder ? '0' : measuredDataUsedBytes,

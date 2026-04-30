@@ -10,7 +10,8 @@ data class Plan(
     @SerializedName("quota_label") val quotaLabel: String,
     @SerializedName("price_rub") val priceRub: String, // Decimal usually comes as string in JSON
     @SerializedName("active") val active: Boolean,
-    @SerializedName("display_order") val displayOrder: Int
+    @SerializedName("display_order") val displayOrder: Int,
+    @SerializedName("slot_count") val slotCount: Int? = null
 )
 
 data class CreateOrderRequest(

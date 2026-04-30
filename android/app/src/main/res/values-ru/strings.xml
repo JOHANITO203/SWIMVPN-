@@ -206,6 +206,7 @@
     <string name="plan_code_week">НЕДЕЛЯ</string>
     <string name="plan_code_month">МЕСЯЦ</string>
     <string name="plan_code_quarter">КВАРТАЛ</string>
+    <string name="plan_devices_up_to_two">До 2 устройств</string>
     <string name="no_plans_available">Сейчас нет активных предложений.</string>
     <string name="order_created_pending_payment">Заказ %1$s создан.</string>
 

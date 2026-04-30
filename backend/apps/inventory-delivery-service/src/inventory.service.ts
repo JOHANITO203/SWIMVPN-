@@ -5,7 +5,7 @@ import { ImportConfigsDto } from '@app/contracts/inventory.dto';
 import {
   DEFAULT_RESALE_SLOT_CAP,
   DEFAULT_SUPPLIER_DEVICE_LIMIT,
-  getPlanSlotCount,
+  getPlanResaleSlotCount,
   SwimVpnProfile,
 } from '@app/contracts';
 import { firstValueFrom } from 'rxjs';
@@ -777,7 +777,7 @@ export class InventoryService {
       return 1;
     }
 
-    return getPlanSlotCount(planCode);
+    return getPlanResaleSlotCount(planCode);
   }
 
   private getEffectiveQuotaLabel(order: { payment_ref?: string | null; order_ref: string; plan: { quota_label: string } }) {

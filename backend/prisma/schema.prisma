@@ -115,7 +115,7 @@ model InventoryItem {
   assigned_at              DateTime?
   source_quota_bytes       BigInt?
   source_used_bytes        BigInt                @default(0)
-  max_resale_slots         Int                   @default(4)
+  max_resale_slots         Int                   @default(2)
   used_resale_slots        Int                   @default(0)
   supplier_expires_at      DateTime?
   supplier_provider_name   String?

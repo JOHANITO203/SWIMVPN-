@@ -206,6 +206,7 @@
     <string name="plan_code_week">WEEK</string>
     <string name="plan_code_month">MONTH</string>
     <string name="plan_code_quarter">QUARTER</string>
+    <string name="plan_devices_up_to_two">Up to 2 devices</string>
     <string name="no_plans_available">No active offers are available right now.</string>
     <string name="order_created_pending_payment">Order %1$s created.</string>
 

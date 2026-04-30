@@ -1968,3 +1968,34 @@ pm run build PASSED.
     - `cd backend && npm run lint` PASSED.
     - `cd backend && npm run test:policy` PASSED.
     - `cd backend && npm run build:all` PASSED.
+
+## [2026-04-29] [Admin Operations Bot Option B Design]
+- **Status**: SPEC_READY
+- **Changes**:
+    - Wrote the Admin Operations Bot and Resale Ledger design spec.
+    - Captured the corrected supplier resale rule: one customer order consumes one resale slot; every supplier config can be resold to max 4 orders even when supplier device limit is 5.
+    - Confirmed `TELEGRAM_BOT_TOKEN` / `admin-control-service` should become the secure Admin Operations Bot, while `NOTIFICATION_BOT_TOKEN` remains payment/proof/email delivery and `ADMIN_SUPPORT_BOT_TOKEN` remains support.
+- **Spec**: `docs/superpowers/specs/2026-04-29-admin-operations-bot-and-resale-ledger-design.md`
+
+## [2026-04-29] [Supplier Resale Cap Finalized At Two Orders]
+- **Status**: SPEC_UPDATED
+- **Changes**:
+    - Updated the Admin Operations Bot design spec from max 4 resale orders per supplier link to max 2 resale orders per supplier link.
+    - Captured the final UI truth: every subscription plan may advertise up to 2 devices.
+    - Preserved the backend accounting truth: one paid customer order consumes one resale slot; a supplier link stops accepting new orders after two resale slots are used.
+- **Spec**: `docs/superpowers/specs/2026-04-29-admin-operations-bot-and-resale-ledger-design.md`
+
+## [2026-04-30] [Resale Cap Final Alignment Implementation]
+- **Status**: DONE
+- **Changes**:
+    - Aligned backend policy with the final product truth: one paid customer order consumes one resale slot and each supplier config defaults to max two resale orders.
+    - Split resale slot semantics from customer-facing device allowance: backend allocation uses one resale slot per order, while profile/subscription UI can display up to two devices.
+    - Updated plan seed slot counts to `1` for Basic, Premium, and Platinum.
+    - Added Prisma migration `20260430093000_resale_cap_two_orders` to set inventory default max resale slots to `2`, normalize plan/assignment slot counts to `1`, recalculate used resale slots, and refresh health status while preserving expired/disabled states.
+    - Updated Android subscription cards to show `Up to 2 devices` / `Jusqu’à 2 appareils` / `?? 2 ?????????`.
+- **Verification**:
+    - `cd backend && npm run prisma:validate` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+    - `cd android && .\gradlew.bat :app:processDebugResources :app:compileDebugKotlin --no-daemon` PASSED.

@@ -679,3 +679,26 @@ u after each future language batch
   - delivery email record is created
   - Resend sends email or logs `EMAIL_FAILED`
   - reject marks pending order failed and sends rejection email
+
+## Admin Operations Bot Implementation Plan Needed
+- Convert the approved Option B design into an implementation plan.
+- First implementation batch must align resale slot semantics:
+  - Basic/Premium/Platinum each consume one resale slot per paid order.
+  - `max_resale_slots` remains 4.
+  - `supplier_device_limit` remains provider metadata, usually 5.
+  - Update `getPlanSlotCount`, seed/runtime mapping, and supplier capacity tests accordingly.
+- Then implement secure Admin Operations Bot modules in `admin-control-service` using `TELEGRAM_BOT_TOKEN` and `ADMIN_USER_IDS`.
+
+## Resale Cap Final Alignment
+- First implementation batch must replace the current code truth with the final product truth:
+  - `DEFAULT_RESALE_SLOT_CAP = 2`.
+  - Basic/Premium/Platinum each consume one resale slot per paid order.
+  - Subscription UI displays up to 2 devices for each plan.
+  - Capacity tests must prove a supplier config accepts at most two paid orders.
+
+## Resale Cap Alignment Completed
+- [DONE] `DEFAULT_RESALE_SLOT_CAP` is now `2`.
+- [DONE] Basic/Premium/Platinum each consume one resale slot per paid order.
+- [DONE] Subscription UI displays up to 2 devices for each plan.
+- [DONE] Prisma migration added to normalize existing plan/assignment slot counts and inventory resale caps.
+- Next: implement the secure Admin Operations Bot inventory import wizard.
