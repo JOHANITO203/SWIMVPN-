@@ -1,4 +1,5 @@
 import {
+  ADMIN_BOT_COMMANDS,
   formatAccountingSummary,
   formatInventoryOverview,
   formatImportWizardCategoryPrompt,
@@ -115,5 +116,22 @@ assert(isImportWizardConfirm('confirm'), 'confirm text must confirm wizard');
 assert(isImportWizardConfirm('yes'), 'yes text must confirm wizard');
 assert(isImportWizardCancel('cancel'), 'cancel text must cancel wizard');
 assert(isImportWizardCancel('/cancel_import'), 'cancel command must cancel wizard');
+
+assert(
+  ADMIN_BOT_COMMANDS.some((command) => command.command === 'add_wizard'),
+  'telegram command menu must expose add_wizard',
+);
+assert(
+  ADMIN_BOT_COMMANDS.some((command) => command.command === 'stock'),
+  'telegram command menu must expose stock',
+);
+assert(
+  ADMIN_BOT_COMMANDS.every((command) => /^[a-z0-9_]{1,32}$/.test(command.command)),
+  'telegram commands must use valid bot command names',
+);
+assert(
+  ADMIN_BOT_COMMANDS.every((command) => command.description.length > 0 && command.description.length <= 256),
+  'telegram command descriptions must be present and valid',
+);
 
 console.log('admin bot formatter tests passed');

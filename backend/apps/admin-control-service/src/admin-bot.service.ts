@@ -8,6 +8,7 @@ import { Telegraf } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
 import { isAdminBotAuthorized, parseAdminUserIds } from './admin-bot-auth';
 import {
+  ADMIN_BOT_COMMANDS,
   formatAccountingSummary,
   formatImportWizardCategoryPrompt,
   formatImportWizardConfigPrompt,
@@ -57,7 +58,8 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     if (!this.bot) return;
     this.setupMiddleware();
     this.setupCommands();
-    this.bot.launch().then(() => {
+    this.bot.launch().then(async () => {
+      await this.registerTelegramCommandMenu();
       this.logger.log('Admin operations bot started');
     });
   }
@@ -445,6 +447,16 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     this.bot.catch((error, ctx) => {
       this.logger.error(`Telegraf error for ${ctx.updateType}:`, error as Error);
     });
+  }
+
+  private async registerTelegramCommandMenu() {
+    if (!this.bot) return;
+    try {
+      await this.bot.telegram.setMyCommands(ADMIN_BOT_COMMANDS);
+      this.logger.log(`Registered ${ADMIN_BOT_COMMANDS.length} Telegram admin bot commands`);
+    } catch (error) {
+      this.logger.error('Failed to register Telegram admin bot commands', error as Error);
+    }
   }
 
   private helpText() {

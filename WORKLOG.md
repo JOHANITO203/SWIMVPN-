@@ -2107,3 +2107,19 @@ pm run build PASSED.
     - `cd backend && npm run build:all` PASSED.
 - **Note**:
     - This is not a supplier-side revocation system. It updates backend visibility/access status from supplier expiry/health truth so expired/degraded configs stop being treated as healthy.
+
+## [2026-04-30] [Admin Bot Telegram Slash Menu Registration]
+- **Status**: DONE
+- **Problem**: Telegram slash menu showed no commands even though command handlers existed.
+- **Root Cause**: The admin bot registered Telegraf handlers but never called Telegram `setMyCommands`, so Telegram clients had no command menu metadata.
+- **Changes**:
+    - Added `ADMIN_BOT_COMMANDS` command menu definition.
+    - Registered commands on bot launch with `bot.telegram.setMyCommands(...)`.
+    - Kept registration failure non-fatal so temporary Telegram API failure does not stop the bot.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-formatter.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Live QA**:
+    - Redeploy `admin-control-service`, reopen Telegram chat, type `/`, and verify commands appear.

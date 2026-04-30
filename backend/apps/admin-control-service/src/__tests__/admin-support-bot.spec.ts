@@ -1,4 +1,5 @@
 import {
+  ADMIN_SUPPORT_BOT_COMMANDS,
   buildTicketId,
   extractOptionalFields,
   formatAdminSupportReportMessage,
@@ -46,5 +47,18 @@ assert((fields.orderRef || '').toUpperCase().includes('SW12345'), 'orderRef extr
 
 const ticket = buildTicketId(new Date('2026-04-22T00:00:00.000Z'));
 assert(ticket.startsWith('SUP-20260422-'), 'ticket prefix failed');
+
+assert(
+  ADMIN_SUPPORT_BOT_COMMANDS.some((command) => command.command === 'start'),
+  'support bot command menu must expose start',
+);
+assert(
+  ADMIN_SUPPORT_BOT_COMMANDS.some((command) => command.command === 'help'),
+  'support bot command menu must expose help',
+);
+assert(
+  ADMIN_SUPPORT_BOT_COMMANDS.every((command) => /^[a-z0-9_]{1,32}$/.test(command.command)),
+  'support bot commands must use valid Telegram command names',
+);
 
 console.log('admin support bot tests passed');

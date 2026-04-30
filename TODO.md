@@ -740,3 +740,16 @@ u after each future language batch
   - `INVENTORY_HEALTHCHECK_INTERVAL_MS=0` disables scheduler
   - `INVENTORY_HEALTHCHECK_INTERVAL_MS=600000` runs every 10 minutes
 - Keep `/healthcheck` available as a manual admin command for emergency checks.
+
+## Admin Bot Slash Menu Retest
+- After redeploying `admin-control-service`, open the admin bot chat and type `/`.
+- Verify Telegram shows commands including:
+  - `/stock`
+  - `/add_wizard`
+  - `/pending`
+  - `/retry`
+  - `/add_expense`
+  - `/profit_month`
+  - `/healthcheck`
+- If commands do not appear immediately, close/reopen Telegram or send `/help`; Telegram clients can cache command menus briefly.
+- Check logs for `Registered 18 Telegram admin bot commands`.

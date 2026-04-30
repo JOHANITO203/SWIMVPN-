@@ -24,6 +24,27 @@ const CATEGORY_LABELS: Record<string, string> = {
   QUARTER: 'Platinum',
 };
 
+export const ADMIN_BOT_COMMANDS = [
+  { command: 'help', description: 'Show admin command list' },
+  { command: 'status', description: 'Check admin bot status' },
+  { command: 'stock', description: 'Show inventory by plan bucket' },
+  { command: 'add_wizard', description: 'Guided supplier config import' },
+  { command: 'import', description: 'Show direct import instructions' },
+  { command: 'pending', description: 'Show orders waiting for capacity' },
+  { command: 'retry', description: 'Retry one order or all pending orders' },
+  { command: 'orders', description: 'Show recent orders' },
+  { command: 'orders_today', description: 'Show today order count' },
+  { command: 'revenue_today', description: 'Show today revenue' },
+  { command: 'add_expense', description: 'Record a manual business expense' },
+  { command: 'profit_month', description: 'Show current month profit' },
+  { command: 'expire', description: 'Mark supplier config expired' },
+  { command: 'disable', description: 'Disable supplier config' },
+  { command: 'quota_reached', description: 'Mark supplier quota exhausted' },
+  { command: 'healthcheck', description: 'Run inventory health check' },
+  { command: 'cancel_import', description: 'Cancel guided config import' },
+  { command: 'users', description: 'Show customer statistics' },
+];
+
 export function mapBotPlanInputToCategory(input: string): PlanCategory | null {
   switch (input.trim().toLowerCase()) {
     case 'basic':
