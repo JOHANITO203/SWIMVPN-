@@ -9,7 +9,7 @@ import {
   buildManualPaymentContactReviewText,
   parseManualPaymentConfirmation,
 } from './manual-card-confirmation';
-import { isTelegramAdminContext, parseAdminUserIds } from './telegram-admin-auth';
+import { isTelegramAdminContext, normalizeTelegramId, parseAdminUserIds } from './telegram-admin-auth';
 import { NOTIFICATION_BOT_COMMANDS, formatTelegramCommandHelp } from './telegram-command-menu';
 
 @Injectable()
@@ -29,7 +29,9 @@ export class TelegramCommandService implements OnModuleInit {
     private readonly notificationService: NotificationService,
     @Inject('CUSTOMER_SERVICE') private readonly customerClient: ClientProxy,
   ) {
-    const token = this.configService.get<string>('NOTIFICATION_BOT_TOKEN');
+    const token =
+      this.configService.get<string>('PAYMENT_BOT_TOKEN')?.trim() ||
+      this.configService.get<string>('NOTIFICATION_BOT_TOKEN')?.trim();
     this.adminChatId = this.configService.get<string>('ADMIN_CHAT_ID');
     this.reviewChatId =
       this.configService.get<string>('PAYMENT_REVIEW_CHAT_ID') || this.adminChatId;
@@ -37,7 +39,7 @@ export class TelegramCommandService implements OnModuleInit {
     this.adminUserIds = parseAdminUserIds(this.configService.get<string>('ADMIN_USER_IDS'));
 
     if (!token || !this.adminChatId) {
-      this.logger.warn('Telegram command bot disabled: NOTIFICATION_BOT_TOKEN or ADMIN_CHAT_ID is missing');
+      this.logger.warn('Telegram command bot disabled: PAYMENT_BOT_TOKEN/NOTIFICATION_BOT_TOKEN or ADMIN_CHAT_ID is missing');
       return;
     }
 
@@ -113,7 +115,7 @@ export class TelegramCommandService implements OnModuleInit {
 
       const pending = this.pendingManualPayments.get(chatId) || await this.recoverPendingManualPayment(chatId, ctx.message.caption);
       if (!pending) {
-        await ctx.reply('Open the card payment flow from the SWIMVPN+ app first.');
+        await ctx.reply(this.missingManualPaymentContextMessage());
         return;
       }
 
@@ -205,7 +207,7 @@ export class TelegramCommandService implements OnModuleInit {
 
       const pending = this.pendingManualPayments.get(chatId) || await this.recoverPendingManualPayment(chatId, ctx.message.caption);
       if (!pending) {
-        await ctx.reply('Open the card payment flow from the SWIMVPN+ app first.');
+        await ctx.reply(this.missingManualPaymentContextMessage());
         return;
       }
 
@@ -692,6 +694,15 @@ export class TelegramCommandService implements OnModuleInit {
     return text.match(/\b(?:ORD|SW|TRIAL|CODE)-[A-Za-z0-9-]+/i)?.[0] || null;
   }
 
+  private missingManualPaymentContextMessage() {
+    return [
+      'Payment proof received, but no active order was found for this chat.',
+      '',
+      'Please open the card payment flow from the SWIMVPN+ app and send the proof here again.',
+      'If you already have an order reference, resend the screenshot with the order reference in the caption.',
+    ].join('\n');
+  }
+
   private async registerTelegramCommandMenu() {
     if (!this.bot) return;
     try {
@@ -703,11 +714,25 @@ export class TelegramCommandService implements OnModuleInit {
   }
 
   private formatWhoami(ctx: any) {
+    const fromId = normalizeTelegramId(ctx.from?.id);
+    const authorized = isTelegramAdminContext({
+      fromId,
+      chatId: ctx.chat?.id,
+      messageChatId: ctx.callbackQuery?.message?.chat?.id,
+      adminChatId: this.adminChatId,
+      reviewChatId: this.reviewChatId,
+      adminUserIds: this.adminUserIds,
+    });
+    const userInAllowList = !!fromId && this.adminUserIds.includes(fromId);
+
     return [
       'Telegram identity',
       `User id: ${ctx.from?.id || '-'}`,
       `Chat id: ${ctx.chat?.id || '-'}`,
       `Username: ${ctx.from?.username ? `@${ctx.from.username}` : '-'}`,
+      `Authorized: ${authorized ? 'yes' : 'no'}`,
+      `Configured admin ids: ${this.adminUserIds.length}`,
+      `Current user in ADMIN_USER_IDS: ${userInAllowList ? 'yes' : 'no'}`,
       '',
       'Add the User id to ADMIN_USER_IDS for admin commands.',
     ].join('\n');

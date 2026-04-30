@@ -6,7 +6,7 @@ import { DEFAULT_RESALE_SLOT_CAP, DEFAULT_SUPPLIER_DEVICE_LIMIT } from '@app/con
 import { AccountingEntrySource, AccountingEntryType } from '@prisma/client';
 import { Telegraf } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
-import { isAdminBotAuthorized, parseAdminUserIds } from './admin-bot-auth';
+import { isAdminBotAuthorized, normalizeTelegramId, parseAdminUserIds } from './admin-bot-auth';
 import {
   ADMIN_BOT_COMMANDS,
   formatAccountingSummary,
@@ -495,11 +495,23 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   private formatWhoami(ctx: any) {
+    const fromId = normalizeTelegramId(ctx.from?.id);
+    const authorized = isAdminBotAuthorized({
+      fromId,
+      chatId: ctx.chat?.id,
+      adminChatId: this.adminChatId,
+      adminUserIds: this.adminUserIds,
+    });
+    const userInAllowList = !!fromId && this.adminUserIds.includes(fromId);
+
     return [
       'Telegram identity',
       `User id: ${ctx.from?.id || '-'}`,
       `Chat id: ${ctx.chat?.id || '-'}`,
       `Username: ${ctx.from?.username ? `@${ctx.from.username}` : '-'}`,
+      `Authorized: ${authorized ? 'yes' : 'no'}`,
+      `Configured admin ids: ${this.adminUserIds.length}`,
+      `Current user in ADMIN_USER_IDS: ${userInAllowList ? 'yes' : 'no'}`,
       '',
       'Add the User id to ADMIN_USER_IDS for private admin commands.',
     ].join('\n');

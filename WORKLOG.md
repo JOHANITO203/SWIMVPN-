@@ -2145,3 +2145,41 @@ pm run build PASSED.
     - `cd backend && npm run build:all` PASSED.
 - **Live QA**:
     - Redeploy bot services, send `/whoami` to the admin/payment bot, copy `User id` into Dokploy `ADMIN_USER_IDS`, then retest private admin commands.
+
+## [2026-04-30] [Telegram Admin Identity Runtime Diagnostics]
+- **Status**: DONE
+- **Problem**: Dokploy showed `ADMIN_USER_IDS=7161959711`, but the admin bot still returned access denied in private chat.
+- **Evidence**: `/whoami` returned Telegram `User id: 7161959711`, so the sender id was known and stable.
+- **Changes**:
+    - Hardened Telegram id normalization for admin auth in Admin Operations Bot and Notification/Payment Bot.
+    - `ADMIN_USER_IDS` now tolerates quotes, semicolons, whitespace, and newlines while still accepting only numeric Telegram ids.
+    - `/whoami` now reports authorization diagnostics without exposing configured id values: `Authorized`, configured admin id count, and whether current user is in `ADMIN_USER_IDS`.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-auth.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/telegram-admin-auth.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Live QA**:
+    - After redeploy, `/whoami` must show `Authorized: yes` and `Current user in ADMIN_USER_IDS: yes` for user `7161959711`.
+    - If it still shows no, inspect the running container env because the service is not receiving the Dokploy value.
+
+## [2026-04-30] [Manual Payment Bot Token Alignment]
+- **Status**: DONE
+- **Problem**: Manual card proof handling could fail when checkout generated a Telegram link to one bot while `notification-bot-service` listened to another token.
+- **Root Cause**: `customer-order-service` could fall back to `TELEGRAM_BOT_TOKEN` for manual payment links, while the proof listener only used `NOTIFICATION_BOT_TOKEN`. This allowed payment proofs to land in a bot without the card-proof state machine.
+- **Changes**:
+    - Manual payment link routing now prefers `PAYMENT_BOT_USERNAME`, then `PAYMENT_BOT_TOKEN`, then `NOTIFICATION_BOT_TOKEN`.
+    - Manual payment routing no longer falls back to the admin `TELEGRAM_BOT_TOKEN`.
+    - `notification-bot-service` now listens on `PAYMENT_BOT_TOKEN` first, with `NOTIFICATION_BOT_TOKEN` as fallback.
+    - Root and backend compose files now pass `PAYMENT_BOT_TOKEN` into `notification-bot-service`.
+    - Screenshot uploads without order context now receive a clearer recovery message asking the user to reopen app payment or include the order reference as caption.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/customer-order-service/src/__tests__/payment-bot-routing.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/manual-card-confirmation.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/telegram-command-menu.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Live QA**:
+    - After redeploy, start card payment from the Android app, verify the Telegram link opens the payment bot, send a proof screenshot, confirm contact details, and verify the review packet lands in `PAYMENT_REVIEW_CHAT_ID`.

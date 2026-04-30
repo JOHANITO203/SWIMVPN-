@@ -1,4 +1,4 @@
-import { isTelegramAdminContext } from '../telegram-admin-auth';
+import { isTelegramAdminContext, parseAdminUserIds } from '../telegram-admin-auth';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -50,6 +50,16 @@ assert(
     adminUserIds: ['999'],
   }),
   'ADMIN_USER_IDS must authorize explicit Telegram user ids',
+);
+
+assert(
+  isTelegramAdminContext({
+    fromId: '7161959711',
+    chatId: '7161959711',
+    adminChatId: '-1003912107958',
+    adminUserIds: parseAdminUserIds('"7161959711"; 111\n222'),
+  }),
+  'quoted or multiline ADMIN_USER_IDS must authorize explicit Telegram user ids',
 );
 
 console.log('telegram admin auth tests passed');

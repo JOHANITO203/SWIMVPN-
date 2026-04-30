@@ -15,6 +15,11 @@ import {
   ReportUsageDto,
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
+import {
+  looksLikeTelegramBotToken,
+  normalizeConfiguredPaymentBotUsername,
+  selectManualPaymentBotToken,
+} from './payment-bot-routing';
 
 @Injectable()
 export class CustomerService {
@@ -1012,10 +1017,23 @@ export class CustomerService {
   }
 
   private async resolvePaymentBotUsername() {
-    const commandBotToken =
-      process.env.NOTIFICATION_BOT_TOKEN?.trim() ||
-      process.env.PAYMENT_BOT_TOKEN?.trim() ||
-      process.env.TELEGRAM_BOT_TOKEN?.trim();
+    const configuredUsername = normalizeConfiguredPaymentBotUsername(process.env.PAYMENT_BOT_USERNAME);
+    if (configuredUsername) {
+      return configuredUsername;
+    }
+
+    const configuredValue = process.env.PAYMENT_BOT_USERNAME?.trim();
+    if (configuredValue && looksLikeTelegramBotToken(configuredValue)) {
+      const resolvedUsername = await this.fetchTelegramBotUsername(configuredValue);
+      if (resolvedUsername) {
+        return resolvedUsername;
+      }
+    }
+
+    const commandBotToken = selectManualPaymentBotToken({
+      paymentBotToken: process.env.PAYMENT_BOT_TOKEN,
+      notificationBotToken: process.env.NOTIFICATION_BOT_TOKEN,
+    });
     if (commandBotToken) {
       const resolvedUsername = await this.fetchTelegramBotUsername(commandBotToken);
       if (resolvedUsername) {
@@ -1023,20 +1041,7 @@ export class CustomerService {
       }
     }
 
-    const configuredValue = process.env.PAYMENT_BOT_USERNAME?.trim();
-    if (configuredValue) {
-      if (this.looksLikeTelegramBotToken(configuredValue)) {
-        return this.fetchTelegramBotUsername(configuredValue);
-      }
-
-      return configuredValue.replace(/^@/, '');
-    }
-
     return null;
-  }
-
-  private looksLikeTelegramBotToken(value: string) {
-    return /^\d+:[A-Za-z0-9_-]{20,}$/.test(value);
   }
 
   private looksLikeEmail(value: string) {

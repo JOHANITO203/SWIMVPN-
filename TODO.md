@@ -766,3 +766,27 @@ u after each future language batch
   - Admin Operations Bot: `/stock`, `/add_wizard`, `/pending`
   - Notification/Payment Bot: `/help`, `/status <orderRef>`, `/resend <orderRef>`
 - Retest support bot menu with `/`, `/help`, `/language`, `/whoami`.
+
+## Telegram Admin Identity Runtime Retest
+- Redeploy backend bot services after the auth diagnostic patch.
+- Send `/whoami` to the Admin Operations Bot.
+- Expected for Telegram user `7161959711`:
+  - `Authorized: yes`
+  - `Configured admin ids: 1` or more
+  - `Current user in ADMIN_USER_IDS: yes`
+- If `Configured admin ids: 0`, Dokploy did not inject `ADMIN_USER_IDS` into the running bot service.
+- If `Configured admin ids` is non-zero but `Current user in ADMIN_USER_IDS: no`, re-check the exact value and separators in Dokploy env.
+- Then retest `/start`, `/stock`, and `/add_wizard`.
+
+## Manual Payment Bot Live QA
+- Ensure Dokploy env points manual payment to the dedicated payment bot:
+  - `PAYMENT_BOT_TOKEN=<payment bot token>`
+  - `PAYMENT_BOT_USERNAME=<payment bot username without @>`
+  - `PAYMENT_REVIEW_CHAT_ID=<admin review group id>`
+  - `ADMIN_USER_IDS=7161959711`
+- After redeploy, start card payment from Android and verify the checkout URL opens the same bot that accepts screenshots.
+- Send proof screenshot from the Telegram chat opened by the app.
+- Expected bot response: `Payment proof received.` followed by the email/phone/sender-phone confirmation prompt.
+- Reply with email, phone, and sender phone.
+- Verify `PAYMENT_REVIEW_CHAT_ID` receives the final review packet with approve/reject buttons.
+- Approve a test order and verify fulfillment/email delivery; reject another and verify rejection email/status.

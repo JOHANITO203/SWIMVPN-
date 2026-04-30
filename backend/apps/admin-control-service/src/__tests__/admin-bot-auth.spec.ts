@@ -12,12 +12,26 @@ assert(
 );
 
 assert(
+  parseAdminUserIds('"7161959711"; 222\n333').join('|') === '7161959711|222|333',
+  'admin user id parsing must tolerate quotes, semicolons, and newlines',
+);
+
+assert(
   isAdminBotAuthorized({
     fromId: '123',
     adminUserIds: ['123'],
     adminChatId: '-1003912107958',
   }),
   'explicit ADMIN_USER_IDS must authorize admin operations',
+);
+
+assert(
+  isAdminBotAuthorized({
+    fromId: '7161959711',
+    adminUserIds: parseAdminUserIds('"7161959711"'),
+    adminChatId: '-1003912107958',
+  }),
+  'quoted ADMIN_USER_IDS must authorize admin operations',
 );
 
 assert(
