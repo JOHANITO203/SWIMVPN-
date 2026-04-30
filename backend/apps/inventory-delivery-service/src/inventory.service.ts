@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { ImportConfigsDto } from '@app/contracts/inventory.dto';
@@ -18,13 +18,16 @@ import {
   Prisma,
 } from '@prisma/client';
 import { canAllocateSupplierConfig } from './supplier-capacity.policy';
+import { resolveInventoryHealthcheckIntervalMs } from './inventory-health-scheduler.policy';
 
 @Injectable()
-export class InventoryService {
+export class InventoryService implements OnModuleInit, OnModuleDestroy {
   private static readonly DEFAULT_SOURCE_QUOTA_GB = 1000n;
   private static readonly DEFAULT_MAX_USERS_PER_CONFIG = 5;
   private static readonly TRIAL_QUOTA_LABEL = 'UNLIMITED';
   private static readonly TRIAL_DURATION_LABEL = '3 Days';
+  private readonly logger = new Logger(InventoryService.name);
+  private healthcheckTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -32,6 +35,30 @@ export class InventoryService {
     @Inject('ADMIN_SERVICE') private readonly adminClient: ClientProxy,
     @Inject('NOTIFICATION_SERVICE') private readonly notificationClient: ClientProxy,
   ) {}
+
+  onModuleInit() {
+    const intervalMs = resolveInventoryHealthcheckIntervalMs(
+      process.env.INVENTORY_HEALTHCHECK_INTERVAL_MS,
+    );
+
+    if (!intervalMs) {
+      this.logger.log('Inventory healthcheck scheduler disabled');
+      return;
+    }
+
+    this.logger.log(`Inventory healthcheck scheduler enabled every ${intervalMs}ms`);
+    this.healthcheckTimer = setInterval(() => {
+      void this.runScheduledHealthCheck();
+    }, intervalMs);
+    this.healthcheckTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.healthcheckTimer) {
+      clearInterval(this.healthcheckTimer);
+      this.healthcheckTimer = undefined;
+    }
+  }
 
   async importConfigs(data: ImportConfigsDto) {
     const results = [];
@@ -757,6 +784,17 @@ export class InventoryService {
     }
 
     return results;
+  }
+
+  private async runScheduledHealthCheck() {
+    try {
+      const result = await this.runHealthCheck();
+      this.logger.log(
+        `Scheduled inventory healthcheck completed: checked=${result.checked} healthy=${result.healthy} degraded=${result.degraded}`,
+      );
+    } catch (error) {
+      this.logger.error('Scheduled inventory healthcheck failed', error as Error);
+    }
   }
 
   private async expireInventoryItem(inventoryItemId: string, reason: string) {

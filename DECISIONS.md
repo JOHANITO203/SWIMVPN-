@@ -840,3 +840,11 @@ Decision: The `/add_wizard` Telegram admin import flow keeps only the temporary 
 Reason: Telegram is an admin control layer, not the source of truth. Persisting unfinished wizard drafts would add schema and cleanup complexity without improving customer delivery safety for this MVP. If the bot restarts mid-wizard, the admin can restart `/add_wizard`; no supplier config is stored until explicit `confirm` succeeds.
 
 Consequence: Live ops must treat `/add_wizard` as a convenience workflow. Durable inventory, slot caps, supplier quota, expiration, and assignment truth remain in PostgreSQL.
+
+## [2026-04-30] Inventory supplier healthcheck runs inside inventory-delivery-service
+
+Decision: The MVP uses a lightweight in-process scheduler in `inventory-delivery-service` instead of introducing a new cron service or external queue.
+
+Reason: The service already owns supplier inventory state and already exposes `runHealthCheck()`. Adding a new service would increase Dokploy complexity and another deployment surface. The scheduler is configurable and can be disabled through `INVENTORY_HEALTHCHECK_INTERVAL_MS` if VPS load or multi-instance deployment changes later.
+
+Consequence: In the current single-instance Dokploy deployment this gives automatic expiry/health enforcement. If the platform later runs multiple inventory instances, this should move to a single-worker cron/queue to avoid duplicate health checks.

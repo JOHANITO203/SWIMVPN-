@@ -2090,3 +2090,20 @@ pm run build PASSED.
     - `cd backend && npm run build:all` PASSED.
 - **Note**:
     - Wizard step state is in-memory admin UX only; durable truth starts after confirmed import creates `InventoryItem` rows in PostgreSQL.
+
+## [2026-04-30] [Automatic Supplier Healthcheck Scheduler]
+- **Status**: DONE
+- **Changes**:
+    - Added an internal inventory healthcheck scheduler in `inventory-delivery-service`.
+    - Scheduler runs the existing `runHealthCheck()` logic automatically every 30 minutes by default.
+    - Scheduler can be disabled with `INVENTORY_HEALTHCHECK_INTERVAL_MS=0`, `false`, or `disabled`.
+    - Scheduler interval is clamped to a safe minimum of 60 seconds to avoid hammering the VPS/VPN engine.
+    - Scheduled failures are logged and do not crash the service.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/inventory-delivery-service/src/__tests__/inventory-health-scheduler.policy.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run prisma:validate` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Note**:
+    - This is not a supplier-side revocation system. It updates backend visibility/access status from supplier expiry/health truth so expired/degraded configs stop being treated as healthy.

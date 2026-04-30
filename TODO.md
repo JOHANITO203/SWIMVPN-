@@ -731,3 +731,12 @@ u after each future language batch
   - verify import result shows protocol, quota, usage, expiry, health, and `0/2` or parsed slots
 - Verify direct `/add basic|premium|platinum <config>` still works for emergency imports.
 - Verify `/stock` shows the imported config under the selected bucket.
+
+## Supplier Healthcheck Scheduler Live QA
+- After redeploy, inspect `inventory-delivery-service` logs and verify:
+  - `Inventory healthcheck scheduler enabled every 1800000ms`
+  - scheduled checks complete without crashing the service
+- Optional env controls:
+  - `INVENTORY_HEALTHCHECK_INTERVAL_MS=0` disables scheduler
+  - `INVENTORY_HEALTHCHECK_INTERVAL_MS=600000` runs every 10 minutes
+- Keep `/healthcheck` available as a manual admin command for emergency checks.
