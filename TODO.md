@@ -699,3 +699,16 @@ u after each future language batch
 - Then redeploy or run:
   - `docker compose run --rm prisma-migrate npm run prisma:migrate:deploy`
 - Keep `DATABASE_URL` URL-encoded in Dokploy env. Do not rely on composing it from raw `POSTGRES_PASSWORD` when the password contains `@`, `#`, `/`, `:` or similar URL-sensitive characters.
+
+## Admin Operations Bot Live QA
+- After redeploy, test in Telegram with an authorized `ADMIN_USER_IDS` account:
+  - `/stock`
+  - `/pending`
+  - `/retry all` when an order is pending fulfillment
+  - `/expire <inventoryId>` on a test supplier config
+  - `/disable <inventoryId>` on a test supplier config
+  - `/quota_reached <inventoryId>` on a test supplier config
+  - `/orders_today`
+  - `/revenue_today`
+- Verify disabled/expired supplier configs no longer expose active assignments in the app profile/access payload.
+- Later: implement schema-backed accounting entries for expenses, crypto asset tracking, exchange rates, and profit reports.

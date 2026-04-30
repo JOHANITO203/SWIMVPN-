@@ -30,6 +30,7 @@ export class TriggerImportDto {
 export class UpdateInventoryHealthDto {
   inventoryItemId: string;
   healthStatus: 'HEALTHY' | 'DEGRADED' | 'FULL' | 'EXPIRED' | 'DISABLED';
+  reason?: string;
   adminId: string;
 }
 

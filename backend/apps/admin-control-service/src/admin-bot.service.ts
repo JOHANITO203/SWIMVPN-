@@ -7,9 +7,13 @@ import { Telegraf } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
 import { isAdminBotAuthorized, parseAdminUserIds } from './admin-bot-auth';
 import {
+  formatAccountingSummary,
   formatImportResult,
   formatInventoryOverview,
+  formatPendingFulfillment,
   mapBotPlanInputToCategory,
+  parseInventoryActionCommand,
+  parseRetryCommand,
 } from './admin-bot.formatter';
 
 @Injectable()
@@ -118,6 +122,75 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
+    this.bot.command('pending', async (ctx) => {
+      await ctx.reply('Reading pending fulfillment orders...');
+      try {
+        const pendingOrders = await this.prisma.order.findMany({
+          where: { status: 'PENDING_FULFILLMENT' },
+          take: 10,
+          orderBy: { created_at: 'asc' },
+          include: { customer: true, plan: true },
+        });
+
+        await ctx.reply(formatPendingFulfillment(pendingOrders.map((order) => ({
+          orderRef: order.order_ref,
+          planName: order.plan.name,
+          planCode: order.plan.code,
+          amountRub: order.amount_rub.toString(),
+          customerEmail: order.customer.email,
+          createdAt: order.created_at.toISOString(),
+        }))));
+      } catch (error) {
+        this.logger.error('Failed to fetch pending fulfillment orders', error as Error);
+        await ctx.reply('Unable to fetch pending fulfillment orders right now.');
+      }
+    });
+
+    this.bot.command('retry', async (ctx) => {
+      const parsed = parseRetryCommand(ctx.message.text || '');
+      if (parsed.mode === 'invalid') {
+        await ctx.reply('Usage: /retry <orderRef|all>');
+        return;
+      }
+
+      await ctx.reply(parsed.mode === 'all' ? 'Retrying pending fulfillment orders...' : `Retrying ${parsed.orderRef}...`);
+      try {
+        const orders = parsed.mode === 'all'
+          ? await this.prisma.order.findMany({
+            where: { status: 'PENDING_FULFILLMENT' },
+            take: 20,
+            orderBy: { created_at: 'asc' },
+            select: { id: true, order_ref: true },
+          })
+          : await this.prisma.order.findMany({
+            where: {
+              order_ref: parsed.orderRef,
+              status: { in: ['PAID', 'PENDING_FULFILLMENT'] as any },
+            },
+            take: 1,
+            select: { id: true, order_ref: true },
+          });
+
+        if (orders.length === 0) {
+          await ctx.reply('No retryable order found.');
+          return;
+        }
+
+        const results = [];
+        for (const order of orders) {
+          const result = await firstValueFrom(
+            this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
+          );
+          results.push(`${order.order_ref}: ${result?.pendingFulfillment ? 'pending capacity' : 'processed'}`);
+        }
+
+        await ctx.reply(['Retry finished', ...results].join('\n'));
+      } catch (error) {
+        this.logger.error('Failed to retry fulfillment', error as Error);
+        await ctx.reply('Retry failed. Check inventory capacity and service logs.');
+      }
+    });
+
     this.bot.command('users', async (ctx) => {
       try {
         const totalUsers = await this.prisma.customer.count();
@@ -148,6 +221,26 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         this.logger.error('Health check failed', error as Error);
         await ctx.reply('Health check failed.');
       }
+    });
+
+    this.bot.command('expire', async (ctx) => {
+      await this.updateInventoryHealthFromCommand(ctx, 'EXPIRED', 'SUPPLIER_EXPIRED');
+    });
+
+    this.bot.command('disable', async (ctx) => {
+      await this.updateInventoryHealthFromCommand(ctx, 'DISABLED', 'ADMIN_DISABLED');
+    });
+
+    this.bot.command('quota_reached', async (ctx) => {
+      await this.updateInventoryHealthFromCommand(ctx, 'DISABLED', 'SUPPLIER_QUOTA_REACHED');
+    });
+
+    this.bot.command('orders_today', async (ctx) => {
+      await this.replyAccountingSummary(ctx, 'Orders today');
+    });
+
+    this.bot.command('revenue_today', async (ctx) => {
+      await this.replyAccountingSummary(ctx, 'Revenue today');
     });
 
     this.bot.command('import', async (ctx) => {
@@ -235,10 +328,88 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       '/import - import instructions',
       '/add basic|premium|platinum <config> - import supplier config',
       '/orders - recent orders',
+      '/pending - paid orders waiting for supplier capacity',
+      '/retry <orderRef|all> - retry pending fulfillment',
+      '/expire <inventoryId> - mark supplier config expired',
+      '/disable <inventoryId> - disable supplier config',
+      '/quota_reached <inventoryId> - mark supplier quota exhausted',
+      '/orders_today - today paid/fulfilled order count',
+      '/revenue_today - today paid/fulfilled revenue',
       '/users - customer statistics',
       '/healthcheck - run inventory health check',
       '/help - show this menu',
     ].join('\n');
+  }
+
+  private async updateInventoryHealthFromCommand(
+    ctx: any,
+    healthStatus: 'EXPIRED' | 'DISABLED',
+    defaultReason: string,
+  ) {
+    const parsed = parseInventoryActionCommand(ctx.message?.text || '');
+    if (!parsed.inventoryItemId) {
+      await ctx.reply(`Usage: ${ctx.message?.text?.split(/\s+/)[0] || '/command'} <inventoryId> [reason]`);
+      return;
+    }
+
+    try {
+      const result = await firstValueFrom(
+        this.inventoryClient.send(
+          { cmd: 'update_inventory_health' },
+          {
+            inventoryItemId: parsed.inventoryItemId,
+            healthStatus,
+            reason: parsed.reason || defaultReason,
+          },
+        ),
+      );
+
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: 'ADMIN_BOT_INVENTORY_HEALTH_UPDATED',
+          entity_type: 'INVENTORY',
+          entity_id: parsed.inventoryItemId,
+          payload_json: {
+            telegramUserId: ctx.from?.id?.toString() || null,
+            inventoryItemId: parsed.inventoryItemId,
+            healthStatus,
+            reason: parsed.reason || defaultReason,
+            result,
+            updatedAt: new Date().toISOString(),
+          } as any,
+        },
+      });
+
+      await ctx.reply(`Inventory ${parsed.inventoryItemId} marked ${healthStatus}.`);
+    } catch (error) {
+      this.logger.error('Failed to update inventory health via admin bot', error as Error);
+      await ctx.reply('Unable to update inventory health. Check the inventory id and service logs.');
+    }
+  }
+
+  private async replyAccountingSummary(ctx: any, title: string) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    try {
+      const orders = await this.prisma.order.findMany({
+        where: {
+          status: { in: ['PAID', 'PENDING_FULFILLMENT', 'FULFILLED'] as any },
+          paid_at: { gte: startOfDay },
+        },
+        select: { amount_rub: true },
+      });
+
+      const total = orders.reduce((sum, order) => sum + Number(order.amount_rub), 0);
+      await ctx.reply(formatAccountingSummary({
+        title,
+        orderCount: orders.length,
+        amountRub: total.toFixed(2),
+      }));
+    } catch (error) {
+      this.logger.error('Failed to build accounting summary', error as Error);
+      await ctx.reply('Unable to build accounting summary right now.');
+    }
   }
 
   async sendAdminAlert(message: string) {

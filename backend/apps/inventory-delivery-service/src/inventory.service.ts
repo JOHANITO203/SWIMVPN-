@@ -488,30 +488,84 @@ export class InventoryService {
   async updateInventoryHealth(data: {
     inventoryItemId: string;
     healthStatus: InventoryHealthStatus;
+    reason?: string | null;
     adminId?: string | null;
   }) {
-    const item = await this.prisma.inventoryItem.update({
-      where: { id: data.inventoryItemId },
-      data: {
-        health_status: data.healthStatus,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.update({
+        where: { id: data.inventoryItemId },
+        data: {
+          health_status: data.healthStatus,
+        },
+      });
 
-    await this.prisma.adminEvent.create({
-      data: {
-        admin_id: data.adminId ?? undefined,
-        event_type: 'CONFIG_HEALTH_UPDATED',
-        entity_type: 'INVENTORY',
-        entity_id: item.id,
-        payload_json: {
-          inventoryItemId: item.id,
-          healthStatus: data.healthStatus,
-          updatedAt: new Date().toISOString(),
-        } as any,
-      },
-    });
+      const reason = data.reason || `ADMIN_MARKED_${data.healthStatus}`;
+      let affectedAssignments = 0;
 
-    return { success: true, inventoryItemId: item.id, healthStatus: item.health_status };
+      if (data.healthStatus === InventoryHealthStatus.EXPIRED) {
+        const result = await tx.orderAssignment.updateMany({
+          where: {
+            inventory_item_id: item.id,
+            access_status: AssignmentAccessStatus.ACTIVE,
+          },
+          data: {
+            access_status: AssignmentAccessStatus.EXPIRED,
+            expires_at: new Date(),
+            status_reason: reason,
+          },
+        });
+        affectedAssignments = result.count;
+      }
+
+      if (data.healthStatus === InventoryHealthStatus.DISABLED) {
+        const result = await tx.orderAssignment.updateMany({
+          where: {
+            inventory_item_id: item.id,
+            access_status: AssignmentAccessStatus.ACTIVE,
+          },
+          data: {
+            access_status: AssignmentAccessStatus.REVOKED,
+            revoked_at: new Date(),
+            status_reason: reason,
+          },
+        });
+        affectedAssignments = result.count;
+      }
+
+      if (
+        data.healthStatus === InventoryHealthStatus.EXPIRED ||
+        data.healthStatus === InventoryHealthStatus.DISABLED
+      ) {
+        await this.recalculateInventoryState(tx, item.id);
+        await tx.inventoryItem.update({
+          where: { id: item.id },
+          data: { health_status: data.healthStatus },
+        });
+      }
+
+      await tx.adminEvent.create({
+        data: {
+          admin_id: data.adminId ?? undefined,
+          event_type: 'CONFIG_HEALTH_UPDATED',
+          entity_type: 'INVENTORY',
+          entity_id: item.id,
+          payload_json: {
+            inventoryItemId: item.id,
+            healthStatus: data.healthStatus,
+            reason,
+            affectedAssignments,
+            updatedAt: new Date().toISOString(),
+          } as any,
+        },
+      });
+
+      return {
+        success: true,
+        inventoryItemId: item.id,
+        healthStatus: data.healthStatus,
+        affectedAssignments,
+      };
+    });
   }
 
   async revokeAssignment(data: { assignmentId: string; reason?: string; adminId?: string | null }) {

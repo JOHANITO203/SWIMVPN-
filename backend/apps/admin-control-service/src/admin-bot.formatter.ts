@@ -1,10 +1,21 @@
 import { PlanCategory } from '@prisma/client';
 
 type InventoryOverviewItem = {
+  id?: string;
   category: PlanCategory | string;
   healthStatus: string;
   usedResaleSlots: number;
   maxResaleSlots: number;
+  supplierExpiresAt?: string | null;
+};
+
+type PendingFulfillmentItem = {
+  orderRef: string;
+  planName: string;
+  planCode: string;
+  amountRub: string;
+  customerEmail?: string | null;
+  createdAt: string;
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -42,6 +53,12 @@ export function formatInventoryOverview(items: InventoryOverviewItem[]) {
       item.usedResaleSlots < item.maxResaleSlots,
     ).length;
     lines.push(`${CATEGORY_LABELS[category]}: ${allocatable} allocatable / ${categoryItems.length} total`);
+
+    for (const item of categoryItems.slice(0, 5)) {
+      const id = item.id ? item.id.slice(0, 8) : 'unknown';
+      const expiry = item.supplierExpiresAt ? ` expires ${item.supplierExpiresAt.slice(0, 10)}` : '';
+      lines.push(`- ${id}: ${item.healthStatus} ${item.usedResaleSlots}/${item.maxResaleSlots}${expiry}`);
+    }
   }
 
   return lines.join('\n');
@@ -59,5 +76,62 @@ export function formatImportResult(category: PlanCategory, result: any) {
     `Imported: ${importedCount}`,
     `Failed: ${failures}`,
     'Resale cap: 2 customer orders per supplier link',
+  ].join('\n');
+}
+
+export type ParsedRetryCommand =
+  | { mode: 'all' }
+  | { mode: 'one'; orderRef: string }
+  | { mode: 'invalid' };
+
+export function parseRetryCommand(text: string): ParsedRetryCommand {
+  const match = text.trim().match(/^\/retry(?:@\w+)?\s+(.+)$/i);
+  const target = match?.[1]?.trim();
+  if (!target) {
+    return { mode: 'invalid' };
+  }
+
+  if (target.toLowerCase() === 'all') {
+    return { mode: 'all' };
+  }
+
+  return { mode: 'one', orderRef: target };
+}
+
+export function parseInventoryActionCommand(text: string) {
+  const match = text.trim().match(/^\/\w+(?:@\w+)?\s+(\S+)(?:\s+([\s\S]+))?$/i);
+  return {
+    inventoryItemId: match?.[1]?.trim() || null,
+    reason: match?.[2]?.trim() || null,
+  };
+}
+
+export function formatPendingFulfillment(items: PendingFulfillmentItem[]) {
+  if (items.length === 0) {
+    return 'No pending fulfillment orders.';
+  }
+
+  return [
+    'Pending fulfillment orders',
+    ...items.slice(0, 10).map((order) => [
+      `Order: ${order.orderRef}`,
+      `Plan: ${order.planName} (${order.planCode})`,
+      `Amount: ${order.amountRub} RUB`,
+      `Customer: ${order.customerEmail || 'missing email'}`,
+      `Created: ${order.createdAt}`,
+      `Retry: /retry ${order.orderRef}`,
+    ].join('\n')),
+  ].join('\n\n');
+}
+
+export function formatAccountingSummary(input: {
+  title: string;
+  orderCount: number;
+  amountRub: string;
+}) {
+  return [
+    input.title,
+    `Orders: ${input.orderCount}`,
+    `Revenue: ${input.amountRub} RUB`,
   ].join('\n');
 }

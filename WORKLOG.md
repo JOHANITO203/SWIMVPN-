@@ -2035,3 +2035,20 @@ pm run build PASSED.
     - `docker compose up prisma-seed --abort-on-container-exit --exit-code-from prisma-seed` PASSED.
 - **Production note**:
     - If Dokploy already recorded the failed migration before this fix, run the same one-time Prisma resolve command on the VPS/Dokploy shell before redeploying.
+
+## [2026-04-30] [Admin Bot Fulfillment And Supplier Health Commands]
+- **Status**: DONE
+- **Changes**:
+    - Added Admin Operations Bot commands for pending fulfillment and retry: `/pending`, `/retry <orderRef|all>`.
+    - Added supplier health control commands: `/expire <inventoryId>`, `/disable <inventoryId>`, `/quota_reached <inventoryId>`.
+    - Added lightweight accounting commands based on existing paid order truth: `/orders_today`, `/revenue_today`.
+    - Propagated inventory `EXPIRED` and `DISABLED` health updates to linked active assignments so app access stops seeing those supplier configs as active.
+    - Preserved raw supplier configs; admin health commands only update status and audit events.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-formatter.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run prisma:validate` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Note**:
+    - Full accounting ledger with expenses, crypto reporting, and profit calculations remains a later schema-backed module.

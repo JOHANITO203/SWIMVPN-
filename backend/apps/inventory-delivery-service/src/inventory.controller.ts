@@ -37,6 +37,7 @@ export class InventoryController {
     @Payload() data: {
       inventoryItemId: string;
       healthStatus: 'HEALTHY' | 'DEGRADED' | 'FULL' | 'EXPIRED' | 'DISABLED';
+      reason?: string | null;
       adminId?: string | null;
     },
   ) {
