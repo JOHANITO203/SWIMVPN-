@@ -1999,3 +1999,21 @@ pm run build PASSED.
     - `cd backend && npm run test:policy` PASSED.
     - `cd backend && npm run build:all` PASSED.
     - `cd android && .\gradlew.bat :app:processDebugResources :app:compileDebugKotlin --no-daemon` PASSED.
+
+## [2026-04-30] [Secure Admin Operations Bot Inventory MVP]
+- **Status**: DONE
+- **Changes**:
+    - Converted `admin-control-service` Telegram bot into a restricted admin inventory bot using `ADMIN_USER_IDS` or a personal `ADMIN_CHAT_ID`.
+    - Added `/stock`, `/import`, and `/add basic|premium|platinum <config-or-url>` commands for supplier config stock management.
+    - Kept supplier raw config payload untouched and delegated parsing/import to `inventory-delivery-service`.
+    - Enforced the current resale truth on bot imports: supplier device metadata can remain 5, but SWIMVPN resale cap defaults to 2 orders per config.
+    - Added admin audit logging for bot imports through `AdminEvent`.
+    - Passed `ADMIN_USER_IDS` into `admin-control-service` from the root Docker compose so Dokploy can enforce the secure allow-list.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-auth.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-formatter.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Note**:
+    - Live Telegram QA still requires Dokploy env `ADMIN_USER_IDS` to contain the allowed human Telegram user IDs, then redeploy `admin-control-service`.

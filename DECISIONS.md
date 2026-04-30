@@ -811,9 +811,9 @@ otification-bot-service with Resend API for transactional delivery emails.
 - **Decision**: Supplier resale capacity is counted per customer order, not by commercial plan tier. Basic, Premium, and Platinum each consume exactly one resale slot on one supplier config link.
 - **Why**: A supplier link can technically work on up to 5 devices, but SWIMVPN intentionally resells it to at most 4 customer orders and keeps one supplier device capacity unused as a quality buffer.
 - **Impact**:
-  - `max_resale_slots` remains `4` for every supplier config.
+  - Superseded on 2026-04-29 by the final two-order resale cap: `max_resale_slots` should be `2` for supplier configs.
   - `supplier_device_limit` may remain `5` as provider metadata.
-  - The old `Basic=1`, `Premium=2`, `Platinum=4` slot-consumption rule must be replaced in a later implementation batch.
+  - Superseded on 2026-04-30: Basic, Premium, and Platinum each consume one resale slot per paid order.
   - Plan category continues to select the inventory bucket and commercial offer, not the number of resale slots consumed.
 
 ## [2026-04-29] [Supplier Link Resale Cap Is Two Orders]
@@ -824,3 +824,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - Every paid order still consumes one resale slot.
   - Basic, Premium, and Platinum remain commercial/inventory categories, not different resale-slot multipliers.
   - The subscription UI should advertise `up to 2 devices` for each plan.
+
+## [2026-04-30] [Admin Operations Bot Is A Restricted Inventory Control Surface]
+- **Decision**: The `TELEGRAM_BOT_TOKEN` / `admin-control-service` bot is now the secure Admin Operations Bot for supplier inventory imports, while payment proof handling remains in `notification-bot-service`.
+- **Why**: Telegram can help operate the shop, but it must not become an unauthenticated source of truth. Admin imports must be restricted to explicit human admin user IDs and recorded in PostgreSQL audit events.
+- **Impact**:
+  - `ADMIN_USER_IDS` is the preferred production allow-list for admin bot commands.
+  - `/add basic|premium|platinum <config-or-url>` imports configs into the matching inventory category with the current max resale cap of two customer orders.
+  - Raw supplier config content remains preserved and parsing/business allocation stays in backend services.

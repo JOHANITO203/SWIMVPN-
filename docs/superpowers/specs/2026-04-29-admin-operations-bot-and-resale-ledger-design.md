@@ -253,7 +253,7 @@ Accounting principles:
 - Change resale slot consumption so every paid order consumes 1 resale slot.
 - Keep `max_resale_slots = 2`.
 - Keep `supplier_device_limit = 5` metadata.
-- Update tests that currently expect Premium=2 and Platinum=4 slot consumption.
+- Keep policy tests aligned with one resale slot per paid order and a max resale cap of two orders per supplier config.
 - Keep public names Basic/Premium/Platinum unchanged.
 
 ### Phase 2: Secure Admin Operations Bot Foundation
@@ -315,4 +315,3 @@ Recommended MVP wording:
 - `Device access: Up to 2 devices`
 
 The subscription page may advertise up to 2 devices for every plan. Backend resale capacity still counts customer orders: one order consumes one resale slot, and a supplier link stops accepting new orders after two resale slots are used.
-

@@ -27,7 +27,7 @@ export class ImportConfigsDto {
   @IsOptional()
   @IsInt()
   @Min(1)
-  @Max(4)
+  @Max(2)
   maxResaleSlots?: number;
 
   @IsOptional()

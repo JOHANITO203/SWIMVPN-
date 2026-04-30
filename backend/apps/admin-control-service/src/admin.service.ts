@@ -3,6 +3,7 @@ import { ClientProxy } from '@nestjs/microservices';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@app/database';
 import {
+  DEFAULT_RESALE_SLOT_CAP,
   AdminLoginDto,
   CreatePlanDto,
   getPlanSlotCount,
@@ -160,7 +161,7 @@ export class AdminService {
           batchName: data.batchName,
           sourceQuotaGb: data.sourceQuotaGb ?? 1000,
           maxUsersPerConfig: data.maxUsersPerConfig ?? 5,
-          maxResaleSlots: data.maxResaleSlots ?? 4,
+          maxResaleSlots: data.maxResaleSlots ?? DEFAULT_RESALE_SLOT_CAP,
           supplierExpiresAt: data.supplierExpiresAt ?? null,
           supplierProviderName: data.supplierProviderName ?? null,
           supplierDeviceLimit: data.supplierDeviceLimit ?? null,

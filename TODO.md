@@ -1,4 +1,4 @@
-# TODO
+﻿# TODO
 
 ## Now
 - Continue Android VPN core maturity from the now-live runtime baseline:
@@ -395,7 +395,7 @@ otification-bot-service event handoff.
   - add a focused device smoke test for en, r, and 
 u after each future language batch
 - Re-test the Android technical screen on device after the entry-action guard:
-  - opening Param�tres techniques should no longer jump into Android Settings
+  - opening Paramètres techniques should no longer jump into Android Settings
   - verify VPN session stays active while the technical screen opens
   - verify the kill-switch shortcut still opens Android VPN settings after the short entry delay
 - Continue phase-status verification:
@@ -680,25 +680,15 @@ u after each future language batch
   - Resend sends email or logs `EMAIL_FAILED`
   - reject marks pending order failed and sends rejection email
 
-## Admin Operations Bot Implementation Plan Needed
-- Convert the approved Option B design into an implementation plan.
-- First implementation batch must align resale slot semantics:
-  - Basic/Premium/Platinum each consume one resale slot per paid order.
-  - `max_resale_slots` remains 4.
-  - `supplier_device_limit` remains provider metadata, usually 5.
-  - Update `getPlanSlotCount`, seed/runtime mapping, and supplier capacity tests accordingly.
-- Then implement secure Admin Operations Bot modules in `admin-control-service` using `TELEGRAM_BOT_TOKEN` and `ADMIN_USER_IDS`.
-
-## Resale Cap Final Alignment
-- First implementation batch must replace the current code truth with the final product truth:
-  - `DEFAULT_RESALE_SLOT_CAP = 2`.
-  - Basic/Premium/Platinum each consume one resale slot per paid order.
-  - Subscription UI displays up to 2 devices for each plan.
-  - Capacity tests must prove a supplier config accepts at most two paid orders.
-
 ## Resale Cap Alignment Completed
 - [DONE] `DEFAULT_RESALE_SLOT_CAP` is now `2`.
 - [DONE] Basic/Premium/Platinum each consume one resale slot per paid order.
 - [DONE] Subscription UI displays up to 2 devices for each plan.
 - [DONE] Prisma migration added to normalize existing plan/assignment slot counts and inventory resale caps.
-- Next: implement the secure Admin Operations Bot inventory import wizard.
+
+## Admin Operations Bot Secure Import MVP Completed
+- [DONE] `admin-control-service` bot now requires explicit admin authorization through `ADMIN_USER_IDS` or a personal `ADMIN_CHAT_ID`.
+- [DONE] `/stock` shows allocatable inventory by Basic/Premium/Platinum category.
+- [DONE] `/add basic|premium|platinum <config-or-url>` imports supplier configs through `inventory-delivery-service` with `maxResaleSlots = 2` and supplier device metadata defaulting to 5.
+- [DONE] Root `docker-compose.yml` passes `ADMIN_USER_IDS` into `admin-control-service`.
+- Next: implement the richer admin wizard/accounting ledger only after live Telegram QA proves the secure import MVP works.
