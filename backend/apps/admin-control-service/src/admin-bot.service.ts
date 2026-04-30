@@ -3,18 +3,30 @@ import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { DEFAULT_RESALE_SLOT_CAP, DEFAULT_SUPPLIER_DEVICE_LIMIT } from '@app/contracts';
+import { AccountingEntrySource, AccountingEntryType } from '@prisma/client';
 import { Telegraf } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
 import { isAdminBotAuthorized, parseAdminUserIds } from './admin-bot-auth';
 import {
   formatAccountingSummary,
+  formatImportWizardCategoryPrompt,
+  formatImportWizardConfigPrompt,
+  formatImportWizardConfirmation,
   formatImportResult,
   formatInventoryOverview,
   formatPendingFulfillment,
+  isImportWizardCancel,
+  isImportWizardConfirm,
   mapBotPlanInputToCategory,
+  parseExpenseCommand,
   parseInventoryActionCommand,
   parseRetryCommand,
 } from './admin-bot.formatter';
+
+type ImportWizardSession =
+  | { step: 'category' }
+  | { step: 'config'; category: any }
+  | { step: 'confirm'; category: any; config: string };
 
 @Injectable()
 export class AdminBotService implements OnModuleInit, OnModuleDestroy {
@@ -22,6 +34,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   private readonly bot?: Telegraf;
   private readonly adminChatId?: string;
   private readonly adminUserIds: string[];
+  private readonly importWizardSessions = new Map<string, ImportWizardSession>();
 
   constructor(
     private readonly configService: ConfigService,
@@ -243,10 +256,81 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await this.replyAccountingSummary(ctx, 'Revenue today');
     });
 
+    this.bot.command('add_expense', async (ctx) => {
+      const parsed = parseExpenseCommand(ctx.message.text || '');
+      if (parsed.valid === false) {
+        await ctx.reply(parsed.reason);
+        return;
+      }
+
+      try {
+        const entry = await this.prisma.accountingEntry.create({
+          data: {
+            type: AccountingEntryType.EXPENSE,
+            source: AccountingEntrySource.MANUAL,
+            amount: parsed.amount,
+            currency: parsed.currency,
+            note: parsed.note,
+            created_by_admin: ctx.from?.id?.toString() || null,
+          },
+        });
+
+        await ctx.reply([
+          'Expense recorded',
+          `Amount: ${parsed.amount} ${parsed.currency}`,
+          `Note: ${parsed.note}`,
+          `Entry: ${entry.id}`,
+        ].join('\n'));
+      } catch (error) {
+        this.logger.error('Failed to record manual expense', error as Error);
+        await ctx.reply('Unable to record expense right now.');
+      }
+    });
+
+    this.bot.command('profit_month', async (ctx) => {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      try {
+        const entries = await this.prisma.accountingEntry.findMany({
+          where: {
+            created_at: { gte: startOfMonth },
+            currency: 'RUB',
+          },
+          select: { type: true, amount: true },
+        });
+
+        const totals = entries.reduce(
+          (acc, entry) => {
+            const amount = Number(entry.amount);
+            if (entry.type === AccountingEntryType.REVENUE) acc.revenue += amount;
+            if (entry.type === AccountingEntryType.EXPENSE) acc.expense += amount;
+            if (entry.type === AccountingEntryType.ADJUSTMENT) acc.adjustment += amount;
+            return acc;
+          },
+          { revenue: 0, expense: 0, adjustment: 0 },
+        );
+
+        await ctx.reply([
+          'Profit this month',
+          `Revenue: ${totals.revenue.toFixed(2)} RUB`,
+          `Expenses: ${totals.expense.toFixed(2)} RUB`,
+          `Adjustments: ${totals.adjustment.toFixed(2)} RUB`,
+          `Profit: ${(totals.revenue - totals.expense + totals.adjustment).toFixed(2)} RUB`,
+          `Entries: ${entries.length}`,
+        ].join('\n'));
+      } catch (error) {
+        this.logger.error('Failed to build monthly profit report', error as Error);
+        await ctx.reply('Unable to build monthly profit report right now.');
+      }
+    });
+
     this.bot.command('import', async (ctx) => {
       await ctx.reply([
         'Import a supplier config into the boutique inventory:',
         '',
+        '/add_wizard - guided secure import',
         '/add basic <config-or-subscription-url>',
         '/add premium <config-or-subscription-url>',
         '/add platinum <config-or-subscription-url>',
@@ -254,6 +338,16 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         'Each supplier link is capped at 2 customer orders.',
         'Raw config is preserved in PostgreSQL.',
       ].join('\n'));
+    });
+
+    this.bot.command('add_wizard', async (ctx) => {
+      this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'category' });
+      await ctx.reply(formatImportWizardCategoryPrompt());
+    });
+
+    this.bot.command('cancel_import', async (ctx) => {
+      this.importWizardSessions.delete(this.getWizardKey(ctx));
+      await ctx.reply('Supplier config import cancelled.');
     });
 
     this.bot.command('add', async (ctx) => {
@@ -278,40 +372,73 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
       await ctx.reply('Importing supplier config...');
       try {
-        const result = await firstValueFrom(
-          this.inventoryClient.send(
-            { cmd: 'import_configs' },
-            {
-              category,
-              configs: [config],
-              batchName: `Admin bot import ${new Date().toISOString()}`,
-              maxUsersPerConfig: DEFAULT_SUPPLIER_DEVICE_LIMIT,
-              maxResaleSlots: DEFAULT_RESALE_SLOT_CAP,
-              supplierDeviceLimit: DEFAULT_SUPPLIER_DEVICE_LIMIT,
-            },
-          ),
-        );
-
-        await this.prisma.adminEvent.create({
-          data: {
-            event_type: 'ADMIN_BOT_CONFIG_IMPORTED',
-            entity_type: 'INVENTORY',
-            entity_id: 'BOT_IMPORT',
-            payload_json: {
-              category,
-              telegramUserId: ctx.from?.id?.toString() || null,
-              maxResaleSlots: DEFAULT_RESALE_SLOT_CAP,
-              supplierDeviceLimit: DEFAULT_SUPPLIER_DEVICE_LIMIT,
-              result,
-              createdAt: new Date().toISOString(),
-            } as any,
-          },
-        });
-
+        const result = await this.importSupplierConfig(category, config, ctx.from?.id?.toString() || null);
         await ctx.reply(formatImportResult(category, result));
       } catch (error) {
         this.logger.error('Failed to import config via admin bot', error as Error);
         await ctx.reply('Inventory service rejected the import. Check parser warnings or service logs.');
+      }
+    });
+
+    this.bot.on('text', async (ctx) => {
+      const key = this.getWizardKey(ctx);
+      const session = this.importWizardSessions.get(key);
+      if (!session) return;
+
+      const text = ctx.message.text || '';
+      if (isImportWizardCancel(text)) {
+        this.importWizardSessions.delete(key);
+        await ctx.reply('Supplier config import cancelled.');
+        return;
+      }
+
+      if (text.trim().startsWith('/')) {
+        return;
+      }
+
+      if (session.step === 'category') {
+        const category = mapBotPlanInputToCategory(text);
+        if (!category) {
+          await ctx.reply('Invalid bucket. Reply with basic, premium, or platinum.');
+          return;
+        }
+
+        this.importWizardSessions.set(key, { step: 'config', category });
+        await ctx.reply(formatImportWizardConfigPrompt(category));
+        return;
+      }
+
+      if (session.step === 'config') {
+        const config = text.trim();
+        if (!config) {
+          await ctx.reply('Missing supplier config or subscription URL. Send it as one message.');
+          return;
+        }
+
+        this.importWizardSessions.set(key, { step: 'confirm', category: session.category, config });
+        await ctx.reply(formatImportWizardConfirmation(session.category, config));
+        return;
+      }
+
+      if (session.step === 'confirm') {
+        if (!isImportWizardConfirm(text)) {
+          await ctx.reply('Reply confirm to import, or cancel to stop.');
+          return;
+        }
+
+        await ctx.reply('Importing supplier config...');
+        try {
+          const result = await this.importSupplierConfig(
+            session.category,
+            session.config,
+            ctx.from?.id?.toString() || null,
+          );
+          this.importWizardSessions.delete(key);
+          await ctx.reply(formatImportResult(session.category, result));
+        } catch (error) {
+          this.logger.error('Failed to import config via admin bot wizard', error as Error);
+          await ctx.reply('Inventory service rejected the import. Check parser warnings or service logs.');
+        }
       }
     });
 
@@ -326,6 +453,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       '',
       '/stock - inventory overview by plan bucket',
       '/import - import instructions',
+      '/add_wizard - guided supplier config import',
       '/add basic|premium|platinum <config> - import supplier config',
       '/orders - recent orders',
       '/pending - paid orders waiting for supplier capacity',
@@ -335,10 +463,50 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       '/quota_reached <inventoryId> - mark supplier quota exhausted',
       '/orders_today - today paid/fulfilled order count',
       '/revenue_today - today paid/fulfilled revenue',
+      '/add_expense <amount> <currency> <note> - record supplier/business expense',
+      '/profit_month - current month RUB profit report',
       '/users - customer statistics',
       '/healthcheck - run inventory health check',
       '/help - show this menu',
     ].join('\n');
+  }
+
+  private getWizardKey(ctx: any) {
+    return `${ctx.chat?.id || 'unknown'}:${ctx.from?.id || 'unknown'}`;
+  }
+
+  private async importSupplierConfig(category: any, config: string, telegramUserId: string | null) {
+    const result = await firstValueFrom(
+      this.inventoryClient.send(
+        { cmd: 'import_configs' },
+        {
+          category,
+          configs: [config],
+          batchName: `Admin bot import ${new Date().toISOString()}`,
+          maxUsersPerConfig: DEFAULT_SUPPLIER_DEVICE_LIMIT,
+          maxResaleSlots: DEFAULT_RESALE_SLOT_CAP,
+          supplierDeviceLimit: DEFAULT_SUPPLIER_DEVICE_LIMIT,
+        },
+      ),
+    );
+
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'ADMIN_BOT_CONFIG_IMPORTED',
+        entity_type: 'INVENTORY',
+        entity_id: 'BOT_IMPORT',
+        payload_json: {
+          category,
+          telegramUserId,
+          maxResaleSlots: DEFAULT_RESALE_SLOT_CAP,
+          supplierDeviceLimit: DEFAULT_SUPPLIER_DEVICE_LIMIT,
+          result,
+          createdAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+
+    return result;
   }
 
   private async updateInventoryHealthFromCommand(

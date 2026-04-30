@@ -1,7 +1,13 @@
 import {
   formatAccountingSummary,
   formatInventoryOverview,
+  formatImportWizardCategoryPrompt,
+  formatImportWizardConfigPrompt,
+  formatImportWizardConfirmation,
   formatPendingFulfillment,
+  isImportWizardCancel,
+  isImportWizardConfirm,
+  parseExpenseCommand,
   parseInventoryActionCommand,
   parseRetryCommand,
   mapBotPlanInputToCategory,
@@ -81,5 +87,33 @@ const accounting = formatAccountingSummary({
 assert(accounting.includes('Revenue today'), 'accounting title missing');
 assert(accounting.includes('Orders: 2'), 'accounting count missing');
 assert(accounting.includes('300.50 RUB'), 'accounting amount missing');
+
+const expense = parseExpenseCommand('/add_expense 1500 RUB supplier renewal');
+assert(expense.valid, 'expense parse should be valid');
+assert(expense.valid && expense.amount === '1500', 'expense amount parse failed');
+assert(expense.valid && expense.currency === 'RUB', 'expense currency parse failed');
+assert(expense.valid && expense.note === 'supplier renewal', 'expense note parse failed');
+
+const invalidExpense = parseExpenseCommand('/add_expense abc RUB');
+assert(!invalidExpense.valid, 'invalid expense amount should fail');
+
+const categoryPrompt = formatImportWizardCategoryPrompt();
+assert(categoryPrompt.includes('Basic'), 'wizard category prompt must mention Basic');
+assert(categoryPrompt.includes('Premium'), 'wizard category prompt must mention Premium');
+assert(categoryPrompt.includes('Platinum'), 'wizard category prompt must mention Platinum');
+
+const configPrompt = formatImportWizardConfigPrompt('MONTH' as any);
+assert(configPrompt.includes('Premium'), 'wizard config prompt must show selected category');
+assert(configPrompt.includes('2 customer orders'), 'wizard config prompt must show resale cap');
+
+const confirmation = formatImportWizardConfirmation('WEEK' as any, 'vless://1234567890abcdefghijklmnopqrstuvwxyz');
+assert(confirmation.includes('Basic'), 'wizard confirmation must show category');
+assert(confirmation.includes('confirm'), 'wizard confirmation must ask for confirm');
+assert(!confirmation.includes('abcdefghijklmnopqrstuvwxyz'), 'wizard confirmation must not expose full raw config');
+
+assert(isImportWizardConfirm('confirm'), 'confirm text must confirm wizard');
+assert(isImportWizardConfirm('yes'), 'yes text must confirm wizard');
+assert(isImportWizardCancel('cancel'), 'cancel text must cancel wizard');
+assert(isImportWizardCancel('/cancel_import'), 'cancel command must cancel wizard');
 
 console.log('admin bot formatter tests passed');

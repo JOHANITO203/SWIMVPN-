@@ -45,6 +45,20 @@ enum AssignmentAccessStatus {
   FAILED
 }
 
+enum AccountingEntryType {
+  REVENUE
+  EXPENSE
+  ADJUSTMENT
+}
+
+enum AccountingEntrySource {
+  ORDER
+  SUPPLIER_CONFIG
+  MANUAL
+  CRYPTO
+  REFUND
+}
+
 model Customer {
   id         String   @id @default(uuid())
   public_id  String   @unique
@@ -198,4 +212,24 @@ model AdminEvent {
   created_at   DateTime @default(now())
 
   admin Admin? @relation(fields: [admin_id], references: [id])
+}
+
+model AccountingEntry {
+  id                String                @id @default(uuid())
+  type              AccountingEntryType
+  amount            Decimal               @db.Decimal(12, 2)
+  currency          String                @default("RUB")
+  crypto_asset      String?
+  exchange_rate_rub Decimal?              @db.Decimal(18, 8)
+  source            AccountingEntrySource
+  order_ref         String?
+  inventory_item_id String?
+  note              String?               @db.Text
+  created_by_admin  String?
+  created_at        DateTime              @default(now())
+
+  @@unique([type, source, order_ref])
+  @@index([created_at])
+  @@index([order_ref])
+  @@index([inventory_item_id])
 }

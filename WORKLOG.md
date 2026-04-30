@@ -2052,3 +2052,41 @@ pm run build PASSED.
     - `cd backend && npm run build:all` PASSED.
 - **Note**:
     - Full accounting ledger with expenses, crypto reporting, and profit calculations remains a later schema-backed module.
+
+## [2026-04-30] [Accounting Ledger MVP]
+- **Status**: DONE
+- **Changes**:
+    - Added Prisma `AccountingEntry` model with `REVENUE`, `EXPENSE`, and `ADJUSTMENT` entry types.
+    - Added accounting sources for `ORDER`, `SUPPLIER_CONFIG`, `MANUAL`, `CRYPTO`, and `REFUND`.
+    - Recorded idempotent revenue ledger entries when `admin-control-service` receives `order_fulfilled` events.
+    - Added Admin Operations Bot commands `/add_expense <amount> <currency> <note>` and `/profit_month`.
+    - Kept `Order` as the source of truth for sales while ledger stores accounting/reporting history.
+- **Verification**:
+    - `cd backend && npm run prisma:validate` PASSED.
+    - `cd backend && npm run prisma:generate` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-formatter.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+    - `docker compose build prisma-migrate` PASSED.
+    - `docker compose run --rm prisma-migrate npm run prisma:migrate:deploy` PASSED and applied `20260430103000_accounting_entries` locally.
+- **Note**:
+    - Crypto exchange-rate ingestion and richer profit reports remain future enhancements.
+
+## [2026-04-30] [Admin Bot Guided Supplier Import]
+- **Status**: DONE
+- **Changes**:
+    - Added guided Telegram admin import flow through `/add_wizard`.
+    - The wizard asks for Basic/Premium/Platinum, accepts one supplier config or subscription URL, then requires explicit `confirm`.
+    - Kept the direct `/add basic|premium|platinum <config>` command for advanced admin use.
+    - Import still uses backend inventory truth with `maxResaleSlots = 2` and supplier device metadata defaulting to `5`.
+    - Enriched import results with parsed supplier metadata: protocol, source quota, source usage, expiry, provider, health, device limit, and resale slots.
+    - Raw supplier config remains preserved in PostgreSQL and is not echoed back in full Telegram messages.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-formatter.spec.ts` PASSED.
+    - `cd backend && npm run prisma:validate` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Note**:
+    - Wizard step state is in-memory admin UX only; durable truth starts after confirmed import creates `InventoryItem` rows in PostgreSQL.

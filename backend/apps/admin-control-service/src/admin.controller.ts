@@ -30,6 +30,12 @@ export class AdminController {
   async handleOrderFulfilled(
     @Payload() data: { orderId: string; orderRef: string; amount: number; planCode: string },
   ) {
+    await this.adminService.recordOrderRevenue({
+      orderRef: data.orderRef,
+      amount: data.amount,
+      planCode: data.planCode,
+    });
+
     await this.adminBotService.sendAdminAlert(
       `NEW SALE\nRef: ${data.orderRef}\nPlan: ${data.planCode}\nAmount: ${data.amount} RUB`,
     );

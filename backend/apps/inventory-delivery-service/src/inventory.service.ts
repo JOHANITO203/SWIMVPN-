@@ -106,7 +106,20 @@ export class InventoryService {
               DEFAULT_SUPPLIER_DEVICE_LIMIT,
           },
         });
-        results.push({ id: item.id, status: 'IMPORTED' });
+        results.push({
+          id: item.id,
+          status: 'IMPORTED',
+          configType: item.config_type,
+          displayProtocol: item.display_protocol,
+          sourceQuotaBytes: item.source_quota_bytes?.toString() ?? null,
+          sourceUsedBytes: item.source_used_bytes?.toString() ?? null,
+          supplierExpiresAt: item.supplier_expires_at?.toISOString() ?? null,
+          supplierProviderName: item.supplier_provider_name,
+          supplierDeviceLimit: item.supplier_device_limit,
+          usedResaleSlots: item.used_resale_slots,
+          maxResaleSlots: item.max_resale_slots,
+          healthStatus: item.health_status,
+        });
       } else {
         results.push({ config: raw, status: 'FAILED', reason: profile.errorMessage });
       }

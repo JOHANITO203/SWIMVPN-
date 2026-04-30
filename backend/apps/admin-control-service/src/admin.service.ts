@@ -2,6 +2,7 @@ import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@app/database';
+import { AccountingEntrySource, AccountingEntryType } from '@prisma/client';
 import {
   DEFAULT_RESALE_SLOT_CAP,
   AdminLoginDto,
@@ -212,5 +213,92 @@ export class AdminService {
     });
 
     return result;
+  }
+
+  async recordOrderRevenue(data: {
+    orderRef: string;
+    amount: number | string;
+    planCode?: string;
+  }) {
+    const existing = await this.prisma.accountingEntry.findFirst({
+      where: {
+        type: AccountingEntryType.REVENUE,
+        source: AccountingEntrySource.ORDER,
+        order_ref: data.orderRef,
+      },
+    });
+
+    if (existing) {
+      return { success: true, alreadyRecorded: true, accountingEntryId: existing.id };
+    }
+
+    const entry = await this.prisma.accountingEntry.create({
+      data: {
+        type: AccountingEntryType.REVENUE,
+        source: AccountingEntrySource.ORDER,
+        order_ref: data.orderRef,
+        amount: data.amount,
+        currency: 'RUB',
+        note: data.planCode ? `Order fulfilled for ${data.planCode}` : 'Order fulfilled',
+      },
+    });
+
+    return { success: true, accountingEntryId: entry.id };
+  }
+
+  async addManualExpense(data: {
+    amount: string;
+    currency: string;
+    note: string;
+    createdByAdmin?: string | null;
+  }) {
+    const entry = await this.prisma.accountingEntry.create({
+      data: {
+        type: AccountingEntryType.EXPENSE,
+        source: AccountingEntrySource.MANUAL,
+        amount: data.amount,
+        currency: data.currency,
+        note: data.note,
+        created_by_admin: data.createdByAdmin ?? null,
+      },
+    });
+
+    return { success: true, accountingEntryId: entry.id };
+  }
+
+  async getCurrentMonthAccountingSummary() {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const entries = await this.prisma.accountingEntry.findMany({
+      where: {
+        created_at: { gte: startOfMonth },
+        currency: 'RUB',
+      },
+      select: {
+        type: true,
+        amount: true,
+      },
+    });
+
+    const totals = entries.reduce(
+      (acc, entry) => {
+        const amount = Number(entry.amount);
+        if (entry.type === AccountingEntryType.REVENUE) acc.revenue += amount;
+        if (entry.type === AccountingEntryType.EXPENSE) acc.expense += amount;
+        if (entry.type === AccountingEntryType.ADJUSTMENT) acc.adjustment += amount;
+        return acc;
+      },
+      { revenue: 0, expense: 0, adjustment: 0 },
+    );
+
+    return {
+      revenueRub: totals.revenue.toFixed(2),
+      expenseRub: totals.expense.toFixed(2),
+      adjustmentRub: totals.adjustment.toFixed(2),
+      profitRub: (totals.revenue - totals.expense + totals.adjustment).toFixed(2),
+      entryCount: entries.length,
+    };
   }
 }

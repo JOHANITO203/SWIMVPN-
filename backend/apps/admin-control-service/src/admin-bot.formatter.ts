@@ -69,14 +69,36 @@ export function formatImportResult(category: PlanCategory, result: any) {
   const failures = Array.isArray(result?.details)
     ? result.details.filter((item: any) => item.status !== 'IMPORTED').length
     : 0;
+  const importedDetails = Array.isArray(result?.details)
+    ? result.details.filter((item: any) => item.status === 'IMPORTED')
+    : [];
 
-  return [
+  const lines = [
     'Config import finished',
     `Plan bucket: ${CATEGORY_LABELS[category] || category}`,
     `Imported: ${importedCount}`,
     `Failed: ${failures}`,
     'Resale cap: 2 customer orders per supplier link',
-  ].join('\n');
+  ];
+
+  for (const item of importedDetails.slice(0, 3)) {
+    const quota = item.sourceQuotaBytes ? `Quota: ${formatBytes(item.sourceQuotaBytes)}` : null;
+    const used = item.sourceUsedBytes ? `Used: ${formatBytes(item.sourceUsedBytes)}` : null;
+    const expires = item.supplierExpiresAt ? `Expires: ${String(item.supplierExpiresAt).slice(0, 10)}` : null;
+    const provider = item.supplierProviderName ? `Provider: ${item.supplierProviderName}` : null;
+    lines.push([
+      '',
+      `Inventory: ${String(item.id || 'unknown').slice(0, 8)}`,
+      `Protocol: ${item.configType || item.displayProtocol || 'unknown'}`,
+      provider,
+      quota,
+      used,
+      expires,
+      `Slots: ${item.usedResaleSlots ?? 0}/${item.maxResaleSlots ?? 2}`,
+    ].filter(Boolean).join('\n'));
+  }
+
+  return lines.join('\n');
 }
 
 export type ParsedRetryCommand =
@@ -134,4 +156,98 @@ export function formatAccountingSummary(input: {
     `Orders: ${input.orderCount}`,
     `Revenue: ${input.amountRub} RUB`,
   ].join('\n');
+}
+
+export type ParsedExpenseCommand =
+  | { valid: true; amount: string; currency: string; note: string }
+  | { valid: false; reason: string; amount?: never; currency?: never; note?: never };
+
+export function parseExpenseCommand(text: string): ParsedExpenseCommand {
+  const match = text.trim().match(/^\/add_expense(?:@\w+)?\s+(\d+(?:[.,]\d{1,2})?)\s+([A-Z]{3,8})(?:\s+([\s\S]+))?$/i);
+  if (!match) {
+    return { valid: false, reason: 'Usage: /add_expense <amount> <currency> <note>' };
+  }
+
+  const amount = match[1].replace(',', '.');
+  if (Number(amount) <= 0) {
+    return { valid: false, reason: 'Amount must be greater than zero.' };
+  }
+
+  return {
+    valid: true,
+    amount,
+    currency: match[2].toUpperCase(),
+    note: match[3]?.trim() || 'Manual expense',
+  };
+}
+
+export function formatImportWizardCategoryPrompt() {
+  return [
+    'Supplier config import wizard',
+    '',
+    'Choose the boutique bucket:',
+    '- Basic',
+    '- Premium',
+    '- Platinum',
+    '',
+    'Reply with one word: basic, premium, or platinum.',
+    'Use /cancel_import to stop.',
+  ].join('\n');
+}
+
+export function formatImportWizardConfigPrompt(category: PlanCategory) {
+  return [
+    `Selected bucket: ${CATEGORY_LABELS[category] || category}`,
+    '',
+    'Send the supplier config or subscription URL now.',
+    'This supplier link will be capped at 2 customer orders.',
+    'Raw config will be preserved in PostgreSQL.',
+    '',
+    'Use /cancel_import to stop.',
+  ].join('\n');
+}
+
+export function formatImportWizardConfirmation(category: PlanCategory, rawConfig: string) {
+  return [
+    'Confirm supplier config import',
+    `Bucket: ${CATEGORY_LABELS[category] || category}`,
+    `Config preview: ${previewSecret(rawConfig)}`,
+    'Resale cap: 2 customer orders',
+    'Supplier device limit metadata default: 5',
+    '',
+    'Reply confirm to import, or cancel to stop.',
+  ].join('\n');
+}
+
+export function isImportWizardConfirm(text: string) {
+  return ['confirm', 'yes', 'ok', 'oui'].includes(text.trim().toLowerCase());
+}
+
+export function isImportWizardCancel(text: string) {
+  return ['/cancel_import', 'cancel', 'annuler', 'stop'].includes(text.trim().toLowerCase());
+}
+
+function previewSecret(value: string) {
+  const compact = value.trim().replace(/\s+/g, ' ');
+  if (compact.length <= 18) {
+    return `${compact.slice(0, 6)}...`;
+  }
+  return `${compact.slice(0, 12)}...${compact.slice(-6)}`;
+}
+
+function formatBytes(value: string | number | bigint) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return 'Unknown';
+  }
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let current = bytes;
+  let unitIndex = 0;
+  while (current >= 1024 && unitIndex < units.length - 1) {
+    current /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${current.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }

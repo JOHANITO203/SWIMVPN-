@@ -712,3 +712,22 @@ u after each future language batch
   - `/revenue_today`
 - Verify disabled/expired supplier configs no longer expose active assignments in the app profile/access payload.
 - Later: implement schema-backed accounting entries for expenses, crypto asset tracking, exchange rates, and profit reports.
+
+## Accounting Ledger Live QA
+- After redeploy, verify the new migration `20260430103000_accounting_entries` applies in Dokploy.
+- Test Telegram admin commands:
+  - `/add_expense 1500 RUB supplier renewal`
+  - `/profit_month`
+- Complete one paid fulfillment and confirm a `REVENUE` accounting entry is created for the order.
+- Later: add crypto exchange-rate capture and richer reports by currency/asset.
+
+## Admin Bot Guided Import Live QA
+- After redeploy, test `/add_wizard` from an authorized Telegram admin account.
+- Verify the wizard flow:
+  - choose `basic`, `premium`, or `platinum`
+  - paste one supplier config or subscription URL
+  - verify the confirmation preview does not expose the full raw config
+  - reply `confirm`
+  - verify import result shows protocol, quota, usage, expiry, health, and `0/2` or parsed slots
+- Verify direct `/add basic|premium|platinum <config>` still works for emergency imports.
+- Verify `/stock` shows the imported config under the selected bucket.

@@ -832,3 +832,11 @@ otification-bot-service with Resend API for transactional delivery emails.
   - `ADMIN_USER_IDS` is the preferred production allow-list for admin bot commands.
   - `/add basic|premium|platinum <config-or-url>` imports configs into the matching inventory category with the current max resale cap of two customer orders.
   - Raw supplier config content remains preserved and parsing/business allocation stays in backend services.
+
+## [2026-04-30] Admin bot guided imports use in-memory conversation state
+
+Decision: The `/add_wizard` Telegram admin import flow keeps only the temporary step state in memory. Confirmed imports are persisted through the existing inventory service into PostgreSQL.
+
+Reason: Telegram is an admin control layer, not the source of truth. Persisting unfinished wizard drafts would add schema and cleanup complexity without improving customer delivery safety for this MVP. If the bot restarts mid-wizard, the admin can restart `/add_wizard`; no supplier config is stored until explicit `confirm` succeeds.
+
+Consequence: Live ops must treat `/add_wizard` as a convenience workflow. Durable inventory, slot caps, supplier quota, expiration, and assignment truth remain in PostgreSQL.
