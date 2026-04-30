@@ -26,6 +26,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export const ADMIN_BOT_COMMANDS = [
   { command: 'help', description: 'Show admin command list' },
+  { command: 'whoami', description: 'Show your Telegram ids' },
   { command: 'status', description: 'Check admin bot status' },
   { command: 'stock', description: 'Show inventory by plan bucket' },
   { command: 'add_wizard', description: 'Guided supplier config import' },

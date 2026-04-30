@@ -57,8 +57,16 @@ assert(
   'support bot command menu must expose help',
 );
 assert(
+  ADMIN_SUPPORT_BOT_COMMANDS.some((command) => command.command === 'whoami'),
+  'support bot command menu must expose whoami',
+);
+assert(
   ADMIN_SUPPORT_BOT_COMMANDS.every((command) => /^[a-z0-9_]{1,32}$/.test(command.command)),
   'support bot commands must use valid Telegram command names',
+);
+assert(
+  ADMIN_SUPPORT_BOT_COMMANDS.every((command) => command.description.length > 0 && command.description.length <= 256),
+  'support bot commands must have valid descriptions',
 );
 
 console.log('admin support bot tests passed');

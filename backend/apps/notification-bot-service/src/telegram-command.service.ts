@@ -10,6 +10,7 @@ import {
   parseManualPaymentConfirmation,
 } from './manual-card-confirmation';
 import { isTelegramAdminContext, parseAdminUserIds } from './telegram-admin-auth';
+import { NOTIFICATION_BOT_COMMANDS, formatTelegramCommandHelp } from './telegram-command-menu';
 
 @Injectable()
 export class TelegramCommandService implements OnModuleInit {
@@ -54,7 +55,7 @@ export class TelegramCommandService implements OnModuleInit {
       }
 
       if (this.isAdmin(ctx)) {
-        await ctx.reply('/order SW12345\n/status SW12345\n/resend SW12345\n/help');
+        await ctx.reply(formatTelegramCommandHelp());
         return;
       }
 
@@ -66,7 +67,11 @@ export class TelegramCommandService implements OnModuleInit {
         await ctx.reply('Open the payment flow from the SWIMVPN+ app to continue.');
         return;
       }
-      await ctx.reply('/order SW12345\n/status SW12345\n/resend SW12345\n/help');
+      await ctx.reply(formatTelegramCommandHelp());
+    });
+
+    this.bot.command('whoami', async (ctx) => {
+      await ctx.reply(this.formatWhoami(ctx));
     });
 
     this.bot.command('order', async (ctx) => {
@@ -492,7 +497,8 @@ export class TelegramCommandService implements OnModuleInit {
       this.logger.warn(`Telegram command handler error: ${(error as Error).message}`);
     });
 
-    this.bot.launch().then(() => {
+    this.bot.launch().then(async () => {
+      await this.registerTelegramCommandMenu();
       this.logger.log('Telegram command bot started');
     });
   }
@@ -684,5 +690,26 @@ export class TelegramCommandService implements OnModuleInit {
 
   private extractOrderRefFromText(text: string): string | null {
     return text.match(/\b(?:ORD|SW|TRIAL|CODE)-[A-Za-z0-9-]+/i)?.[0] || null;
+  }
+
+  private async registerTelegramCommandMenu() {
+    if (!this.bot) return;
+    try {
+      await this.bot.telegram.setMyCommands(NOTIFICATION_BOT_COMMANDS);
+      this.logger.log(`Registered ${NOTIFICATION_BOT_COMMANDS.length} Telegram notification bot commands`);
+    } catch (error) {
+      this.logger.error('Failed to register Telegram notification bot commands', error as Error);
+    }
+  }
+
+  private formatWhoami(ctx: any) {
+    return [
+      'Telegram identity',
+      `User id: ${ctx.from?.id || '-'}`,
+      `Chat id: ${ctx.chat?.id || '-'}`,
+      `Username: ${ctx.from?.username ? `@${ctx.from.username}` : '-'}`,
+      '',
+      'Add the User id to ADMIN_USER_IDS for admin commands.',
+    ].join('\n');
   }
 }

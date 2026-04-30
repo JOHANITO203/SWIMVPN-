@@ -1,4 +1,4 @@
-﻿# TODO
+# TODO
 
 ## Now
 - Continue Android VPN core maturity from the now-live runtime baseline:
@@ -395,7 +395,7 @@ otification-bot-service event handoff.
   - add a focused device smoke test for en, r, and 
 u after each future language batch
 - Re-test the Android technical screen on device after the entry-action guard:
-  - opening Paramètres techniques should no longer jump into Android Settings
+  - opening Param�tres techniques should no longer jump into Android Settings
   - verify VPN session stays active while the technical screen opens
   - verify the kill-switch shortcut still opens Android VPN settings after the short entry delay
 - Continue phase-status verification:
@@ -752,4 +752,17 @@ u after each future language batch
   - `/profit_month`
   - `/healthcheck`
 - If commands do not appear immediately, close/reopen Telegram or send `/help`; Telegram clients can cache command menus briefly.
-- Check logs for `Registered 18 Telegram admin bot commands`.
+- Check logs for `Registered 19 Telegram admin bot commands`.
+
+## Telegram Admin Identity Live QA
+- After redeploy, send `/whoami` to each Telegram bot chat you test.
+- Copy the returned `User id` into Dokploy env as `ADMIN_USER_IDS=<telegramUserId>` or comma-separated for multiple admins.
+- Keep `ADMIN_CHAT_ID` for the admin/review group; do not rely on a `-100...` group id to authorize private admin commands.
+- Verify logs after restart:
+  - `Registered 19 Telegram admin bot commands`
+  - `Registered 4 Telegram support bot commands`
+  - `Registered 5 Telegram notification bot commands`
+- Retest private admin commands:
+  - Admin Operations Bot: `/stock`, `/add_wizard`, `/pending`
+  - Notification/Payment Bot: `/help`, `/status <orderRef>`, `/resend <orderRef>`
+- Retest support bot menu with `/`, `/help`, `/language`, `/whoami`.

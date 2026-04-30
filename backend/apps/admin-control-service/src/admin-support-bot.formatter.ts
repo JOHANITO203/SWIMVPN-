@@ -1,4 +1,11 @@
-﻿import { SupportLanguage, SupportTopic } from './admin-support-bot.templates';
+import { SupportLanguage, SupportTopic } from './admin-support-bot.templates';
+
+export const ADMIN_SUPPORT_BOT_COMMANDS = [
+  { command: 'start', description: 'Open the support menu' },
+  { command: 'help', description: 'Show support help' },
+  { command: 'language', description: 'Change support language' },
+  { command: 'whoami', description: 'Show your Telegram ids' },
+];
 
 export interface EscalationRelayInput {
   ticketId: string;

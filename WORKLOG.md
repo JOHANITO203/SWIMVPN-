@@ -2123,3 +2123,25 @@ pm run build PASSED.
     - `cd backend && npm run build:all` PASSED.
 - **Live QA**:
     - Redeploy `admin-control-service`, reopen Telegram chat, type `/`, and verify commands appear.
+
+## [2026-04-30] [Telegram Bot Slash Menus And Admin Identity Diagnostics]
+- **Status**: DONE
+- **Problem**: Telegram bots exposed handlers in code, but some slash menus were missing and private admin commands could not recognize the tester as admin when `ADMIN_CHAT_ID` pointed to a group chat.
+- **Root Cause**: Telegram private commands authorize by the sender `from.id`; a group `ADMIN_CHAT_ID` such as `-100...` is not a private admin user id. The dedicated admin allow-list is `ADMIN_USER_IDS`, and there was no simple bot-side way to read the tester's real Telegram user id.
+- **Changes**:
+    - Added `/whoami` to Admin Operations Bot, Admin Support Bot, and Notification/Payment Bot.
+    - Added Telegram `setMyCommands` registration for Admin Support Bot and Notification/Payment Bot.
+    - Added notification bot command menu helper and policy test coverage.
+    - Added `ADMIN_USER_IDS` propagation to `backend/docker-compose.yml` for `admin-control-service` and `notification-bot-service`.
+    - Documented `/whoami` usage in `backend/.env.example`.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-support-bot.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-formatter.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/telegram-command-menu.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/admin-control-service/src/__tests__/admin-bot-auth.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/telegram-admin-auth.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Live QA**:
+    - Redeploy bot services, send `/whoami` to the admin/payment bot, copy `User id` into Dokploy `ADMIN_USER_IDS`, then retest private admin commands.

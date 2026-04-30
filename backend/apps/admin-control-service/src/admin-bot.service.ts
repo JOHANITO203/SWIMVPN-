@@ -68,6 +68,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     if (!this.bot) return;
 
     this.bot.use(async (ctx, next) => {
+      if (this.isWhoamiCommand(ctx)) {
+        return next();
+      }
+
       const authorized = isAdminBotAuthorized({
         fromId: ctx.from?.id,
         chatId: ctx.chat?.id,
@@ -90,6 +94,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.start(async (ctx) => ctx.reply(this.helpText()));
     this.bot.command('help', async (ctx) => ctx.reply(this.helpText()));
+    this.bot.command('whoami', async (ctx) => ctx.reply(this.formatWhoami(ctx)));
 
     this.bot.command('status', async (ctx) => {
       await ctx.reply('SWIMVPN+ Admin Operations Bot is online.');
@@ -479,7 +484,24 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       '/profit_month - current month RUB profit report',
       '/users - customer statistics',
       '/healthcheck - run inventory health check',
+      '/whoami - show Telegram ids for ADMIN_USER_IDS setup',
       '/help - show this menu',
+    ].join('\n');
+  }
+
+  private isWhoamiCommand(ctx: any) {
+    const text = ctx.message?.text || '';
+    return /^\/whoami(?:@\w+)?(?:\s|$)/i.test(text);
+  }
+
+  private formatWhoami(ctx: any) {
+    return [
+      'Telegram identity',
+      `User id: ${ctx.from?.id || '-'}`,
+      `Chat id: ${ctx.chat?.id || '-'}`,
+      `Username: ${ctx.from?.username ? `@${ctx.from.username}` : '-'}`,
+      '',
+      'Add the User id to ADMIN_USER_IDS for private admin commands.',
     ].join('\n');
   }
 

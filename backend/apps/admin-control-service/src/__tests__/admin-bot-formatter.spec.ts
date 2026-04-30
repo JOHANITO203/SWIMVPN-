@@ -126,6 +126,10 @@ assert(
   'telegram command menu must expose stock',
 );
 assert(
+  ADMIN_BOT_COMMANDS.some((command) => command.command === 'whoami'),
+  'telegram command menu must expose whoami',
+);
+assert(
   ADMIN_BOT_COMMANDS.every((command) => /^[a-z0-9_]{1,32}$/.test(command.command)),
   'telegram commands must use valid bot command names',
 );

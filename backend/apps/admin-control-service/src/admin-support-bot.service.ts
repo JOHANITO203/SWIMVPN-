@@ -10,6 +10,7 @@ import {
   resolveSupportLanguage,
 } from './admin-support-bot.templates';
 import {
+  ADMIN_SUPPORT_BOT_COMMANDS,
   buildTicketId,
   extractOptionalFields,
   formatAdminSupportReportMessage,
@@ -68,16 +69,23 @@ export class AdminSupportBotService implements OnModuleInit {
     this.bot.start(async (ctx) => {
       const userKey = String(ctx.from?.id || 'unknown');
       const language = this.resolveUserLanguage(userKey);
-      await ctx.reply(
-        SUPPORT_COPY[language].welcome,
-        Markup.inlineKeyboard([
-          [
-            Markup.button.callback('Русский', 'lang:ru'),
-            Markup.button.callback('English', 'lang:en'),
-          ],
-        ]),
-      );
+      await this.sendLanguageMenu(ctx, SUPPORT_COPY[language].welcome);
       await this.sendTopicMenu(ctx, language);
+    });
+
+    this.bot.command('help', async (ctx) => {
+      const userKey = String(ctx.from?.id || 'unknown');
+      const language = this.resolveUserLanguage(userKey);
+      await ctx.reply(SUPPORT_COPY[language].welcome);
+      await this.sendTopicMenu(ctx, language);
+    });
+
+    this.bot.command('language', async (ctx) => {
+      await this.sendLanguageMenu(ctx, 'Language / Язык');
+    });
+
+    this.bot.command('whoami', async (ctx) => {
+      await ctx.reply(this.formatWhoami(ctx));
     });
 
     this.bot.action(/lang:(ru|en)/, async (ctx) => {
@@ -141,15 +149,7 @@ export class AdminSupportBotService implements OnModuleInit {
 
     this.bot.action('change_language', async (ctx) => {
       await ctx.answerCbQuery();
-      await ctx.reply(
-        'Language / Язык',
-        Markup.inlineKeyboard([
-          [
-            Markup.button.callback('Русский', 'lang:ru'),
-            Markup.button.callback('English', 'lang:en'),
-          ],
-        ]),
-      );
+      await this.sendLanguageMenu(ctx, 'Language / Язык');
     });
 
     this.bot.on('text', async (ctx) => {
@@ -249,7 +249,8 @@ export class AdminSupportBotService implements OnModuleInit {
       this.logger.warn(`Admin support bot error: ${(error as Error).message}`);
     });
 
-    this.bot.launch().then(() => {
+    this.bot.launch().then(async () => {
+      await this.registerTelegramCommandMenu();
       this.logger.log('Admin support bot started');
     });
   }
@@ -268,6 +269,37 @@ export class AdminSupportBotService implements OnModuleInit {
     buttons.push([Markup.button.callback(SUPPORT_COPY[language].changeLanguage, 'change_language')]);
 
     await ctx.reply(SUPPORT_COPY[language].chooseTopic, Markup.inlineKeyboard(buttons));
+  }
+
+  private async sendLanguageMenu(ctx: any, message: string) {
+    await ctx.reply(
+      message,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.callback('Русский', 'lang:ru'),
+          Markup.button.callback('English', 'lang:en'),
+        ],
+      ]),
+    );
+  }
+
+  private async registerTelegramCommandMenu() {
+    if (!this.bot) return;
+    try {
+      await this.bot.telegram.setMyCommands(ADMIN_SUPPORT_BOT_COMMANDS);
+      this.logger.log(`Registered ${ADMIN_SUPPORT_BOT_COMMANDS.length} Telegram support bot commands`);
+    } catch (error) {
+      this.logger.error('Failed to register Telegram support bot commands', error as Error);
+    }
+  }
+
+  private formatWhoami(ctx: any) {
+    return [
+      'Telegram identity',
+      `User id: ${ctx.from?.id || '-'}`,
+      `Chat id: ${ctx.chat?.id || '-'}`,
+      `Username: ${ctx.from?.username ? `@${ctx.from.username}` : '-'}`,
+    ].join('\n');
   }
 
   private consumeRateLimit(userKey: string): boolean {
