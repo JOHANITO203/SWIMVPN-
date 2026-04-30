@@ -2183,3 +2183,22 @@ pm run build PASSED.
     - `cd backend && npm run build:all` PASSED.
 - **Live QA**:
     - After redeploy, start card payment from the Android app, verify the Telegram link opens the payment bot, send a proof screenshot, confirm contact details, and verify the review packet lands in `PAYMENT_REVIEW_CHAT_ID`.
+
+## [2026-04-30] [Notification Bot Token Ownership Alignment]
+- **Status**: DONE
+- **Problem**: Notification delivery messages could be sent by a different Telegram bot than the one listening for inline callbacks and manual payment proof commands.
+- **Root Cause**: `TelegramCommandService` listened on `PAYMENT_BOT_TOKEN`/`NOTIFICATION_BOT_TOKEN`, while `TelegramSenderService` still preferred `NOTIFICATION_BOT_TOKEN`/`TELEGRAM_BOT_TOKEN`. Inline callback ownership belongs to the bot that sends the message, so this could strand admin buttons.
+- **Changes**:
+    - Added shared notification bot token routing helpers.
+    - Command listener uses `PAYMENT_BOT_TOKEN`, then `NOTIFICATION_BOT_TOKEN`, never admin `TELEGRAM_BOT_TOKEN`.
+    - Sender now prefers `PAYMENT_BOT_TOKEN`, then `NOTIFICATION_BOT_TOKEN`, then legacy `TELEGRAM_BOT_TOKEN` only for one-way fallback alerts.
+    - Added policy tests for token routing.
+- **Verification**:
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/telegram-token-routing.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/telegram-command-menu.spec.ts` PASSED.
+    - `cd backend && npx ts-node -r tsconfig-paths/register apps/notification-bot-service/src/__tests__/manual-card-confirmation.spec.ts` PASSED.
+    - `cd backend && npm run lint` PASSED.
+    - `cd backend && npm run test:policy` PASSED.
+    - `cd backend && npm run build:all` PASSED.
+- **Live QA**:
+    - After redeploy, verify admin delivery buttons and manual payment approve/reject callbacks are sent and received by the same payment/notification bot.

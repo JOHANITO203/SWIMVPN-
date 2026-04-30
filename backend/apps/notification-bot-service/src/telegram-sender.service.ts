@@ -1,6 +1,7 @@
 ﻿import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Telegraf, Markup } from 'telegraf';
+import { selectNotificationSenderBotToken } from './telegram-token-routing';
 
 @Injectable()
 export class TelegramSenderService {
@@ -9,9 +10,11 @@ export class TelegramSenderService {
   private readonly adminChatId?: string;
 
   constructor(private readonly configService: ConfigService) {
-    const token =
-      this.configService.get<string>('NOTIFICATION_BOT_TOKEN') ||
-      this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+    const token = selectNotificationSenderBotToken({
+      paymentBotToken: this.configService.get<string>('PAYMENT_BOT_TOKEN'),
+      notificationBotToken: this.configService.get<string>('NOTIFICATION_BOT_TOKEN'),
+      telegramBotToken: this.configService.get<string>('TELEGRAM_BOT_TOKEN'),
+    });
     this.adminChatId = this.configService.get<string>('ADMIN_CHAT_ID');
 
     if (!token || !this.adminChatId) {

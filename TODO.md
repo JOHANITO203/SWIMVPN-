@@ -790,3 +790,10 @@ u after each future language batch
 - Reply with email, phone, and sender phone.
 - Verify `PAYMENT_REVIEW_CHAT_ID` receives the final review packet with approve/reject buttons.
 - Approve a test order and verify fulfillment/email delivery; reject another and verify rejection email/status.
+
+## Notification Bot Token Ownership Live QA
+- After redeploy, confirm `notification-bot-service` logs show the payment/notification bot command menu registration.
+- Trigger a delivery/admin notification with inline buttons.
+- Click `resend`, `copy`, or `mark delivered` and confirm the callback is handled by the same bot.
+- Trigger manual card proof review and verify `approve`/`reject` buttons answer instead of silently doing nothing.
+- Keep `TELEGRAM_BOT_TOKEN` reserved for admin operations unless used only as legacy one-way notification fallback.

@@ -11,6 +11,7 @@ import {
 } from './manual-card-confirmation';
 import { isTelegramAdminContext, normalizeTelegramId, parseAdminUserIds } from './telegram-admin-auth';
 import { NOTIFICATION_BOT_COMMANDS, formatTelegramCommandHelp } from './telegram-command-menu';
+import { selectPaymentCommandBotToken } from './telegram-token-routing';
 
 @Injectable()
 export class TelegramCommandService implements OnModuleInit {
@@ -29,9 +30,11 @@ export class TelegramCommandService implements OnModuleInit {
     private readonly notificationService: NotificationService,
     @Inject('CUSTOMER_SERVICE') private readonly customerClient: ClientProxy,
   ) {
-    const token =
-      this.configService.get<string>('PAYMENT_BOT_TOKEN')?.trim() ||
-      this.configService.get<string>('NOTIFICATION_BOT_TOKEN')?.trim();
+    const token = selectPaymentCommandBotToken({
+      paymentBotToken: this.configService.get<string>('PAYMENT_BOT_TOKEN'),
+      notificationBotToken: this.configService.get<string>('NOTIFICATION_BOT_TOKEN'),
+      telegramBotToken: this.configService.get<string>('TELEGRAM_BOT_TOKEN'),
+    });
     this.adminChatId = this.configService.get<string>('ADMIN_CHAT_ID');
     this.reviewChatId =
       this.configService.get<string>('PAYMENT_REVIEW_CHAT_ID') || this.adminChatId;
