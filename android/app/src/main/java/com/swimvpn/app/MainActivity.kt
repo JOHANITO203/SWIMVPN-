@@ -466,8 +466,14 @@ fun HomeScreen(
     val bytesOut by VpnManager.bytesOut.collectAsState()
     val errorMessage by VpnManager.errorMessage.collectAsState()
 
-    LaunchedEffect(inMemoryVpnState) {
-        vpnState = inMemoryVpnState
+    LaunchedEffect(inMemoryVpnState, activeServer?.id) {
+        val staleErrorWithoutServer = inMemoryVpnState == VpnState.ERROR && activeServer == null
+        if (staleErrorWithoutServer) {
+            VpnManager.updateState(VpnState.DISCONNECTED)
+            vpnState = VpnState.DISCONNECTED
+        } else {
+            vpnState = inMemoryVpnState
+        }
     }
 
     // Animation pour le bouton Power
@@ -619,12 +625,12 @@ fun HomeScreen(
 
             // Status Badge
             val badgeColor = when {
-                profile.isPendingFulfillment -> MaterialTheme.colorScheme.errorContainer
+                profile.isPendingFulfillment -> MaterialTheme.colorScheme.secondaryContainer
                 profile.isActiveTrial -> MaterialTheme.colorScheme.secondaryContainer
                 else -> MaterialTheme.colorScheme.primaryContainer
             }
             val badgeTextColor = when {
-                profile.isPendingFulfillment -> MaterialTheme.colorScheme.onErrorContainer
+                profile.isPendingFulfillment -> MaterialTheme.colorScheme.onSecondaryContainer
                 profile.isActiveTrial -> MaterialTheme.colorScheme.onSecondaryContainer
                 else -> MaterialTheme.colorScheme.onPrimaryContainer
             }

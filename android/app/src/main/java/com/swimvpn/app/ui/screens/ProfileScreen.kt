@@ -65,7 +65,8 @@ fun ProfileScreen(
     val badgeBackground = profileBadgeBackground(profile)
     val localizedPlanName = profileLocalizedPlanName(profile, context)
     var showCancelSubscriptionDialog by remember { mutableStateOf(false) }
-    val canCancelSubscription = profile.isActiveSubscription && onCancelSubscription != null
+    val canCancelSubscription =
+        (profile.isActiveSubscription || profile.isPendingFulfillment) && onCancelSubscription != null
 
     Column(
         modifier = Modifier
@@ -309,10 +310,10 @@ private fun SwimVpnAccessCard(
         isActiveSubscription -> stringResource(R.string.profile_quota_provider_managed)
         else -> stringResource(R.string.profile_quota_freemium)
     }
-    val quotaNote = when {
+    val quotaNote: String? = when {
         isActiveTrial -> stringResource(R.string.profile_trial_unlimited_note)
         isActiveSubscription -> stringResource(R.string.profile_quota_provider_managed_note)
-        else -> stringResource(R.string.profile_quota_freemium_note)
+        else -> null
     }
     val measuredUsedBytes = profile.parsedDataUsedBytes
     val remainingBytes = if (showMeasuredAnalytics) {
@@ -400,17 +401,19 @@ private fun SwimVpnAccessCard(
                     )
                 }
             } else {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Text(
-                        text = quotaNote,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                quotaNote?.let { note ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Text(
+                            text = note,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 
@@ -910,7 +913,7 @@ private fun profileBadgeColor(profile: AccessProfileResponse): Color =
     when (profile.normalizedEntitlementState) {
         "PROFILE_INCOMPLETE" -> MaterialTheme.colorScheme.error
         "TRIAL_AVAILABLE" -> MaterialTheme.colorScheme.primary
-        "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.error
+        "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.primary
         "FREEMIUM", "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> MaterialTheme.colorScheme.primary
         "ACTIVE_TRIAL", "ACTIVE_SUBSCRIPTION" -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -921,7 +924,7 @@ private fun profileBadgeBackground(profile: AccessProfileResponse): Color =
     when (profile.normalizedEntitlementState) {
         "PROFILE_INCOMPLETE" -> MaterialTheme.colorScheme.errorContainer
         "TRIAL_AVAILABLE" -> MaterialTheme.colorScheme.primaryContainer
-        "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.errorContainer
+        "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.primaryContainer
         "FREEMIUM", "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> MaterialTheme.colorScheme.primaryContainer
         "ACTIVE_TRIAL", "ACTIVE_SUBSCRIPTION" -> MaterialTheme.colorScheme.primaryContainer
       else -> MaterialTheme.colorScheme.surfaceVariant

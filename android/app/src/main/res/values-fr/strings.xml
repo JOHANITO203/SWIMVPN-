@@ -32,7 +32,7 @@
     <string name="home_badge_basic">BASIC ACTIF</string>
     <string name="home_badge_premium">PREMIUM ACTIF</string>
     <string name="home_badge_platinum">PLATINUM ACTIF</string>
-    <string name="home_badge_pending_fulfillment">ACCÈS EN PRÉPARATION</string>
+    <string name="home_badge_pending_fulfillment">COMMANDE EN COURS</string>
     <string name="home_badge_access">ACCÈS ACTIF</string>
     <string name="home_badge_standard">MODE STANDARD</string>
     <string name="home_proxy_ready">Proxy local prêt pour usage manuel ou apps compatibles proxy</string>
@@ -108,7 +108,7 @@
     <string name="profile_quota_provider_managed">GÉRÉ PAR LE FOURNISSEUR</string>
     <string name="profile_quota_provider_managed_note">Le quota et l’expiration viennent de la configuration fournisseur assignée.</string>
     <string name="profile_quota_freemium">MODE STANDARD</string>
-    <string name="profile_quota_freemium_note">L’app reste utilisable. Vous pouvez importer vos configs ou choisir un nouvel abonnement à tout moment.</string>
+    <string name="profile_quota_freemium_note">Aucun abonnement premium sélectionné.</string>
     <string name="active_config_source_managed">Premium</string>
     <string name="active_config_source_imported">Importée</string>
     <string name="active_config_protocol">Protocole</string>
@@ -127,7 +127,7 @@
     <string name="profile_expiring_soon">Expire bientôt</string>
     <string name="profile_status_complete_profile">COMPLÉTER LE PROFIL</string>
     <string name="profile_status_trial_available">ESSAI DISPONIBLE</string>
-    <string name="profile_status_pending_fulfillment">PRÉPARATION DE L’ACCÈS</string>
+    <string name="profile_status_pending_fulfillment">COMMANDE EN COURS</string>
     <string name="profile_status_expired">EXPIRÉ</string>
     <string name="profile_status_trial_active">ESSAI ACTIF</string>
     <string name="profile_status_paid_active">ACTIF</string>
@@ -172,7 +172,7 @@
     <string name="subscription_cancel_dialog_body">Cette action supprimera la configuration premium de cet appareil. Si cette config premium est sélectionnée, le VPN et l’auto-connexion seront arrêtés. Les configurations importées resteront disponibles.</string>
     <string name="subscription_cancel_confirm">Résilier l’accès</string>
     <string name="subscription_cancel_keep">Garder l’accès</string>
-    <string name="subscription_cancelled_success">Mode standard rétabli. Vous pouvez importer une config ou choisir un nouvel abonnement à tout moment.</string>
+    <string name="subscription_cancelled_success">Mode standard rétabli.</string>
 
     <string name="profile_trial_id_label">VOTRE ID SWIMVPN+</string>
     <string name="profile_trial_description">Complétez votre profil pour débloquer l’essai de 3 jours. Nous utilisons votre appareil, votre email et votre téléphone pour éviter les abus.</string>

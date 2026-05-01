@@ -2488,3 +2488,24 @@ pm run build PASSED.
   - `cd android && .\gradlew.bat :app:mergeDebugResources --no-daemon --max-workers=1 --console=plain` PASSED.
   - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
   - `cd backend && npm run test:policy` could not start because local `backend/node_modules` is missing (`ts-node` unavailable). Run this in Dokploy/container or after restoring backend dependencies.
+
+## [2026-05-02] [Pending Fulfillment Cancellation Returns To Standard]
+- **Status**: IMPLEMENTED / NEEDS BACKEND REDEPLOY + RELEASE APK QA
+- **Problem**:
+  - A customer who had a paid/manual-card order with no assigned config could still see `Accès en préparation` after trying to cancel, because no active assignment existed to revoke and the paid order stayed open.
+  - The pending badge was rendered in red, and stale VPN runtime errors could still appear when no server was selected.
+  - The freemium explanatory text was too heavy for the desired product UX.
+- **Change**:
+  - Customer cancellation now closes a paid or pending-fulfillment order with no active assignment by marking the order `CANCELLED` and auditing `CUSTOMER_PENDING_ORDER_CANCELLED`.
+  - A cancelled pending order returns the app to standard/freemium profile state and consumes no resale slot.
+  - Android allows cancellation from pending fulfillment state, removes red pending styling, renames pending copy to `Commande en cours`, clears stale VPN error display when no server is selected, and shortens the cancellation toast.
+  - The standard quota card no longer displays the long explanatory sentence.
+- **Live QA needed**:
+  - With a paid-but-not-fulfilled order, tap cancel and confirm the app returns to `MODE STANDARD` with no `Connection failed` text.
+  - Confirm `/trace_card <orderRef>` still keeps audit visibility for the cancelled order.
+  - Confirm a cancelled pending order cannot accidentally expose premium config and does not consume inventory capacity.
+- **Additional verification**:
+  - `git diff --check` PASSED with CRLF warnings only.
+  - Initial parallel Gradle verification caused a transient `mergeDebugResources` intermediate-file error; rerunning sequentially fixed it.
+  - `cd android && .\gradlew.bat :app:mergeDebugResources :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
+  - `cd backend && npm run test:policy` could not start locally because `ts-node` is unavailable (`backend/node_modules` missing). Re-run inside the backend container or after dependency restore.

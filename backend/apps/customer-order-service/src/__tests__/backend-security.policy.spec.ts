@@ -249,6 +249,75 @@ async function main() {
     'paid orders without assignment should remain pending fulfillment, not disappear into freemium',
   );
 
+  let pendingCancellationFindCount = 0;
+  const cancelledOrders: unknown[] = [];
+  const pendingCancellationEvents: unknown[] = [];
+  const pendingCancellationService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => {
+          pendingCancellationFindCount += 1;
+          return {
+            id: 'customer-4',
+            public_id: 'SW-PENDING-CANCEL',
+            device_id: 'device-4',
+            email: 'pending-cancel@example.com',
+            phone: '79000000003',
+            orders: pendingCancellationFindCount === 1
+              ? [
+                  {
+                    id: 'order-pending-cancel',
+                    order_ref: 'ORD-PENDING-CANCEL',
+                    status: 'PAID',
+                    plan: {
+                      code: 'WEEK',
+                    },
+                    payment_ref: 'CARD_MANUAL:APPROVED',
+                    created_at: new Date('2026-04-30T00:00:00.000Z'),
+                    fulfilled_at: null,
+                    assignments: [],
+                  },
+                ]
+              : [],
+          };
+        },
+      },
+      order: {
+        findFirst: async () => null,
+        update: async (args: unknown) => {
+          cancelledOrders.push(args);
+          return args;
+        },
+      },
+      adminEvent: {
+        create: async (event: unknown) => {
+          pendingCancellationEvents.push(event);
+          return event;
+        },
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const pendingCancellationProfile = await (pendingCancellationService as any).cancelCurrentSubscription({
+    userNumber: 'SW-PENDING-CANCEL',
+    deviceId: 'device-4',
+    reason: 'CUSTOMER_CANCELLED_PENDING',
+  });
+  assert(cancelledOrders.length === 1, 'cancelling pending fulfillment must close the pending paid order');
+  assert((cancelledOrders[0] as any).data?.status === 'CANCELLED', 'pending paid order should become CANCELLED');
+  assert(
+    pendingCancellationProfile.entitlementState === 'FREEMIUM',
+    'cancelling pending fulfillment should return to freemium/standard state',
+  );
+  assert(
+    pendingCancellationEvents.length === 1 &&
+      (pendingCancellationEvents[0] as any).data?.event_type === 'CUSTOMER_PENDING_ORDER_CANCELLED',
+    'cancelling pending fulfillment must be audited',
+  );
+
   const fulfillmentFailureEvents: unknown[] = [];
   const fulfillmentFailureService = new CustomerService(
     {

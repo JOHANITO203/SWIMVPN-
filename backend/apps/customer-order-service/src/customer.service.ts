@@ -274,6 +274,37 @@ export class CustomerService {
     );
 
     if (!activeOrder || !activeAssignment) {
+      const pendingOrder = customer.orders.find(
+        (order) =>
+          order.status === OrderStatus.PAID ||
+          order.status === OrderStatus.PENDING_FULFILLMENT,
+      );
+
+      if (pendingOrder) {
+        await this.prisma.order.update({
+          where: { id: pendingOrder.id },
+          data: { status: OrderStatus.CANCELLED },
+        });
+
+        await this.prisma.adminEvent.create({
+          data: {
+            event_type: 'CUSTOMER_PENDING_ORDER_CANCELLED',
+            entity_type: 'ORDER',
+            entity_id: pendingOrder.order_ref,
+            payload_json: {
+              userNumber: customer.public_id,
+              orderRef: pendingOrder.order_ref,
+              previousStatus: pendingOrder.status,
+              requestedReason: reason,
+              cancelledAt: new Date().toISOString(),
+              slotPolicy: 'no active assignment existed; no resale slot was consumed',
+            } as any,
+          },
+        }).catch(() => undefined);
+
+        return this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
+      }
+
       await this.prisma.adminEvent.create({
         data: {
           event_type: 'CUSTOMER_SUBSCRIPTION_CANCEL_SKIPPED',

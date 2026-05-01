@@ -628,9 +628,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (shouldClearBackendAccess) {
                     VpnManager.clearError()
-                    if (!shouldStopBackendVpn) {
-                        VpnManager.updateState(VpnState.DISCONNECTED)
-                    }
+                    VpnManager.updateState(VpnState.DISCONNECTED)
                 }
 
                 val successState = buildSuccessState(

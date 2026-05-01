@@ -933,3 +933,9 @@ u after each future language batch
 - If approval still fails, use the exact `FULFILLMENT_FAILED` error now returned by the bot to decide whether stock, inventory health, delivery/email, or order state needs admin action.
 - Verify a cancelled paid user sees `MODE STANDARD`, no red expired badge, no old provider remaining-days value, and can immediately open subscription offers or use/import configs.
 - Verify the cancelled assignment is `REVOKED` and the supplier resource can be resold within the configured two-order cap.
+
+## Pending fulfillment cancellation QA
+- Redeploy backend services after the `CUSTOMER_PENDING_ORDER_CANCELLED` change.
+- Build/install a new signed APK after the pending badge, stale VPN error, and standard card copy changes.
+- Test paid-but-not-fulfilled order cancellation: app must return to `MODE STANDARD`, no red pending badge, no stale `Connection failed`, and no long freemium explanatory message.
+- Verify order audit contains `CUSTOMER_PENDING_ORDER_CANCELLED` and no inventory slot was consumed.

@@ -32,7 +32,7 @@
     <string name="home_badge_basic">BASIC АКТИВЕН</string>
     <string name="home_badge_premium">PREMIUM АКТИВЕН</string>
     <string name="home_badge_platinum">PLATINUM АКТИВЕН</string>
-    <string name="home_badge_pending_fulfillment">ДОСТУП ГОТОВИТСЯ</string>
+    <string name="home_badge_pending_fulfillment">ЗАКАЗ В РАБОТЕ</string>
     <string name="home_badge_access">ДОСТУП АКТИВЕН</string>
     <string name="home_badge_standard">СТАНДАРТНЫЙ РЕЖИМ</string>
     <string name="home_proxy_ready">Локальный прокси готов для ручного использования или proxy-aware приложений</string>
@@ -108,7 +108,7 @@
     <string name="profile_quota_provider_managed">УПРАВЛЯЕТСЯ ПРОВАЙДЕРОМ</string>
     <string name="profile_quota_provider_managed_note">Квота и срок действия берутся из назначенной конфигурации провайдера.</string>
     <string name="profile_quota_freemium">СТАНДАРТНЫЙ РЕЖИМ</string>
-    <string name="profile_quota_freemium_note">Приложение остается доступным. Можно импортировать свою конфигурацию или выбрать новый premium-план в любой момент.</string>
+    <string name="profile_quota_freemium_note">Premium-план не выбран.</string>
     <string name="active_config_source_managed">Premium</string>
     <string name="active_config_source_imported">Импорт</string>
     <string name="active_config_protocol">Протокол</string>
@@ -127,7 +127,7 @@
     <string name="profile_expiring_soon">Скоро истекает</string>
     <string name="profile_status_complete_profile">ЗАПОЛНИТЬ ПРОФИЛЬ</string>
     <string name="profile_status_trial_available">ПРОБНЫЙ ДОСТУП ГОТОВ</string>
-    <string name="profile_status_pending_fulfillment">ПОДГОТОВКА ДОСТУПА</string>
+    <string name="profile_status_pending_fulfillment">ЗАКАЗ В РАБОТЕ</string>
     <string name="profile_status_expired">ИСТЕКЛО</string>
     <string name="profile_status_trial_active">ПРОБНЫЙ ПЕРИОД АКТИВЕН</string>
     <string name="profile_status_paid_active">АКТИВЕН</string>
@@ -172,7 +172,7 @@
     <string name="subscription_cancel_dialog_body">Это удалит premium-конфигурацию с этого устройства. Если выбрана эта premium-конфигурация, VPN и автоподключение будут остановлены. Импортированные конфигурации останутся доступны.</string>
     <string name="subscription_cancel_confirm">Отменить доступ</string>
     <string name="subscription_cancel_keep">Оставить доступ</string>
-    <string name="subscription_cancelled_success">Стандартный режим восстановлен. Можно импортировать конфигурацию или выбрать новый план в любой момент.</string>
+    <string name="subscription_cancelled_success">Стандартный режим восстановлен.</string>
 
     <string name="profile_trial_id_label">ВАШ ID SWIMVPN+</string>
     <string name="profile_trial_description">Заполните профиль, чтобы открыть пробный период на 3 дня. Мы используем устройство, email и телефон для защиты от злоупотреблений.</string>
