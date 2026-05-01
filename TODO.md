@@ -950,3 +950,9 @@ u after each future language batch
 - After redeploy, retry `/approve_card ORD-...` for the paid customer.
 - Expected if delivery still cannot complete: bot says payment approved and fulfillment pending with the exact reason.
 - Resolve the shown reason, then rerun `/approve_card ORD-...` or use pending fulfillment tooling to release the config.
+
+## Production migration required for resale-slot fulfillment
+
+- Run Prisma migrate deploy after deploying the migration `20260502093000_drop_stale_unique_assignment_indexes`.
+- Retry `/approve_card ORD-1777677975691-606` after migration succeeds.
+- Expected result: fulfillment can attach the second assignment to the same inventory item if capacity remains.

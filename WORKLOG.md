@@ -2529,3 +2529,9 @@ pm run build PASSED.
 - `customer-order-service` now keeps the order in `PENDING_FULFILLMENT` with `paymentApproved: true` and preserves the exact `fulfillmentError` for admin diagnosis.
 - `notification-bot-service` now replies that payment is approved but fulfillment is pending, instead of saying approval failed.
 - Security boundary remains unchanged: no premium config is exposed until inventory assigns a valid resource.
+
+## [2026-05-02] [Drop Stale Unique Assignment Indexes]
+
+- Root cause confirmed for manual card fulfillment failure: production DB still had the initial unique index on `OrderAssignment.inventory_item_id`.
+- That stale index contradicted the resale-slot model where one supplier config can serve multiple orders until `max_resale_slots` is reached.
+- Added an idempotent Prisma migration to drop the stale unique assignment indexes and keep the non-unique lookup index.
