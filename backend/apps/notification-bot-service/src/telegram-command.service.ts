@@ -235,33 +235,24 @@ export class TelegramCommandService implements OnModuleInit {
       });
 
       if (this.bot && this.reviewChatId) {
-        try {
-          await this.bot.telegram.sendPhoto(
-            this.reviewChatId,
-            photo.file_id,
-            {
-              caption: [
-                'SWIMVPN+ CARD PAYMENT PROOF',
-                `Order: ${order.order_ref}`,
-                `Email: ${order.customer.email || '-'}`,
-                `Phone: ${order.customer.phone || '-'}`,
-                `Plan: ${order.plan.name}`,
-                `Amount: ${order.amount_rub.toString()} RUB`,
-                `Telegram: @${ctx.from.username || '-'} (${ctx.from.id})`,
-              ].join('\n'),
-              ...Markup.inlineKeyboard([
-                [
-                  Markup.button.callback('approve', `approve_card:${order.order_ref}:${proofEvent.id}`),
-                  Markup.button.callback('reject', `reject_card:${order.order_ref}:${proofEvent.id}`),
-                ],
-              ]),
-            },
-          );
-        } catch (error) {
-          this.logger.warn(`Failed to forward manual card photo proof for ${order.order_ref}: ${(error as Error).message}`);
-        }
+        await this.notifyManualCardProofReview({
+          order,
+          proofEvent,
+          from: ctx.from,
+          fileId: photo.file_id,
+          proofType: 'photo',
+          originalCaption: ctx.message.caption || null,
+        });
       } else {
         this.logger.warn(`Manual card photo proof for ${order.order_ref} cannot be forwarded: review chat is not configured`);
+        await this.notifyManualCardProofReview({
+          order,
+          proofEvent,
+          from: ctx.from,
+          fileId: photo.file_id,
+          proofType: 'photo',
+          originalCaption: ctx.message.caption || null,
+        });
       }
 
       await ctx.reply(this.buildManualPaymentConfirmationPrompt(order.customer.email, order.customer.phone));
@@ -334,25 +325,24 @@ export class TelegramCommandService implements OnModuleInit {
       });
 
       if (this.bot && this.reviewChatId) {
-        try {
-          await this.bot.telegram.sendDocument(
-            this.reviewChatId,
-            document.file_id,
-            {
-              caption: this.buildManualPaymentReviewCaption(order, ctx.from),
-              ...Markup.inlineKeyboard([
-                [
-                  Markup.button.callback('approve', `approve_card:${order.order_ref}:${proofEvent.id}`),
-                  Markup.button.callback('reject', `reject_card:${order.order_ref}:${proofEvent.id}`),
-                ],
-              ]),
-            },
-          );
-        } catch (error) {
-          this.logger.warn(`Failed to forward manual card document proof for ${order.order_ref}: ${(error as Error).message}`);
-        }
+        await this.notifyManualCardProofReview({
+          order,
+          proofEvent,
+          from: ctx.from,
+          fileId: document.file_id,
+          proofType: 'document',
+          originalCaption: ctx.message.caption || null,
+        });
       } else {
         this.logger.warn(`Manual card document proof for ${order.order_ref} cannot be forwarded: review chat is not configured`);
+        await this.notifyManualCardProofReview({
+          order,
+          proofEvent,
+          from: ctx.from,
+          fileId: document.file_id,
+          proofType: 'document',
+          originalCaption: ctx.message.caption || null,
+        });
       }
 
       await ctx.reply(this.buildManualPaymentConfirmationPrompt(order.customer.email, order.customer.phone));
@@ -412,7 +402,20 @@ export class TelegramCommandService implements OnModuleInit {
 
       if (!this.bot || !this.reviewChatId) {
         this.logger.warn(`Manual payment contact confirmation cannot be forwarded for ${pending.orderRef}: review chat is not configured`);
-        await ctx.reply('Your details were received, but admin review chat is not configured. Please contact support.');
+        await this.notifyAdminTextFallback(
+          pending.orderRef,
+          pending.proofEventId,
+          buildManualPaymentContactReviewText({
+            orderRef: pending.orderRef,
+            proofEventId: pending.proofEventId,
+            telegramUsername: ctx.from.username || null,
+            telegramUserId: ctx.from.id.toString(),
+            confirmationText: text,
+            parsed: parsedConfirmation,
+          }),
+        );
+        this.pendingManualConfirmations.delete(ctx.chat.id.toString());
+        await ctx.reply('Thank you. Your payment proof and contact details are now under admin review.');
         return;
       }
 
@@ -436,8 +439,18 @@ export class TelegramCommandService implements OnModuleInit {
         );
       } catch (error) {
         this.logger.warn(`Failed to forward manual payment contact confirmation for ${pending.orderRef}: ${(error as Error).message}`);
-        await ctx.reply('Your details were received, but we could not forward them to admin review. Please try sending the same confirmation again.');
-        return;
+        await this.notifyAdminTextFallback(
+          pending.orderRef,
+          pending.proofEventId,
+          buildManualPaymentContactReviewText({
+            orderRef: pending.orderRef,
+            proofEventId: pending.proofEventId,
+            telegramUsername: ctx.from.username || null,
+            telegramUserId: ctx.from.id.toString(),
+            confirmationText: text,
+            parsed: parsedConfirmation,
+          }),
+        );
       }
 
       this.pendingManualConfirmations.delete(ctx.chat.id.toString());
@@ -536,6 +549,132 @@ export class TelegramCommandService implements OnModuleInit {
       await this.registerTelegramCommandMenu();
       this.logger.log('Telegram command bot started');
     });
+  }
+
+  private manualCardReviewActions(orderRef: string, proofEventId: string) {
+    return Markup.inlineKeyboard([
+      [
+        Markup.button.callback('approve', `approve_card:${orderRef}:${proofEventId}`),
+        Markup.button.callback('reject', `reject_card:${orderRef}:${proofEventId}`),
+      ],
+    ]);
+  }
+
+  private buildManualCardProofReviewText(input: {
+    order: any;
+    proofEvent: any;
+    from: any;
+    originalCaption?: string | null;
+    mediaForwarded?: boolean;
+  }) {
+    return [
+      input.mediaForwarded ? 'SWIMVPN+ CARD PAYMENT PROOF' : 'SWIMVPN+ CARD PAYMENT PROOF - TEXT FALLBACK',
+      '',
+      'Action: if money is visible in the bank, press approve.',
+      '',
+      `Order: ${input.order.order_ref}`,
+      `Email: ${input.order.customer.email || '-'}`,
+      `Phone: ${input.order.customer.phone || '-'}`,
+      `Plan: ${input.order.plan.name}`,
+      `Amount: ${input.order.amount_rub.toString()} RUB`,
+      `Proof event: ${input.proofEvent.id}`,
+      `Telegram: @${input.from.username || '-'} (${input.from.id})`,
+      input.originalCaption ? `Original caption: ${input.originalCaption}` : null,
+      '',
+      `Fallback command: /approve_card ${input.order.order_ref}`,
+    ].filter(Boolean).join('\n');
+  }
+
+  private async notifyManualCardProofReview(input: {
+    order: any;
+    proofEvent: any;
+    from: any;
+    fileId: string;
+    proofType: 'photo' | 'document';
+    originalCaption?: string | null;
+  }) {
+    if (!this.bot) return false;
+
+    const actions = this.manualCardReviewActions(input.order.order_ref, input.proofEvent.id);
+    const mediaCaption = this.buildManualCardProofReviewText({
+      ...input,
+      mediaForwarded: true,
+    });
+    const fallbackText = this.buildManualCardProofReviewText({
+      ...input,
+      mediaForwarded: false,
+    });
+
+    let notified = false;
+    if (this.reviewChatId) {
+      try {
+        if (input.proofType === 'document') {
+          await this.bot.telegram.sendDocument(this.reviewChatId, input.fileId, {
+            caption: mediaCaption,
+            ...actions,
+          });
+        } else {
+          await this.bot.telegram.sendPhoto(this.reviewChatId, input.fileId, {
+            caption: mediaCaption,
+            ...actions,
+          });
+        }
+        notified = true;
+      } catch (error) {
+        this.logger.warn(`Failed to forward manual card ${input.proofType} proof for ${input.order.order_ref}: ${(error as Error).message}`);
+        try {
+          await this.bot.telegram.sendMessage(this.reviewChatId, fallbackText, actions);
+          notified = true;
+        } catch (fallbackError) {
+          this.logger.warn(`Failed to send manual card text fallback to review chat for ${input.order.order_ref}: ${(fallbackError as Error).message}`);
+        }
+      }
+    }
+
+    const directAdminNotified = await this.notifyAdminTextFallback(
+      input.order.order_ref,
+      input.proofEvent.id,
+      fallbackText,
+    );
+    notified = notified || directAdminNotified;
+
+    if (!notified) {
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: 'CARD_PAYMENT_REVIEW_NOTIFICATION_FAILED',
+          entity_type: 'ORDER',
+          entity_id: input.order.order_ref,
+          payload_json: {
+            orderRef: input.order.order_ref,
+            proofEventId: input.proofEvent.id,
+            reviewChatIdConfigured: !!this.reviewChatId,
+            adminUserIdsConfigured: this.adminUserIds.length,
+            failedAt: new Date().toISOString(),
+          } as any,
+        },
+      });
+    }
+
+    return notified;
+  }
+
+  private async notifyAdminTextFallback(orderRef: string, proofEventId: string, text: string) {
+    if (!this.bot || this.adminUserIds.length === 0) {
+      return false;
+    }
+
+    const actions = this.manualCardReviewActions(orderRef, proofEventId);
+    let notified = false;
+    for (const adminUserId of this.adminUserIds) {
+      try {
+        await this.bot.telegram.sendMessage(adminUserId, text, actions);
+        notified = true;
+      } catch (error) {
+        this.logger.warn(`Failed to notify admin ${adminUserId} for manual card ${orderRef}: ${(error as Error).message}`);
+      }
+    }
+
+    return notified;
   }
 
   private async findLatestManualCardProofEvent(orderRef: string) {

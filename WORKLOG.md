@@ -2332,3 +2332,25 @@ pm run build PASSED.
   - In the payment bot as admin, run `/pending_cards`.
   - Run `/review_card <orderRef>` to inspect the stored proof.
   - If money is confirmed, run `/approve_card <orderRef>`.
+
+## [2026-05-01] [Manual Card Proof Admin Auto-Fallback]
+- **Status**: IMPLEMENTED / NEEDS REDEPLOY + LIVE QA
+- **Problem**: In production, a customer paid by card and sent a screenshot, but because the admin could not approve the received payment, the customer did not receive access. The admin workflow still required too much manual recovery when Telegram review delivery failed or the customer went offline after proof upload.
+- **Change**:
+  - When a card proof photo/document is received, the bot now automatically builds an admin review packet with approve/reject actions.
+  - It first tries to send the media proof to `PAYMENT_REVIEW_CHAT_ID`/review chat.
+  - If media forwarding fails, it sends a text fallback with the same approve/reject actions.
+  - It also sends a direct admin fallback to every configured `ADMIN_USER_IDS` value, so the admin can approve even if the review group is misconfigured or unavailable.
+  - If all admin notifications fail, an admin event `CARD_PAYMENT_REVIEW_NOTIFICATION_FAILED` is persisted for audit/recovery.
+  - Customer contact confirmation is no longer blocked by review chat failures; the customer gets an under-review acknowledgement and admin can continue from the stored proof.
+- **Security**:
+  - No automatic fulfillment is granted from the screenshot alone.
+  - Admin still must press approve or use `/approve_card <orderRef>`.
+  - Approval still goes through `customer-order-service` and the normal fulfillment/delivery path.
+- **Verification**:
+  - Local policy tests/build could not run because `backend/node_modules` is missing after disk cleanup (`ts-node` and `nest` unavailable).
+  - Static diff reviewed for the manual card photo/document/contact confirmation flow.
+- **Live recovery**:
+  - Redeploy `notification-bot-service`.
+  - For the current paid customer, run `/pending_cards` or wait for the direct admin fallback if the proof event is already in PostgreSQL and the user resends/continues.
+  - Use `/review_card <orderRef>` then press approve, or directly `/approve_card <orderRef>` after confirming money in the bank.

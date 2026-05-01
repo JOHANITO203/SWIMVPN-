@@ -875,3 +875,13 @@ u after each future language batch
   - `/reject_card <orderRef>` on a disposable pending order only.
 - Confirm `/approve_card` refuses orders with no stored `CARD_PAYMENT_PROOF_SUBMITTED` event.
 - Confirm approved manual card orders become fulfilled or pending fulfillment through the normal backend flow and delivery email is sent when inventory is available.
+
+## Manual Card Bot Auto-Fallback Live QA
+- Redeploy `notification-bot-service`.
+- Confirm the payment bot can DM the admin user ids in `ADMIN_USER_IDS`; each admin must have started the payment bot at least once.
+- Test with a pending card order:
+  - send screenshot as customer
+  - confirm review group receives media + approve/reject buttons
+  - temporarily break/disable review chat if possible and confirm admin receives direct text fallback with approve/reject buttons
+  - approve and confirm fulfillment/email delivery
+- For the current incident, use `/pending_cards`, `/review_card <orderRef>`, then `/approve_card <orderRef>` after bank confirmation.
