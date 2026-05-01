@@ -850,3 +850,10 @@ u after each future language batch
 - Confirm repeated failure avoids the unstable server for the cooldown and switches to another visible/authorized server.
 - Confirm free/expired users never fallback to backend premium servers; imported configs remain candidates.
 - Do not implement Standard/Stealth auto-switch until configs are classified and live metrics prove the reconnect layer is stable.
+
+## Android Local Build Environment Follow-Up
+- `prepareTun2SocksRuntimeAssets` is fixed and verified.
+- If full `assembleDebug` or `assembleRelease` still crashes locally, reduce active apps/processes or run with reduced Gradle memory:
+  - `$env:GRADLE_OPTS='-Dorg.gradle.jvmargs=-Xmx1024m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8'`
+  - `cd android; .\gradlew.bat :app:assembleDebug --no-daemon --max-workers=1 --console=plain`
+- If release R8 still OOMs, build signed release on the VPS/build machine or a local session with more RAM/pagefile.

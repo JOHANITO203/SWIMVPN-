@@ -2281,3 +2281,22 @@ pm run build PASSED.
   - Confirm manual disconnect never triggers adaptive reconnect.
   - Confirm backend premium servers are not selected when entitlement is inactive.
   - Watch logcat for `SwimDecisionAgent` events.
+
+## [2026-05-01] [Android Tun2Socks Runtime Build Fix]
+- **Status**: FIXED / BUILD TASK VERIFIED
+- **Problem**: `:app:prepareTun2SocksRuntimeAssets` failed with `tun2socks source build did not produce libhev-socks5-tunnel.so for arm64-v8a`.
+- **Root cause**:
+  - The Gradle helper used `providers.exec { ... }` inside imperative build logic, so the clone/NDK commands were not reliably executed.
+  - The upstream `hev-socks5-tunnel` Android build requires explicit `NDK_PROJECT_PATH=.`, `APP_BUILD_SCRIPT=Android.mk`, and `NDK_APPLICATION_MK=Application.mk` on Windows.
+  - `prepareXrayRuntimeAssets` deleted the full ABI JNI directory, which could remove `libhev-socks5-tunnel.so` after tun2socks had copied it.
+- **Changes**:
+  - Replaced lazy `providers.exec` calls with immediate `exec` calls for source clone and `ndk-build`.
+  - Added explicit NDK project/build script arguments for upstream tun2socks.
+  - Made the Xray runtime task delete only `libxray.so` instead of deleting the shared ABI directory.
+  - Added incomplete checkout cleanup before re-cloning tun2socks sources.
+- **Verification**:
+  - `cd android && .\gradlew.bat :app:prepareTun2SocksRuntimeAssets --no-daemon --max-workers=1 --console=plain --info` PASSED and compiled `libhev-socks5-tunnel.so` for `arm64-v8a` and `x86_64`.
+  - `cd android && .\gradlew.bat :app:prepareXrayRuntimeAssets :app:prepareTun2SocksRuntimeAssets --no-daemon --max-workers=1 --console=plain` PASSED with both runtimes coexisting in generated JNI libs.
+  - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED using reduced local Gradle memory.
+- **Known local limitation**:
+  - A full `:app:assembleDebug` attempt progressed beyond the tun2socks issue but the local Gradle JVM crashed from insufficient memory (`hs_err_pid18476.log`). This is an environment/RAM pressure issue, not the original tun2socks artifact issue.

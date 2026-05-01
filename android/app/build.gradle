@@ -29,9 +29,18 @@ def tun2SocksSourceRoot = layout.buildDirectory.dir("downloads/tun2socks/${tun2S
 
 def ensureTun2SocksSourceCheckout = {
     def repoDir = file("${tun2SocksSourceRoot}/jni")
-    if (!repoDir.exists()) {
+    def checkoutLooksValid = repoDir.exists() &&
+        file("${repoDir}/.git").exists() &&
+        file("${repoDir}/Android.mk").exists()
+
+    if (repoDir.exists() && !checkoutLooksValid) {
+        logger.lifecycle("Removing incomplete tun2socks source checkout at ${repoDir}")
+        delete(repoDir)
+    }
+
+    if (!checkoutLooksValid) {
         repoDir.parentFile.mkdirs()
-        providers.exec {
+        exec {
             workingDir(tun2SocksSourceRoot)
             commandLine("git", "clone", "--recursive", "--depth", "1", "--branch", tun2SocksUpstreamTag, "https://github.com/heiher/hev-socks5-tunnel", "jni")
         }
@@ -63,11 +72,14 @@ def buildTun2SocksSharedLibraries = { File repoDir, List<String> abis ->
         throw new GradleException("Android NDK ${android.ndkVersion} is not installed under ${android.sdkDirectory}/ndk")
     }
 
-    providers.exec {
+    exec {
         workingDir(repoDir)
         commandLine(
             new File(ndkDir, "ndk-build.cmd").absolutePath,
             "-j2",
+            "NDK_PROJECT_PATH=.",
+            "APP_BUILD_SCRIPT=Android.mk",
+            "NDK_APPLICATION_MK=Application.mk",
             "APP_ABI=${abis.join(' ')}",
             "APP_LDFLAGS=-Wl,-z,max-page-size=16384"
         )
@@ -208,8 +220,8 @@ tasks.register("prepareXrayRuntimeAssets") {
             }
 
             def targetDir = file("${generatedRuntimeJniLibsDir}/${abi}")
-            delete(targetDir)
             targetDir.mkdirs()
+            delete(file("${targetDir}/libxray.so"))
 
             copy {
                 from extractedBinary
