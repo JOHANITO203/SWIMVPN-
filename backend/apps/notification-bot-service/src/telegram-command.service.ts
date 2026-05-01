@@ -156,35 +156,42 @@ export class TelegramCommandService implements OnModuleInit {
         },
       });
 
-      if (this.bot && this.reviewChatId) {
-        await this.bot.telegram.sendPhoto(
-          this.reviewChatId,
-          photo.file_id,
-          {
-            caption: [
-              'SWIMVPN+ CARD PAYMENT PROOF',
-              `Order: ${order.order_ref}`,
-              `Email: ${order.customer.email || '-'}`,
-              `Phone: ${order.customer.phone || '-'}`,
-              `Plan: ${order.plan.name}`,
-              `Amount: ${order.amount_rub.toString()} RUB`,
-              `Telegram: @${ctx.from.username || '-'} (${ctx.from.id})`,
-            ].join('\n'),
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.callback('approve', `approve_card:${order.order_ref}:${proofEvent.id}`),
-                Markup.button.callback('reject', `reject_card:${order.order_ref}:${proofEvent.id}`),
-              ],
-            ]),
-          },
-        );
-      }
-
       this.pendingManualPayments.delete(chatId);
       this.pendingManualConfirmations.set(chatId, {
         orderRef: order.order_ref,
         proofEventId: proofEvent.id,
       });
+
+      if (this.bot && this.reviewChatId) {
+        try {
+          await this.bot.telegram.sendPhoto(
+            this.reviewChatId,
+            photo.file_id,
+            {
+              caption: [
+                'SWIMVPN+ CARD PAYMENT PROOF',
+                `Order: ${order.order_ref}`,
+                `Email: ${order.customer.email || '-'}`,
+                `Phone: ${order.customer.phone || '-'}`,
+                `Plan: ${order.plan.name}`,
+                `Amount: ${order.amount_rub.toString()} RUB`,
+                `Telegram: @${ctx.from.username || '-'} (${ctx.from.id})`,
+              ].join('\n'),
+              ...Markup.inlineKeyboard([
+                [
+                  Markup.button.callback('approve', `approve_card:${order.order_ref}:${proofEvent.id}`),
+                  Markup.button.callback('reject', `reject_card:${order.order_ref}:${proofEvent.id}`),
+                ],
+              ]),
+            },
+          );
+        } catch (error) {
+          this.logger.warn(`Failed to forward manual card photo proof for ${order.order_ref}: ${(error as Error).message}`);
+        }
+      } else {
+        this.logger.warn(`Manual card photo proof for ${order.order_ref} cannot be forwarded: review chat is not configured`);
+      }
+
       await ctx.reply(this.buildManualPaymentConfirmationPrompt(order.customer.email, order.customer.phone));
     });
 
@@ -248,27 +255,34 @@ export class TelegramCommandService implements OnModuleInit {
         },
       });
 
-      if (this.bot && this.reviewChatId) {
-        await this.bot.telegram.sendDocument(
-          this.reviewChatId,
-          document.file_id,
-          {
-            caption: this.buildManualPaymentReviewCaption(order, ctx.from),
-            ...Markup.inlineKeyboard([
-              [
-                Markup.button.callback('approve', `approve_card:${order.order_ref}:${proofEvent.id}`),
-                Markup.button.callback('reject', `reject_card:${order.order_ref}:${proofEvent.id}`),
-              ],
-            ]),
-          },
-        );
-      }
-
       this.pendingManualPayments.delete(chatId);
       this.pendingManualConfirmations.set(chatId, {
         orderRef: order.order_ref,
         proofEventId: proofEvent.id,
       });
+
+      if (this.bot && this.reviewChatId) {
+        try {
+          await this.bot.telegram.sendDocument(
+            this.reviewChatId,
+            document.file_id,
+            {
+              caption: this.buildManualPaymentReviewCaption(order, ctx.from),
+              ...Markup.inlineKeyboard([
+                [
+                  Markup.button.callback('approve', `approve_card:${order.order_ref}:${proofEvent.id}`),
+                  Markup.button.callback('reject', `reject_card:${order.order_ref}:${proofEvent.id}`),
+                ],
+              ]),
+            },
+          );
+        } catch (error) {
+          this.logger.warn(`Failed to forward manual card document proof for ${order.order_ref}: ${(error as Error).message}`);
+        }
+      } else {
+        this.logger.warn(`Manual card document proof for ${order.order_ref} cannot be forwarded: review chat is not configured`);
+      }
+
       await ctx.reply(this.buildManualPaymentConfirmationPrompt(order.customer.email, order.customer.phone));
     });
 

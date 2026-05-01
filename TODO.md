@@ -857,3 +857,12 @@ u after each future language batch
   - `$env:GRADLE_OPTS='-Dorg.gradle.jvmargs=-Xmx1024m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8'`
   - `cd android; .\gradlew.bat :app:assembleDebug --no-daemon --max-workers=1 --console=plain`
 - If release R8 still OOMs, build signed release on the VPS/build machine or a local session with more RAM/pagefile.
+
+## Manual Card Bot Incident Follow-Up
+- Redeploy `notification-bot-service` after the proof-forwarding guard.
+- For the affected customer, ask them to send one message in the payment bot with:
+  - final email
+  - final phone
+  - sender payment phone
+- If the proof event exists from the earlier screenshot, the bot can recover the pending confirmation from PostgreSQL while the order is still `PENDING`.
+- Check Dokploy logs for `Failed to forward manual card photo proof` or `review chat is not configured` to confirm whether `PAYMENT_REVIEW_CHAT_ID`, bot group membership, or bot permissions caused the silent failure.

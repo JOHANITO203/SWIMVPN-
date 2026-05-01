@@ -2300,3 +2300,18 @@ pm run build PASSED.
   - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED using reduced local Gradle memory.
 - **Known local limitation**:
   - A full `:app:assembleDebug` attempt progressed beyond the tun2socks issue but the local Gradle JVM crashed from insufficient memory (`hs_err_pid18476.log`). This is an environment/RAM pressure issue, not the original tun2socks artifact issue.
+
+## [2026-05-01] [Manual Card Bot Proof Forwarding Guard]
+- **Status**: FIXED / NEEDS LIVE BOT QA
+- **Problem**: A customer sent a manual card payment screenshot to the Telegram payment bot. The bot received the capture but did not respond afterward, and the customer did not receive access.
+- **Root cause found in code**: `notification-bot-service` created the `CARD_PAYMENT_PROOF_SUBMITTED` event, then attempted to forward the screenshot to the admin/review chat before setting the customer confirmation state and before replying to the customer. If Telegram forwarding failed because of `PAYMENT_REVIEW_CHAT_ID`/group membership/chat permissions/token routing, the handler threw and the customer saw silence.
+- **Change**: Photo/document proof forwarding to admin review is now non-blocking. The bot stores the pending confirmation state first, catches/logs admin forwarding failures, and still asks the customer for final email/phone/sender phone confirmation.
+- **Verification**:
+  - Local backend tests/build could not run because `backend/node_modules` is absent after disk cleanup (`ts-node` and `nest` unavailable).
+  - Diff inspected manually against the failing control flow.
+- **Live QA needed**:
+  - Redeploy `notification-bot-service`.
+  - Send a new card proof screenshot from a non-admin customer chat.
+  - Confirm the customer immediately receives the email/phone/sender phone prompt even if admin review forwarding has a problem.
+  - Confirm the review group receives the proof or logs show `Failed to forward manual card photo/document proof` with the exact Telegram error.
+  - Confirm admin approve triggers fulfillment and email delivery.
