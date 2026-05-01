@@ -2256,3 +2256,28 @@ pm run build PASSED.
   - Verify an active paid assignment still shows access when its supplier inventory is full from resale cap.
   - Verify expired/disabled supplier inventory hides premium config.
   - Verify manual payment approval still reaches customer-order-service after deploy.
+
+## [2026-05-01] [Adaptive VPN Phase 1 Local Decision Agent]
+- **Status**: IMPLEMENTED / NEEDS LIVE DEVICE QA
+- **Problem**: The non-LLM intelligence vision needed a safe first implementation focused on stability rather than marketing or a heavy model.
+- **Decision**:
+  - Phase 1 lives on Android near the VPN controller, not in backend fulfillment.
+  - The agent observes runtime failures and only acts when Auto-Connect is enabled.
+  - The first implementation is deterministic: bounded reconnect, local server score history, route fallback, and structured decision logs.
+  - Stealth switching and contextual bandits remain future phases until runtime metrics are proven reliable.
+- **Changes**:
+  - Added `AdaptiveDecisionAgent` pure policy for retry/fallback decisions.
+  - Added local `ServerScoreStore` for per-server success/failure/consecutive-failure state.
+  - Added structured `AdaptiveEventLogger` logs for runtime and decision events.
+  - `MainViewModel` now observes VPN runtime failures and performs safe auto-reconnect/fallback with max-attempt protection.
+  - `SwimVpnService` now emits structured runtime start, success, failure, and disconnect events.
+  - Added user-facing messages for reconnecting, switching route, and give-up states.
+- **Verification**:
+  - `cd android && .\gradlew.bat :app:testDebugUnitTest --tests com.swimvpn.app.adaptive.AdaptiveDecisionAgentTest --no-daemon --max-workers=1 --console=plain` PASSED.
+  - `cd android && .\gradlew.bat :app:assembleDebug --no-daemon --max-workers=1 --console=plain` PASSED.
+  - `cd android && .\gradlew.bat :app:compileReleaseKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
+- **Live QA needed**:
+  - Enable Auto-Connect, connect to a valid imported config, then simulate/observe a runtime failure and confirm one same-server reconnect before fallback.
+  - Confirm manual disconnect never triggers adaptive reconnect.
+  - Confirm backend premium servers are not selected when entitlement is inactive.
+  - Watch logcat for `SwimDecisionAgent` events.

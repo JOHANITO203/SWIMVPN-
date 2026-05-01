@@ -14,6 +14,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.swimvpn.app.BuildConfig
+import com.swimvpn.app.adaptive.AdaptiveEventLogger
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
 import com.swimvpn.app.runtime.Tun2SocksAssetCatalog
@@ -119,6 +120,10 @@ class SwimVpnService : VpnService() {
         VpnManager.resetUsage()
         VpnManager.clearError()
         VpnManager.clearRuntimeDiagnostics()
+        AdaptiveEventLogger.log(
+            event = "runtime_start_requested",
+            details = mapOf("mode" to requestedMode),
+        )
         updateRuntimeStatus(RuntimeStatus.STARTING, requestedMode)
 
         activeStartupJob?.cancel()
@@ -146,6 +151,14 @@ class SwimVpnService : VpnService() {
                 }
             } catch (e: Exception) {
                 Log.e("SwimVpnService", "Error starting VPN", e)
+                AdaptiveEventLogger.log(
+                    event = "runtime_failed",
+                    details = mapOf(
+                        "reason" to "startup_failure",
+                        "mode" to requestedMode,
+                        "error" to e.localizedMessage,
+                    ),
+                )
                 setRuntimeError("Connection failed: ${e.localizedMessage}")
                 stopVpn(clearRuntimeState = false, reason = "startup_failure")
             } finally {
@@ -344,6 +357,13 @@ class SwimVpnService : VpnService() {
 
     private fun stopVpn(clearRuntimeState: Boolean = true, reason: String = "unspecified") {
         Log.i("SwimVpnService", "Stopping VPN runtime reason=$reason clearRuntimeState=$clearRuntimeState")
+        AdaptiveEventLogger.log(
+            event = "tunnel_disconnected",
+            details = mapOf(
+                "reason" to reason,
+                "clearRuntimeState" to clearRuntimeState,
+            ),
+        )
         if (!hasActiveRuntimeResources() &&
             clearRuntimeState &&
             (VpnManager.runtimeStatus.value == RuntimeStatus.IDLE ||
@@ -592,6 +612,12 @@ class SwimVpnService : VpnService() {
     }
 
     private fun updateRuntimeStatus(status: RuntimeStatus, mode: RuntimeMode) {
+        if (status == RuntimeStatus.RUNNING) {
+            AdaptiveEventLogger.log(
+                event = "handshake_success",
+                details = mapOf("mode" to mode),
+            )
+        }
         RuntimeStateStore.write(
             context = applicationContext,
             status = status,

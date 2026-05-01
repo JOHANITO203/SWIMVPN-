@@ -8,6 +8,11 @@ import android.net.VpnService
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.swimvpn.app.adaptive.AdaptiveDecisionAgent
+import com.swimvpn.app.adaptive.AdaptiveEventLogger
+import com.swimvpn.app.adaptive.DecisionActionType
+import com.swimvpn.app.adaptive.ServerDecisionCandidate
+import com.swimvpn.app.adaptive.ServerScoreStore
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.data.local.AutoConnectPayload
 import com.swimvpn.app.data.local.DeviceIdentityProvider
@@ -28,7 +33,11 @@ import com.swimvpn.app.config.ImportedProfileGroup
 import com.swimvpn.app.config.SecurityMode
 import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.vpn.RuntimeMode
+import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.ThemeMode
+import com.swimvpn.app.vpn.VpnManager
+import com.swimvpn.app.vpn.VpnState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -80,6 +89,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val prefs = PreferencesManager(application)
     private val api = RetrofitClient.apiService
     private val configRepository = ConfigRepository(application)
+    private val serverScoreStore = ServerScoreStore(application)
 
     private val _state = MutableStateFlow<AppState>(AppState.Loading)
     val state: StateFlow<AppState> = _state.asStateFlow()
@@ -88,12 +98,124 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val effect: SharedFlow<AppSideEffect> = _effect.asSharedFlow()
 
     private var lastAutoConnectSignature: String? = null
+    private var adaptiveReconnectAttempt = 0
+    private var adaptiveActiveServerId: String? = null
+    private var manualStopRequested = false
+    private var handlingAdaptiveFailure = false
 
     init {
+        observeAdaptiveRuntime()
         initApp()
     }
 
     private fun s(resId: Int, vararg args: Any): String = app.getString(resId, *args)
+
+    private fun observeAdaptiveRuntime() {
+        viewModelScope.launch {
+            VpnManager.runtimeStatus
+                .collect { status ->
+                    when (status) {
+                        RuntimeStatus.RUNNING -> onAdaptiveRuntimeRunning()
+                        RuntimeStatus.FAILED -> handleAdaptiveRuntimeFailure()
+                        RuntimeStatus.IDLE -> {
+                            if (manualStopRequested) {
+                                AdaptiveEventLogger.log("manual_disconnect_completed")
+                            }
+                            manualStopRequested = false
+                        }
+                        RuntimeStatus.STARTING,
+                        RuntimeStatus.STOPPING -> Unit
+                    }
+                }
+        }
+    }
+
+    private fun onAdaptiveRuntimeRunning() {
+        val serverId = adaptiveActiveServerId ?: (_state.value as? AppState.Success)?.activeServer?.id
+        if (serverId != null) {
+            serverScoreStore.recordSuccess(serverId)
+            AdaptiveEventLogger.log(
+                event = if (adaptiveReconnectAttempt > 0) "reconnect_success" else "handshake_success",
+                details = mapOf(
+                    "serverId" to serverId,
+                    "attempt" to adaptiveReconnectAttempt,
+                ),
+            )
+        }
+        adaptiveReconnectAttempt = 0
+        handlingAdaptiveFailure = false
+    }
+
+    private suspend fun handleAdaptiveRuntimeFailure() {
+        if (handlingAdaptiveFailure) return
+        handlingAdaptiveFailure = true
+
+        try {
+            val current = _state.value as? AppState.Success ?: return
+            if (!current.autoConnect) return
+            if (manualStopRequested) return
+
+            val activeServer = current.activeServer ?: return
+            val runtimeConfig = activeServer.rawConfig ?: current.profile.subscriptionUrl
+            if ((!current.profile.isPremiumAllowed && activeServer.source == "backend") || runtimeConfig.isNullOrBlank()) {
+                return
+            }
+
+            val now = System.currentTimeMillis()
+            serverScoreStore.recordFailure(activeServer.id, now)
+            val scores = serverScoreStore.loadScores()
+            val action = AdaptiveDecisionAgent.planAfterFailure(
+                currentServerId = activeServer.id,
+                candidates = current.servers.map { it.toDecisionCandidate(current.profile) },
+                scores = scores,
+                reconnectAttempt = adaptiveReconnectAttempt,
+                nowMs = now,
+            )
+
+            AdaptiveEventLogger.log(
+                event = "decision_agent_action_taken",
+                details = mapOf(
+                    "action" to action.type,
+                    "targetServerId" to action.targetServerId,
+                    "attempt" to adaptiveReconnectAttempt,
+                    "delayMs" to action.delayMs,
+                    "reason" to action.reason,
+                ),
+            )
+
+            adaptiveReconnectAttempt += 1
+
+            when (action.type) {
+                DecisionActionType.GIVE_UP -> {
+                    _effect.emit(AppSideEffect.ShowToast(s(R.string.adaptive_reconnect_give_up)))
+                }
+                DecisionActionType.RECONNECT_SAME,
+                DecisionActionType.SWITCH_SERVER -> {
+                    val targetServer = current.servers.firstOrNull { it.id == action.targetServerId } ?: return
+                    if (action.type == DecisionActionType.SWITCH_SERVER) {
+                        prefs.setSelectedServerId(targetServer.id)
+                        _state.value = current.copy(
+                            activeServer = targetServer,
+                            activeConfigMetadata = resolveActiveConfigMetadata(targetServer, current.profile),
+                        )
+                        _effect.emit(AppSideEffect.ShowToast(s(R.string.adaptive_switching_route)))
+                    } else {
+                        _effect.emit(AppSideEffect.ShowToast(s(R.string.adaptive_reconnecting)))
+                    }
+
+                    delay(action.delayMs)
+
+                    val vpnState = VpnManager.state.value
+                    if (vpnState == VpnState.DISCONNECTED || vpnState == VpnState.ERROR) {
+                        lastAutoConnectSignature = null
+                        maybeAutoConnect(app, _state.value as? AppState.Success ?: current)
+                    }
+                }
+            }
+        } finally {
+            handlingAdaptiveFailure = false
+        }
+    }
 
     private fun initApp() {
         viewModelScope.launch {
@@ -589,6 +711,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (lastAutoConnectSignature == signature) return
 
         lastAutoConnectSignature = signature
+        AdaptiveEventLogger.log(
+            event = "reconnect_started",
+            details = mapOf(
+                "serverId" to server.id,
+                "attempt" to adaptiveReconnectAttempt,
+                "mode" to successState.routingMode,
+            ),
+        )
         toggleVpn(context, server, profile)
     }
 
@@ -650,6 +780,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (currentState == com.swimvpn.app.vpn.VpnState.CONNECTED || currentState == com.swimvpn.app.vpn.VpnState.CONNECTING) {
             val successState = _state.value as? AppState.Success
+            manualStopRequested = true
+            adaptiveReconnectAttempt = 0
+            AdaptiveEventLogger.log("manual_disconnect_requested")
             viewModelScope.launch {
                 val refreshedProfile = successState?.profile?.userNumber?.let { reportMeasuredUsage(it) }
                 if (successState != null && refreshedProfile != null) {
@@ -678,6 +811,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             viewModelScope.launch {
+                manualStopRequested = false
+                adaptiveActiveServerId = server.id
+                AdaptiveEventLogger.log(
+                    event = "connection_started",
+                    details = mapOf(
+                        "serverId" to server.id,
+                        "source" to server.source,
+                        "mode" to currentStateRoutingModeName(),
+                    ),
+                )
                 prefs.saveAutoConnectPayload(
                     AutoConnectPayload(
                         host = server.host,
@@ -713,6 +856,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             is AppState.TrialSetup -> currentState.routingMode.name
             else -> RuntimeMode.FULL_TUNNEL.name
         }
+
+    private fun ServerNode.toDecisionCandidate(profile: AccessProfileResponse): ServerDecisionCandidate {
+        val runtimeConfig = rawConfig ?: profile.subscriptionUrl
+        return ServerDecisionCandidate(
+            serverId = id,
+            pingMs = ping,
+            isPinned = isPinned,
+            hasRuntimeConfig = !runtimeConfig.isNullOrBlank(),
+            premiumBlocked = source == "backend" && !profile.isPremiumAllowed,
+        )
+    }
 
     private fun getDeviceId(): String? = DeviceIdentityProvider.getDeviceId(app)
 

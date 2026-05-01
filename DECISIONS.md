@@ -856,3 +856,11 @@ Decision: `InventoryHealthStatus.FULL` means a supplier config has no remaining 
 Reason: SWIMVPN intentionally caps resale per supplier link. When the cap is reached, the link is full for new sales, but the already assigned customers are the reason the link is full and must continue to receive the access they bought unless the supplier expires, quota is exhausted, the assignment is revoked/expired, or the inventory is explicitly disabled.
 
 Consequence: Allocation must reject `FULL` inventory, but profile/access/server delivery should keep serving an active assignment on `FULL` inventory. True access stoppage remains driven by assignment status, supplier expiration, source quota exhaustion, or disabled/expired health.
+
+## [2026-05-01] Adaptive VPN Intelligence Starts As Local Deterministic Control
+
+Decision: The non-LLM intelligence starts as a local Android deterministic decision agent. It observes VPN runtime state, records per-server success/failure history, retries with bounded backoff, and may fallback to another already-authorized visible server. It does not run inside Xray/tun2socks and does not make backend entitlement decisions.
+
+Reason: The product promise is adaptive stability, but the safest first step is reliable observability and bounded recovery. A contextual bandit or automatic stealth switching would be premature without trustworthy runtime metrics and config-mode classification.
+
+Consequence: Phase 1 can be tested and explained through logs. Future Phase 2 scoring and Phase 3 bandit logic must build on this local history and must remain disabled or conservative until live device QA proves the base reconnect behavior is stable.

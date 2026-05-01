@@ -837,3 +837,16 @@ u after each future language batch
 - Treat "AI" as deterministic network intelligence, not an LLM/chatbot.
 - Implement later only after stability tests: latency scoring, failure scoring, provider/config health scoring, safe reconnect backoff, and adaptive config selection.
 - Do not publicly claim adaptive AI, advanced obfuscation, or smart routing as implemented until runtime evidence and UI/backend support exist.
+
+## Adaptive VPN Phase 1 Live QA
+- Build/install a signed release with the adaptive patch.
+- Enable Auto-Connect only after selecting a valid imported or premium config.
+- Verify manual disconnect does not reconnect.
+- Force or observe one runtime failure and confirm logs:
+  - `event=runtime_failed`
+  - `event=decision_agent_action_taken`
+  - `event=reconnect_started`
+  - `event=reconnect_success` or a bounded give-up message
+- Confirm repeated failure avoids the unstable server for the cooldown and switches to another visible/authorized server.
+- Confirm free/expired users never fallback to backend premium servers; imported configs remain candidates.
+- Do not implement Standard/Stealth auto-switch until configs are classified and live metrics prove the reconnect layer is stable.
