@@ -925,3 +925,11 @@ u after each future language batch
   - Imported configs remain visible and usable.
   - Inventory overview shows the revoked assignment and recomputed `usedResaleSlots`, allowing the supplier link to be resold if capacity remains.
 - Test cancellation with wrong device id returns a clear denial and does not revoke the assignment.
+
+## Post-cancellation / manual card fulfillment QA
+- Redeploy `customer-order-service`, `inventory-delivery-service`, `gateway-service`, and `notification-bot-service` after the standard UX and fulfillment trace changes.
+- Build/install a new signed release APK after the Android profile/home wording and stale VPN-error reset changes.
+- For the affected order, run `/trace_card ORD-1777674402099-772` after redeploy, then retry `/approve_card ORD-1777674402099-772` if the order is still not fulfilled.
+- If approval still fails, use the exact `FULFILLMENT_FAILED` error now returned by the bot to decide whether stock, inventory health, delivery/email, or order state needs admin action.
+- Verify a cancelled paid user sees `MODE STANDARD`, no red expired badge, no old provider remaining-days value, and can immediately open subscription offers or use/import configs.
+- Verify the cancelled assignment is `REVOKED` and the supplier resource can be resold within the configured two-order cap.

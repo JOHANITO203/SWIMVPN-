@@ -72,6 +72,9 @@ data class AccessProfileResponse(
     val isActiveSubscription: Boolean
         get() = normalizedEntitlementState == "ACTIVE_SUBSCRIPTION"
 
+    val isFreemium: Boolean
+        get() = normalizedEntitlementState == "FREEMIUM"
+
     val isPremiumAllowed: Boolean
         get() = isActiveTrial || isActiveSubscription
 
@@ -79,7 +82,11 @@ data class AccessProfileResponse(
         get() = dataUsedBytes.filter { it.isDigit() }.toLongOrNull() ?: 0L
 
     val effectiveExpiryAt: String?
-        get() = if (accessType == "TRIAL") trialExpiresAt else subscriptionExpiresAt
+        get() = when {
+            isActiveTrial -> trialExpiresAt
+            isActiveSubscription || isPendingFulfillment -> subscriptionExpiresAt
+            else -> null
+        }
 
     val isExpired: Boolean
         get() = normalizedEntitlementState == "EXPIRED_TRIAL" ||
@@ -103,6 +110,7 @@ data class AccessProfileResponse(
 
     val publicPlanName: String?
         get() = when {
+            !isPremiumAllowed && !isPendingFulfillment -> null
             accessType == "TRIAL" -> null
             !planDisplayName.isNullOrBlank() -> planDisplayName
             offerCode == "MONTH" -> "Premium"

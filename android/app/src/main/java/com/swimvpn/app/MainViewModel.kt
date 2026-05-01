@@ -600,6 +600,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 val shouldClearBackendAccess = currentState.activeServer?.source != "imported"
                 val nextAutoConnect = if (shouldClearBackendAccess) false else currentState.autoConnect
+                val vpnStateBeforeCancellation = VpnManager.state.value
 
                 if (shouldClearBackendAccess) {
                     manualStopRequested = true
@@ -615,15 +616,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     configRepository.clearActiveProfile()
                 }
 
-                val vpnState = VpnManager.state.value
                 val shouldStopBackendVpn =
                     currentState.activeServer?.source == "backend" &&
-                        (vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING)
+                        (vpnStateBeforeCancellation == VpnState.CONNECTED ||
+                            vpnStateBeforeCancellation == VpnState.CONNECTING)
                 if (shouldStopBackendVpn) {
                     val intent = Intent(context, SwimVpnService::class.java).apply {
                         action = SwimVpnService.ACTION_STOP
                     }
                     context.startService(intent)
+                }
+                if (shouldClearBackendAccess) {
+                    VpnManager.clearError()
+                    if (!shouldStopBackendVpn) {
+                        VpnManager.updateState(VpnState.DISCONNECTED)
+                    }
                 }
 
                 val successState = buildSuccessState(

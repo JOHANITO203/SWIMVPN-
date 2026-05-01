@@ -350,7 +350,16 @@ export class CustomerService {
       throw new Error('Customer not found');
     }
 
-    const latestOrder = customer.orders[0];
+    const trialEligible = await this.isTrialEligible(customer, customer.email, customer.phone);
+    const latestOrder = customer.orders.find((order) =>
+      order.status === OrderStatus.PAID ||
+      order.status === OrderStatus.PENDING_FULFILLMENT ||
+      order.assignments.some(
+        (item) =>
+          item.access_status === AssignmentAccessStatus.ACTIVE ||
+          item.access_status === AssignmentAccessStatus.PENDING,
+      ),
+    );
     const activeAssignment = latestOrder?.assignments.find(
       (item) =>
         item.access_status === AssignmentAccessStatus.ACTIVE,
@@ -388,6 +397,7 @@ export class CustomerService {
     const entitlementState = this.resolveEntitlementState({
       hasCompletedProfile: !!customer.email && !!customer.phone,
       hasOrder: !!latestOrder,
+      trialEligible,
       fulfillmentStatus,
       accessType,
       hasActiveAssignment: !!activeAssignment?.inventory_item_id,
@@ -423,7 +433,7 @@ export class CustomerService {
       supplierProviderName: inventoryItem?.supplier_provider_name || null,
       supplierExpiresAt: inventoryItem?.supplier_expires_at?.toISOString() || null,
       profileCompletionRequired: !customer.email || !customer.phone,
-      trialEligible: await this.isTrialEligible(customer, customer.email, customer.phone),
+      trialEligible,
     };
   }
 
@@ -548,7 +558,7 @@ export class CustomerService {
 
         return !subscriptionExpiresAt || new Date(subscriptionExpiresAt).getTime() >= now;
       }) || null;
-    const latestOrder = bestActiveOrder ?? customer.orders[0];
+    const latestOrder = bestActiveOrder;
     if (!latestOrder) {
       return { success: true, ignored: true, reason: 'NO_FULFILLED_ORDER' };
     }
@@ -735,8 +745,25 @@ export class CustomerService {
         this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
       );
     } catch (e) {
-      console.error(`Fulfillment failed for order ${order.id}:`, e);
-      return { success: false, error: 'Fulfillment triggered but failed' };
+      const errorMessage = this.extractErrorMessage(e, 'Fulfillment failed');
+      console.error(`Fulfillment failed for order ${order.id}: ${errorMessage}`, e);
+
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: 'FULFILLMENT_FAILED',
+          entity_type: 'ORDER',
+          entity_id: order.order_ref,
+          payload_json: {
+            orderRef: order.order_ref,
+            orderId: order.id,
+            paymentRef,
+            error: errorMessage,
+            failedAt: new Date().toISOString(),
+          } as any,
+        },
+      }).catch(() => undefined);
+
+      return { success: false, error: `Fulfillment failed: ${errorMessage}` };
     }
   }
 
@@ -990,6 +1017,7 @@ export class CustomerService {
   private resolveEntitlementState(params: {
     hasCompletedProfile: boolean;
     hasOrder: boolean;
+    trialEligible: boolean;
     fulfillmentStatus: string;
     accessType: string;
     hasActiveAssignment: boolean;
@@ -1003,7 +1031,7 @@ export class CustomerService {
     }
 
     if (!params.hasOrder) {
-      return 'TRIAL_AVAILABLE';
+      return params.trialEligible ? 'TRIAL_AVAILABLE' : 'FREEMIUM';
     }
 
     if (params.fulfillmentStatus === 'PENDING_FULFILLMENT') {
@@ -1158,7 +1186,7 @@ export class CustomerService {
     }
   }
 
-  private extractErrorMessage(error: any) {
+  private extractErrorMessage(error: any, fallback = 'Unable to create checkout') {
     if (error instanceof RpcException) {
       const rpcError = error.getError();
       if (typeof rpcError === 'string' && rpcError.trim().length > 0) {
@@ -1178,7 +1206,15 @@ export class CustomerService {
       return error.error.message;
     }
 
-    return 'Unable to create checkout';
+    if (typeof error?.response?.message === 'string' && error.response.message.trim().length > 0) {
+      return error.response.message;
+    }
+
+    if (Array.isArray(error?.response?.message) && error.response.message.length > 0) {
+      return error.response.message.join(', ');
+    }
+
+    return fallback;
   }
 
   private fail(message: string): never {

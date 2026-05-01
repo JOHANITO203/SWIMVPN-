@@ -34,6 +34,7 @@
     <string name="home_badge_platinum">PLATINUM ACTIVE</string>
     <string name="home_badge_pending_fulfillment">ACCESS PREPARING</string>
     <string name="home_badge_access">ACCESS ACTIVE</string>
+    <string name="home_badge_standard">STANDARD MODE</string>
     <string name="home_proxy_ready">Local proxy ready for manual or proxy-aware apps</string>
     <string name="home_connected_via">Connected via %1$s, %2$s</string>
     <string name="home_connected">Connected</string>
@@ -106,8 +107,8 @@
     <string name="profile_trial_unlimited_note">Premium servers and assigned configs are available while the trial is active.</string>
     <string name="profile_quota_provider_managed">PROVIDER MANAGED</string>
     <string name="profile_quota_provider_managed_note">Quota and expiry come from the assigned provider config.</string>
-    <string name="profile_quota_freemium">PREMIUM INACTIVE</string>
-    <string name="profile_quota_freemium_note">No active premium quota. Imported configs remain separate and available.</string>
+    <string name="profile_quota_freemium">STANDARD MODE</string>
+    <string name="profile_quota_freemium_note">The app remains usable. You can import your own configs or choose a new premium plan anytime.</string>
     <string name="active_config_source_managed">Premium</string>
     <string name="active_config_source_imported">Imported</string>
     <string name="active_config_protocol">Protocol</string>
@@ -131,6 +132,7 @@
     <string name="profile_status_trial_active">TRIAL ACTIVE</string>
     <string name="profile_status_paid_active">ACTIVE</string>
     <string name="profile_status_offer_active">%1$s ACTIVE</string>
+    <string name="profile_status_standard">STANDARD</string>
     <string name="profile_status_inactive">INACTIVE</string>
     <string name="label_management">MANAGEMENT</string>
     <string name="label_plan">Plan</string>
@@ -170,7 +172,7 @@
     <string name="subscription_cancel_dialog_body">This will remove the premium configuration from this device. If that premium config is selected, the VPN and auto-connect will be stopped. Imported configs remain available.</string>
     <string name="subscription_cancel_confirm">Cancel access</string>
     <string name="subscription_cancel_keep">Keep access</string>
-    <string name="subscription_cancelled_success">Access cancelled on this device.</string>
+    <string name="subscription_cancelled_success">Standard mode restored. You can import a config or choose a new plan anytime.</string>
 
     <string name="profile_trial_id_label">YOUR SWIMVPN+ ID</string>
     <string name="profile_trial_description">Complete your profile to unlock the 3-day trial. We use your device, email, and phone to prevent abuse.</string>

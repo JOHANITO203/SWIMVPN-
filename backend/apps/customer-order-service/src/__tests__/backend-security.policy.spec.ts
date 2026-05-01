@@ -1,6 +1,6 @@
 import { RpcException } from '@nestjs/microservices';
 import { InventoryHealthStatus } from '@prisma/client';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { CustomerService } from '../customer.service';
 
 function assert(condition: boolean, message: string) {
@@ -47,6 +47,7 @@ async function main() {
     (service as any).resolveEntitlementState({
       hasCompletedProfile: true,
       hasOrder: true,
+      trialEligible: false,
       fulfillmentStatus: 'DELIVERED',
       accessType: 'PAID',
       hasActiveAssignment: true,
@@ -62,6 +63,7 @@ async function main() {
     (service as any).resolveEntitlementState({
       hasCompletedProfile: true,
       hasOrder: true,
+      trialEligible: false,
       fulfillmentStatus: 'DELIVERED',
       accessType: 'PAID',
       hasActiveAssignment: true,
@@ -149,6 +151,142 @@ async function main() {
     'customer cancellation must revoke the active assignment',
   );
   assert(cancellationEvents.length === 1, 'customer cancellation must be audited');
+
+  const revokedProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-2',
+          public_id: 'SW-REVOKED',
+          device_id: 'device-2',
+          email: 'revoked@example.com',
+          phone: '79000000001',
+          orders: [
+            {
+              id: 'order-revoked',
+              order_ref: 'ORD-REVOKED',
+              status: 'FULFILLED',
+              plan: {
+                code: 'WEEK',
+              },
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-04-30T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-04-30T00:00:00.000Z'),
+              assignments: [
+                {
+                  id: 'assignment-revoked',
+                  access_status: 'REVOKED',
+                  inventory_item_id: 'inventory-revoked',
+                  revoked_at: new Date('2026-05-01T00:00:00.000Z'),
+                  inventory_item: {
+                    id: 'inventory-revoked',
+                    source_quota_bytes: 1000n,
+                    source_used_bytes: 10n,
+                    supplier_expires_at: new Date('2026-05-09T00:13:00.000Z'),
+                    health_status: InventoryHealthStatus.HEALTHY,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const revokedProfile = await revokedProfileService.getProfile('SW-REVOKED');
+  assert(
+    revokedProfile.entitlementState === 'FREEMIUM',
+    'revoked subscriptions should return freemium, not expired subscription',
+  );
+  assert(revokedProfile.accessType === 'NONE', 'revoked subscriptions should not keep paid access type');
+  assert(revokedProfile.offerCode === null, 'revoked subscriptions should not keep paid offer badge');
+  assert(revokedProfile.subscriptionExpiresAt === null, 'revoked subscriptions should not show remaining paid days');
+
+  const paidPendingProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-3',
+          public_id: 'SW-PAID-PENDING',
+          device_id: 'device-3',
+          email: 'paid-pending@example.com',
+          phone: '79000000002',
+          orders: [
+            {
+              id: 'order-paid-pending',
+              order_ref: 'ORD-PAID-PENDING',
+              status: 'PAID',
+              plan: {
+                code: 'WEEK',
+              },
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-04-30T00:00:00.000Z'),
+              fulfilled_at: null,
+              assignments: [],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const paidPendingProfile = await paidPendingProfileService.getProfile('SW-PAID-PENDING');
+  assert(
+    paidPendingProfile.entitlementState === 'PENDING_FULFILLMENT',
+    'paid orders without assignment should remain pending fulfillment, not disappear into freemium',
+  );
+
+  const fulfillmentFailureEvents: unknown[] = [];
+  const fulfillmentFailureService = new CustomerService(
+    {
+      order: {
+        findUnique: async () => ({
+          id: 'order-fail',
+          order_ref: 'ORD-FAIL',
+          status: 'PENDING',
+          paid_at: null,
+          payment_ref: null,
+        }),
+        update: async (_args: unknown) => ({ id: 'order-fail' }),
+      },
+      adminEvent: {
+        create: async (event: unknown) => {
+          fulfillmentFailureEvents.push(event);
+          return event;
+        },
+      },
+    } as any,
+    {
+      send: () => throwError(() => new Error('Inventory service unavailable')),
+    } as any,
+    {} as any,
+    {} as any,
+  );
+
+  const fulfillmentFailure = await (fulfillmentFailureService as any).approveManualCardPayment({
+    orderRef: 'ORD-FAIL',
+    paymentRef: 'CARD_MANUAL:APPROVED:test-proof',
+    proofEventId: 'test-proof',
+  });
+  assert(fulfillmentFailure.success === false, 'failed fulfillment should not be reported as success');
+  assert(
+    fulfillmentFailure.error.includes('Inventory service unavailable'),
+    'failed fulfillment should expose the concrete inventory error',
+  );
+  assert(fulfillmentFailureEvents.length === 1, 'failed fulfillment should be audited');
 
   console.log('backend security policy tests passed');
 }

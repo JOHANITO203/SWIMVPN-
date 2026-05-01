@@ -327,7 +327,6 @@ private fun SwimVpnAccessCard(
     }
     val statusColor = when {
         isActiveTrial -> MaterialTheme.colorScheme.primary
-        profile.isExpired -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.primary // Green/Success generally represented by positive theme color or primary
     }
 
@@ -453,7 +452,7 @@ private fun SwimVpnAccessCard(
                     Text(
                         text = exactExpirationText,
                         fontWeight = FontWeight.Bold,
-                        color = if (profile.isExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         letterSpacing = 0.5.sp
                     )
@@ -876,10 +875,10 @@ private fun profileBadgeText(profile: AccessProfileResponse, context: android.co
         "PROFILE_INCOMPLETE" -> context.getString(R.string.profile_status_complete_profile)
         "TRIAL_AVAILABLE" -> context.getString(R.string.profile_status_trial_available)
         "PENDING_FULFILLMENT" -> context.getString(R.string.profile_status_pending_fulfillment)
-        "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> context.getString(R.string.profile_status_expired)
+        "FREEMIUM", "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> context.getString(R.string.profile_status_standard)
         "ACTIVE_TRIAL" -> context.getString(R.string.profile_status_trial_active)
         "ACTIVE_SUBSCRIPTION" -> context.getString(R.string.profile_status_paid_active)
-        else -> context.getString(R.string.profile_status_inactive)
+        else -> context.getString(R.string.profile_status_standard)
     }
 
 private fun profileStatusText(profile: AccessProfileResponse, context: android.content.Context): String =
@@ -887,12 +886,12 @@ private fun profileStatusText(profile: AccessProfileResponse, context: android.c
         "PROFILE_INCOMPLETE" -> context.getString(R.string.profile_status_complete_profile)
         "TRIAL_AVAILABLE" -> context.getString(R.string.profile_status_trial_available)
         "PENDING_FULFILLMENT" -> context.getString(R.string.profile_status_pending_fulfillment)
-        "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> context.getString(R.string.profile_status_expired)
+        "FREEMIUM", "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> context.getString(R.string.profile_status_standard)
         "ACTIVE_TRIAL" -> context.getString(R.string.profile_status_trial_active)
         "ACTIVE_SUBSCRIPTION" -> profileLocalizedPlanName(profile, context)?.takeIf { it.isNotBlank() }
             ?.let { context.getString(R.string.profile_status_offer_active, it) }
             ?: context.getString(R.string.profile_status_paid_active)
-        else -> context.getString(R.string.profile_status_inactive)
+        else -> context.getString(R.string.profile_status_standard)
     }
 
 private fun profileLocalizedPlanName(
@@ -912,7 +911,7 @@ private fun profileBadgeColor(profile: AccessProfileResponse): Color =
         "PROFILE_INCOMPLETE" -> MaterialTheme.colorScheme.error
         "TRIAL_AVAILABLE" -> MaterialTheme.colorScheme.primary
         "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.error
-        "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> MaterialTheme.colorScheme.error
+        "FREEMIUM", "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> MaterialTheme.colorScheme.primary
         "ACTIVE_TRIAL", "ACTIVE_SUBSCRIPTION" -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -923,7 +922,7 @@ private fun profileBadgeBackground(profile: AccessProfileResponse): Color =
         "PROFILE_INCOMPLETE" -> MaterialTheme.colorScheme.errorContainer
         "TRIAL_AVAILABLE" -> MaterialTheme.colorScheme.primaryContainer
         "PENDING_FULFILLMENT" -> MaterialTheme.colorScheme.errorContainer
-        "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> MaterialTheme.colorScheme.errorContainer
+        "FREEMIUM", "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> MaterialTheme.colorScheme.primaryContainer
         "ACTIVE_TRIAL", "ACTIVE_SUBSCRIPTION" -> MaterialTheme.colorScheme.primaryContainer
       else -> MaterialTheme.colorScheme.surfaceVariant
   }

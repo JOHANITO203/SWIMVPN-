@@ -872,3 +872,11 @@ Decision: User-initiated cancellation/revocation must call the inventory `revoke
 Reason: The product rule is that a supplier link can be resold up to the configured cap. Reusing the inventory revocation path keeps `OrderAssignment.access_status`, `InventoryItem.used_resale_slots`, `InventoryItem.health_status`, and audit events aligned with the existing admin revocation behavior.
 
 Consequence: Customer cancellation removes premium access from the cancelling device and makes capacity available again when the active assignment is revoked. Orders remain traceable for accounting; refunds are not implied by cancellation and remain an admin/business process.
+
+## [2026-05-02] Cancelled Paid Access Returns To Standard Freemium State
+
+Decision: A customer-initiated cancellation or revoked paid assignment must not be represented to Android as an expired subscription. If no active or pending assignment remains, the current access state is `FREEMIUM` / `NONE`, with no paid offer badge and no paid expiry shown.
+
+Reason: Cancellation is a voluntary removal of one premium assignment, not an app lockout. The user can still use the app shell, import external configs, and buy a new plan. Showing `EXPIRED` plus supplier remaining days is contradictory and hurts trust.
+
+Consequence: Backend profile bootstrap only treats orders with `ACTIVE` or `PENDING` assignments as current paid entitlement. Historical fulfilled/revoked orders remain traceable for accounting/audit, but they do not drive active plan UI or subscription expiry. Android also defensively hides paid plan/expiry fields unless access is active or pending fulfillment.

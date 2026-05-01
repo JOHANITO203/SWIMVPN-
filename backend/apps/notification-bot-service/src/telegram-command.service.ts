@@ -956,6 +956,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
             'CARD_PAYMENT_REVIEW_NOTIFICATION_FAILED',
             'CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_SENT',
             'CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_FAILED',
+            'FULFILLMENT_FAILED',
             'CARD_PAYMENT_ADMIN_REMINDER_SENT',
             'CARD_PAYMENT_ADMIN_REMINDER_FAILED',
           ],
@@ -989,7 +990,8 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
           const notified = payload?.notified !== undefined ? ` notified=${payload.notified}` : '';
           const review = payload?.reviewChatNotified !== undefined ? ` review=${payload.reviewChatNotified}` : '';
           const direct = payload?.directAdminNotified !== undefined ? ` direct=${payload.directAdminNotified}` : '';
-          return `- ${event.event_type} at ${event.created_at.toISOString()}${proofEventId}${notified}${review}${direct}`;
+          const error = payload?.error ? ` error=${payload.error}` : '';
+          return `- ${event.event_type} at ${event.created_at.toISOString()}${proofEventId}${notified}${review}${direct}${error}`;
         }).join('\n')
         : '- none',
       '',
@@ -1094,7 +1096,9 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
       if (result?.success) {
         const suffix = result?.alreadyProcessed
           ? `Already processed (${result.currentStatus || 'unknown'}).`
-          : 'Fulfillment triggered.';
+          : result?.pendingFulfillment
+            ? 'Payment approved, but no config capacity is available yet. Add stock, then run /pending or retry fulfillment.'
+            : 'Fulfillment triggered.';
         await ctx.reply(`Approved ${orderRef}. ${suffix}`);
       } else {
         await ctx.reply(`Approval failed for ${orderRef}: ${result?.error || 'unknown error'}`);

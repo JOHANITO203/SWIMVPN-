@@ -529,13 +529,12 @@ fun HomeScreen(
         else -> null
     }
     val badgeText = when {
-        profile.isExpired -> stringResource(R.string.status_expired)
         profile.isPendingFulfillment -> stringResource(R.string.home_badge_pending_fulfillment)
         profile.isActiveTrial -> stringResource(R.string.home_badge_trial)
         publicPlanCode == "PREMIUM" -> stringResource(R.string.home_badge_premium)
         publicPlanCode == "PLATINUM" -> stringResource(R.string.home_badge_platinum)
         publicPlanCode == "BASIC" -> stringResource(R.string.home_badge_basic)
-        else -> stringResource(R.string.home_badge_access)
+        else -> stringResource(R.string.home_badge_standard)
     }
     val connectionSubtitle = when (vpnState) {
         VpnState.CONNECTED -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
@@ -620,12 +619,12 @@ fun HomeScreen(
 
             // Status Badge
             val badgeColor = when {
-                profile.isExpired -> MaterialTheme.colorScheme.errorContainer
+                profile.isPendingFulfillment -> MaterialTheme.colorScheme.errorContainer
                 profile.isActiveTrial -> MaterialTheme.colorScheme.secondaryContainer
                 else -> MaterialTheme.colorScheme.primaryContainer
             }
             val badgeTextColor = when {
-                profile.isExpired -> MaterialTheme.colorScheme.onErrorContainer
+                profile.isPendingFulfillment -> MaterialTheme.colorScheme.onErrorContainer
                 profile.isActiveTrial -> MaterialTheme.colorScheme.onSecondaryContainer
                 else -> MaterialTheme.colorScheme.onPrimaryContainer
             }

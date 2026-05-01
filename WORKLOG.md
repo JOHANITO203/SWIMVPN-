@@ -2461,3 +2461,30 @@ pm run build PASSED.
   - Redeploy backend services.
   - Build/install a new signed release APK.
   - With an active paid user, cancel access from Profile and confirm `subscriptionUrl` disappears, backend premium server access is denied, imported configs still work, and inventory `used_resale_slots` decreases/recomputes through inventory revocation.
+
+## [2026-05-02] [Post-Cancellation Standard UX + Fulfillment Failure Trace]
+- **Status**: IMPLEMENTED / NEEDS BACKEND REDEPLOY + RELEASE APK QA
+- **Problem**:
+  - After customer cancellation, Android displayed a harsh expired state and still showed the old supplier expiry with remaining days.
+  - Manual card approval failures returned the generic message `Fulfillment triggered but failed`, hiding the real inventory/customer-order cause.
+- **Root cause**:
+  - `customer-order-service` profile lookup selected the latest paid order even when its only assignment was `REVOKED`, so revoked access was still interpreted as an expired subscription with provider dates.
+  - Android also trusted stale non-active expiry/plan fields defensively and rendered `EXPIRED` in red across Home/Profile.
+  - Fulfillment exceptions were swallowed into a generic result instead of being persisted and shown to the admin.
+- **Change**:
+  - Profile source of truth now uses only orders with `ACTIVE` or `PENDING` assignments for current entitlement display.
+  - A revoked-only paid order now returns `FREEMIUM`, `accessType=NONE`, no offer badge, and no subscription expiry.
+  - Android post-cancel/non-premium UI now shows `STANDARD MODE` instead of `EXPIRED` / `PREMIUM INACTIVE`; stale expiry is hidden when access is not active or pending.
+  - Customer cancellation clears stale VPN error state when backend premium access is removed.
+  - Manual card fulfillment failures now audit `FULFILLMENT_FAILED` and return the concrete error to the bot.
+  - `/trace_card` now includes fulfillment failure events and their error payload when present.
+- **Verification planned**:
+  - Run backend policy test for revoked profile and fulfillment failure error propagation.
+  - Run Android resource/Kotlin compile checks.
+  - Live QA: cancel an active paid subscription and confirm Home/Profile return to standard usable state, no remaining-days display, no red expired badge, and the supplier link slot is available for resale.
+  - Live QA: retry `/approve_card <orderRef>` after deploy; if it still fails, the bot should now show the exact inventory/customer-order error and `/trace_card <orderRef>` should list it.
+- **Verification performed locally**:
+  - `git diff --check` PASSED with CRLF warnings only.
+  - `cd android && .\gradlew.bat :app:mergeDebugResources --no-daemon --max-workers=1 --console=plain` PASSED.
+  - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
+  - `cd backend && npm run test:policy` could not start because local `backend/node_modules` is missing (`ts-node` unavailable). Run this in Dokploy/container or after restoring backend dependencies.
