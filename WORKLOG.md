@@ -2202,3 +2202,57 @@ pm run build PASSED.
     - `cd backend && npm run build:all` PASSED.
 - **Live QA**:
     - After redeploy, verify admin delivery buttons and manual payment approve/reject callbacks are sent and received by the same payment/notification bot.
+
+## [2026-04-30] [Android VPN Stability Runtime Audit And Guardrails]
+- **Status**: IMPLEMENTED / NEEDS SIGNED RELEASE QA
+- **Problem**: Production release testing reported Technical Settings auto-connect instability, unexpected VPN disconnects, and occasional app close/restart symptoms.
+- **Runtime evidence**:
+    - ADB confirmed `com.swimvpn.app` running on `SM-S916B`, with active VPN network `tun0`, foreground `SwimVpnService`, and persistent VPN notification.
+    - Opening Profile and Technical Settings produced no `AndroidRuntime` crash.
+    - Toggling Auto-Connect on did not restart the process; PID stayed stable and crash buffer remained empty.
+- **Root cause direction**:
+    - Auto-Connect was only persisting a boolean without validating that a runnable active config exists.
+    - Full tunnel could report `RUNNING` too optimistically if the tun2socks data plane was not actually active.
+    - VPN lifecycle lacked explicit logging for system revocation/task removal and post-start native process liveness.
+- **Changes**:
+    - Auto-Connect now validates an active runnable server/config before enabling; invalid state leaves it off and shows a clear toast.
+    - VPN starts now use foreground-service compatible startup from the app start path.
+    - Full tunnel now fails clearly instead of reporting connected when tun2socks does not start.
+    - Added runtime liveness monitoring for Xray and tun2socks while connected.
+    - Added explicit logs/handling for manual stop, startup failure, tun2socks failure/exit, VPN revocation, service destruction, and task removal.
+- **Verification**:
+    - `cd android && .\gradlew.bat :app:assembleDebug --console=plain` PASSED.
+    - `cd android && .\gradlew.bat :app:assembleRelease --console=plain` FAILED due local Gradle/JVM OOM during `minifyReleaseWithR8`, with `hs_err_pid8912.log` reporting insufficient native memory.
+    - Retried release with `--no-daemon --max-workers=1` and reduced `GRADLE_OPTS`; still FAILED due local JVM OOM (`hs_err_pid16416.log`).
+- **Live QA needed**:
+    - Build signed release on a machine/session with enough RAM for R8.
+    - Install signed release, connect VPN, open Technical Settings, toggle Auto-Connect, background/foreground app, lock/unlock device, and watch logcat for structured stop reasons.
+
+## [2026-05-01] [Backend Premium Boundary And Fulfillment Risk Closure]
+- **Status**: DONE / READY FOR LIVE QA
+- **Problem**: Backend still had several production risks before live testing:
+  - Activation codes could previously become an unmanaged premium-grant path.
+  - Unsigned Stripe/YooKassa webhook handlers could fulfill if exposed before signature verification was completed.
+  - Premium server listing could expose generic server rows instead of the customer's assigned supplier config.
+  - Notification bot service needed the customer-service TCP endpoint passed consistently for approval/delivery orchestration.
+  - A draft fix treated `InventoryHealthStatus.FULL` as access-expired, which would incorrectly cut existing active customers once a supplier link reached the resale cap.
+- **Changes**:
+  - Disabled unmanaged activation-code fulfillment and audit rejected attempts.
+  - Disabled Stripe/YooKassa webhook fulfillment until signature verification is implemented.
+  - Store server listing now derives the premium server card from the active assigned inventory raw config instead of generic server inventory.
+  - Profile and usage selection now inspect recent fulfilled/paid orders and choose a valid active assignment instead of only the newest order row.
+  - `FULL` remains a no-new-sales state, but existing `ACTIVE` assignments stay usable unless the assignment expires, supplier expires, quota is exhausted, or health is `EXPIRED`/`DISABLED`.
+  - Added policy tests for activation-code rejection, `FULL` assignment semantics, and assigned-server exposure.
+  - Root and backend compose definitions pass `CUSTOMER_SERVICE_HOST`/`CUSTOMER_SERVICE_PORT` to `notification-bot-service`.
+- **Verification**:
+  - `cd backend && npx ts-node -r tsconfig-paths/register apps/customer-order-service/src/__tests__/backend-security.policy.spec.ts` PASSED.
+  - `cd backend && npx ts-node -r tsconfig-paths/register apps/store-engine-service/src/__tests__/assigned-server.policy.spec.ts` PASSED.
+  - `cd backend && npm run lint` PASSED.
+  - `cd backend && npm run prisma:validate` PASSED.
+  - `cd backend && npm run test:policy` PASSED.
+  - `cd backend && npm run build:all` PASSED.
+- **Live QA needed**:
+  - Redeploy backend services.
+  - Verify an active paid assignment still shows access when its supplier inventory is full from resale cap.
+  - Verify expired/disabled supplier inventory hides premium config.
+  - Verify manual payment approval still reaches customer-order-service after deploy.

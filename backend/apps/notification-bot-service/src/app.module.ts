@@ -22,7 +22,7 @@ import { TelegramCommandService } from './telegram-command.service';
         transport: Transport.TCP,
         options: {
           host: process.env.CUSTOMER_SERVICE_HOST || '127.0.0.1',
-          port: 3001,
+          port: Number(process.env.CUSTOMER_SERVICE_PORT || 3001),
         },
       },
     ]),

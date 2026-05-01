@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.net.VpnService
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.data.local.PreferencesManager
@@ -204,13 +205,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAutoConnect(enabled: Boolean) {
         viewModelScope.launch {
-            prefs.setAutoConnect(enabled)
-            when (val currentState = _state.value) {
-                is AppState.Success -> _state.value = currentState.copy(autoConnect = enabled)
-                is AppState.TrialSetup -> _state.value = currentState.copy(autoConnect = enabled)
-                else -> {}
+            if (enabled) {
+                val validationError = autoConnectValidationError()
+                if (validationError != null) {
+                    prefs.setAutoConnect(false)
+                    updateAutoConnectState(false)
+                    _effect.emit(AppSideEffect.ShowToast(validationError))
+                    Log.w("MainViewModel", "Auto-connect not enabled: $validationError")
+                    return@launch
+                }
             }
+
+            prefs.setAutoConnect(enabled)
+            updateAutoConnectState(enabled)
         }
+    }
+
+    private fun updateAutoConnectState(enabled: Boolean) {
+        when (val currentState = _state.value) {
+            is AppState.Success -> _state.value = currentState.copy(autoConnect = enabled)
+            is AppState.TrialSetup -> _state.value = currentState.copy(autoConnect = enabled)
+            else -> {}
+        }
+    }
+
+    private fun autoConnectValidationError(): String? {
+        val currentState = _state.value as? AppState.Success
+            ?: return s(R.string.err_no_server_profile)
+        val server = currentState.activeServer
+            ?: return s(R.string.err_no_server_profile)
+        val profile = currentState.profile
+
+        if (!profile.isPremiumAllowed && server.source == "backend") {
+            return s(R.string.err_subscription_expired)
+        }
+
+        val runtimeConfig = server.rawConfig ?: profile.subscriptionUrl
+        if (runtimeConfig.isNullOrBlank()) {
+            return s(R.string.err_no_runtime_config)
+        }
+
+        return null
     }
 
     fun setLanguage(lang: String) {
@@ -667,7 +702,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     putExtra(SwimVpnService.EXTRA_DATA_LIMIT, limitBytes)
                     putExtra(SwimVpnService.EXTRA_DATA_USED, usedBytes)
                 }
-                context.startService(intent)
+                ContextCompat.startForegroundService(context, intent)
             }
         }
     }

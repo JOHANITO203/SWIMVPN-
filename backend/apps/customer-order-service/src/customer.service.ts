@@ -241,7 +241,7 @@ export class CustomerService {
             },
           },
           orderBy: { created_at: 'desc' },
-          take: 1,
+          take: 10,
           include: {
             plan: true,
             assignments: {
@@ -401,7 +401,16 @@ export class CustomerService {
         orders: {
           where: { status: OrderStatus.FULFILLED },
           orderBy: { created_at: 'desc' },
-          take: 1,
+          take: 10,
+          include: {
+            plan: true,
+            assignments: {
+              orderBy: { assigned_at: 'desc' },
+              include: {
+                inventory_item: true,
+              },
+            },
+          },
         },
       },
     });
@@ -415,7 +424,40 @@ export class CustomerService {
       throw new Error('Device is not authorized for usage reporting');
     }
 
-    const latestOrder = customer.orders[0];
+    const now = Date.now();
+    const bestActiveOrder =
+      customer.orders.find((order) => {
+        const activeAssignment = order.assignments.find(
+          (item) => item.access_status === AssignmentAccessStatus.ACTIVE,
+        );
+        const inventoryItem = activeAssignment?.inventory_item;
+        if (!activeAssignment || !inventoryItem) {
+          return false;
+        }
+
+        const inventoryUnavailable =
+          inventoryItem.health_status === InventoryHealthStatus.EXPIRED ||
+          inventoryItem.health_status === InventoryHealthStatus.DISABLED;
+        if (
+          inventoryUnavailable ||
+          this.isSourceQuotaExceeded(inventoryItem.source_quota_bytes, inventoryItem.source_used_bytes)
+        ) {
+          return false;
+        }
+
+        const isTrialOrder = this.isTrialOrder(order);
+        const orderExpiresAt = this.calculateSubscriptionExpiresAt(order, isTrialOrder);
+        const providerExpiresAt =
+          activeAssignment.expires_at?.toISOString() ||
+          inventoryItem.supplier_expires_at?.toISOString() ||
+          null;
+        const subscriptionExpiresAt = isTrialOrder
+          ? this.pickEarlierIsoDate(orderExpiresAt, providerExpiresAt)
+          : this.pickEarlierIsoDate(providerExpiresAt, orderExpiresAt);
+
+        return !subscriptionExpiresAt || new Date(subscriptionExpiresAt).getTime() >= now;
+      }) || null;
+    const latestOrder = bestActiveOrder ?? customer.orders[0];
     if (!latestOrder) {
       return { success: true, ignored: true, reason: 'NO_FULFILLED_ORDER' };
     }
@@ -434,67 +476,28 @@ export class CustomerService {
   }
 
   async activateCode(data: { userNumber: string; code: string }) {
-    // 1. Find the coupon/code in the database
-    // For MVP, we'll assume any code starting with "SWIM-" is valid for a MONTH plan
-    if (!data.code.startsWith('SWIM-')) {
-      throw new Error('Invalid coupon code');
-    }
-
-    const customer = await this.prisma.customer.findUnique({
-      where: { public_id: data.userNumber },
-    });
-
-    if (!customer) throw new Error('Customer not found');
-
-    const plan = await this.prisma.plan.findFirst({
-      where: { code: 'MONTH' },
-    });
-
-    if (!plan) throw new Error('Plan not found');
-
-    // 2. Create a PAID order
-    const order = await this.prisma.order.create({
+    await this.prisma.adminEvent.create({
       data: {
-        order_ref: `CODE-${data.code}-${Date.now()}`,
-        customer_id: customer.id,
-        plan_id: plan.id,
-        amount_rub: 0,
-        status: OrderStatus.PAID,
-        payment_ref: `COUPON:${data.code}`,
+        event_type: 'ACTIVATION_CODE_REJECTED',
+        entity_type: 'CUSTOMER',
+        entity_id: data.userNumber || 'UNKNOWN',
+        payload_json: {
+          reason: 'ACTIVATION_CODES_DISABLED',
+          codePrefix: data.code?.slice(0, 8) || null,
+          rejectedAt: new Date().toISOString(),
+        } as any,
       },
-    });
+    }).catch(() => undefined);
 
-    // 3. Fulfill
-    try {
-      await firstValueFrom(
-        this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
-      );
-    } catch (e) {
-      console.error('Fulfillment failed during code activation:', e);
-    }
-
-    return this.getProfile(customer.public_id);
+    this.fail('Activation codes are disabled until managed coupons are configured');
   }
 
-  async handleStripeWebhook(data: any) {
-    // Basic Stripe Webhook Logic
-    // In production: verify signature
-    if (data.type === 'checkout.session.completed') {
-      const session = data.data.object;
-      const orderRef = session.client_reference_id;
-      return this.fulfillOrderByRef(orderRef, session.id);
-    }
-    return { received: true };
+  async handleStripeWebhook(_data: any) {
+    this.fail('Stripe webhook fulfillment is disabled until signature verification is configured');
   }
 
-  async handleYookassaWebhook(data: any) {
-    // Basic YooKassa Webhook Logic
-    if (data.event === 'payment.succeeded') {
-      const payment = data.object;
-      const orderRef = payment.metadata?.order_ref;
-      return this.fulfillOrderByRef(orderRef, payment.id);
-    }
-    return { received: true };
+  async handleYookassaWebhook(_data: any) {
+    this.fail('YooKassa webhook fulfillment is disabled until signature verification is configured');
   }
 
   async handleCryptoWebhook(data: { body: any; signature?: string | string[] }) {

@@ -1,6 +1,85 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@app/database';
 
+type RuntimeEndpoint = {
+  host: string;
+  port: number;
+  protocol: string;
+  displayName?: string | null;
+};
+
+export function parseRuntimeEndpoint(rawConfig?: string | null): RuntimeEndpoint | null {
+  const firstConfigLine = rawConfig
+    ?.split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => /^(vless|vmess|trojan|ss|https?):\/\//i.test(line));
+
+  if (!firstConfigLine) {
+    return null;
+  }
+
+  const protocolMatch = firstConfigLine.match(/^([a-z0-9+.-]+):\/\//i);
+  const protocol = protocolMatch?.[1]?.toUpperCase() || 'UNKNOWN';
+
+  if (protocol === 'VMESS') {
+    const payload = firstConfigLine.slice('vmess://'.length).trim();
+    const decoded = decodeBase64Url(payload);
+    if (decoded) {
+      try {
+        const parsed = JSON.parse(decoded);
+        const host = String(parsed.add || parsed.host || '').trim();
+        const port = toSafePort(parsed.port) || 443;
+        if (host) {
+          return {
+            host,
+            port,
+            protocol,
+            displayName: typeof parsed.ps === 'string' ? parsed.ps : null,
+          };
+        }
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  try {
+    const url = new URL(firstConfigLine);
+    const host = url.hostname;
+    if (!host) {
+      return null;
+    }
+
+    return {
+      host,
+      port: toSafePort(url.port) || (url.protocol === 'http:' ? 80 : 443),
+      protocol,
+      displayName: url.hash ? decodeURIComponent(url.hash.slice(1)) : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function decodeBase64Url(value: string): string | null {
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return Buffer.from(padded, 'base64').toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+function toSafePort(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+    return null;
+  }
+  return parsed;
+}
+
 @Injectable()
 export class StoreService {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,7 +106,7 @@ export class StoreService {
             status: { in: ['FULFILLED', 'PAID', 'PENDING_FULFILLMENT'] },
           },
           orderBy: { created_at: 'desc' },
-          take: 1,
+          take: 10,
           include: {
             assignments: {
               where: { access_status: 'ACTIVE' },
@@ -51,7 +130,7 @@ export class StoreService {
       return [];
     }
 
-    const latestOrder = customer.orders[0];
+    const latestOrder = customer.orders.find((order) => order.assignments.length > 0);
     const activeAssignment = latestOrder?.assignments[0];
     const inventoryItem = activeAssignment?.inventory_item;
 
@@ -91,21 +170,32 @@ export class StoreService {
       return [];
     }
 
-    const servers = await this.prisma.server.findMany({
-      where: { is_active: true },
-    });
+    const endpoint = parseRuntimeEndpoint(inventoryItem.raw_config);
+    if (!endpoint) {
+      return [];
+    }
 
-    return servers.map(s => ({
-      id: s.id,
-      country: s.name,
-      city: s.name,
-      host: s.host,
-      port: 443,
-      protocol: "VLESS",
-      tags: ["LOW-LATENCY"],
-      planScope: "PREMIUM",
-      countryCode: s.country_code,
-    }));
+    const displayName =
+      endpoint.displayName ||
+      inventoryItem.batch_name ||
+      inventoryItem.supplier_provider_name ||
+      inventoryItem.display_protocol ||
+      'Assigned premium config';
+
+    return [
+      {
+        id: `assignment:${activeAssignment.id}`,
+        country: displayName,
+        city: displayName,
+        host: endpoint.host,
+        port: endpoint.port,
+        protocol: endpoint.protocol || inventoryItem.display_protocol || inventoryItem.config_type || 'UNKNOWN',
+        tags: ['ASSIGNED', 'PREMIUM'],
+        planScope: 'PREMIUM',
+        countryCode: null,
+        source: 'backend',
+      },
+    ];
   }
 
   private isSourceQuotaExceeded(sourceQuotaBytes?: bigint | null, sourceUsedBytes?: bigint | null) {

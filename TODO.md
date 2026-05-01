@@ -797,3 +797,43 @@ u after each future language batch
 - Click `resend`, `copy`, or `mark delivered` and confirm the callback is handled by the same bot.
 - Trigger manual card proof review and verify `approve`/`reject` buttons answer instead of silently doing nothing.
 - Keep `TELEGRAM_BOT_TOKEN` reserved for admin operations unless used only as legacy one-way notification fallback.
+
+## Android VPN Stability Release QA
+- Build a signed release APK on a machine/session with enough memory for R8; local release build currently fails from Gradle/JVM OOM during `minifyReleaseWithR8`, while debug build passes.
+- On signed release, verify Technical Settings Auto-Connect:
+  - enabling with an active imported config stays enabled
+  - enabling without a runnable config shows a clear toast and remains off
+  - no process restart or crash buffer entry appears
+- Verify VPN lifecycle on device with logcat:
+  - connect full tunnel
+  - keep app open for 5 minutes
+  - background app
+  - lock/unlock phone
+  - remove app from recents and confirm foreground VPN behavior is intentional
+  - switch Wi-Fi/mobile if possible
+  - confirm any disconnect has a structured `SwimVpnService` reason
+- Validate that full tunnel only reports Connected when tun2socks data plane is active.
+- Later hardening: add network callback/backoff reconnect policy after live logs prove how the provider/runtime behaves on network handoff.
+
+## Product Claims Cleanup Before Public Launch
+- Replace or qualify public claims that are not implemented/proven yet:
+  - total anonymity
+  - military security/encryption
+  - advanced obfuscation
+  - strict zero-logs
+  - fixed encrypted-node counts
+- Document implemented reality separately from planned non-LLM AI/smart routing features.
+
+## Backend Premium Boundary Live QA
+- Redeploy backend services after the 2026-05-01 backend risk closure patch.
+- Confirm unmanaged activation codes return a clear rejection and do not create paid access.
+- Confirm Stripe/YooKassa webhook paths do not fulfill until signature verification is implemented.
+- Confirm a paid customer assigned to a supplier config still receives access when the config is `FULL` because resale capacity is exhausted.
+- Confirm `EXPIRED` or `DISABLED` supplier inventory hides premium config/server access.
+- Confirm `/servers` returns only the customer's assigned backend config metadata, not generic premium server rows.
+- Confirm manual payment approval reaches `customer-order-service` through `CUSTOMER_SERVICE_HOST`/`CUSTOMER_SERVICE_PORT`.
+
+## Non-LLM Smart Routing Plan
+- Treat "AI" as deterministic network intelligence, not an LLM/chatbot.
+- Implement later only after stability tests: latency scoring, failure scoring, provider/config health scoring, safe reconnect backoff, and adaptive config selection.
+- Do not publicly claim adaptive AI, advanced obfuscation, or smart routing as implemented until runtime evidence and UI/backend support exist.

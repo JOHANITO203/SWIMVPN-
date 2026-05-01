@@ -848,3 +848,11 @@ Decision: The MVP uses a lightweight in-process scheduler in `inventory-delivery
 Reason: The service already owns supplier inventory state and already exposes `runHealthCheck()`. Adding a new service would increase Dokploy complexity and another deployment surface. The scheduler is configurable and can be disabled through `INVENTORY_HEALTHCHECK_INTERVAL_MS` if VPS load or multi-instance deployment changes later.
 
 Consequence: In the current single-instance Dokploy deployment this gives automatic expiry/health enforcement. If the platform later runs multiple inventory instances, this should move to a single-worker cron/queue to avoid duplicate health checks.
+
+## [2026-05-01] FULL Inventory Means Sold Out, Not Existing Access Revoked
+
+Decision: `InventoryHealthStatus.FULL` means a supplier config has no remaining resale capacity for new orders. It must not by itself revoke or hide access for customers who already have an `ACTIVE` assignment to that config.
+
+Reason: SWIMVPN intentionally caps resale per supplier link. When the cap is reached, the link is full for new sales, but the already assigned customers are the reason the link is full and must continue to receive the access they bought unless the supplier expires, quota is exhausted, the assignment is revoked/expired, or the inventory is explicitly disabled.
+
+Consequence: Allocation must reject `FULL` inventory, but profile/access/server delivery should keep serving an active assignment on `FULL` inventory. True access stoppage remains driven by assignment status, supplier expiration, source quota exhaustion, or disabled/expired health.
