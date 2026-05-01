@@ -24,6 +24,9 @@ interface ApiService {
     @POST("api/v1/access/profile/complete")
     suspend fun completeProfile(@Body request: CompleteProfileRequest): AccessProfileResponse
 
+    @POST("api/v1/subscription/cancel-current")
+    suspend fun cancelCurrentSubscription(@Body request: CancelCurrentSubscriptionRequest): AccessProfileResponse
+
     @GET("api/v1/access/{userNumber}")
     suspend fun getAccessProfile(@Path("userNumber") userNumber: String): AccessProfileResponse
 

@@ -126,6 +126,12 @@ data class CompleteProfileRequest(
     val phone: String?
 )
 
+data class CancelCurrentSubscriptionRequest(
+    val userNumber: String,
+    val deviceId: String,
+    val reason: String = "CUSTOMER_CANCELLED"
+)
+
 data class ImportSubscriptionRequest(
     val userNumber: String,
     val subscriptionUrl: String

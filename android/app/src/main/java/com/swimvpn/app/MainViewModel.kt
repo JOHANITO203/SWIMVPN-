@@ -20,6 +20,7 @@ import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ActivateCodeRequest
 import com.swimvpn.app.data.network.ActivateTrialRequest
 import com.swimvpn.app.data.network.BootstrapAccessRequest
+import com.swimvpn.app.data.network.CancelCurrentSubscriptionRequest
 import com.swimvpn.app.data.network.CompleteProfileRequest
 import com.swimvpn.app.data.model.CheckoutRequest
 import com.swimvpn.app.data.network.ReportUsageRequest
@@ -574,6 +575,75 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     ?.let { s(R.string.err_activation_failed, it) }
                     ?: s(R.string.err_trial_activation)
                 _effect.emit(AppSideEffect.ShowToast(message))
+            }
+        }
+    }
+
+    fun cancelCurrentSubscription(context: Context) {
+        viewModelScope.launch {
+            val currentState = _state.value as? AppState.Success ?: return@launch
+            val deviceId = getDeviceId()
+            if (deviceId == null) {
+                Log.e("MainViewModel", "Device identity unavailable during subscription cancellation")
+                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_subscription_cancel_failed)))
+                return@launch
+            }
+
+            try {
+                val profile = api.cancelCurrentSubscription(
+                    CancelCurrentSubscriptionRequest(
+                        userNumber = currentState.profile.userNumber,
+                        deviceId = deviceId,
+                        reason = "CUSTOMER_CANCELLED_FROM_APP",
+                    )
+                )
+
+                val shouldClearBackendAccess = currentState.activeServer?.source != "imported"
+                val nextAutoConnect = if (shouldClearBackendAccess) false else currentState.autoConnect
+
+                if (shouldClearBackendAccess) {
+                    manualStopRequested = true
+                    adaptiveReconnectAttempt = 0
+                    adaptiveActiveServerId = null
+                    lastAutoConnectSignature = null
+                    prefs.setAutoConnect(false)
+                    prefs.clearAutoConnectPayload()
+                }
+
+                if (currentState.activeServer?.source == "backend") {
+                    prefs.setSelectedServerId(null)
+                    configRepository.clearActiveProfile()
+                }
+
+                val vpnState = VpnManager.state.value
+                val shouldStopBackendVpn =
+                    currentState.activeServer?.source == "backend" &&
+                        (vpnState == VpnState.CONNECTED || vpnState == VpnState.CONNECTING)
+                if (shouldStopBackendVpn) {
+                    val intent = Intent(context, SwimVpnService::class.java).apply {
+                        action = SwimVpnService.ACTION_STOP
+                    }
+                    context.startService(intent)
+                }
+
+                val successState = buildSuccessState(
+                    profile = profile,
+                    isOnboardingDone = currentState.isOnboardingDone,
+                    routingMode = currentState.routingMode,
+                    autoConnect = nextAutoConnect,
+                    language = currentState.language,
+                    themeMode = currentState.themeMode,
+                )
+
+                if (successState != null) {
+                    _state.value = successState
+                    refreshServerLatency()
+                }
+
+                _effect.emit(AppSideEffect.ShowToast(s(R.string.subscription_cancelled_success)))
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Subscription cancellation failed", e)
+                _effect.emit(AppSideEffect.ShowToast(s(R.string.err_subscription_cancel_failed)))
             }
         }
     }

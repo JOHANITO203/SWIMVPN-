@@ -9,6 +9,7 @@ import {
   BootstrapAccessDto,
   ActivateTrialDto,
   CompleteProfileDto,
+  CancelCurrentSubscriptionDto,
   CreateCheckoutDto,
   getPlanDeviceAllowance,
   getPublicPlanName,
@@ -225,6 +226,96 @@ export class CustomerService {
         },
       });
     }
+
+    return this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
+  }
+
+  async cancelCurrentSubscription(data: CancelCurrentSubscriptionDto) {
+    const normalizedDeviceId = this.normalizeDeviceId(data.deviceId);
+    const rawReason = typeof data.reason === 'string' ? data.reason.trim() : '';
+    const reason = rawReason.slice(0, 120) || 'CUSTOMER_CANCELLED';
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { public_id: data.userNumber },
+      include: {
+        orders: {
+          where: {
+            status: {
+              in: [OrderStatus.FULFILLED, OrderStatus.PAID, OrderStatus.PENDING_FULFILLMENT],
+            },
+          },
+          orderBy: { created_at: 'desc' },
+          take: 10,
+          include: {
+            assignments: {
+              orderBy: { assigned_at: 'desc' },
+              include: {
+                inventory_item: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!customer) {
+      this.fail('Customer not found');
+    }
+
+    if (!customer.device_id || customer.device_id !== normalizedDeviceId) {
+      this.fail('Device is not authorized for cancellation');
+    }
+
+    const activeOrder = customer.orders.find((order) =>
+      order.assignments.some((assignment) => assignment.access_status === AssignmentAccessStatus.ACTIVE),
+    );
+    const activeAssignment = activeOrder?.assignments.find(
+      (assignment) => assignment.access_status === AssignmentAccessStatus.ACTIVE,
+    );
+
+    if (!activeOrder || !activeAssignment) {
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: 'CUSTOMER_SUBSCRIPTION_CANCEL_SKIPPED',
+          entity_type: 'CUSTOMER',
+          entity_id: customer.public_id,
+          payload_json: {
+            reason: 'NO_ACTIVE_ASSIGNMENT',
+            requestedReason: reason,
+            requestedAt: new Date().toISOString(),
+          } as any,
+        },
+      }).catch(() => undefined);
+
+      return this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
+    }
+
+    await firstValueFrom(
+      this.inventoryClient.send(
+        { cmd: 'revoke_assignment' },
+        {
+          assignmentId: activeAssignment.id,
+          reason,
+          adminId: null,
+        },
+      ),
+    );
+
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'CUSTOMER_SUBSCRIPTION_CANCELLED',
+        entity_type: 'ORDER_ASSIGNMENT',
+        entity_id: activeAssignment.id,
+        payload_json: {
+          userNumber: customer.public_id,
+          orderRef: activeOrder.order_ref,
+          inventoryItemId: activeAssignment.inventory_item_id,
+          reason,
+          cancelledAt: new Date().toISOString(),
+          slotPolicy: 'assignment revoked through inventory service; resale capacity recalculated',
+        } as any,
+      },
+    });
 
     return this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
   }

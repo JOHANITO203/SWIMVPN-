@@ -139,6 +139,7 @@
     <string name="plan_platinum">Platinum</string>
     <string name="label_expires">Истекает</string>
     <string name="menu_subscription">Подписка</string>
+    <string name="menu_cancel_subscription">Отменить доступ</string>
     <string name="menu_security">Безопасность аккаунта</string>
     <string name="menu_technical">Технические настройки</string>
     <string name="menu_support">Помощь и поддержка</string>
@@ -157,6 +158,7 @@
     <string name="err_order_creation_failed">Ошибка создания заказа: %1$s</string>
     <string name="err_no_server_profile">Нет доступного сервера или профиля.</string>
     <string name="err_subscription_expired">Срок действия вашей подписки истек. Пожалуйста, обновите ее.</string>
+    <string name="err_subscription_cancel_failed">Сейчас не удалось отменить доступ.</string>
     <string name="err_no_runtime_config">Для выбранного сервера нет runtime-конфигурации.</string>
     <string name="err_fetch_servers_failed">Не удалось загрузить список серверов. Проверьте соединение и повторите попытку.</string>
     <string name="err_fetch_plans_failed">Не удалось загрузить тарифы. Проверьте соединение и повторите попытку.</string>
@@ -164,6 +166,11 @@
     <string name="adaptive_reconnecting">Сеть нестабильна. Переподключаемся...</string>
     <string name="adaptive_switching_route">Сеть нестабильна. Меняем маршрут...</string>
     <string name="adaptive_reconnect_give_up">Соединение нестабильно. Выберите другой сервер или повторите позже.</string>
+    <string name="subscription_cancel_dialog_title">Отменить этот доступ?</string>
+    <string name="subscription_cancel_dialog_body">Это удалит premium-конфигурацию с этого устройства. Если выбрана эта premium-конфигурация, VPN и автоподключение будут остановлены. Импортированные конфигурации останутся доступны.</string>
+    <string name="subscription_cancel_confirm">Отменить доступ</string>
+    <string name="subscription_cancel_keep">Оставить доступ</string>
+    <string name="subscription_cancelled_success">Доступ отменен на этом устройстве.</string>
 
     <string name="profile_trial_id_label">ВАШ ID SWIMVPN+</string>
     <string name="profile_trial_description">Заполните профиль, чтобы открыть пробный период на 3 дня. Мы используем устройство, email и телефон для защиты от злоупотреблений.</string>

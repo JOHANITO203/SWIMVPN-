@@ -210,6 +210,7 @@ fun AppNavigation(
                         onNavigateToImport = { navController.navigate("import") },
                         onNavigateToSupport = { navController.navigate("support") },
                         onActivateTrial = { viewModel.activateTrialFromProfile() },
+                        onCancelSubscription = { viewModel.cancelCurrentSubscription(context) },
                         onSignOut = {
                             viewModel.signOut()
                             navController.navigate("loading") { popUpTo(0) }

@@ -7,6 +7,7 @@ import {
   BootstrapAccessDto,
   ActivateTrialDto,
   CompleteProfileDto,
+  CancelCurrentSubscriptionDto,
   CreateCheckoutDto,
   CryptoWebhookDto,
   ReportUsageDto,
@@ -44,6 +45,11 @@ export class CustomerController {
   @MessagePattern({ cmd: 'complete_profile' })
   async completeProfile(@Payload() data: CompleteProfileDto) {
     return this.customerService.completeProfile(data);
+  }
+
+  @MessagePattern({ cmd: 'cancel_current_subscription' })
+  async cancelCurrentSubscription(@Payload() data: CancelCurrentSubscriptionDto) {
+    return this.customerService.cancelCurrentSubscription(data);
   }
 
   @MessagePattern({ cmd: 'get_profile' })

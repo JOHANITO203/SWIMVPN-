@@ -139,6 +139,7 @@
     <string name="plan_platinum">Platinum</string>
     <string name="label_expires">Expires</string>
     <string name="menu_subscription">Subscription</string>
+    <string name="menu_cancel_subscription">Cancel access</string>
     <string name="menu_security">Account Security</string>
     <string name="menu_technical">Technical Settings</string>
     <string name="menu_support">Help &amp; Support</string>
@@ -157,6 +158,7 @@
     <string name="err_order_creation_failed">Order creation failed: %1$s</string>
     <string name="err_no_server_profile">No server or profile available.</string>
     <string name="err_subscription_expired">Your subscription has expired. Please upgrade.</string>
+    <string name="err_subscription_cancel_failed">Unable to cancel access right now.</string>
     <string name="err_no_runtime_config">No runtime config available for the selected server.</string>
     <string name="err_fetch_servers_failed">Unable to load the server list. Check your connection and retry.</string>
     <string name="err_fetch_plans_failed">Unable to load subscription offers. Check your connection and retry.</string>
@@ -164,6 +166,11 @@
     <string name="adaptive_reconnecting">Network unstable. Reconnecting...</string>
     <string name="adaptive_switching_route">Network unstable. Switching route...</string>
     <string name="adaptive_reconnect_give_up">Connection is unstable. Please choose another server or try again later.</string>
+    <string name="subscription_cancel_dialog_title">Cancel this access?</string>
+    <string name="subscription_cancel_dialog_body">This will remove the premium configuration from this device. If that premium config is selected, the VPN and auto-connect will be stopped. Imported configs remain available.</string>
+    <string name="subscription_cancel_confirm">Cancel access</string>
+    <string name="subscription_cancel_keep">Keep access</string>
+    <string name="subscription_cancelled_success">Access cancelled on this device.</string>
 
     <string name="profile_trial_id_label">YOUR SWIMVPN+ ID</string>
     <string name="profile_trial_description">Complete your profile to unlock the 3-day trial. We use your device, email, and phone to prevent abuse.</string>

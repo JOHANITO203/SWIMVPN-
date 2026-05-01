@@ -913,3 +913,15 @@ u after each future language batch
 - Build and install a new signed release APK after the Android subscription-runtime resolver change.
 - Test a paid Basic/Premium/Platinum backend resource whose raw inventory config is an `https://` supplier subscription URL.
 - Confirm tapping connect fetches/parses the subscription and no longer fails with `Unsupported configuration format`.
+
+## Customer Cancellation / Resale Capacity QA
+- Redeploy backend services after adding `subscription/cancel-current`.
+- Build and install a new signed release APK after Android profile cancellation UI changes.
+- Test active paid backend config cancellation:
+  - Profile shows “Résilier l’accès”.
+  - Dialog confirms the action.
+  - Backend returns refreshed profile without premium runtime config.
+  - If a backend premium config is selected and VPN is running, VPN stops and auto-connect is disabled.
+  - Imported configs remain visible and usable.
+  - Inventory overview shows the revoked assignment and recomputed `usedResaleSlots`, allowing the supplier link to be resold if capacity remains.
+- Test cancellation with wrong device id returns a clear denial and does not revoke the assignment.

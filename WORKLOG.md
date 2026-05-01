@@ -2439,3 +2439,25 @@ pm run build PASSED.
   - Build/install a new release APK because Android runtime behavior changed.
   - Approve a test manual card order and confirm the review group receives screenshot + final email + final phone + sender phone in one package.
   - In the app, connect using a paid backend resource stored as a supplier `https://...` subscription URL and confirm it resolves to a concrete VPN config instead of `Unsupported configuration format`.
+
+## [2026-05-02] [Customer Cancellation Revokes Assignment And Releases Resale Capacity]
+- **Status**: IMPLEMENTED / NEEDS BACKEND REDEPLOY + RELEASE APK QA
+- **Problem**:
+  - A customer with an unusable premium config had no self-service way to remove the active subscription/config from the app.
+  - Product clarification: cancelled access must release the supplier link resale slot so the link can be sold again within the configured cap.
+- **Root cause**:
+  - Existing backend/admin inventory revocation already recalculates supplier capacity, but no customer-facing cancellation endpoint used that path.
+- **Change**:
+  - Added customer cancellation contract, gateway endpoint, and customer-service handler.
+  - Customer cancellation verifies `userNumber + deviceId`, finds the active assignment, then calls inventory `revoke_assignment` so `used_resale_slots` and inventory health are recalculated by the existing source-of-truth logic.
+  - Android profile screen now shows a guarded “Cancel access / Résilier l’accès” action for active paid subscriptions.
+  - Confirming cancellation calls the backend, clears selected backend premium config/auto-connect when relevant, stops the backend VPN session if it is active, and refreshes the profile. Imported configs remain available.
+- **Verification**:
+  - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
+  - `cd android && .\gradlew.bat :app:mergeDebugResources --no-daemon --max-workers=1 --console=plain` PASSED.
+  - `git diff --check` PASSED aside from expected CRLF conversion warnings.
+  - Backend targeted test could not run locally because temporary `npx` execution cannot resolve the backend Nest/Prisma modules without local `backend/node_modules`.
+- **Live QA needed**:
+  - Redeploy backend services.
+  - Build/install a new signed release APK.
+  - With an active paid user, cancel access from Profile and confirm `subscriptionUrl` disappears, backend premium server access is denied, imported configs still work, and inventory `used_resale_slots` decreases/recomputes through inventory revocation.

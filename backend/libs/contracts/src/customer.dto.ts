@@ -63,6 +63,20 @@ export class CompleteProfileDto {
   phone?: string;
 }
 
+export class CancelCurrentSubscriptionDto {
+  @IsString()
+  @IsNotEmpty()
+  userNumber: string;
+
+  @IsString()
+  @IsNotEmpty()
+  deviceId: string;
+
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}
+
 export class CreateOrderDto {
   @IsEmail()
   @IsOptional()

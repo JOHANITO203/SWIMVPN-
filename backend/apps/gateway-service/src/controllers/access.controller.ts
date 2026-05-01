@@ -71,6 +71,11 @@ export class AccessController {
     return this.sendCustomer({ cmd: 'complete_profile' }, data);
   }
 
+  @Post('subscription/cancel-current')
+  async cancelCurrentSubscription(@Body() data: any) {
+    return this.sendCustomer({ cmd: 'cancel_current_subscription' }, data);
+  }
+
   @Get('access/:userNumber')
   async getAccessProfile(@Param('userNumber') userNumber: string) {
     return this.customerClient.send(

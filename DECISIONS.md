@@ -864,3 +864,11 @@ Decision: The non-LLM intelligence starts as a local Android deterministic decis
 Reason: The product promise is adaptive stability, but the safest first step is reliable observability and bounded recovery. A contextual bandit or automatic stealth switching would be premature without trustworthy runtime metrics and config-mode classification.
 
 Consequence: Phase 1 can be tested and explained through logs. Future Phase 2 scoring and Phase 3 bandit logic must build on this local history and must remain disabled or conservative until live device QA proves the base reconnect behavior is stable.
+
+## [2026-05-02] Customer cancellation releases resale capacity through inventory revocation
+
+Decision: User-initiated cancellation/revocation must call the inventory `revoke_assignment` path instead of only marking the customer entitlement inactive in `customer-order-service`.
+
+Reason: The product rule is that a supplier link can be resold up to the configured cap. Reusing the inventory revocation path keeps `OrderAssignment.access_status`, `InventoryItem.used_resale_slots`, `InventoryItem.health_status`, and audit events aligned with the existing admin revocation behavior.
+
+Consequence: Customer cancellation removes premium access from the cancelling device and makes capacity available again when the active assignment is revoked. Orders remain traceable for accounting; refunds are not implied by cancellation and remain an admin/business process.

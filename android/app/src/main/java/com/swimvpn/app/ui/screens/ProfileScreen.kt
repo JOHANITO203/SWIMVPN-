@@ -54,6 +54,7 @@ fun ProfileScreen(
     onNavigateToImport: () -> Unit = {},
     onNavigateToSupport: () -> Unit = {},
     onActivateTrial: (() -> Unit)? = null,
+    onCancelSubscription: (() -> Unit)? = null,
     onSignOut: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
@@ -63,6 +64,8 @@ fun ProfileScreen(
     val badgeColor = profileBadgeColor(profile)
     val badgeBackground = profileBadgeBackground(profile)
     val localizedPlanName = profileLocalizedPlanName(profile, context)
+    var showCancelSubscriptionDialog by remember { mutableStateOf(false) }
+    val canCancelSubscription = profile.isActiveSubscription && onCancelSubscription != null
 
     Column(
         modifier = Modifier
@@ -207,6 +210,14 @@ fun ProfileScreen(
         ) {
             Column {
                 ManagementRow(icon = Icons.Outlined.CreditCard, title = stringResource(R.string.menu_subscription), onClick = onNavigateToSubscription)
+                if (canCancelSubscription) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
+                    ManagementRow(
+                        icon = Icons.Outlined.CreditCard,
+                        title = stringResource(R.string.menu_cancel_subscription),
+                        onClick = { showCancelSubscriptionDialog = true },
+                    )
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
                 ManagementRow(icon = Icons.Outlined.LocalOffer, title = stringResource(R.string.menu_import_access), onClick = onNavigateToImport)
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
@@ -230,6 +241,29 @@ fun ProfileScreen(
         }
         
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    if (showCancelSubscriptionDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelSubscriptionDialog = false },
+            title = { Text(stringResource(R.string.subscription_cancel_dialog_title)) },
+            text = { Text(stringResource(R.string.subscription_cancel_dialog_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCancelSubscriptionDialog = false
+                        onCancelSubscription?.invoke()
+                    },
+                ) {
+                    Text(stringResource(R.string.subscription_cancel_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelSubscriptionDialog = false }) {
+                    Text(stringResource(R.string.subscription_cancel_keep))
+                }
+            },
+        )
     }
 }
 

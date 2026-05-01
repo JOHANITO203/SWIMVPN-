@@ -139,6 +139,7 @@
     <string name="plan_platinum">Platinum</string>
     <string name="label_expires">Expire</string>
     <string name="menu_subscription">Abonnement</string>
+    <string name="menu_cancel_subscription">Résilier l’accès</string>
     <string name="menu_security">Sécurité du compte</string>
     <string name="menu_technical">Paramètres techniques</string>
     <string name="menu_support">Aide &amp; support</string>
@@ -157,6 +158,7 @@
     <string name="err_order_creation_failed">Échec de création de la commande : %1$s</string>
     <string name="err_no_server_profile">Aucun serveur ou profil disponible.</string>
     <string name="err_subscription_expired">Votre abonnement a expiré. Veuillez le renouveler.</string>
+    <string name="err_subscription_cancel_failed">Impossible de résilier l’accès pour le moment.</string>
     <string name="err_no_runtime_config">Aucune configuration runtime disponible pour le serveur sélectionné.</string>
     <string name="err_fetch_servers_failed">Impossible de charger la liste des serveurs. Vérifiez votre connexion et réessayez.</string>
     <string name="err_fetch_plans_failed">Impossible de charger les offres d’abonnement. Vérifiez votre connexion et réessayez.</string>
@@ -164,6 +166,11 @@
     <string name="adaptive_reconnecting">Réseau instable. Reconnexion...</string>
     <string name="adaptive_switching_route">Réseau instable. Changement de route...</string>
     <string name="adaptive_reconnect_give_up">Connexion instable. Choisissez un autre serveur ou réessayez plus tard.</string>
+    <string name="subscription_cancel_dialog_title">Résilier cet accès ?</string>
+    <string name="subscription_cancel_dialog_body">Cette action supprimera la configuration premium de cet appareil. Si cette config premium est sélectionnée, le VPN et l’auto-connexion seront arrêtés. Les configurations importées resteront disponibles.</string>
+    <string name="subscription_cancel_confirm">Résilier l’accès</string>
+    <string name="subscription_cancel_keep">Garder l’accès</string>
+    <string name="subscription_cancelled_success">Accès résilié sur cet appareil.</string>
 
     <string name="profile_trial_id_label">VOTRE ID SWIMVPN+</string>
     <string name="profile_trial_description">Complétez votre profil pour débloquer l’essai de 3 jours. Nous utilisons votre appareil, votre email et votre téléphone pour éviter les abus.</string>
