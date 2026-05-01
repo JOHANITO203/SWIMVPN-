@@ -103,6 +103,78 @@ export class TelegramCommandService implements OnModuleInit {
       await ctx.reply(JSON.stringify(result, null, 2));
     });
 
+    this.bot.command('pending_cards', async (ctx) => {
+      if (!this.isAdmin(ctx)) return;
+      const orders = await this.prisma.order.findMany({
+        where: {
+          status: 'PENDING',
+          payment_ref: { startsWith: 'CARD_MANUAL' },
+        },
+        include: {
+          customer: true,
+          plan: true,
+        },
+        orderBy: { created_at: 'desc' },
+        take: 10,
+      });
+
+      if (orders.length === 0) {
+        await ctx.reply('No pending manual card orders.');
+        return;
+      }
+
+      const lines = await Promise.all(orders.map(async (order) => {
+        const proofEvent = await this.findLatestManualCardProofEvent(order.order_ref);
+        return [
+          `${order.order_ref}`,
+          `Plan: ${order.plan.name}`,
+          `Amount: ${order.amount_rub.toString()} RUB`,
+          `Email: ${order.customer.email || '-'}`,
+          `Phone: ${order.customer.phone || '-'}`,
+          `Proof: ${proofEvent ? `yes (${proofEvent.id})` : 'no'}`,
+          `Review: /review_card ${order.order_ref}`,
+          `Approve: /approve_card ${order.order_ref}`,
+        ].join('\n');
+      }));
+
+      await ctx.reply(['Pending manual card orders:', '', lines.join('\n\n')].join('\n'));
+    });
+
+    this.bot.command('review_card', async (ctx) => {
+      if (!this.isAdmin(ctx)) return;
+      const orderRef = this.extractOrderRef(ctx.message.text);
+      if (!orderRef) return ctx.reply('Usage: /review_card ORD-...');
+
+      const proofEvent = await this.findLatestManualCardProofEvent(orderRef);
+      if (!proofEvent) {
+        await ctx.reply(`No stored manual card proof found for ${orderRef}.`);
+        return;
+      }
+
+      await this.sendStoredManualCardProof(ctx, orderRef, proofEvent);
+    });
+
+    this.bot.command('approve_card', async (ctx) => {
+      if (!this.isAdmin(ctx)) return;
+      const orderRef = this.extractOrderRef(ctx.message.text);
+      if (!orderRef) return ctx.reply('Usage: /approve_card ORD-...');
+
+      const proofEvent = await this.findLatestManualCardProofEvent(orderRef);
+      if (!proofEvent) {
+        await ctx.reply(`Approval blocked for ${orderRef}: no stored payment proof found.`);
+        return;
+      }
+
+      await this.approveManualCardOrder(ctx, orderRef, proofEvent.id);
+    });
+
+    this.bot.command('reject_card', async (ctx) => {
+      if (!this.isAdmin(ctx)) return;
+      const orderRef = this.extractOrderRef(ctx.message.text);
+      if (!orderRef) return ctx.reply('Usage: /reject_card ORD-...');
+      await this.rejectManualCardOrder(ctx, orderRef, 'Manual transfer rejected by admin command');
+    });
+
     this.bot.on('photo', async (ctx) => {
       if (this.isAdmin(ctx)) {
         return;
@@ -440,6 +512,102 @@ export class TelegramCommandService implements OnModuleInit {
 
       const orderRef = ctx.match[1];
       const proofEventId = ctx.match[2];
+      const result = await this.approveManualCardOrder(ctx, orderRef, proofEventId);
+      await ctx.answerCbQuery(result?.success ? 'Payment approved' : 'Approval failed');
+    });
+
+    this.bot.action(/reject_card:(.+):(.+)/, async (ctx) => {
+      if (!this.isAdmin(ctx)) {
+        await ctx.answerCbQuery('Access denied');
+        return;
+      }
+
+      const orderRef = ctx.match[1];
+      const proofEventId = ctx.match[2];
+      const result = await this.rejectManualCardOrder(ctx, orderRef, 'Manual transfer not confirmed', proofEventId);
+      await ctx.answerCbQuery(result?.rejected ? 'Payment rejected' : 'Rejection skipped');
+    });
+
+    this.bot.catch((error) => {
+      this.logger.warn(`Telegram command handler error: ${(error as Error).message}`);
+    });
+
+    this.bot.launch().then(async () => {
+      await this.registerTelegramCommandMenu();
+      this.logger.log('Telegram command bot started');
+    });
+  }
+
+  private async findLatestManualCardProofEvent(orderRef: string) {
+    return this.prisma.adminEvent.findFirst({
+      where: {
+        event_type: 'CARD_PAYMENT_PROOF_SUBMITTED',
+        entity_type: 'ORDER',
+        entity_id: orderRef,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  private async sendStoredManualCardProof(ctx: any, orderRef: string, proofEvent: any) {
+    const order = await this.prisma.order.findUnique({
+      where: { order_ref: orderRef },
+      include: {
+        customer: true,
+        plan: true,
+      },
+    });
+    if (!order) {
+      await ctx.reply(`Order not found: ${orderRef}`);
+      return;
+    }
+
+    const payload = proofEvent.payload_json as any;
+    const fileId = payload?.fileId;
+    const caption = [
+      'SWIMVPN+ STORED CARD PAYMENT PROOF',
+      `Order: ${order.order_ref}`,
+      `Status: ${order.status}`,
+      `Email: ${order.customer.email || '-'}`,
+      `Phone: ${order.customer.phone || '-'}`,
+      `Plan: ${order.plan.name}`,
+      `Amount: ${order.amount_rub.toString()} RUB`,
+      `Proof event: ${proofEvent.id}`,
+      `Telegram: @${payload?.telegramUsername || '-'} (${payload?.telegramUserId || '-'})`,
+      payload?.caption ? `Original caption: ${payload.caption}` : null,
+    ].filter(Boolean).join('\n');
+    const actions = Markup.inlineKeyboard([
+      [
+        Markup.button.callback('approve', `approve_card:${order.order_ref}:${proofEvent.id}`),
+        Markup.button.callback('reject', `reject_card:${order.order_ref}:${proofEvent.id}`),
+      ],
+    ]);
+
+    if (!fileId) {
+      await ctx.reply(`${caption}\n\nNo Telegram file id was stored for this proof.`, actions);
+      return;
+    }
+
+    try {
+      if (payload?.proofType === 'document') {
+        await this.bot?.telegram.sendDocument(ctx.chat.id, fileId, {
+          caption,
+          ...actions,
+        });
+      } else {
+        await this.bot?.telegram.sendPhoto(ctx.chat.id, fileId, {
+          caption,
+          ...actions,
+        });
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to resend stored manual card proof for ${orderRef}: ${(error as Error).message}`);
+      await ctx.reply(`${caption}\n\nCould not resend the stored Telegram file. You can still approve with /approve_card ${orderRef}`);
+    }
+  }
+
+  private async approveManualCardOrder(ctx: any, orderRef: string, proofEventId: string) {
+    try {
       const result = await firstValueFrom(
         this.customerClient.send(
           { cmd: 'approve_manual_card_payment' },
@@ -451,7 +619,6 @@ export class TelegramCommandService implements OnModuleInit {
         ),
       );
 
-      await ctx.answerCbQuery(result?.success ? 'Payment approved' : 'Approval failed');
       if (result?.success) {
         const suffix = result?.alreadyProcessed
           ? `Already processed (${result.currentStatus || 'unknown'}).`
@@ -460,22 +627,22 @@ export class TelegramCommandService implements OnModuleInit {
       } else {
         await ctx.reply(`Approval failed for ${orderRef}: ${result?.error || 'unknown error'}`);
       }
-    });
+      return result;
+    } catch (error) {
+      this.logger.warn(`Manual card approval failed for ${orderRef}: ${(error as Error).message}`);
+      await ctx.reply(`Approval failed for ${orderRef}: ${(error as Error).message}`);
+      return { success: false, error: (error as Error).message };
+    }
+  }
 
-    this.bot.action(/reject_card:(.+):(.+)/, async (ctx) => {
-      if (!this.isAdmin(ctx)) {
-        await ctx.answerCbQuery('Access denied');
-        return;
-      }
-
-      const orderRef = ctx.match[1];
-      const proofEventId = ctx.match[2];
+  private async rejectManualCardOrder(ctx: any, orderRef: string, reason: string, proofEventId?: string) {
+    try {
       const result = await firstValueFrom(
         this.customerClient.send(
           { cmd: 'reject_manual_card_payment' },
           {
             orderRef,
-            reason: 'Manual transfer not confirmed',
+            reason,
           },
         ),
       );
@@ -486,7 +653,7 @@ export class TelegramCommandService implements OnModuleInit {
           orderRef,
           planName: result.planName,
           approved: false,
-          reason: 'Manual transfer not confirmed',
+          reason,
         });
       }
 
@@ -497,29 +664,24 @@ export class TelegramCommandService implements OnModuleInit {
           entity_id: orderRef,
           payload_json: {
             orderRef,
-            proofEventId,
+            proofEventId: proofEventId || null,
             emailed: !!result?.customerEmail,
             processedAt: new Date().toISOString(),
           } as any,
         },
       });
 
-      await ctx.answerCbQuery(result?.rejected ? 'Payment rejected' : 'Rejection skipped');
       if (result?.rejected) {
         await ctx.reply(`Rejected ${orderRef}. Customer will be notified by email.`);
       } else {
         await ctx.reply(`Rejection skipped for ${orderRef}: ${result?.currentStatus || result?.error || 'already processed'}.`);
       }
-    });
-
-    this.bot.catch((error) => {
-      this.logger.warn(`Telegram command handler error: ${(error as Error).message}`);
-    });
-
-    this.bot.launch().then(async () => {
-      await this.registerTelegramCommandMenu();
-      this.logger.log('Telegram command bot started');
-    });
+      return result;
+    } catch (error) {
+      this.logger.warn(`Manual card rejection failed for ${orderRef}: ${(error as Error).message}`);
+      await ctx.reply(`Rejection failed for ${orderRef}: ${(error as Error).message}`);
+      return { rejected: false, error: (error as Error).message };
+    }
   }
 
   private isAdmin(ctx: any) {

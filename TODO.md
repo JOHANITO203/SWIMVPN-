@@ -866,3 +866,12 @@ u after each future language batch
   - sender payment phone
 - If the proof event exists from the earlier screenshot, the bot can recover the pending confirmation from PostgreSQL while the order is still `PENDING`.
 - Check Dokploy logs for `Failed to forward manual card photo proof` or `review chat is not configured` to confirm whether `PAYMENT_REVIEW_CHAT_ID`, bot group membership, or bot permissions caused the silent failure.
+
+## Manual Card Admin Rescue QA
+- After redeploy, test in the payment bot as admin:
+  - `/pending_cards`
+  - `/review_card <orderRef>`
+  - `/approve_card <orderRef>`
+  - `/reject_card <orderRef>` on a disposable pending order only.
+- Confirm `/approve_card` refuses orders with no stored `CARD_PAYMENT_PROOF_SUBMITTED` event.
+- Confirm approved manual card orders become fulfilled or pending fulfillment through the normal backend flow and delivery email is sent when inventory is available.

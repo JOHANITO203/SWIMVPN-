@@ -2315,3 +2315,20 @@ pm run build PASSED.
   - Confirm the customer immediately receives the email/phone/sender phone prompt even if admin review forwarding has a problem.
   - Confirm the review group receives the proof or logs show `Failed to forward manual card photo/document proof` with the exact Telegram error.
   - Confirm admin approve triggers fulfillment and email delivery.
+
+## [2026-05-01] [Manual Card Admin Rescue Commands]
+- **Status**: IMPLEMENTED / NEEDS REDEPLOY + LIVE QA
+- **Problem**: If a customer pays by card, sends a screenshot, then goes offline or the Telegram review forwarding breaks, the order can stay `PENDING` even though money was received.
+- **Change**: `notification-bot-service` now exposes admin rescue commands:
+  - `/pending_cards` lists recent pending manual card orders and whether a stored proof exists.
+  - `/review_card ORD-...` resends the latest stored Telegram proof from PostgreSQL with approve/reject buttons.
+  - `/approve_card ORD-...` approves using the latest stored proof event and triggers normal customer-order fulfillment.
+  - `/reject_card ORD-...` rejects the manual card order and notifies the customer by email when available.
+- **Security**:
+  - `/approve_card` requires a stored `CARD_PAYMENT_PROOF_SUBMITTED` event. It does not grant access without a persisted proof trail.
+  - Final fulfillment still goes through `customer-order-service`; Telegram remains an admin control layer, not the source of truth.
+- **Live recovery for current incident**:
+  - Redeploy `notification-bot-service`.
+  - In the payment bot as admin, run `/pending_cards`.
+  - Run `/review_card <orderRef>` to inspect the stored proof.
+  - If money is confirmed, run `/approve_card <orderRef>`.
