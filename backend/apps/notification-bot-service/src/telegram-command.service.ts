@@ -380,6 +380,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
         where: { order_ref: pending.orderRef },
         include: {
           customer: true,
+          plan: true,
         },
       });
       if (!order || order.status !== 'PENDING') {
@@ -388,7 +389,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      await this.prisma.adminEvent.create({
+      const contactEvent = await this.prisma.adminEvent.create({
         data: {
           event_type: 'CARD_PAYMENT_CONTACT_CONFIRMED',
           entity_type: 'ORDER',
@@ -418,33 +419,6 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      if (!this.bot || !this.reviewChatId) {
-        this.logger.warn(`Manual payment contact confirmation cannot be forwarded for ${pending.orderRef}: review chat is not configured`);
-        const directAdminNotified = await this.notifyAdminTextFallback(
-          pending.orderRef,
-          pending.proofEventId,
-          buildManualPaymentContactReviewText({
-            orderRef: pending.orderRef,
-            proofEventId: pending.proofEventId,
-            telegramUsername: ctx.from.username || null,
-            telegramUserId: ctx.from.id.toString(),
-            confirmationText: text,
-            parsed: parsedConfirmation,
-          }),
-        );
-        await this.recordManualCardContactReviewNotification(
-          pending.orderRef,
-          pending.proofEventId,
-          false,
-          directAdminNotified,
-        );
-        this.pendingManualConfirmations.delete(ctx.chat.id.toString());
-        await ctx.reply('Thank you. Your payment proof and contact details are now under admin review.');
-        return;
-      }
-
-      let reviewChatNotified = false;
-      let directAdminNotified = false;
       const contactReviewText = buildManualPaymentContactReviewText({
         orderRef: pending.orderRef,
         proofEventId: pending.proofEventId,
@@ -453,27 +427,13 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
         confirmationText: text,
         parsed: parsedConfirmation,
       });
-
-      try {
-        await this.bot.telegram.sendMessage(
-          this.reviewChatId,
-          contactReviewText,
-          Markup.inlineKeyboard([
-            [
-              Markup.button.callback('approve', `approve_card:${pending.orderRef}:${pending.proofEventId}`),
-              Markup.button.callback('reject', `reject_card:${pending.orderRef}:${pending.proofEventId}`),
-            ],
-          ]),
-        );
-        reviewChatNotified = true;
-      } catch (error) {
-        this.logger.warn(`Failed to forward manual payment contact confirmation for ${pending.orderRef}: ${(error as Error).message}`);
-        directAdminNotified = await this.notifyAdminTextFallback(
-          pending.orderRef,
-          pending.proofEventId,
-          contactReviewText,
-        );
-      }
+      const { reviewChatNotified, directAdminNotified } = await this.notifyManualCardContactReview({
+        order,
+        proofEventId: pending.proofEventId,
+        contactEvent,
+        from: ctx.from,
+        text: contactReviewText,
+      });
 
       await this.recordManualCardContactReviewNotification(
         pending.orderRef,
@@ -815,6 +775,86 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     }
 
     return notified;
+  }
+
+  private async notifyManualCardContactReview(input: {
+    order: any;
+    proofEventId: string;
+    contactEvent: any;
+    from: any;
+    text: string;
+  }) {
+    if (!this.bot) {
+      return { reviewChatNotified: false, directAdminNotified: false };
+    }
+
+    const proofEvent = await this.prisma.adminEvent.findFirst({
+      where: {
+        id: input.proofEventId,
+        event_type: 'CARD_PAYMENT_PROOF_SUBMITTED',
+        entity_type: 'ORDER',
+        entity_id: input.order.order_ref,
+      },
+    });
+    const proofPayload = proofEvent?.payload_json as any;
+    const fileId = proofPayload?.fileId;
+    const actions = this.manualCardReviewActions(input.order.order_ref, input.proofEventId);
+    const combinedText = [
+      'SWIMVPN+ CARD PAYMENT COMPLETE REVIEW',
+      '',
+      'Action: if money is visible in the bank, press approve.',
+      '',
+      `Order: ${input.order.order_ref}`,
+      `Email: ${input.order.customer.email || '-'}`,
+      `Phone: ${input.order.customer.phone || '-'}`,
+      `Plan: ${input.order.plan?.name || '-'}`,
+      `Amount: ${input.order.amount_rub?.toString?.() || '-'} RUB`,
+      `Proof event: ${input.proofEventId}`,
+      `Telegram: @${input.from.username || '-'} (${input.from.id})`,
+      '',
+      ...this.formatManualCardContactSummary(input.contactEvent),
+      '',
+      'Parsed confirmation package:',
+      input.text,
+    ].join('\n');
+
+    let reviewChatNotified = false;
+    if (this.reviewChatId) {
+      try {
+        if (fileId && proofPayload?.proofType === 'document') {
+          await this.bot.telegram.sendDocument(this.reviewChatId, fileId, {
+            caption: combinedText.slice(0, 1024),
+            ...actions,
+          });
+        } else if (fileId) {
+          await this.bot.telegram.sendPhoto(this.reviewChatId, fileId, {
+            caption: combinedText.slice(0, 1024),
+            ...actions,
+          });
+        } else {
+          await this.bot.telegram.sendMessage(this.reviewChatId, combinedText, actions);
+        }
+        reviewChatNotified = true;
+      } catch (error) {
+        this.logger.warn(`Failed to forward complete manual payment review for ${input.order.order_ref}: ${(error as Error).message}`);
+        try {
+          await this.bot.telegram.sendMessage(this.reviewChatId, combinedText, actions);
+          reviewChatNotified = true;
+        } catch (fallbackError) {
+          this.logger.warn(`Failed to send complete manual payment text fallback to review chat for ${input.order.order_ref}: ${(fallbackError as Error).message}`);
+        }
+      }
+    } else {
+      this.logger.warn(`Manual payment complete review cannot be forwarded for ${input.order.order_ref}: review chat is not configured`);
+    }
+
+    const directAdminNotified = await this.notifyAdminTextFallback(
+      input.order.order_ref,
+      input.proofEventId,
+      combinedText,
+    );
+
+    return { reviewChatNotified, directAdminNotified };
   }
 
   private async notifyAdminTextFallback(orderRef: string, proofEventId: string, text: string) {

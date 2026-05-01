@@ -906,3 +906,10 @@ u after each future language batch
 - Use `/review_card <orderRef>` to resend stored proof plus latest contact confirmation summary.
 - If the trace shows `CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_FAILED`, verify `PAYMENT_REVIEW_CHAT_ID`, bot group membership, and bot permission to send messages/media in the review group.
 - If the trace shows no `CARD_PAYMENT_CONTACT_CONFIRMED`, ask the customer to reply once with email, phone, and sender payment phone, then run `/trace_card` again.
+
+## Manual Card + Premium Runtime Live QA
+- Redeploy `notification-bot-service` so contact confirmation sends a complete proof + contact review packet.
+- Verify `PAYMENT_REVIEW_CHAT_ID` points to the dedicated review group and the payment bot can send media/messages there.
+- Build and install a new signed release APK after the Android subscription-runtime resolver change.
+- Test a paid Basic/Premium/Platinum backend resource whose raw inventory config is an `https://` supplier subscription URL.
+- Confirm tapping connect fetches/parses the subscription and no longer fails with `Unsupported configuration format`.

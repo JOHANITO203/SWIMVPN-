@@ -2416,3 +2416,26 @@ pm run build PASSED.
   - Run `/trace_card <orderRef>` for the current incident.
   - Run `/review_card <orderRef>` to resend proof plus latest contact summary.
   - Confirm the dedicated review group and direct admin fallback receive the expected package.
+
+## [2026-05-02] [Manual Card Complete Review + Premium Subscription Runtime Resolution]
+- **Status**: IMPLEMENTED / NEEDS REDEPLOY + SIGNED APK QA
+- **Problem**:
+  - A real card payment proof and customer contact confirmation were received in the payment bot, but no dedicated review group received the complete screenshot + personal-info review packet.
+  - After admin approval, the paid plan became active, but Android attempted to start VPN with the supplier `https://...` subscription URL directly and failed with `Unsupported configuration format`.
+- **Root cause**:
+  - Manual card proof and contact data could be emitted as separate Telegram messages; the contact confirmation path did not force a combined proof + contact review packet.
+  - Backend inventory can legitimately preserve supplier subscription URLs as `raw_config`, while Android runtime only accepts concrete runtime configs such as `vless://`, `vmess://`, `trojan://`, `ss://`, or JSON. The premium/backend connection path did not reuse the subscription resolver used by manual imports.
+- **Change**:
+  - `notification-bot-service` now sends a complete manual-card review package after contact confirmation: proof media when available, parsed contact data, raw confirmation package, and approve/reject buttons.
+  - If media forwarding fails, the bot sends text fallback to the review chat and direct admin fallback.
+  - Android now resolves backend subscription URLs before starting the VPN runtime. If the active premium resource is `https://...`, the app fetches the subscription, parses it, selects the first supported runtime config, and sends that concrete config to `SwimVpnService`.
+  - The supplier URL remains preserved as the backend/source truth; only the runtime payload is resolved locally before connection.
+- **Verification**:
+  - `npx --yes -p ts-node@10.9.2 -p typescript@5.1.3 ts-node apps/notification-bot-service/src/__tests__/telegram-command-menu.spec.ts` PASSED.
+  - `npx --yes -p ts-node@10.9.2 -p typescript@5.1.3 ts-node apps/notification-bot-service/src/__tests__/manual-card-confirmation.spec.ts` PASSED.
+  - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED with reduced Gradle memory.
+- **Live QA needed**:
+  - Redeploy `notification-bot-service`.
+  - Build/install a new release APK because Android runtime behavior changed.
+  - Approve a test manual card order and confirm the review group receives screenshot + final email + final phone + sender phone in one package.
+  - In the app, connect using a paid backend resource stored as a supplier `https://...` subscription URL and confirm it resolves to a concrete VPN config instead of `Unsupported configuration format`.

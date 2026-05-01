@@ -31,6 +31,7 @@ import com.swimvpn.app.config.ConfigRepository
 import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.config.ImportedProfileGroup
 import com.swimvpn.app.config.SecurityMode
+import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
@@ -813,6 +814,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             viewModelScope.launch {
                 manualStopRequested = false
                 adaptiveActiveServerId = server.id
+                val resolvedRuntimeConfig = configRepository.resolveRuntimeConfigForConnection(
+                    input = runtimeConfig,
+                    sourceType = if (server.source == "backend") SourceType.BACKEND_API else SourceType.MANUAL_ENTRY,
+                ).getOrElse { error ->
+                    val message = "Connection failed: ${error.localizedMessage ?: "Unsupported configuration format"}"
+                    Log.e("MainViewModel", "Runtime config resolution failed for ${server.id}", error)
+                    _effect.emit(AppSideEffect.ShowToast(message))
+                    VpnManager.setError(message)
+                    return@launch
+                }.rawConfig
+
                 AdaptiveEventLogger.log(
                     event = "connection_started",
                     details = mapOf(
@@ -836,7 +848,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
                     putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
                     putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
-                    putExtra(SwimVpnService.EXTRA_URL, runtimeConfig)
+                    putExtra(SwimVpnService.EXTRA_URL, resolvedRuntimeConfig)
                     putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
 
                     val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
