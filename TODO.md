@@ -899,3 +899,10 @@ u after each future language batch
 - Test that customer confirmation messages parse correctly when written on one line, with French/English/Russian labels, with spaced phone numbers, and with punctuation separators.
 - Confirm admin review packets include final email, final phone, and sender payment phone before approving.
 - Confirm parser fallback uses the customer phone as sender phone only when no separate sender phone is provided.
+
+## Manual Card Review Output Trace Live QA
+- Redeploy `notification-bot-service` after adding `/trace_card`.
+- For any paid-but-not-delivered card order, run `/trace_card <orderRef>` first.
+- Use `/review_card <orderRef>` to resend stored proof plus latest contact confirmation summary.
+- If the trace shows `CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_FAILED`, verify `PAYMENT_REVIEW_CHAT_ID`, bot group membership, and bot permission to send messages/media in the review group.
+- If the trace shows no `CARD_PAYMENT_CONTACT_CONFIRMED`, ask the customer to reply once with email, phone, and sender payment phone, then run `/trace_card` again.

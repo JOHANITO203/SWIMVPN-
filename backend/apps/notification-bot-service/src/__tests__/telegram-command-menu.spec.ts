@@ -27,6 +27,10 @@ assert(
   'notification bot command menu must expose pending manual card recovery',
 );
 assert(
+  NOTIFICATION_BOT_COMMANDS.some((command) => command.command === 'trace_card'),
+  'notification bot command menu must expose manual card trace',
+);
+assert(
   NOTIFICATION_BOT_COMMANDS.some((command) => command.command === 'approve_card'),
   'notification bot command menu must expose manual card approval recovery',
 );
@@ -40,6 +44,7 @@ assert(
 );
 assert(formatTelegramCommandHelp().includes('/order SW12345'), 'notification help must include order usage');
 assert(formatTelegramCommandHelp().includes('/pending_cards'), 'notification help must include pending card usage');
+assert(formatTelegramCommandHelp().includes('/trace_card ORD-...'), 'notification help must include trace card usage');
 assert(formatTelegramCommandHelp().includes('/approve_card ORD-...'), 'notification help must include approve card usage');
 assert(formatTelegramCommandHelp().includes('/whoami'), 'notification help must include whoami usage');
 

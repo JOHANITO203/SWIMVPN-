@@ -2393,3 +2393,26 @@ pm run build PASSED.
     - `Courriel: ... Telephone: ... Numero expediteur: ...`
     - `Pochta/Email: ... Telefon: ... Sender payment phone: ...`
   - Confirm the admin review packet receives the parsed final email, phone, and sender payment phone.
+
+## [2026-05-01] [Manual Card Review Output Traceability]
+- **Status**: IMPLEMENTED / NEEDS BOT REDEPLOY + LIVE QA
+- **Problem**: A customer paid by card and the bot received the screenshot, but the dedicated admin group did not receive the full review package with screenshot plus personal confirmation data.
+- **Finding**:
+  - Proof and contact confirmation are two separate bot outputs.
+  - Proof output had failure audit and admin fallback.
+  - Contact confirmation output had fallback but did not persist a sent/failed notification event, making production incidents harder to trace.
+  - `/review_card` resent the stored proof but did not clearly include the latest parsed contact confirmation.
+- **Change**:
+  - Added `/trace_card ORD-...` admin command to inspect the manual-card output chain for one order.
+  - `/review_card` and reminder messages now include the latest contact confirmation summary when available.
+  - Contact confirmation review output now writes `CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_SENT` or `CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_FAILED` admin events.
+  - Trace output lists proof storage, contact confirmation, review/fallback notification events, and recovery commands.
+- **Verification**:
+  - `npx --yes -p ts-node@10.9.2 -p typescript@5.1.3 ts-node apps/notification-bot-service/src/__tests__/telegram-command-menu.spec.ts` PASSED.
+  - `npx --yes -p ts-node@10.9.2 -p typescript@5.1.3 ts-node apps/notification-bot-service/src/__tests__/manual-card-confirmation.spec.ts` PASSED.
+  - `npm run build:all` could not run locally because `backend/node_modules` is missing (`nest` unavailable).
+- **Live QA needed**:
+  - Redeploy `notification-bot-service`.
+  - Run `/trace_card <orderRef>` for the current incident.
+  - Run `/review_card <orderRef>` to resend proof plus latest contact summary.
+  - Confirm the dedicated review group and direct admin fallback receive the expected package.

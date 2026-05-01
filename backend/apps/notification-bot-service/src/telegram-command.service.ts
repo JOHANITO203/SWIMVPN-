@@ -151,6 +151,13 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
       await ctx.reply(['Pending manual card orders:', '', lines.join('\n\n')].join('\n'));
     });
 
+    this.bot.command('trace_card', async (ctx) => {
+      if (!this.isAdmin(ctx)) return;
+      const orderRef = this.extractOrderRef(ctx.message.text);
+      if (!orderRef) return ctx.reply('Usage: /trace_card ORD-...');
+      await ctx.reply(await this.buildManualCardTraceText(orderRef));
+    });
+
     this.bot.command('review_card', async (ctx) => {
       if (!this.isAdmin(ctx)) return;
       const orderRef = this.extractOrderRef(ctx.message.text);
@@ -413,7 +420,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
 
       if (!this.bot || !this.reviewChatId) {
         this.logger.warn(`Manual payment contact confirmation cannot be forwarded for ${pending.orderRef}: review chat is not configured`);
-        await this.notifyAdminTextFallback(
+        const directAdminNotified = await this.notifyAdminTextFallback(
           pending.orderRef,
           pending.proofEventId,
           buildManualPaymentContactReviewText({
@@ -425,22 +432,32 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
             parsed: parsedConfirmation,
           }),
         );
+        await this.recordManualCardContactReviewNotification(
+          pending.orderRef,
+          pending.proofEventId,
+          false,
+          directAdminNotified,
+        );
         this.pendingManualConfirmations.delete(ctx.chat.id.toString());
         await ctx.reply('Thank you. Your payment proof and contact details are now under admin review.');
         return;
       }
 
+      let reviewChatNotified = false;
+      let directAdminNotified = false;
+      const contactReviewText = buildManualPaymentContactReviewText({
+        orderRef: pending.orderRef,
+        proofEventId: pending.proofEventId,
+        telegramUsername: ctx.from.username || null,
+        telegramUserId: ctx.from.id.toString(),
+        confirmationText: text,
+        parsed: parsedConfirmation,
+      });
+
       try {
         await this.bot.telegram.sendMessage(
           this.reviewChatId,
-          buildManualPaymentContactReviewText({
-            orderRef: pending.orderRef,
-            proofEventId: pending.proofEventId,
-            telegramUsername: ctx.from.username || null,
-            telegramUserId: ctx.from.id.toString(),
-            confirmationText: text,
-            parsed: parsedConfirmation,
-          }),
+          contactReviewText,
           Markup.inlineKeyboard([
             [
               Markup.button.callback('approve', `approve_card:${pending.orderRef}:${pending.proofEventId}`),
@@ -448,21 +465,22 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
             ],
           ]),
         );
+        reviewChatNotified = true;
       } catch (error) {
         this.logger.warn(`Failed to forward manual payment contact confirmation for ${pending.orderRef}: ${(error as Error).message}`);
-        await this.notifyAdminTextFallback(
+        directAdminNotified = await this.notifyAdminTextFallback(
           pending.orderRef,
           pending.proofEventId,
-          buildManualPaymentContactReviewText({
-            orderRef: pending.orderRef,
-            proofEventId: pending.proofEventId,
-            telegramUsername: ctx.from.username || null,
-            telegramUserId: ctx.from.id.toString(),
-            confirmationText: text,
-            parsed: parsedConfirmation,
-          }),
+          contactReviewText,
         );
       }
+
+      await this.recordManualCardContactReviewNotification(
+        pending.orderRef,
+        pending.proofEventId,
+        reviewChatNotified,
+        directAdminNotified,
+      );
 
       this.pendingManualConfirmations.delete(ctx.chat.id.toString());
       await ctx.reply('Thank you. Your payment proof and contact details are now under admin review.');
@@ -641,6 +659,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
 
   private async notifyManualCardReminder(order: any, proofEvent: any) {
     const payload = proofEvent.payload_json as any;
+    const contactEvent = await this.findLatestManualCardContactEvent(order.order_ref, proofEvent.id);
     const text = [
       'SWIMVPN+ MANUAL CARD PAYMENT WAITING',
       '',
@@ -655,7 +674,10 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
       `Proof event: ${proofEvent.id}`,
       `Telegram: @${payload?.telegramUsername || '-'} (${payload?.telegramUserId || '-'})`,
       '',
+      ...this.formatManualCardContactSummary(contactEvent),
+      '',
       `Review: /review_card ${order.order_ref}`,
+      `Trace: /trace_card ${order.order_ref}`,
       `Approve: /approve_card ${order.order_ref}`,
     ].join('\n');
 
@@ -814,6 +836,32 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     return notified;
   }
 
+  private async recordManualCardContactReviewNotification(
+    orderRef: string,
+    proofEventId: string,
+    reviewChatNotified: boolean,
+    directAdminNotified: boolean,
+  ) {
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: reviewChatNotified || directAdminNotified
+          ? 'CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_SENT'
+          : 'CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_FAILED',
+        entity_type: 'ORDER',
+        entity_id: orderRef,
+        payload_json: {
+          orderRef,
+          proofEventId,
+          reviewChatIdConfigured: !!this.reviewChatId,
+          reviewChatNotified,
+          directAdminNotified,
+          adminUserIdsConfigured: this.adminUserIds.length,
+          notifiedAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+  }
+
   private async findLatestManualCardProofEvent(orderRef: string) {
     return this.prisma.adminEvent.findFirst({
       where: {
@@ -823,6 +871,111 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
       },
       orderBy: { created_at: 'desc' },
     });
+  }
+
+  private async findLatestManualCardContactEvent(orderRef: string, proofEventId?: string) {
+    const events = await this.prisma.adminEvent.findMany({
+      where: {
+        event_type: 'CARD_PAYMENT_CONTACT_CONFIRMED',
+        entity_type: 'ORDER',
+        entity_id: orderRef,
+      },
+      orderBy: { created_at: 'desc' },
+      take: 20,
+    });
+
+    return events.find((event) => {
+      const payload = event.payload_json as any;
+      return !proofEventId || payload?.proofEventId === proofEventId;
+    }) || null;
+  }
+
+  private async buildManualCardTraceText(orderRef: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { order_ref: orderRef },
+      include: {
+        customer: true,
+        plan: true,
+      },
+    });
+
+    if (!order) {
+      return `Order not found: ${orderRef}`;
+    }
+
+    const proofEvent = await this.findLatestManualCardProofEvent(orderRef);
+    const contactEvent = proofEvent
+      ? await this.findLatestManualCardContactEvent(orderRef, proofEvent.id)
+      : await this.findLatestManualCardContactEvent(orderRef);
+    const outputEvents = await this.prisma.adminEvent.findMany({
+      where: {
+        entity_type: 'ORDER',
+        entity_id: orderRef,
+        event_type: {
+          in: [
+            'CARD_PAYMENT_REVIEW_NOTIFICATION_FAILED',
+            'CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_SENT',
+            'CARD_PAYMENT_CONTACT_REVIEW_NOTIFICATION_FAILED',
+            'CARD_PAYMENT_ADMIN_REMINDER_SENT',
+            'CARD_PAYMENT_ADMIN_REMINDER_FAILED',
+          ],
+        },
+      },
+      orderBy: { created_at: 'desc' },
+      take: 10,
+    });
+
+    return [
+      'SWIMVPN+ CARD PAYMENT TRACE',
+      '',
+      `Order: ${order.order_ref}`,
+      `Status: ${order.status}`,
+      `Plan: ${order.plan.name}`,
+      `Amount: ${order.amount_rub.toString()} RUB`,
+      `Customer email: ${order.customer.email || '-'}`,
+      `Customer phone: ${order.customer.phone || '-'}`,
+      '',
+      `Proof stored: ${proofEvent ? 'yes' : 'no'}`,
+      proofEvent ? `Proof event: ${proofEvent.id}` : null,
+      proofEvent ? `Proof created: ${proofEvent.created_at.toISOString()}` : null,
+      '',
+      ...this.formatManualCardContactSummary(contactEvent),
+      '',
+      'Output events:',
+      outputEvents.length
+        ? outputEvents.map((event) => {
+          const payload = event.payload_json as any;
+          const proofEventId = payload?.proofEventId ? ` proof=${payload.proofEventId}` : '';
+          const notified = payload?.notified !== undefined ? ` notified=${payload.notified}` : '';
+          const review = payload?.reviewChatNotified !== undefined ? ` review=${payload.reviewChatNotified}` : '';
+          const direct = payload?.directAdminNotified !== undefined ? ` direct=${payload.directAdminNotified}` : '';
+          return `- ${event.event_type} at ${event.created_at.toISOString()}${proofEventId}${notified}${review}${direct}`;
+        }).join('\n')
+        : '- none',
+      '',
+      `Review: /review_card ${order.order_ref}`,
+      proofEvent ? `Approve: /approve_card ${order.order_ref}` : 'Approve: blocked until proof exists',
+    ].filter((line): line is string => line !== null).join('\n');
+  }
+
+  private formatManualCardContactSummary(contactEvent: any | null) {
+    if (!contactEvent) {
+      return [
+        'Contact confirmation: missing',
+        'Final email: -',
+        'Final phone: -',
+        'Sender payment phone: -',
+      ];
+    }
+
+    const payload = contactEvent.payload_json as any;
+    return [
+      'Contact confirmation: yes',
+      `Contact event: ${contactEvent.id}`,
+      `Final email: ${payload?.email || '-'}`,
+      `Final phone: ${payload?.phone || '-'}`,
+      `Sender payment phone: ${payload?.senderPhone || '-'}`,
+    ];
   }
 
   private async sendStoredManualCardProof(ctx: any, orderRef: string, proofEvent: any) {
@@ -839,6 +992,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     }
 
     const payload = proofEvent.payload_json as any;
+    const contactEvent = await this.findLatestManualCardContactEvent(orderRef, proofEvent.id);
     const fileId = payload?.fileId;
     const caption = [
       'SWIMVPN+ STORED CARD PAYMENT PROOF',
@@ -850,6 +1004,8 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
       `Amount: ${order.amount_rub.toString()} RUB`,
       `Proof event: ${proofEvent.id}`,
       `Telegram: @${payload?.telegramUsername || '-'} (${payload?.telegramUserId || '-'})`,
+      '',
+      ...this.formatManualCardContactSummary(contactEvent),
       payload?.caption ? `Original caption: ${payload.caption}` : null,
     ].filter(Boolean).join('\n');
     const actions = Markup.inlineKeyboard([
