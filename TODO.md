@@ -885,3 +885,11 @@ u after each future language batch
   - temporarily break/disable review chat if possible and confirm admin receives direct text fallback with approve/reject buttons
   - approve and confirm fulfillment/email delivery
 - For the current incident, use `/pending_cards`, `/review_card <orderRef>`, then `/approve_card <orderRef>` after bank confirmation.
+
+## Manual Card Reminder Loop Live QA
+- Redeploy `notification-bot-service`.
+- Confirm logs show `Manual card reminder loop started`.
+- Leave a test manual card order in `PENDING` with stored proof for longer than `MANUAL_CARD_REMINDER_MIN_AGE_MS`.
+- Confirm admin receives reminder with approve/reject actions.
+- Confirm repeated reminders do not spam more often than `MANUAL_CARD_REMINDER_INTERVAL_MS`.
+- Confirm `/approve_card <orderRef>` or the inline approve button triggers fulfillment and email delivery.

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
@@ -14,7 +14,7 @@ import { NOTIFICATION_BOT_COMMANDS, formatTelegramCommandHelp } from './telegram
 import { selectPaymentCommandBotToken } from './telegram-token-routing';
 
 @Injectable()
-export class TelegramCommandService implements OnModuleInit {
+export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TelegramCommandService.name);
   private bot?: Telegraf;
   private adminChatId?: string;
@@ -23,6 +23,9 @@ export class TelegramCommandService implements OnModuleInit {
   private readonly pendingManualConfirmations = new Map<string, { orderRef: string; proofEventId: string }>();
   private readonly cardNumber?: string;
   private readonly adminUserIds: string[];
+  private readonly manualCardReminderIntervalMs: number;
+  private readonly manualCardReminderMinAgeMs: number;
+  private manualCardReminderTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly configService: ConfigService,
@@ -40,6 +43,14 @@ export class TelegramCommandService implements OnModuleInit {
       this.configService.get<string>('PAYMENT_REVIEW_CHAT_ID') || this.adminChatId;
     this.cardNumber = this.configService.get<string>('MANUAL_CARD_NUMBER')?.trim() || undefined;
     this.adminUserIds = parseAdminUserIds(this.configService.get<string>('ADMIN_USER_IDS'));
+    this.manualCardReminderIntervalMs = this.parseNonNegativeInteger(
+      this.configService.get<string>('MANUAL_CARD_REMINDER_INTERVAL_MS'),
+      10 * 60 * 1000,
+    );
+    this.manualCardReminderMinAgeMs = this.parsePositiveInteger(
+      this.configService.get<string>('MANUAL_CARD_REMINDER_MIN_AGE_MS'),
+      5 * 60 * 1000,
+    );
 
     if (!token || !this.adminChatId) {
       this.logger.warn('Telegram command bot disabled: PAYMENT_BOT_TOKEN/NOTIFICATION_BOT_TOKEN or ADMIN_CHAT_ID is missing');
@@ -548,7 +559,133 @@ export class TelegramCommandService implements OnModuleInit {
     this.bot.launch().then(async () => {
       await this.registerTelegramCommandMenu();
       this.logger.log('Telegram command bot started');
+      this.startManualCardReminderLoop();
     });
+  }
+
+  onModuleDestroy() {
+    if (this.manualCardReminderTimer) {
+      clearInterval(this.manualCardReminderTimer);
+      this.manualCardReminderTimer = undefined;
+    }
+  }
+
+  private startManualCardReminderLoop() {
+    if (this.manualCardReminderIntervalMs <= 0 || this.manualCardReminderTimer) {
+      return;
+    }
+
+    this.manualCardReminderTimer = setInterval(() => {
+      this.runManualCardReminderScan().catch((error) => {
+        this.logger.warn(`Manual card reminder scan failed: ${(error as Error).message}`);
+      });
+    }, this.manualCardReminderIntervalMs);
+
+    this.logger.log(`Manual card reminder loop started: interval=${this.manualCardReminderIntervalMs}ms minAge=${this.manualCardReminderMinAgeMs}ms`);
+  }
+
+  private async runManualCardReminderScan() {
+    if (!this.bot) return;
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        status: 'PENDING',
+        payment_ref: { startsWith: 'CARD_MANUAL' },
+      },
+      include: {
+        customer: true,
+        plan: true,
+      },
+      orderBy: { created_at: 'asc' },
+      take: 20,
+    });
+
+    for (const order of orders) {
+      const proofEvent = await this.findLatestManualCardProofEvent(order.order_ref);
+      if (!proofEvent) continue;
+      if (Date.now() - proofEvent.created_at.getTime() < this.manualCardReminderMinAgeMs) continue;
+
+      const recentReminder = await this.prisma.adminEvent.findFirst({
+        where: {
+          event_type: 'CARD_PAYMENT_ADMIN_REMINDER_SENT',
+          entity_type: 'ORDER',
+          entity_id: order.order_ref,
+          created_at: {
+            gte: new Date(Date.now() - this.manualCardReminderIntervalMs),
+          },
+          payload_json: {
+            path: ['proofEventId'],
+            equals: proofEvent.id,
+          },
+        },
+        orderBy: { created_at: 'desc' },
+      });
+      if (recentReminder) continue;
+
+      const notified = await this.notifyManualCardReminder(order, proofEvent);
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: notified ? 'CARD_PAYMENT_ADMIN_REMINDER_SENT' : 'CARD_PAYMENT_ADMIN_REMINDER_FAILED',
+          entity_type: 'ORDER',
+          entity_id: order.order_ref,
+          payload_json: {
+            orderRef: order.order_ref,
+            proofEventId: proofEvent.id,
+            notified,
+            remindedAt: new Date().toISOString(),
+          } as any,
+        },
+      });
+    }
+  }
+
+  private async notifyManualCardReminder(order: any, proofEvent: any) {
+    const payload = proofEvent.payload_json as any;
+    const text = [
+      'SWIMVPN+ MANUAL CARD PAYMENT WAITING',
+      '',
+      'A customer payment proof is still pending approval.',
+      'If money is visible in the bank, press approve.',
+      '',
+      `Order: ${order.order_ref}`,
+      `Email: ${order.customer.email || '-'}`,
+      `Phone: ${order.customer.phone || '-'}`,
+      `Plan: ${order.plan.name}`,
+      `Amount: ${order.amount_rub.toString()} RUB`,
+      `Proof event: ${proofEvent.id}`,
+      `Telegram: @${payload?.telegramUsername || '-'} (${payload?.telegramUserId || '-'})`,
+      '',
+      `Review: /review_card ${order.order_ref}`,
+      `Approve: /approve_card ${order.order_ref}`,
+    ].join('\n');
+
+    const actions = this.manualCardReviewActions(order.order_ref, proofEvent.id);
+    let notified = false;
+
+    if (this.bot && this.reviewChatId) {
+      try {
+        await this.bot.telegram.sendMessage(this.reviewChatId, text, actions);
+        notified = true;
+      } catch (error) {
+        this.logger.warn(`Failed to send manual card reminder to review chat for ${order.order_ref}: ${(error as Error).message}`);
+      }
+    }
+
+    const directAdminNotified = await this.notifyAdminTextFallback(order.order_ref, proofEvent.id, text);
+    return notified || directAdminNotified;
+  }
+
+  private parsePositiveInteger(value: string | undefined, fallback: number) {
+    const parsed = Number.parseInt(value || '', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  }
+
+  private parseNonNegativeInteger(value: string | undefined, fallback: number) {
+    if (value === undefined || value === null || value.trim() === '') {
+      return fallback;
+    }
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
   }
 
   private manualCardReviewActions(orderRef: string, proofEventId: string) {

@@ -2354,3 +2354,22 @@ pm run build PASSED.
   - Redeploy `notification-bot-service`.
   - For the current paid customer, run `/pending_cards` or wait for the direct admin fallback if the proof event is already in PostgreSQL and the user resends/continues.
   - Use `/review_card <orderRef>` then press approve, or directly `/approve_card <orderRef>` after confirming money in the bank.
+
+## [2026-05-01] [Manual Card Pending Payment Reminder Loop]
+- **Status**: IMPLEMENTED / NEEDS REDEPLOY + LIVE QA
+- **Problem**: Admin workflow still depended on noticing the first payment proof notification. If a proof was stored but approval did not happen, a paid customer could remain stuck in `PENDING`.
+- **Change**:
+  - `notification-bot-service` now starts a manual card reminder loop after the Telegram payment bot launches.
+  - It scans pending `CARD_MANUAL` orders with a stored `CARD_PAYMENT_PROOF_SUBMITTED` event.
+  - It sends review-chat and direct-admin reminders with approve/reject actions.
+  - It records `CARD_PAYMENT_ADMIN_REMINDER_SENT` or `CARD_PAYMENT_ADMIN_REMINDER_FAILED` in `AdminEvent` for audit.
+  - Anti-spam: reminders are skipped until the proof reaches `MANUAL_CARD_REMINDER_MIN_AGE_MS` and are not repeated for the same proof within `MANUAL_CARD_REMINDER_INTERVAL_MS`.
+- **Config**:
+  - `MANUAL_CARD_REMINDER_INTERVAL_MS` defaults to `600000` (10 minutes). Set `0` to disable.
+  - `MANUAL_CARD_REMINDER_MIN_AGE_MS` defaults to `300000` (5 minutes).
+- **Security**:
+  - Reminder does not approve automatically.
+  - Admin must still approve, and fulfillment still goes through `customer-order-service`.
+- **Verification**:
+  - Static flow inspection completed.
+  - Local `npm run test:policy` and `npm run build:all` could not run because `backend/node_modules` is missing after disk cleanup (`ts-node` and `nest` unavailable).
