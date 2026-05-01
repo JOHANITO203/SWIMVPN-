@@ -893,3 +893,9 @@ u after each future language batch
 - Confirm admin receives reminder with approve/reject actions.
 - Confirm repeated reminders do not spam more often than `MANUAL_CARD_REMINDER_INTERVAL_MS`.
 - Confirm `/approve_card <orderRef>` or the inline approve button triggers fulfillment and email delivery.
+
+## Manual Card Confirmation Parser Live QA
+- Redeploy `notification-bot-service` after the parser hardening.
+- Test that customer confirmation messages parse correctly when written on one line, with French/English/Russian labels, with spaced phone numbers, and with punctuation separators.
+- Confirm admin review packets include final email, final phone, and sender payment phone before approving.
+- Confirm parser fallback uses the customer phone as sender phone only when no separate sender phone is provided.

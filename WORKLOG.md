@@ -2373,3 +2373,23 @@ pm run build PASSED.
 - **Verification**:
   - Static flow inspection completed.
   - Local `npm run test:policy` and `npm run build:all` could not run because `backend/node_modules` is missing after disk cleanup (`ts-node` and `nest` unavailable).
+
+## [2026-05-01] [Manual Card Confirmation Parser Hardening]
+- **Status**: IMPLEMENTED / NEEDS BOT REDEPLOY + LIVE QA
+- **Problem**: After sending a card payment screenshot, customers can reply with email/phone/sender phone in many natural formats. The previous parser only handled a fragile line-based format and could miss or merge fields, which risks breaking the bot-to-admin review chain.
+- **Change**:
+  - `notification-bot-service` now parses confirmation text with labeled and unlabeled formats.
+  - Supported examples include one-line English labels, French labels, Russian labels, spaced phone numbers, punctuation-separated values, and missing sender-phone fallback.
+  - Phone extraction now avoids merging separate phone lines.
+  - Admin approval remains required; the parser only improves data capture for review.
+- **Verification**:
+  - `npx --yes -p ts-node@10.9.2 -p typescript@5.1.3 ts-node apps/notification-bot-service/src/__tests__/manual-card-confirmation.spec.ts` PASSED.
+  - Full backend `npm run test:policy` still cannot run locally until `backend/node_modules` is restored.
+- **Live QA needed**:
+  - Redeploy `notification-bot-service`.
+  - Test customer confirmation formats:
+    - `email@example.com / 79507704623 / sender 79507704624`
+    - `Email: ... Phone: ... Sender phone: ...`
+    - `Courriel: ... Telephone: ... Numero expediteur: ...`
+    - `Pochta/Email: ... Telefon: ... Sender payment phone: ...`
+  - Confirm the admin review packet receives the parsed final email, phone, and sender payment phone.

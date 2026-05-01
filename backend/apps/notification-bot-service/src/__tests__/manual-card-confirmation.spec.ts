@@ -9,15 +9,92 @@ function assert(condition: boolean, message: string) {
   }
 }
 
-const parsed = parseManualPaymentConfirmation([
-  'Johaneoyaraht@gmail.com',
-  '79507704623',
-  '79507704623',
-].join('\n'));
+function assertParsed(
+  label: string,
+  text: string,
+  expected: { email?: string; phone?: string; senderPhone?: string },
+) {
+  const parsed = parseManualPaymentConfirmation(text);
+  assert(parsed.email === expected.email, `${label}: email mismatch (${parsed.email})`);
+  assert(parsed.phone === expected.phone, `${label}: phone mismatch (${parsed.phone})`);
+  assert(
+    parsed.senderPhone === expected.senderPhone,
+    `${label}: sender phone mismatch (${parsed.senderPhone})`,
+  );
+  return parsed;
+}
 
-assert(parsed.email === 'johaneoyaraht@gmail.com', 'email must be normalized from first line');
-assert(parsed.phone === '79507704623', 'phone must be parsed from second line');
-assert(parsed.senderPhone === '79507704623', 'sender phone must be parsed from third line');
+const parsed = assertParsed(
+  'plain three lines',
+  [
+    'Johaneoyaraht@gmail.com',
+    '79507704623',
+    '79507704623',
+  ].join('\n'),
+  {
+    email: 'johaneoyaraht@gmail.com',
+    phone: '79507704623',
+    senderPhone: '79507704623',
+  },
+);
+
+assertParsed(
+  'english labels on one line',
+  'Email: Customer@Example.COM Phone: +7 950 770-46-23 Sender phone: 7 (950) 770-46-24',
+  {
+    email: 'customer@example.com',
+    phone: '+79507704623',
+    senderPhone: '79507704624',
+  },
+);
+
+assertParsed(
+  'french labels',
+  [
+    'Courriel client: client@example.com',
+    'Téléphone client : 07 50 77 04 623',
+    'Numéro expéditeur: +7 950 770 46 24',
+  ].join('\n'),
+  {
+    email: 'client@example.com',
+    phone: '07507704623',
+    senderPhone: '+79507704624',
+  },
+);
+
+assertParsed(
+  'russian labels',
+  [
+    'Почта: user@example.com',
+    'Телефон: +7 950 770-46-23',
+    'С телефона оплаты: 79507704624',
+  ].join('\n'),
+  {
+    email: 'user@example.com',
+    phone: '+79507704623',
+    senderPhone: '79507704624',
+  },
+);
+
+assertParsed(
+  'unlabeled values with punctuation',
+  'user@example.com / 79507704623 / sender 79507704624',
+  {
+    email: 'user@example.com',
+    phone: '79507704623',
+    senderPhone: '79507704624',
+  },
+);
+
+assertParsed(
+  'missing sender phone falls back to customer phone',
+  'mail: user@example.com; phone: 79507704623',
+  {
+    email: 'user@example.com',
+    phone: '79507704623',
+    senderPhone: '79507704623',
+  },
+);
 
 const review = buildManualPaymentContactReviewText({
   orderRef: 'ORD-123',
