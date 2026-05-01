@@ -1097,7 +1097,9 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
         const suffix = result?.alreadyProcessed
           ? `Already processed (${result.currentStatus || 'unknown'}).`
           : result?.pendingFulfillment
-            ? 'Payment approved, but no config capacity is available yet. Add stock, then run /pending or retry fulfillment.'
+            ? result?.fulfillmentError || result?.error
+              ? `Payment approved, but fulfillment is pending. Reason: ${result.fulfillmentError || result.error}. Fix the issue, then retry /approve_card ${orderRef}.`
+              : 'Payment approved, but no config capacity is available yet. Add stock, then run /pending_cards or retry fulfillment.'
             : 'Fulfillment triggered.';
         await ctx.reply(`Approved ${orderRef}. ${suffix}`);
       } else {

@@ -350,12 +350,61 @@ async function main() {
     paymentRef: 'CARD_MANUAL:APPROVED:test-proof',
     proofEventId: 'test-proof',
   });
-  assert(fulfillmentFailure.success === false, 'failed fulfillment should not be reported as success');
   assert(
-    fulfillmentFailure.error.includes('Inventory service unavailable'),
+    fulfillmentFailure.success === true && fulfillmentFailure.pendingFulfillment === true,
+    'approved manual payment with failed fulfillment should remain approved and pending fulfillment',
+  );
+  assert(
+    fulfillmentFailure.fulfillmentError.includes('Inventory service unavailable'),
     'failed fulfillment should expose the concrete inventory error',
   );
   assert(fulfillmentFailureEvents.length === 1, 'failed fulfillment should be audited');
+
+  const structuredFulfillmentFailureEvents: unknown[] = [];
+  const structuredFulfillmentFailureService = new CustomerService(
+    {
+      order: {
+        findUnique: async () => ({
+          id: 'order-structured-fail',
+          order_ref: 'ORD-STRUCTURED-FAIL',
+          status: 'PENDING',
+          paid_at: null,
+          payment_ref: null,
+        }),
+        update: async (_args: unknown) => ({ id: 'order-structured-fail' }),
+      },
+      adminEvent: {
+        create: async (event: unknown) => {
+          structuredFulfillmentFailureEvents.push(event);
+          return event;
+        },
+      },
+    } as any,
+    {
+      send: () => of({ success: false, error: 'Order not found or not in fulfillable state' }),
+    } as any,
+    {} as any,
+    {} as any,
+  );
+
+  const structuredFulfillmentFailure = await (structuredFulfillmentFailureService as any).approveManualCardPayment({
+    orderRef: 'ORD-STRUCTURED-FAIL',
+    paymentRef: 'CARD_MANUAL:APPROVED:test-proof-structured',
+    proofEventId: 'test-proof-structured',
+  });
+  assert(
+    structuredFulfillmentFailure.success === true &&
+      structuredFulfillmentFailure.pendingFulfillment === true,
+    'structured inventory fulfillment failures should keep the approved payment pending fulfillment',
+  );
+  assert(
+    structuredFulfillmentFailure.fulfillmentError.includes('Order not found or not in fulfillable state'),
+    'structured inventory fulfillment failures should not be reduced to Internal server error',
+  );
+  assert(
+    structuredFulfillmentFailureEvents.length === 1,
+    'structured inventory fulfillment failures should be audited',
+  );
 
   console.log('backend security policy tests passed');
 }

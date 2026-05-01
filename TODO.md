@@ -939,3 +939,14 @@ u after each future language batch
 - Build/install a new signed APK after the pending badge, stale VPN error, and standard card copy changes.
 - Test paid-but-not-fulfilled order cancellation: app must return to `MODE STANDARD`, no red pending badge, no stale `Connection failed`, and no long freemium explanatory message.
 - Verify order audit contains `CUSTOMER_PENDING_ORDER_CANCELLED` and no inventory slot was consumed.
+
+## Manual card approval exact-error QA
+- Redeploy `inventory-delivery-service` and `customer-order-service` before retesting `/approve_card`.
+- Retry the failing order. If fulfillment still fails, capture the exact returned error and use `/trace_card <orderRef>` to confirm the audit payload.
+- Do not mark a customer delivered unless fulfillment returns success or inventory assignment is visible in admin inventory/order status.
+
+## Manual card pending fulfillment QA
+
+- After redeploy, retry `/approve_card ORD-...` for the paid customer.
+- Expected if delivery still cannot complete: bot says payment approved and fulfillment pending with the exact reason.
+- Resolve the shown reason, then rerun `/approve_card ORD-...` or use pending fulfillment tooling to release the config.

@@ -669,7 +669,7 @@ export class CustomerService {
   async approveManualCardPayment(data: { orderRef: string; paymentRef: string; proofEventId?: string }) {
     const result = await this.fulfillOrderByRef(data.orderRef, data.paymentRef);
 
-    if (data.proofEventId) {
+    if (data.proofEventId && result?.success) {
       await this.prisma.adminEvent.create({
         data: {
           event_type: 'CARD_PAYMENT_APPROVED',
@@ -772,30 +772,68 @@ export class CustomerService {
     });
 
     try {
-      return await firstValueFrom(
+      const fulfillmentResult = await firstValueFrom(
         this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
       );
+      if (fulfillmentResult?.success === false) {
+        const errorMessage = fulfillmentResult.error || 'Inventory fulfillment failed';
+        await this.auditFulfillmentFailure(order, paymentRef, errorMessage);
+        await this.markOrderPendingFulfillment(order.id);
+        return {
+          success: true,
+          paymentApproved: true,
+          pendingFulfillment: true,
+          orderStatus: OrderStatus.PENDING_FULFILLMENT,
+          fulfillmentError: errorMessage,
+          error: `Fulfillment pending: ${errorMessage}`,
+        };
+      }
+
+      return fulfillmentResult;
     } catch (e) {
       const errorMessage = this.extractErrorMessage(e, 'Fulfillment failed');
       console.error(`Fulfillment failed for order ${order.id}: ${errorMessage}`, e);
 
-      await this.prisma.adminEvent.create({
-        data: {
-          event_type: 'FULFILLMENT_FAILED',
-          entity_type: 'ORDER',
-          entity_id: order.order_ref,
-          payload_json: {
-            orderRef: order.order_ref,
-            orderId: order.id,
-            paymentRef,
-            error: errorMessage,
-            failedAt: new Date().toISOString(),
-          } as any,
-        },
-      }).catch(() => undefined);
+      await this.auditFulfillmentFailure(order, paymentRef, errorMessage);
+      await this.markOrderPendingFulfillment(order.id);
 
-      return { success: false, error: `Fulfillment failed: ${errorMessage}` };
+      return {
+        success: true,
+        paymentApproved: true,
+        pendingFulfillment: true,
+        orderStatus: OrderStatus.PENDING_FULFILLMENT,
+        fulfillmentError: errorMessage,
+        error: `Fulfillment pending: ${errorMessage}`,
+      };
     }
+  }
+
+  private async markOrderPendingFulfillment(orderId: string) {
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.PENDING_FULFILLMENT },
+    }).catch(() => undefined);
+  }
+
+  private async auditFulfillmentFailure(
+    order: { id: string; order_ref: string },
+    paymentRef: string,
+    errorMessage: string,
+  ) {
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'FULFILLMENT_FAILED',
+        entity_type: 'ORDER',
+        entity_id: order.order_ref,
+        payload_json: {
+          orderRef: order.order_ref,
+          orderId: order.id,
+          paymentRef,
+          error: errorMessage,
+          failedAt: new Date().toISOString(),
+        } as any,
+      },
+    }).catch(() => undefined);
   }
 
   private async preparePendingOrder(data: { email?: string; phone?: string; planId: string }) {

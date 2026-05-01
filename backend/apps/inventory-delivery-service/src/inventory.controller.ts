@@ -14,7 +14,14 @@ export class InventoryController {
 
   @MessagePattern({ cmd: 'fulfill_order' })
   async fulfillOrder(@Payload() data: FulfillOrderDto) {
-    return this.inventoryService.fulfillOrder(data.orderId);
+    try {
+      return await this.inventoryService.fulfillOrder(data.orderId);
+    } catch (error) {
+      return {
+        success: false,
+        error: this.extractErrorMessage(error),
+      };
+    }
   }
 
   @MessagePattern({ cmd: 'record_assignment_usage' })
@@ -57,5 +64,23 @@ export class InventoryController {
     data: { assignmentId: string; targetInventoryItemId: string; adminId?: string | null },
   ) {
     return this.inventoryService.moveAssignment(data);
+  }
+
+  private extractErrorMessage(error: unknown) {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'message' in error &&
+      typeof (error as { message?: unknown }).message === 'string' &&
+      (error as { message: string }).message.trim().length > 0
+    ) {
+      return (error as { message: string }).message;
+    }
+
+    return 'Inventory fulfillment failed';
   }
 }

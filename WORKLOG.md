@@ -2509,3 +2509,23 @@ pm run build PASSED.
   - Initial parallel Gradle verification caused a transient `mergeDebugResources` intermediate-file error; rerunning sequentially fixed it.
   - `cd android && .\gradlew.bat :app:mergeDebugResources :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
   - `cd backend && npm run test:policy` could not start locally because `ts-node` is unavailable (`backend/node_modules` missing). Re-run inside the backend container or after dependency restore.
+
+## [2026-05-02] [Manual Card Approval Keeps Inventory Failure Detail]
+- **Status**: IMPLEMENTED / NEEDS BACKEND REDEPLOY + LIVE QA
+- **Problem**: `/approve_card <orderRef>` still returned `Fulfillment failed: Internal server error`, which was not actionable for admin operations.
+- **Root cause**: `inventory-delivery-service` threw fulfillment exceptions across the Nest microservice boundary. Nest converted those unhandled exceptions to the generic `Internal server error` before `customer-order-service` could audit or display the real cause.
+- **Change**:
+  - `InventoryController.fulfillOrder()` now catches fulfillment exceptions and returns a structured `{ success: false, error }` response with the concrete message.
+  - `customer-order-service` now treats structured inventory failures like thrown failures: it writes `FULFILLMENT_FAILED` and returns the specific message to the payment bot.
+  - Policy coverage was extended for structured inventory failure responses.
+- **Live QA needed**:
+  - Redeploy `inventory-delivery-service`, `customer-order-service`, and `notification-bot-service`.
+  - Retry `/approve_card <orderRef>`; if it fails, the bot should show the actual inventory/customer-order reason instead of `Internal server error`.
+  - Run `/trace_card <orderRef>` to see the `FULFILLMENT_FAILED` audit entry and its error payload.
+
+## [2026-05-02] [Manual Card Approval Separates Payment From Fulfillment]
+
+- Adjusted manual card approval semantics so an admin-approved payment is not reported as failed when inventory fulfillment fails afterward.
+- `customer-order-service` now keeps the order in `PENDING_FULFILLMENT` with `paymentApproved: true` and preserves the exact `fulfillmentError` for admin diagnosis.
+- `notification-bot-service` now replies that payment is approved but fulfillment is pending, instead of saying approval failed.
+- Security boundary remains unchanged: no premium config is exposed until inventory assigns a valid resource.
