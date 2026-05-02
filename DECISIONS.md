@@ -912,3 +912,19 @@ Decision: Customer profile resolution must prefer the newest usable active assig
 Reason: A failed or revoked later order is not proof that an older valid paid access should be removed. Backend entitlement remains the source of truth, but the selection rule must preserve usable access when it exists.
 
 Consequence: Android receives active entitlement when any recent active assignment is still valid, while customers with only revoked/failed terminal assignments return to standard/freemium state.
+
+## [2026-05-02] Cancelled/Pending Paid Orders Stay Visible For Profile State Resolution
+
+Decision: `getProfile()` may read cancelled paid order history, but cancelled/revoked orders do not become active entitlement. They are used only to avoid misleading trial/premium UI after cancellation and to return the customer to standard freemium state.
+
+Reason: A paid customer who cancels or has a pending order cancelled should not see an expired premium state or a fresh trial prompt. A paid-but-undelivered order must remain `PENDING_FULFILLMENT` so admins can complete delivery instead of losing the order into freemium.
+
+Consequence: Active assignments are still preferred first, pending paid orders remain visible, expired assignments represent expired access, and terminal/cancelled paid history falls back to `FREEMIUM` / standard mode.
+
+## [2026-05-02] NPM Audit Force Fix Requires Dedicated NestJS Upgrade
+
+Decision: Do not run `npm audit fix --force` during production stabilization.
+
+Reason: The audit force path upgrades core NestJS packages across major versions, affecting runtime services, Swagger, platform-express/multer handling, CLI/build behavior, and microservice compatibility. That is too broad to mix with entitlement/payment/VPN stabilization fixes.
+
+Consequence: Non-breaking audit fixes may be tested separately, but complete audit remediation is a dedicated NestJS 11 migration with full backend build, policy tests, Docker/Dokploy deploy, and live smoke verification.

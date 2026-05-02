@@ -1043,3 +1043,22 @@ u after each future language batch
 - Live QA: create a newer revoked/failed order while an older order remains active and confirm the app still sees the active assignment.
 - Live QA: force a usage-report failure during active backend premium connection and confirm the app does not lose the selected runtime node/config.
 - Admin QA: attempt to move an assignment with measured usage onto a near-exhausted inventory source and confirm the move is rejected.
+
+## Backend local dependency QA
+
+- Backend modules have been restored locally with `npm ci`.
+- Re-run before final deploy if customer-order-service changes again:
+  - `cd backend && npm run prisma:validate`
+  - `cd backend && npm run lint`
+  - `cd backend && npm run test:policy`
+- Optional security follow-up: review the 22 `npm audit` vulnerabilities separately; do not run `npm audit fix --force` without a dependency risk review.
+
+## Backend npm audit follow-up
+
+- Do not run `npm audit fix --force` blindly; it proposes major NestJS upgrades.
+- Safe next investigation: run `npm audit fix` without `--force` in a branch, inspect `package-lock.json`, then run:
+  - `cd backend && npm run prisma:validate`
+  - `cd backend && npm run lint`
+  - `cd backend && npm run test:policy`
+  - `cd backend && npm run build:all`
+- Planned remediation: create a dedicated NestJS 11 upgrade task for the remaining high/moderate vulnerabilities that require semver-major package moves.

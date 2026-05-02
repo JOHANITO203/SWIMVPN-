@@ -2635,3 +2635,24 @@ pm run build PASSED.
   - Android `compileDebugKotlin` passed.
   - Backend policy scripts are still blocked locally because backend dev binaries are missing from `backend/node_modules`.
   - A forced Android unit-test rerun hit Windows paging-file exhaustion; the prior targeted test invocation completed with exit code 0, but this workstation needs memory/paging relief for repeated forced test runs.
+
+## [2026-05-02] [Backend Dependencies Restored And Policy Tests Unblocked]
+
+- Reinstalled backend dependencies with `npm ci` after cleaning the incomplete `backend/node_modules` directory.
+- Verified local backend toolchain is available again: `ts-node`, `prisma`, `tsc`, and `@prisma/client`.
+- `npm run prisma:validate`, `npm run lint`, and `npm run test:policy` now run locally.
+- While unblocking policy tests, fixed customer profile edge cases surfaced by the test suite:
+  - revoked/cancelled paid history returns `FREEMIUM` / standard state instead of `TRIAL_AVAILABLE` or expired paid UI;
+  - paid orders without assignment remain `PENDING_FULFILLMENT` until delivered or cancelled;
+  - cancelled paid orders remain visible as history so profile bootstrap can return the correct freemium state;
+  - fulfillment failure tests now assert the durable `FULFILLMENT_FAILED` audit event instead of assuming it is the only event.
+
+## [2026-05-02] [Backend NPM Audit Review]
+
+- Ran `npm audit --json` and `npm audit fix --dry-run` for backend dependencies.
+- Current audit summary: 22 total vulnerabilities, 0 critical, 8 high, 10 moderate, 4 low.
+- Main risk cluster is NestJS dependency stack:
+  - runtime-facing: `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/common`, `@nestjs/config`, `@nestjs/swagger` and transitives such as `multer`, `file-type`, `lodash`, `js-yaml`;
+  - dev/build-facing: `@nestjs/cli`, Angular devkit, `glob`, `webpack`, `inquirer`, `tmp`, `picomatch`.
+- `npm audit fix --dry-run` indicates most complete fixes require `npm audit fix --force`, which would move packages such as `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/swagger`, `@nestjs/cli`, and `@nestjs/config` across major versions.
+- Recommendation: do not run `npm audit fix --force` in the current production stabilization window. Treat full remediation as a planned NestJS 11 upgrade with full backend policy/build/Dokploy verification.

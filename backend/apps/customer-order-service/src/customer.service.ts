@@ -255,6 +255,7 @@ export class CustomerService {
                 OrderStatus.FULFILLED,
                 OrderStatus.PAID,
                 OrderStatus.PENDING_FULFILLMENT,
+                OrderStatus.CANCELLED,
               ],
             },
           },
@@ -419,7 +420,17 @@ export class CustomerService {
       (item) => item.access_status === AssignmentAccessStatus.EXPIRED,
     );
     const assignment = activeAssignment ?? pendingAssignment ?? expiredAssignment;
-    const latestOrder = latestRelevantOrder && assignment ? latestRelevantOrder : undefined;
+    const isPendingOrderWithoutAssignment = !!latestRelevantOrder &&
+      !assignment &&
+      (
+        latestRelevantOrder.status === OrderStatus.PAID ||
+        latestRelevantOrder.status === OrderStatus.PENDING_FULFILLMENT
+      );
+    const latestOrder = latestRelevantOrder && (assignment || isPendingOrderWithoutAssignment)
+      ? latestRelevantOrder
+      : undefined;
+    const hasPaidOrderHistory = customer.orders.some((order) => !this.isTrialOrder(order));
+    const effectiveTrialEligible = latestOrder ? trialEligible : trialEligible && !hasPaidOrderHistory;
     const inventoryItem = assignment?.inventory_item;
     const isTrialOrder = this.isTrialOrder(latestOrder);
     const accessType = latestOrder ? (isTrialOrder ? 'TRIAL' : 'PAID') : 'NONE';
@@ -450,7 +461,7 @@ export class CustomerService {
     const entitlementState = this.resolveEntitlementState({
       hasCompletedProfile: !!customer.email && !!customer.phone,
       hasOrder: !!latestOrder,
-      trialEligible,
+      trialEligible: effectiveTrialEligible,
       fulfillmentStatus,
       accessType,
       hasActiveAssignment: !!activeAssignment?.inventory_item_id,
@@ -488,7 +499,7 @@ export class CustomerService {
       supplierProviderName: inventoryItem?.supplier_provider_name || null,
       supplierExpiresAt: inventoryItem?.supplier_expires_at?.toISOString() || null,
       profileCompletionRequired: !customer.email || !customer.phone,
-      trialEligible,
+      trialEligible: effectiveTrialEligible,
     };
   }
 

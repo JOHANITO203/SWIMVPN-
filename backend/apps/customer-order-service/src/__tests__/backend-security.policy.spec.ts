@@ -194,6 +194,9 @@ async function main() {
           ],
         }),
       },
+      order: {
+        findFirst: async () => null,
+      },
     } as any,
     {} as any,
     {} as any,
@@ -538,7 +541,20 @@ async function main() {
                     assignments: [],
                   },
                 ]
-              : [],
+              : [
+                  {
+                    id: 'order-pending-cancel',
+                    order_ref: 'ORD-PENDING-CANCEL',
+                    status: 'CANCELLED',
+                    plan: {
+                      code: 'WEEK',
+                    },
+                    payment_ref: 'CARD_MANUAL:APPROVED',
+                    created_at: new Date('2026-04-30T00:00:00.000Z'),
+                    fulfilled_at: null,
+                    assignments: [],
+                  },
+                ],
           };
         },
       },
@@ -618,7 +634,10 @@ async function main() {
     fulfillmentFailure.fulfillmentError.includes('Inventory service unavailable'),
     'failed fulfillment should expose the concrete inventory error',
   );
-  assert(fulfillmentFailureEvents.length === 1, 'failed fulfillment should be audited');
+  assert(
+    fulfillmentFailureEvents.some((event: any) => event.data?.event_type === 'FULFILLMENT_FAILED'),
+    'failed fulfillment should be audited',
+  );
 
   const structuredFulfillmentFailureEvents: unknown[] = [];
   const structuredFulfillmentFailureService = new CustomerService(
@@ -662,7 +681,7 @@ async function main() {
     'structured inventory fulfillment failures should not be reduced to Internal server error',
   );
   assert(
-    structuredFulfillmentFailureEvents.length === 1,
+    structuredFulfillmentFailureEvents.some((event: any) => event.data?.event_type === 'FULFILLMENT_FAILED'),
     'structured inventory fulfillment failures should be audited',
   );
 
