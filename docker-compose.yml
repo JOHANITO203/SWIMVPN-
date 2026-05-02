@@ -75,8 +75,8 @@ services:
       db:
         condition: service_healthy
     restart: "no"
-    mem_limit: 128m
-    cpus: "0.20"
+    mem_limit: 384m
+    cpus: "0.30"
     networks:
       - private
 

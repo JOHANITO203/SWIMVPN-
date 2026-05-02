@@ -965,3 +965,8 @@ u after each future language batch
 
 - After redeploy, confirm `prisma-migrate` logs show the known failed migration being rolled back before deploy.
 - Confirm unrelated migration failures are still blocking and are not auto-resolved.
+
+## Prisma migrate exit 137 QA
+
+- After redeploy, confirm `prisma-migrate` no longer exits 137.
+- Expected logs: status check, optional known migration rollback recovery, then `prisma migrate deploy` success.

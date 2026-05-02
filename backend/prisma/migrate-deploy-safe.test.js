@@ -1,5 +1,9 @@
 const assert = require('node:assert/strict');
-const { containsRecoverableFailedMigration } = require('./migrate-deploy-safe');
+const path = require('node:path');
+const {
+  containsRecoverableFailedMigration,
+  resolvePrismaExecutable,
+} = require('./migrate-deploy-safe');
 
 const migration = '20260502093000_drop_stale_unique_assignment_indexes';
 
@@ -28,6 +32,18 @@ assert.equal(
   ),
   false,
   'does not recover unrelated failed migrations',
+);
+
+assert.equal(
+  resolvePrismaExecutable('linux'),
+  path.join(process.cwd(), 'node_modules', '.bin', 'prisma'),
+  'uses the local Prisma binary on Linux containers instead of npx',
+);
+
+assert.equal(
+  resolvePrismaExecutable('win32'),
+  path.join(process.cwd(), 'node_modules', '.bin', 'prisma.cmd'),
+  'uses the local Prisma command on Windows',
 );
 
 console.log('migrate deploy safe parser tests passed');

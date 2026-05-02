@@ -1,4 +1,5 @@
 const { spawnSync } = require('node:child_process');
+const path = require('node:path');
 
 const RECOVERABLE_ROLLED_BACK_MIGRATIONS = [
   '20260502093000_drop_stale_unique_assignment_indexes',
@@ -9,8 +10,17 @@ function containsRecoverableFailedMigration(output, migrationName) {
   return text.includes(migrationName) && text.toLowerCase().includes('failed');
 }
 
+function resolvePrismaExecutable(platform = process.platform) {
+  return path.join(
+    process.cwd(),
+    'node_modules',
+    '.bin',
+    platform === 'win32' ? 'prisma.cmd' : 'prisma',
+  );
+}
+
 function runPrisma(args, stdio = 'inherit') {
-  return spawnSync('npx', ['prisma', ...args], {
+  return spawnSync(resolvePrismaExecutable(), args, {
     cwd: process.cwd(),
     encoding: 'utf8',
     shell: process.platform === 'win32',
@@ -53,4 +63,5 @@ if (require.main === module) {
 
 module.exports = {
   containsRecoverableFailedMigration,
+  resolvePrismaExecutable,
 };

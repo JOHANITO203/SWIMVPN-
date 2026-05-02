@@ -2546,3 +2546,9 @@ pm run build PASSED.
 - Added a targeted migration deploy wrapper for Dokploy so `prisma-migrate` can recover the known failed `20260502093000_drop_stale_unique_assignment_indexes` migration automatically.
 - The wrapper only resolves that explicit migration when Prisma status reports it as failed, then runs `prisma migrate deploy` normally.
 - This avoids manual production intervention while preserving Prisma's blocking behavior for unrelated migration failures.
+
+## [2026-05-02] [Prisma Migrate OOM Guard]
+
+- Investigated Dokploy `prisma-migrate` exit 137 after adding the safe migration wrapper.
+- Root cause: the migration container was limited to 128 MB while running Node + Prisma + migration recovery, causing an OOM-style kill.
+- Increased only `prisma-migrate` memory to 384 MB and changed the wrapper to call the local Prisma binary directly instead of `npx` to reduce process overhead.
