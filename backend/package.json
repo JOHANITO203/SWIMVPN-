@@ -21,7 +21,7 @@
     "prisma:validate": "prisma validate",
     "prisma:migrate:status": "prisma migrate status",
     "prisma:migrate:dev": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:deploy": "node prisma/migrate-deploy-safe.js",
     "prisma:seed": "prisma db seed",
     "prisma:baseline:prod": "prisma migrate resolve --applied 202604230001_init_schema",
     "prisma:deploy": "npm run prisma:generate && npm run prisma:migrate:deploy && npm run prisma:seed"

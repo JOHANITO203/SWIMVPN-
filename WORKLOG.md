@@ -2540,3 +2540,9 @@ pm run build PASSED.
 
 - Rewrote `20260502093000_drop_stale_unique_assignment_indexes/migration.sql` as UTF-8 without BOM after Dokploy prisma-migrate failed on deploy.
 - SQL content remains unchanged and idempotent; only file encoding was corrected for production migration safety.
+
+## [2026-05-02] [Safe Prisma Migrate Deploy Wrapper]
+
+- Added a targeted migration deploy wrapper for Dokploy so `prisma-migrate` can recover the known failed `20260502093000_drop_stale_unique_assignment_indexes` migration automatically.
+- The wrapper only resolves that explicit migration when Prisma status reports it as failed, then runs `prisma migrate deploy` normally.
+- This avoids manual production intervention while preserving Prisma's blocking behavior for unrelated migration failures.
