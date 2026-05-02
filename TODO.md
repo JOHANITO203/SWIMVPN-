@@ -1062,3 +1062,11 @@ u after each future language batch
   - `cd backend && npm run test:policy`
   - `cd backend && npm run build:all`
 - Planned remediation: create a dedicated NestJS 11 upgrade task for the remaining high/moderate vulnerabilities that require semver-major package moves.
+
+## Android supplier subscription parser QA
+
+- Build and install a signed release APK after the subscription cookie jar fix.
+- Live QA: import or activate the `subs.eu-fffast.com` supplier link and confirm the app expands it into concrete VLESS nodes.
+- Confirm the app does not display the supplier website as a runtime VPN server.
+- Confirm the selected runtime node connects and traffic passes.
+- Confirm existing working supplier links such as `wb.routerwb.ru` still expand and connect.

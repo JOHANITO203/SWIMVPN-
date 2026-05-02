@@ -44,6 +44,7 @@ class ConfigRepository(private val context: Context) {
     private val subscriptionClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
+        .cookieJar(SubscriptionCookieJar())
         .followRedirects(true)
         .followSslRedirects(true)
         .build()

@@ -2656,3 +2656,13 @@ pm run build PASSED.
   - dev/build-facing: `@nestjs/cli`, Angular devkit, `glob`, `webpack`, `inquirer`, `tmp`, `picomatch`.
 - `npm audit fix --dry-run` indicates most complete fixes require `npm audit fix --force`, which would move packages such as `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/swagger`, `@nestjs/cli`, and `@nestjs/config` across major versions.
 - Recommendation: do not run `npm audit fix --force` in the current production stabilization window. Treat full remediation as a planned NestJS 11 upgrade with full backend policy/build/Dokploy verification.
+
+## [2026-05-02] [Android Subscription Redirect Cookie Parser Fix]
+
+- Diagnosed the new supplier URL `subs.eu-fffast.com` without printing raw VPN nodes.
+- Root cause: the provider responds with an initial `302` plus `Set-Cookie`; the actual Base64 subscription payload is returned only when the redirected request sends that cookie back.
+- Android `OkHttp` followed redirects but used the default no-cookie behavior, so it could loop on empty `302` responses and never reach the VLESS node payload.
+- Added an in-memory `SubscriptionCookieJar` scoped to the Android subscription fetch client.
+- Verification:
+  - The diagnostic fetch with cookies reaches HTTP 200 and decodes to VLESS entries.
+  - `cd android && .\gradlew.bat :app:testDebugUnitTest --tests com.swimvpn.app.config.SubscriptionCookieJarTest --tests com.swimvpn.app.config.SubscriptionParserTest` passed.

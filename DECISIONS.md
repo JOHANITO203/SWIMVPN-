@@ -928,3 +928,11 @@ Decision: Do not run `npm audit fix --force` during production stabilization.
 Reason: The audit force path upgrades core NestJS packages across major versions, affecting runtime services, Swagger, platform-express/multer handling, CLI/build behavior, and microservice compatibility. That is too broad to mix with entitlement/payment/VPN stabilization fixes.
 
 Consequence: Non-breaking audit fixes may be tested separately, but complete audit remediation is a dedicated NestJS 11 migration with full backend build, policy tests, Docker/Dokploy deploy, and live smoke verification.
+
+## [2026-05-02] Subscription Fetch Supports Redirect Cookies In Memory
+
+Decision: Android subscription downloads may keep provider cookies in memory while resolving a remote subscription URL, but those cookies are not persisted and are not part of entitlement truth.
+
+Reason: Some subscription providers gate the actual Base64/VLESS payload behind an HTTP redirect that requires returning a short-lived cookie. Without a cookie jar, the app can follow redirects forever and never receive the importable nodes.
+
+Consequence: The subscription fetcher can interoperate with redirect-cookie providers while preserving the existing parser and raw config handling. Cookies remain host/path scoped by OkHttp matching rules and disappear with the app process; premium authorization remains enforced by backend entitlement, not by cookies.
