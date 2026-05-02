@@ -2535,3 +2535,8 @@ pm run build PASSED.
 - Root cause confirmed for manual card fulfillment failure: production DB still had the initial unique index on `OrderAssignment.inventory_item_id`.
 - That stale index contradicted the resale-slot model where one supplier config can serve multiple orders until `max_resale_slots` is reached.
 - Added an idempotent Prisma migration to drop the stale unique assignment indexes and keep the non-unique lookup index.
+
+## [2026-05-02] [Prisma Migration SQL Encoding Fix]
+
+- Rewrote `20260502093000_drop_stale_unique_assignment_indexes/migration.sql` as UTF-8 without BOM after Dokploy prisma-migrate failed on deploy.
+- SQL content remains unchanged and idempotent; only file encoding was corrected for production migration safety.

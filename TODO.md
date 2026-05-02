@@ -956,3 +956,7 @@ u after each future language batch
 - Run Prisma migrate deploy after deploying the migration `20260502093000_drop_stale_unique_assignment_indexes`.
 - Retry `/approve_card ORD-1777677975691-606` after migration succeeds.
 - Expected result: fulfillment can attach the second assignment to the same inventory item if capacity remains.
+
+## Prisma migrate failed migration recovery
+
+- If Dokploy recorded `20260502093000_drop_stale_unique_assignment_indexes` as failed, run `prisma migrate resolve --rolled-back 20260502093000_drop_stale_unique_assignment_indexes` in the `prisma-migrate` service, then rerun migrate deploy.
