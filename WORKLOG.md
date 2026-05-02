@@ -1,3 +1,8 @@
+[2026-05-02] [Android Subscription Fetch Isolation]
+- Extracted remote subscription fetching into a testable Android SubscriptionFetcher.
+- Isolated OkHttp/cookie state per fallback User-Agent so provider redirect cookies from a failed attempt cannot poison v2rayNG/Happ-compatible retries.
+- Added standard subscription fetch headers and a MockWebServer regression test for failed-attempt cookie isolation.
+- Verification: :app:testDebugUnitTest targeted subscription tests passed; :app:compileDebugKotlin passed; live provider probe from this machine still returns HTTP 502 after one redirect.
 ## [2026-05-02] [Android VLESS JSON Subscription Node Coverage]
 
 - Used the Happ screenshot confirmation to target the provider shape as multi-node `VLESS | JSON` subscription content.

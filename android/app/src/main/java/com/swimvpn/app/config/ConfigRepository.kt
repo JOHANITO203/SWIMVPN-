@@ -10,7 +10,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.swimvpn.app.config.subscriptionparser.SubscriptionHeaderMetadata
-import com.swimvpn.app.config.subscriptionparser.SubscriptionMetadataParser
 import com.swimvpn.app.config.subscriptionparser.SubscriptionPayloadDecoder
 import com.swimvpn.app.config.subscriptionparser.SubscriptionParser
 import com.swimvpn.app.data.local.DeviceIdentityProvider
@@ -20,11 +19,7 @@ import com.swimvpn.app.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.io.IOException
 import java.net.URLDecoder
-import java.util.concurrent.TimeUnit
 import java.util.UUID
 
 /**
@@ -42,13 +37,7 @@ class ConfigRepository(private val context: Context) {
     private val gson = Gson()
     private val api = RetrofitClient.apiService
     private val prefs = PreferencesManager(context)
-    private val subscriptionClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .cookieJar(SubscriptionCookieJar())
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .build()
+    private val subscriptionFetcher = SubscriptionFetcher()
     
     companion object {
         private const val IMPORTED_SERVER_ID_PREFIX = "imported:"
@@ -736,90 +725,7 @@ class ConfigRepository(private val context: Context) {
         }
     }
 
-    private suspend fun fetchSubscriptionPayload(url: String): SubscriptionFetchResult = withContext(Dispatchers.IO) {
-        val fetchAttempts = listOf(
-            SubscriptionFetchAttempt("SWIMVPN-Android/1.0", "SWIMVPN default subscription client"),
-            SubscriptionFetchAttempt("v2rayNG/1.9.0", "v2rayNG-compatible subscription client"),
-            SubscriptionFetchAttempt("Happ/1.0", "Happ-compatible subscription client"),
-        )
-        val failures = mutableListOf<String>()
-        var fallbackResult: SubscriptionFetchResult? = null
-        var bestResult: SubscriptionFetchResult? = null
-        var bestScore = 0
-
-        fetchAttempts.forEach { attempt ->
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", attempt.userAgent)
-                .build()
-
-            try {
-                subscriptionClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        failures += "${attempt.label}: HTTP ${response.code}"
-                        return@use
-                    }
-
-                    val body = response.body ?: run {
-                        failures += "${attempt.label}: empty response body"
-                        return@use
-                    }
-                    val raw = body.string().take(MAX_SUBSCRIPTION_CHARS)
-                    val normalized = normalizeSubscriptionPayload(raw)
-                    val headerMetadata = SubscriptionMetadataParser.parseHttpHeaders(
-                        subscriptionUserInfo = response.header("subscription-userinfo"),
-                        profileUpdateInterval = response.header("profile-update-interval"),
-                        sourceUrl = url,
-                    )
-                    val result = SubscriptionFetchResult(
-                        payload = normalized.payload,
-                        headerMetadata = headerMetadata.takeIf { it.hasValues },
-                        warnings = buildList {
-                            add("Fetched remote subscription URL")
-                            add("Subscription fetched with ${attempt.label}")
-                            addAll(normalized.warnings)
-                            addAll(headerMetadata.warnings)
-                            if (raw.length >= MAX_SUBSCRIPTION_CHARS) {
-                                add("Subscription response was truncated to $MAX_SUBSCRIPTION_CHARS characters")
-                            }
-                        },
-                    )
-
-                    val score = subscriptionPayloadScore(normalized.payload)
-                    if (score > bestScore) {
-                        bestResult = result
-                        bestScore = score
-                    }
-
-                    fallbackResult = fallbackResult ?: result.copy(
-                        warnings = result.warnings + "Subscription response did not contain directly importable supported entries",
-                    )
-                }
-            } catch (error: Exception) {
-                failures += "${attempt.label}: ${error.localizedMessage}"
-            }
-        }
-
-        bestResult ?: fallbackResult ?: throw IOException("Subscription fetch failed: ${failures.joinToString("; ")}")
-    }
-
-    private fun normalizeSubscriptionPayload(raw: String): SubscriptionPayload {
-        val trimmed = raw.trim()
-        if (trimmed.isBlank()) {
-            return SubscriptionPayload("")
-        }
-
-        val decoded = SubscriptionPayloadDecoder.decode(trimmed)
-        val payload = decoded.payload.trim()
-        return if (containsSupportedEntry(payload) || payload.startsWith("{") || payload.startsWith("[")) {
-            SubscriptionPayload(
-                payload = payload,
-                warnings = decoded.warnings,
-            )
-        } else {
-            SubscriptionPayload(trimmed)
-        }
-    }
+    private suspend fun fetchSubscriptionPayload(url: String): SubscriptionFetchResult = subscriptionFetcher.fetch(url)
 
     private fun containsSupportedEntry(input: String): Boolean {
         return VpnConfigLinkExtractor.containsRecognizedLink(input)
@@ -934,24 +840,6 @@ class ConfigRepository(private val context: Context) {
         return "$label is recognized, but SWIMVPN cannot import Happ-protected encrypted subscription links without an authorized provider key/format. Import the original https subscription URL, a happ://add/https://... wrapper, or unencrypted node links such as vless://, vmess://, trojan://, ss://, or JSON Xray/V2Ray."
     }
 }
-
-private const val MAX_SUBSCRIPTION_CHARS = 1_000_000
-
-private data class SubscriptionFetchResult(
-    val payload: String,
-    val headerMetadata: SubscriptionHeaderMetadata? = null,
-    val warnings: List<String> = emptyList(),
-)
-
-private data class SubscriptionFetchAttempt(
-    val userAgent: String,
-    val label: String,
-)
-
-private data class SubscriptionPayload(
-    val payload: String,
-    val warnings: List<String> = emptyList(),
-)
 
 data class RuntimeConfigResolution(
     val rawConfig: String,
