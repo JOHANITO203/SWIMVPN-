@@ -1,3 +1,18 @@
+## [2026-05-02] [Android VLESS JSON Subscription Node Coverage]
+
+- Used the Happ screenshot confirmation to target the provider shape as multi-node `VLESS | JSON` subscription content.
+- Added parser coverage for JSON arrays of VLESS outbound nodes with Russian display names and `xhttp` transport metadata.
+- Aligned VLESS JSON transport mapping so `httpupgrade`, `xhttp`, and `splithttp` are classified as HTTP-style transport instead of `UNKNOWN`.
+- Verification: targeted Android subscription parser, cookie jar, and link extractor tests passed; debug Kotlin compilation remained green.
+
+## [2026-05-02] [Android Subscription Carrier Decoder Hardening]
+
+- Hardened Android subscription payload decoding for provider carrier formats without printing or mutating raw VPN nodes.
+- Added parser coverage for URL-encoded Base64 payloads, nested Base64 payloads, and Happ add wrappers carrying encoded supported configs.
+- Reused the shared subscription decoder from ConfigRepository so direct imports and remote subscription fetches normalize through the same bounded decoder.
+- Live check for `https://subs.eu-fffast.com/66era36u8ho` still returns HTTP 502 after the redirect cookie step from this workstation, so real-provider node expansion must be re-tested when the provider responds with a payload.
+- Verification: targeted Android parser/cookie/extractor unit tests passed; debug Kotlin compilation was covered by the test task.
+
 ## [2026-05-02] [Obsidian Brain Vault Bootstrap]
 
 - Configured `swimvpnbrain/` as an Obsidian navigation vault for the repository Markdown documentation.

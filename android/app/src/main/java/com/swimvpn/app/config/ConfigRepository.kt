@@ -11,6 +11,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.swimvpn.app.config.subscriptionparser.SubscriptionHeaderMetadata
 import com.swimvpn.app.config.subscriptionparser.SubscriptionMetadataParser
+import com.swimvpn.app.config.subscriptionparser.SubscriptionPayloadDecoder
 import com.swimvpn.app.config.subscriptionparser.SubscriptionParser
 import com.swimvpn.app.data.local.DeviceIdentityProvider
 import com.swimvpn.app.data.local.PreferencesManager
@@ -513,8 +514,10 @@ class ConfigRepository(private val context: Context) {
             return trimmed
         }
 
-        val decoded = decodeSubscriptionBase64(trimmed)?.trim()
-        return decoded ?: trimmed
+        val decoded = SubscriptionPayloadDecoder.decode(trimmed).payload.trim()
+        return decoded.takeIf {
+            containsSupportedEntry(it) || it.startsWith("{") || it.startsWith("[")
+        } ?: trimmed
     }
 
     private fun deriveBundleName(profiles: List<SwimVpnProfile>): String {
@@ -806,15 +809,12 @@ class ConfigRepository(private val context: Context) {
             return SubscriptionPayload("")
         }
 
-        if (containsSupportedEntry(trimmed) || trimmed.startsWith("{") || trimmed.startsWith("[")) {
-            return SubscriptionPayload(trimmed)
-        }
-
-        val decoded = decodeSubscriptionBase64(trimmed)
-        return if (decoded != null && (containsSupportedEntry(decoded) || decoded.trim().startsWith("{") || decoded.trim().startsWith("["))) {
+        val decoded = SubscriptionPayloadDecoder.decode(trimmed)
+        val payload = decoded.payload.trim()
+        return if (containsSupportedEntry(payload) || payload.startsWith("{") || payload.startsWith("[")) {
             SubscriptionPayload(
-                payload = decoded.trim(),
-                warnings = listOf("Decoded Base64 subscription payload"),
+                payload = payload,
+                warnings = decoded.warnings,
             )
         } else {
             SubscriptionPayload(trimmed)
@@ -833,50 +833,6 @@ class ConfigRepository(private val context: Context) {
             trimmed.startsWith("[") -> 1
             else -> 0
         }
-    }
-
-    private fun decodeSubscriptionBase64(input: String): String? {
-        val compact = input
-            .removePrefix("\uFEFF")
-            .lines()
-            .joinToString("") { it.trim() }
-            .filter { char -> char.isLetterOrDigit() || char == '+' || char == '/' || char == '-' || char == '_' || char == '=' }
-            .trim()
-
-        if (compact.isBlank()) {
-            return null
-        }
-
-        fun padBase64(value: String): String {
-            return value.let {
-                val padding = (4 - value.length % 4) % 4
-                value + "=".repeat(padding)
-            }
-        }
-
-        val candidates = listOf(
-            padBase64(compact),
-            padBase64(compact.replace('-', '+').replace('_', '/')),
-        ).distinct()
-
-        val flags = listOf(
-            android.util.Base64.DEFAULT,
-            android.util.Base64.NO_WRAP,
-            android.util.Base64.URL_SAFE,
-            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP,
-        )
-
-        return candidates.asSequence()
-            .flatMap { candidate -> flags.asSequence().map { flag -> candidate to flag } }
-            .mapNotNull { (candidate, flag) ->
-                runCatching {
-                    String(android.util.Base64.decode(candidate, flag), Charsets.UTF_8)
-                }.getOrNull()
-            }
-            .firstOrNull { decoded ->
-                val trimmed = decoded.trim()
-                containsSupportedEntry(trimmed) || trimmed.startsWith("{") || trimmed.startsWith("[")
-            }
     }
 
     private fun resolveImportInput(input: String): ResolvedImportInput {

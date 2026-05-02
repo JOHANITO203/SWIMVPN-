@@ -491,7 +491,7 @@ object ConfigParserEngine {
                 "tcp" -> Transport.TCP
                 "ws", "websocket" -> Transport.WEBSOCKET
                 "grpc" -> Transport.GRPC
-                "http", "h2" -> Transport.HTTP2
+                "http", "h2", "httpupgrade", "xhttp", "splithttp" -> Transport.HTTP2
                 "kcp" -> Transport.KCP
                 "quic" -> Transport.QUIC
                 else -> Transport.UNKNOWN

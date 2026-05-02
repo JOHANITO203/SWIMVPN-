@@ -5,31 +5,56 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import com.swimvpn.app.config.VpnConfigLinkExtractor
+import java.net.URLDecoder
 import java.util.Base64
 
 internal object SubscriptionPayloadDecoder {
+    private const val MAX_CARRIER_DECODE_PASSES = 4
+    private val percentEncodedPattern = Regex("%[0-9A-Fa-f]{2}")
+
     fun decode(input: String): DecodedPayload {
         val trimmed = input.trim()
         if (trimmed.isBlank()) {
             return DecodedPayload(payload = "")
         }
 
-        if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
-            return DecodedPayload(payload = trimmed)
+        val original = trimmed.removePrefix("\uFEFF").trim()
+        var current = original
+        val warnings = mutableListOf<String>()
+
+        repeat(MAX_CARRIER_DECODE_PASSES) {
+            if (isRemoteUrl(current) || containsImportableContent(current)) {
+                return DecodedPayload(payload = current, warnings = warnings.distinct())
+            }
+
+            val unwrapped = unwrapHappAdd(current)
+            if (unwrapped != null && unwrapped != current) {
+                current = unwrapped
+                warnings += "Unwrapped Happ add subscription payload"
+                return@repeat
+            }
+
+            val urlDecoded = decodePercentEncoded(current)
+            if (urlDecoded != null && urlDecoded != current) {
+                current = urlDecoded
+                warnings += "Decoded URL-encoded subscription payload"
+                return@repeat
+            }
+
+            val base64Decoded = decodeBase64(current)?.trim()
+            if (!base64Decoded.isNullOrBlank() && base64Decoded != current) {
+                current = base64Decoded
+                warnings += "Decoded Base64 subscription payload"
+                return@repeat
+            }
+
+            return DecodedPayload(payload = original)
         }
 
-        if (containsImportableContent(trimmed)) {
-            return DecodedPayload(payload = trimmed)
-        }
-
-        val decoded = decodeBase64(trimmed)
-        return if (decoded != null) {
-            DecodedPayload(
-                payload = decoded.trim(),
-                warnings = listOf("Decoded Base64 subscription payload"),
-            )
+        return if (isRemoteUrl(current) || containsImportableContent(current)) {
+            DecodedPayload(payload = current, warnings = warnings.distinct())
         } else {
-            DecodedPayload(payload = trimmed)
+            DecodedPayload(payload = original)
         }
     }
 
@@ -113,6 +138,33 @@ internal object SubscriptionPayloadDecoder {
             trimmed.startsWith("[")
     }
 
+    private fun isRemoteUrl(input: String): Boolean {
+        return input.startsWith("http://", ignoreCase = true) ||
+            input.startsWith("https://", ignoreCase = true)
+    }
+
+    private fun unwrapHappAdd(input: String): String? {
+        if (!input.startsWith("happ://add/", ignoreCase = true)) {
+            return null
+        }
+
+        val wrapped = input.substring("happ://add/".length)
+            .takeIf { it.isNotBlank() }
+            ?: return null
+
+        return decodePercentEncoded(wrapped) ?: wrapped.trim()
+    }
+
+    private fun decodePercentEncoded(input: String): String? {
+        if (!percentEncodedPattern.containsMatchIn(input)) {
+            return null
+        }
+
+        return runCatching {
+            URLDecoder.decode(input, "UTF-8").trim()
+        }.getOrNull()?.takeIf { it.isNotBlank() && it != input }
+    }
+
     private fun decodeBase64(input: String): String? {
         val compact = input
             .removePrefix("\uFEFF")
@@ -149,6 +201,17 @@ internal object SubscriptionPayloadDecoder {
                     String(decoder.decode(candidate), Charsets.UTF_8)
                 }.getOrNull()
             }
-            .firstOrNull { decoded -> containsImportableContent(decoded.trim()) }
+            .firstOrNull { decoded -> looksLikeTextCarrier(decoded.trim()) }
+    }
+
+    private fun looksLikeTextCarrier(input: String): Boolean {
+        if (input.isBlank() || input.contains('\uFFFD')) {
+            return false
+        }
+
+        val printable = input.count { char ->
+            !char.isISOControl() || char == '\n' || char == '\r' || char == '\t'
+        }
+        return printable.toDouble() / input.length.toDouble() >= 0.9
     }
 }

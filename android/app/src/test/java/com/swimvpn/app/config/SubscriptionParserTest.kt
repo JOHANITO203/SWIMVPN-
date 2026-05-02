@@ -7,6 +7,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.net.URLEncoder
 import java.util.Base64
 
 class SubscriptionParserTest {
@@ -240,5 +241,118 @@ class SubscriptionParserTest {
         assertEquals("Working", parsed.profiles.single().displayName)
         assertTrue(parsed.warnings.isNotEmpty())
         assertNotNull(parsed.raw)
+    }
+
+    @Test
+    fun `parses url encoded base64 subscription payload`() {
+        val payload = "vless://11111111-1111-1111-1111-111111111111@example.com:443?security=reality&type=tcp&sni=example.com&pbk=PUBLICKEY123&sid=ab12#Encoded%20Node"
+        val encoded = Base64.getEncoder().encodeToString(payload.toByteArray(Charsets.UTF_8))
+        val urlEncoded = URLEncoder.encode(encoded, "UTF-8")
+
+        val parsed = SubscriptionParser.parse(urlEncoded, sourceType = SourceType.SUBSCRIPTION_URL)
+
+        assertEquals(1, parsed.profiles.size)
+        assertEquals("Encoded Node", parsed.profiles.single().displayName)
+    }
+
+    @Test
+    fun `parses nested base64 subscription payload`() {
+        val payload = "trojan://secret@example.net:443?security=tls&type=tcp&sni=example.net#Nested%20Node"
+        val inner = Base64.getEncoder().encodeToString(payload.toByteArray(Charsets.UTF_8))
+        val outer = Base64.getEncoder().encodeToString(inner.toByteArray(Charsets.UTF_8))
+
+        val parsed = SubscriptionParser.parse(outer, sourceType = SourceType.SUBSCRIPTION_URL)
+
+        assertEquals(1, parsed.profiles.size)
+        assertEquals("Nested Node", parsed.profiles.single().displayName)
+    }
+
+    @Test
+    fun `parses happ add wrapper carrying encoded subscription payload`() {
+        val payload = "ss://${Base64.getEncoder().encodeToString("aes-256-gcm:password123".toByteArray(Charsets.UTF_8))}@ss.example.com:8388#Wrapped%20SS"
+        val encoded = Base64.getEncoder().encodeToString(payload.toByteArray(Charsets.UTF_8))
+        val wrapped = "happ://add/${URLEncoder.encode(encoded, "UTF-8")}"
+
+        val parsed = SubscriptionParser.parse(wrapped, sourceType = SourceType.SUBSCRIPTION_URL)
+
+        assertEquals(1, parsed.profiles.size)
+        assertEquals("Wrapped SS", parsed.profiles.single().displayName)
+        assertEquals("shadowsocks", parsed.profiles.single().protocol)
+    }
+
+    @Test
+    fun `parses json array of vless outbound nodes`() {
+        val input = """
+            [
+              {
+                "tag": "Самый Быстрый АВТО",
+                "protocol": "vless",
+                "settings": {
+                  "vnext": [
+                    {
+                      "address": "auto.example.com",
+                      "port": 443,
+                      "users": [
+                        {
+                          "id": "11111111-1111-1111-1111-111111111111",
+                          "encryption": "none",
+                          "flow": "xtls-rprx-vision"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "streamSettings": {
+                  "network": "xhttp",
+                  "security": "reality",
+                  "realitySettings": {
+                    "serverName": "auto.example.com",
+                    "fingerprint": "chrome",
+                    "publicKey": "PUBLICKEY123",
+                    "shortId": "ab12"
+                  },
+                  "httpSettings": {
+                    "path": "/auto",
+                    "host": ["auto.example.com"]
+                  }
+                }
+              },
+              {
+                "tag": "Германия",
+                "protocol": "vless",
+                "settings": {
+                  "vnext": [
+                    {
+                      "address": "de.example.com",
+                      "port": 443,
+                      "users": [
+                        {
+                          "id": "22222222-2222-2222-2222-222222222222",
+                          "encryption": "none"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "streamSettings": {
+                  "network": "tcp",
+                  "security": "tls",
+                  "tlsSettings": {
+                    "serverName": "de.example.com"
+                  }
+                }
+              }
+            ]
+        """.trimIndent()
+
+        val parsed = SubscriptionParser.parse(input, sourceType = SourceType.SUBSCRIPTION_URL)
+
+        assertEquals(2, parsed.profiles.size)
+        assertEquals("Самый Быстрый АВТО", parsed.profiles[0].displayName)
+        assertEquals("vless", parsed.profiles[0].protocol)
+        assertEquals("xhttp", parsed.profiles[0].transport)
+        assertEquals("reality", parsed.profiles[0].security)
+        assertEquals("PUBLICKEY123", parsed.profiles[0].publicKey)
+        assertEquals("Германия", parsed.profiles[1].displayName)
     }
 }
