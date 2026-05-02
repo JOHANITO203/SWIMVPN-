@@ -173,6 +173,7 @@
     <string name="subscription_cancel_confirm">Отменить доступ</string>
     <string name="subscription_cancel_keep">Оставить доступ</string>
     <string name="subscription_cancelled_success">Стандартный режим восстановлен.</string>
+    <string name="premium_access_finished_standard_mode">Premium-доступ завершён. Стандартный режим восстановлен.</string>
 
     <string name="profile_trial_id_label">ВАШ ID SWIMVPN+</string>
     <string name="profile_trial_description">Заполните профиль, чтобы открыть пробный период на 3 дня. Мы используем устройство, email и телефон для защиты от злоупотреблений.</string>

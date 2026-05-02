@@ -39,6 +39,7 @@ import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.ThemeMode
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -104,6 +105,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var adaptiveActiveServerId: String? = null
     private var manualStopRequested = false
     private var handlingAdaptiveFailure = false
+    private var premiumUsageReportJob: Job? = null
+    private var premiumUsageSessionBaselineBytes = 0L
+
+    private companion object {
+        private const val PREMIUM_USAGE_REPORT_INTERVAL_MS = 30_000L
+    }
 
     init {
         observeAdaptiveRuntime()
@@ -118,8 +125,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .collect { status ->
                     when (status) {
                         RuntimeStatus.RUNNING -> onAdaptiveRuntimeRunning()
-                        RuntimeStatus.FAILED -> handleAdaptiveRuntimeFailure()
+                        RuntimeStatus.FAILED -> {
+                            stopPremiumUsageReporting()
+                            handleAdaptiveRuntimeFailure()
+                        }
                         RuntimeStatus.IDLE -> {
+                            stopPremiumUsageReporting()
                             if (manualStopRequested) {
                                 AdaptiveEventLogger.log("manual_disconnect_completed")
                             }
@@ -830,9 +841,110 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
 
-    private suspend fun reportMeasuredUsage(userNumber: String): AccessProfileResponse? {
-        val measuredBytes = (com.swimvpn.app.vpn.VpnManager.bytesIn.value + com.swimvpn.app.vpn.VpnManager.bytesOut.value)
+    private fun startPremiumUsageReporting(
+        context: Context,
+        profile: AccessProfileResponse,
+        server: ServerNode,
+    ) {
+        stopPremiumUsageReporting()
+
+        if (server.source != "backend" || !profile.isPremiumAllowed || !profile.hasMeasuredLimit) {
+            return
+        }
+
+        val userNumber = profile.userNumber
+        premiumUsageSessionBaselineBytes = profile.parsedDataUsedBytes
+        premiumUsageReportJob = viewModelScope.launch {
+            while (true) {
+                delay(PREMIUM_USAGE_REPORT_INTERVAL_MS)
+
+                val vpnState = VpnManager.state.value
+                if (vpnState != VpnState.CONNECTED && vpnState != VpnState.CONNECTING) {
+                    break
+                }
+
+                val currentState = _state.value as? AppState.Success ?: break
+                val activeServer = currentState.activeServer ?: break
+                if (activeServer.source != "backend") {
+                    break
+                }
+
+                val refreshedProfile = reportMeasuredUsage(
+                    userNumber = userNumber,
+                    baselineUsedBytes = premiumUsageSessionBaselineBytes,
+                ) ?: continue
+
+                if (!refreshedProfile.isPremiumAllowed) {
+                    handlePremiumAccessEnded(context, currentState, refreshedProfile)
+                    break
+                }
+
+                _state.value = currentState.copy(
+                    profile = refreshedProfile,
+                    activeConfigMetadata = resolveActiveConfigMetadata(activeServer, refreshedProfile),
+                )
+            }
+        }
+    }
+
+    private fun stopPremiumUsageReporting() {
+        premiumUsageReportJob?.cancel()
+        premiumUsageReportJob = null
+        premiumUsageSessionBaselineBytes = 0L
+    }
+
+    private suspend fun handlePremiumAccessEnded(
+        context: Context,
+        currentState: AppState.Success,
+        refreshedProfile: AccessProfileResponse,
+    ) {
+        stopPremiumUsageReporting()
+        manualStopRequested = true
+        adaptiveReconnectAttempt = 0
+        lastAutoConnectSignature = null
+        prefs.setAutoConnect(false)
+        prefs.clearAutoConnectPayload()
+
+        val standardState = refreshSuccessState(
+            currentState.copy(
+                profile = refreshedProfile,
+                autoConnect = false,
+            ),
+        )
+        _state.value = standardState
+        _effect.emit(AppSideEffect.ShowToast(s(R.string.premium_access_finished_standard_mode)))
+
+        val intent = Intent(context, SwimVpnService::class.java).apply {
+            action = SwimVpnService.ACTION_STOP
+        }
+        context.startService(intent)
+    }
+
+    private suspend fun applyProfileRefresh(
+        currentState: AppState.Success,
+        refreshedProfile: AccessProfileResponse,
+    ): AppState.Success {
+        if (!refreshedProfile.isPremiumAllowed) {
+            return refreshSuccessState(currentState.copy(profile = refreshedProfile))
+        }
+
+        return currentState.copy(
+            profile = refreshedProfile,
+            activeConfigMetadata = resolveActiveConfigMetadata(currentState.activeServer, refreshedProfile),
+        )
+    }
+
+    private suspend fun reportMeasuredUsage(
+        userNumber: String,
+        baselineUsedBytes: Long,
+    ): AccessProfileResponse? {
+        val sessionBytes = (VpnManager.bytesIn.value + VpnManager.bytesOut.value)
             .coerceAtLeast(0L)
+        if (sessionBytes <= 0L) {
+            return null
+        }
+
+        val measuredBytes = (baselineUsedBytes + sessionBytes).coerceAtLeast(baselineUsedBytes)
         if (measuredBytes <= 0L) {
             return null
         }
@@ -856,13 +968,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (currentState == com.swimvpn.app.vpn.VpnState.CONNECTED || currentState == com.swimvpn.app.vpn.VpnState.CONNECTING) {
             val successState = _state.value as? AppState.Success
+            val usageBaseline = premiumUsageSessionBaselineBytes
+                .takeIf { it > 0L }
+                ?: successState?.profile?.parsedDataUsedBytes
+                ?: 0L
+            stopPremiumUsageReporting()
             manualStopRequested = true
             adaptiveReconnectAttempt = 0
             AdaptiveEventLogger.log("manual_disconnect_requested")
             viewModelScope.launch {
-                val refreshedProfile = successState?.profile?.userNumber?.let { reportMeasuredUsage(it) }
+                val refreshedProfile = successState?.profile?.userNumber?.let {
+                    reportMeasuredUsage(
+                        userNumber = it,
+                        baselineUsedBytes = usageBaseline,
+                    )
+                }
                 if (successState != null && refreshedProfile != null) {
-                    _state.value = refreshSuccessState(successState.copy(profile = refreshedProfile))
+                    _state.value = applyProfileRefresh(successState, refreshedProfile)
                 }
                 val intent = Intent(context, SwimVpnService::class.java).apply {
                     action = SwimVpnService.ACTION_STOP
@@ -933,6 +1055,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     putExtra(SwimVpnService.EXTRA_DATA_USED, usedBytes)
                 }
                 ContextCompat.startForegroundService(context, intent)
+                startPremiumUsageReporting(context.applicationContext, profile, server)
             }
         }
     }
@@ -1044,14 +1167,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val pinnedIds = prefs.pinnedServerIdsFlow.first()
         val importedGroups = configRepository.getImportedProfileGroups()
         val backendGroup = currentState.serverGroups.firstOrNull { it.source == "backend" }
-        val backendServers = backendGroup?.servers?.map { server ->
-            server.copy(
-                isPinned = server.id in pinnedIds,
-                groupId = "backend:${currentState.profile.userNumber}",
-                groupName = s(R.string.server_group_access),
-                source = "backend",
-            )
-        } ?: currentState.servers.filter { it.source != "imported" }.map { it.copy(isPinned = it.id in pinnedIds) }
+        val backendServers = if (!currentState.profile.isPremiumAllowed) {
+            emptyList()
+        } else {
+            backendGroup?.servers?.map { server ->
+                server.copy(
+                    isPinned = server.id in pinnedIds,
+                    groupId = "backend:${currentState.profile.userNumber}",
+                    groupName = s(R.string.server_group_access),
+                    source = "backend",
+                )
+            } ?: currentState.servers.filter { it.source != "imported" }.map { it.copy(isPinned = it.id in pinnedIds) }
+        }
 
         val resolvedBackendServers = resolveBackendServers(currentState.profile, backendServers, pinnedIds)
         val serverGroups = buildServerGroups(currentState.profile, resolvedBackendServers, importedGroups, pinnedIds)
@@ -1078,7 +1205,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ): List<ServerGroup> {
         val groups = mutableListOf<ServerGroup>()
 
-        if (backendServers.isNotEmpty()) {
+        if (profile.isPremiumAllowed && backendServers.isNotEmpty()) {
             groups += ServerGroup(
                 id = "backend:${profile.userNumber}",
                 title = s(R.string.server_group_access),

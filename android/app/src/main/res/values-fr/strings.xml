@@ -173,6 +173,7 @@
     <string name="subscription_cancel_confirm">Résilier l’accès</string>
     <string name="subscription_cancel_keep">Garder l’accès</string>
     <string name="subscription_cancelled_success">Mode standard rétabli.</string>
+    <string name="premium_access_finished_standard_mode">Accès Premium terminé. Mode standard rétabli.</string>
 
     <string name="profile_trial_id_label">VOTRE ID SWIMVPN+</string>
     <string name="profile_trial_description">Complétez votre profil pour débloquer l’essai de 3 jours. Nous utilisons votre appareil, votre email et votre téléphone pour éviter les abus.</string>

@@ -94,8 +94,8 @@ async function main() {
                 quota_label: '50 GB',
               },
               payment_ref: 'CARD_MANUAL:APPROVED',
-              created_at: new Date('2026-04-30T00:00:00.000Z'),
-              fulfilled_at: new Date('2026-04-30T00:00:00.000Z'),
+              created_at: new Date('2020-01-01T00:00:00.000Z'),
+              fulfilled_at: new Date('2020-01-01T00:00:00.000Z'),
               assignments: [
                 {
                   id: 'assignment-plan-quota',
@@ -124,6 +124,14 @@ async function main() {
   );
 
   const activePlanQuotaProfile = await activePlanQuotaService.getProfile('SW-PLAN-QUOTA');
+  assert(
+    activePlanQuotaProfile.entitlementState === 'ACTIVE_SUBSCRIPTION',
+    'paid access time should be provider-managed, not expired by local plan duration',
+  );
+  assert(
+    activePlanQuotaProfile.subscriptionExpiresAt === '2026-05-21T00:00:00.000Z',
+    'paid access expiry should mirror supplier/assignment expiry when present',
+  );
   assert(activePlanQuotaProfile.dataLimitGB === 50, 'customer-facing quota must come from the paid plan');
   assert(
     activePlanQuotaProfile.dataUsedBytes === (2n * 1024n * 1024n * 1024n).toString(),

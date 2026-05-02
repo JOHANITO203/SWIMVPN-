@@ -147,25 +147,20 @@ export class StoreService {
     if (
       inventoryItem.health_status === 'EXPIRED' ||
       inventoryItem.health_status === 'DISABLED' ||
-      this.isSourceQuotaExceeded(inventoryItem.source_quota_bytes, inventoryItem.source_used_bytes)
+      this.isSourceQuotaExceeded(inventoryItem.source_quota_bytes, inventoryItem.source_used_bytes) ||
+      this.isPlanQuotaExceeded(latestOrder.plan?.quota_label || '', activeAssignment.measured_used_bytes)
     ) {
       return [];
     }
 
-    // Check expiration dynamically
+    // Paid access expiration is supplier-managed. Trials keep the local short window.
     const isTrial = latestOrder.order_ref.startsWith('TRIAL-') || latestOrder.payment_ref === 'TRIAL:3D';
     const providerExpiresAt = activeAssignment.expires_at;
-    let orderExpiresAt: Date | null = null;
-
-    if (latestOrder.fulfilled_at) {
-      const durationMs = isTrial
-        ? 3 * 24 * 60 * 60 * 1000
-        : (latestOrder.plan.code === 'MONTH' ? 30 : latestOrder.plan.code === 'QUARTER' ? 90 : 7) * 24 * 60 * 60 * 1000;
-
-      orderExpiresAt = new Date(latestOrder.fulfilled_at.getTime() + durationMs);
-    }
-
-    const expiresAt = this.pickEarlierDate(providerExpiresAt, orderExpiresAt);
+    const trialExpiresAt =
+      isTrial && latestOrder.fulfilled_at
+        ? new Date(latestOrder.fulfilled_at.getTime() + 3 * 24 * 60 * 60 * 1000)
+        : null;
+    const expiresAt = isTrial ? this.pickEarlierDate(trialExpiresAt, providerExpiresAt) : providerExpiresAt;
     if (expiresAt && expiresAt.getTime() < Date.now()) {
       return [];
     }
@@ -204,6 +199,34 @@ export class StoreService {
     }
 
     return (sourceUsedBytes ?? 0n) >= sourceQuotaBytes;
+  }
+
+  private parseQuotaLabelToGb(quotaLabel: string) {
+    const match = quotaLabel.match(/(\d+(?:[.,]\d+)?)/);
+    if (!match) {
+      return 0;
+    }
+
+    const parsed = Number.parseFloat(match[1].replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private quotaLabelToBytes(quotaLabel: string) {
+    const parsedGb = this.parseQuotaLabelToGb(quotaLabel);
+    if (!Number.isFinite(parsedGb) || parsedGb <= 0) {
+      return 0n;
+    }
+
+    return BigInt(Math.round(parsedGb * 1024 * 1024 * 1024));
+  }
+
+  private isPlanQuotaExceeded(quotaLabel: string, measuredUsedBytes?: bigint | null) {
+    const quotaBytes = this.quotaLabelToBytes(quotaLabel);
+    if (quotaBytes <= 0n) {
+      return false;
+    }
+
+    return (measuredUsedBytes ?? 0n) >= quotaBytes;
   }
 
   private pickEarlierDate(first?: Date | null, second?: Date | null) {

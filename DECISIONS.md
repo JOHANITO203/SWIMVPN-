@@ -888,3 +888,11 @@ Decision: A purchased supplier `http://` or `https://` subscription URL is an in
 Reason: Showing `wb.routerwb.ru` as a server made the app look connected while no usable VPN route existed. The provider domain is not the thing the customer connects through; it is the source that lists the real nodes. The customer-facing quota is also the sold plan quota, while supplier quota remains internal/provider metadata.
 
 Consequence: Store server responses ignore plain HTTP(S) subscription URLs as runtime endpoints. Managed UI hides supplier host/provider details and displays commercial plan quota/usage. Raw supplier config remains preserved for entitlement-backed resolution and future parser refresh.
+
+## [2026-05-02] Paid Time Is Supplier-Managed, SWIMVPN Enforces Sold Quota
+
+Decision: For paid access, SWIMVPN does not invent a separate local expiration from the commercial plan duration. The supplier/assignment expiry is the time truth when present. SWIMVPN enforces the sold plan quota from `Plan.quota_label` and ends Premium access when the measured assignment usage reaches that quota.
+
+Reason: The supplier controls the actual subscription lifetime. The product responsibility we keep locally is the commercial quota sold to the customer and the app experience after that quota is reached.
+
+Consequence: Plan quota exhaustion marks the assignment ended, recalculates inventory resale capacity, blocks backend Premium server delivery, stops the Android VPN on the next usage report, and returns the user to standard mode without locking the app. Imported configs remain independent and usable.

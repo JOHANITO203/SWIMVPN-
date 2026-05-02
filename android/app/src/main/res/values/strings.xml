@@ -173,6 +173,7 @@
     <string name="subscription_cancel_confirm">Cancel access</string>
     <string name="subscription_cancel_keep">Keep access</string>
     <string name="subscription_cancelled_success">Standard mode restored.</string>
+    <string name="premium_access_finished_standard_mode">Premium access ended. Standard mode restored.</string>
 
     <string name="profile_trial_id_label">YOUR SWIMVPN+ ID</string>
     <string name="profile_trial_description">Complete your profile to unlock the 3-day trial. We use your device, email, and phone to prevent abuse.</string>

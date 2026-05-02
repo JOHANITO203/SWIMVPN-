@@ -405,6 +405,48 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
+      const planQuotaExceeded =
+        !this.isTrialOrder(order) &&
+        this.isPlanQuotaExceeded(this.getEffectiveQuotaLabel(order), measuredUsedBytes);
+
+      if (planQuotaExceeded) {
+        await tx.orderAssignment.update({
+          where: { id: assignment.id },
+          data: {
+            access_status: AssignmentAccessStatus.EXPIRED,
+            expires_at: new Date(),
+            status_reason: 'PLAN_QUOTA_EXHAUSTED',
+          },
+        });
+
+        await this.recalculateInventoryState(tx, assignment.inventory_item_id!);
+
+        await tx.adminEvent.create({
+          data: {
+            event_type: 'PLAN_QUOTA_EXHAUSTED',
+            entity_type: 'ORDER',
+            entity_id: order.order_ref,
+            payload_json: {
+              orderRef: order.order_ref,
+              assignmentId: assignment.id,
+              inventoryItemId: assignment.inventory_item_id,
+              measuredUsedBytes: measuredUsedBytes.toString(),
+              quotaLabel: this.getEffectiveQuotaLabel(order),
+              updatedAt: new Date().toISOString(),
+            } as any,
+          },
+        });
+
+        return {
+          success: true,
+          orderRef: order.order_ref,
+          measuredUsedBytes: measuredUsedBytes.toString(),
+          sourceUsedBytes: assignment.inventory_item.source_used_bytes?.toString() ?? '0',
+          sourceExhausted: false,
+          planQuotaExceeded: true,
+        };
+      }
+
       const aggregate = await tx.orderAssignment.aggregate({
         where: {
           inventory_item_id: assignment.inventory_item_id,
@@ -913,6 +955,34 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     }
 
     return BigInt(value.trim());
+  }
+
+  private parseQuotaLabelToGb(quotaLabel: string) {
+    const match = quotaLabel.match(/(\d+(?:[.,]\d+)?)/);
+    if (!match) {
+      return 0;
+    }
+
+    const parsed = Number.parseFloat(match[1].replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private quotaLabelToBytes(quotaLabel: string) {
+    const parsedGb = this.parseQuotaLabelToGb(quotaLabel);
+    if (!Number.isFinite(parsedGb) || parsedGb <= 0) {
+      return 0n;
+    }
+
+    return BigInt(Math.round(parsedGb * 1024 * 1024 * 1024));
+  }
+
+  private isPlanQuotaExceeded(quotaLabel: string, measuredUsedBytes?: bigint | null) {
+    const quotaBytes = this.quotaLabelToBytes(quotaLabel);
+    if (quotaBytes <= 0n) {
+      return false;
+    }
+
+    return (measuredUsedBytes ?? 0n) >= quotaBytes;
   }
 
   private isSourceExhausted(sourceQuotaBytes?: bigint | null, sourceUsedBytes?: bigint | null) {

@@ -410,7 +410,7 @@ export class CustomerService {
         ? 'DELIVERED'
         : 'PENDING_FULFILLMENT'
       : 'NONE';
-    const orderExpiresAt = latestOrder
+    const orderExpiresAt = latestOrder && isTrialOrder
       ? this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder)
       : null;
     const providerExpiresAt =
@@ -419,7 +419,7 @@ export class CustomerService {
       null;
     const subscriptionExpiresAt = isTrialOrder
       ? this.pickEarlierIsoDate(orderExpiresAt, providerExpiresAt)
-      : this.pickEarlierIsoDate(providerExpiresAt, orderExpiresAt);
+      : providerExpiresAt;
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
     const measuredDataLimitGb =
       latestOrder && !isTrialOrder
@@ -581,14 +581,16 @@ export class CustomerService {
         }
 
         const isTrialOrder = this.isTrialOrder(order);
-        const orderExpiresAt = this.calculateSubscriptionExpiresAt(order, isTrialOrder);
+        const orderExpiresAt = isTrialOrder
+          ? this.calculateSubscriptionExpiresAt(order, isTrialOrder)
+          : null;
         const providerExpiresAt =
           activeAssignment.expires_at?.toISOString() ||
           inventoryItem.supplier_expires_at?.toISOString() ||
           null;
         const subscriptionExpiresAt = isTrialOrder
           ? this.pickEarlierIsoDate(orderExpiresAt, providerExpiresAt)
-          : this.pickEarlierIsoDate(providerExpiresAt, orderExpiresAt);
+          : providerExpiresAt;
 
         return !subscriptionExpiresAt || new Date(subscriptionExpiresAt).getTime() >= now;
       }) || null;

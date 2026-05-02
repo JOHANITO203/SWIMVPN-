@@ -984,3 +984,20 @@ u after each future language batch
 - Confirm Android expands the entitled subscription into selectable VLESS nodes and connects using one of those raw node configs.
 - Confirm the managed profile card shows the plan quota sold to the customer, not the supplier global 1000 GB quota.
 - Confirm supplier website/provider host is not shown on the managed active config card.
+
+## Premium subscription runtime node QA result
+
+- Live QA passed on a signed Android build: a purchased Basic access expanded the supplier subscription into a concrete `vless` node and connected successfully.
+- Keep one backend/container policy-test rerun before final release notes, because local backend dependencies are currently unavailable.
+
+## Provider time + sold quota enforcement QA
+
+- Run backend policy tests in a container with dependencies: `cd backend && npm run test:policy`.
+- Live QA with a small quota test plan/config:
+  - Connect to a Premium backend config.
+  - Confirm usage reporting is invisible in the app.
+  - Force measured usage over the plan quota or use a tiny quota fixture.
+  - Confirm backend marks assignment `PLAN_QUOTA_EXHAUSTED` / no longer premium.
+  - Confirm Android stops VPN automatically, disables auto-connect, refreshes profile, and returns to `MODE STANDARD`.
+  - Confirm imported configs remain visible/usable.
+  - Confirm the supplier link capacity is recalculated and can be resold if under cap.

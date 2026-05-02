@@ -2566,3 +2566,28 @@ pm run build PASSED.
 - Android remains responsible for resolving an entitled premium subscription URL into its real VLESS/VMess/Trojan/Shadowsocks nodes before display/connection.
 - Customer-facing managed quota continues to come from the commercial plan (`Plan.quota_label`) and assignment usage, not supplier global quota metadata.
 - Supplier hosts such as `wb.routerwb.ru` are treated as internal subscription sources, not customer-facing VPN nodes.
+
+## [2026-05-02] [Live QA - Premium Subscription Expands To VLESS Nodes]
+
+- **Status**: LIVE QA PASSED
+- **Evidence**:
+  - User tested a purchased Basic access on a signed Android build after backend deploy.
+  - Home screen selected a concrete `vless` node (`de.cloudrt.ru`) instead of the supplier subscription host.
+  - VPN state showed connected and traffic counters increased during the session.
+  - The user-facing selected server label came from the parsed subscription node, not `HTTPS - wb.routerwb.ru`.
+- **Remaining note**:
+  - Backend policy tests still need to be rerun in an environment with backend dependencies available, because local `backend/node_modules` is missing on this workstation.
+
+## [2026-05-02] [Provider Time + Sold Plan Quota Enforcement]
+
+- **Status**: IMPLEMENTED / NEEDS BACKEND CONTAINER POLICY TEST + LIVE QA
+- **Change**:
+  - Paid access no longer invents a local `fulfilled_at + plan duration` expiry. For paid plans, expiry is supplier/assignment-managed when available.
+  - SWIMVPN now focuses enforcement on the sold plan quota (`Plan.quota_label`) and assignment usage.
+  - Android now reports Premium backend usage periodically during an active connection, invisibly to the user.
+  - If backend responds that Premium access is no longer allowed, Android stops the VPN, disables auto-connect, refreshes the profile, removes backend Premium servers, and returns the app to standard mode with a soft non-persistent toast.
+  - Inventory usage recording now marks the current assignment `EXPIRED` with `PLAN_QUOTA_EXHAUSTED` when the sold quota is reached, then recalculates resale capacity so the supplier link can be reused within cap.
+  - Store server delivery now also checks sold plan quota before exposing backend Premium servers.
+- **Verification**:
+  - Android Kotlin compile passed locally.
+  - Backend policy test could not run locally because `backend/node_modules` is unavailable (`ts-node` missing). Run `npm run test:policy` in the backend container or after dependency restore.
