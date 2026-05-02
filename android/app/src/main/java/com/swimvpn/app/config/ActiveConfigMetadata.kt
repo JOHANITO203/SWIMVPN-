@@ -128,11 +128,7 @@ data class ActiveConfigMetadata(
             server: ServerNode,
             isActive: Boolean = true,
         ): ActiveConfigMetadata {
-            val displayName = listOf(server.city, server.country)
-                .filter { it.isNotBlank() }
-                .distinct()
-                .joinToString(", ")
-                .ifBlank { server.host }
+            val displayName = server.city.ifBlank { server.country.ifBlank { server.host } }
 
             return ActiveConfigMetadata(
                 source = ActiveConfigSource.SWIMVPN_MANAGED,
@@ -140,6 +136,10 @@ data class ActiveConfigMetadata(
                 displayName = displayName,
                 protocol = server.protocol.takeIf { it.isNotBlank() },
                 serverHost = server.host.takeIf { it.isNotBlank() },
+                providerName = server.providerName,
+                trafficUsedBytes = server.trafficUsedBytes,
+                trafficTotalBytes = server.trafficTotalBytes,
+                expiresAt = server.expiresAt,
             )
         }
 
@@ -148,8 +148,8 @@ data class ActiveConfigMetadata(
             server: ServerNode?,
         ): ActiveConfigMetadata {
             val base = server?.let { fromManagedServer(it, profile.isPremiumAllowed) }
-            val displayName = profile.planDisplayName
-                ?: base?.displayName
+            val displayName = base?.displayName
+                ?: profile.planDisplayName
                 ?: profile.offerCode
                 ?: "SWIMVPN Premium"
             val totalBytes = profile.dataLimitBytes.takeIf { profile.hasMeasuredLimit }
@@ -164,7 +164,7 @@ data class ActiveConfigMetadata(
                 providerName = profile.supplierProviderName ?: base?.providerName,
                 trafficUsedBytes = profile.parsedDataUsedBytes.takeIf { totalBytes != null || it > 0L },
                 trafficTotalBytes = totalBytes,
-                expiresAt = profile.supplierExpiresAt ?: profile.effectiveExpiryAt,
+                expiresAt = profile.effectiveExpiryAt,
             )
         }
     }

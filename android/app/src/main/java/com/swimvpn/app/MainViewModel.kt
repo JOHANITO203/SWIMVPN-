@@ -996,7 +996,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return null
         }
 
-        val serverGroups = buildServerGroups(profile, backendServers, importedGroups, pinnedIds)
+        val resolvedBackendServers = resolveBackendServers(profile, backendServers, pinnedIds)
+        val serverGroups = buildServerGroups(profile, resolvedBackendServers, importedGroups, pinnedIds)
         val servers = serverGroups.flatMap { it.servers }
         val savedServerId = prefs.selectedServerIdFlow.first()
         val activeServer = servers.find { it.id == savedServerId } ?: servers.firstOrNull()
@@ -1049,11 +1050,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 groupId = "backend:${currentState.profile.userNumber}",
                 groupName = s(R.string.server_group_access),
                 source = "backend",
-                rawConfig = null,
             )
         } ?: currentState.servers.filter { it.source != "imported" }.map { it.copy(isPinned = it.id in pinnedIds) }
 
-        val serverGroups = buildServerGroups(currentState.profile, backendServers, importedGroups, pinnedIds)
+        val resolvedBackendServers = resolveBackendServers(currentState.profile, backendServers, pinnedIds)
+        val serverGroups = buildServerGroups(currentState.profile, resolvedBackendServers, importedGroups, pinnedIds)
         val servers = serverGroups.flatMap { it.servers }
         val savedServerId = prefs.selectedServerIdFlow.first()
         val activeServer = servers.find { it.id == savedServerId }
@@ -1090,7 +1091,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             groupName = s(R.string.server_group_access),
                             source = "backend",
                             isPinned = server.id in pinnedIds,
-                            rawConfig = null,
                         )
                     }
                     .sortedWith(compareByDescending<ServerNode> { it.isPinned }.thenBy { it.country }.thenBy { it.city }),
@@ -1117,6 +1117,91 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         return groups
+    }
+
+    private suspend fun resolveBackendServers(
+        profile: AccessProfileResponse,
+        backendServers: List<ServerNode>,
+        pinnedIds: Set<String>,
+    ): List<ServerNode> {
+        val subscriptionUrl = profile.subscriptionUrl?.trim()
+        val isRemoteSubscription = subscriptionUrl?.startsWith("http://", ignoreCase = true) == true ||
+            subscriptionUrl?.startsWith("https://", ignoreCase = true) == true
+
+        if (!profile.isPremiumAllowed || !isRemoteSubscription || subscriptionUrl.isNullOrBlank()) {
+            return backendServers.map { server ->
+                server.copy(
+                    isPinned = server.id in pinnedIds,
+                    groupId = "backend:${profile.userNumber}",
+                    groupName = s(R.string.server_group_access),
+                    source = "backend",
+                )
+            }
+        }
+
+        val resolvedProfiles = configRepository.resolveRuntimeProfilesForConnection(
+            input = subscriptionUrl,
+            sourceType = SourceType.BACKEND_API,
+        ).getOrElse { error ->
+            Log.w("MainViewModel", "Could not expand assigned premium subscription URL", error)
+            return backendServers.map { server ->
+                server.copy(
+                    isPinned = server.id in pinnedIds,
+                    groupId = "backend:${profile.userNumber}",
+                    groupName = s(R.string.server_group_access),
+                    source = "backend",
+                )
+            }
+        }
+
+        if (resolvedProfiles.isEmpty()) {
+            return backendServers
+        }
+
+        return resolvedProfiles.map { premiumProfile ->
+            premiumProfile.toPremiumServerNode(
+                profile = profile,
+                isPinned = premiumServerIdFor(premiumProfile) in pinnedIds,
+            )
+        }
+    }
+
+    private fun premiumServerIdFor(profile: SwimVpnProfile): String {
+        val stableHash = profile.rawConfig.hashCode().toLong() and 0xffffffffL
+        return "backend:${stableHash.toString(16)}"
+    }
+
+    private fun SwimVpnProfile.toPremiumServerNode(
+        profile: AccessProfileResponse,
+        isPinned: Boolean,
+    ): ServerNode {
+        val groupName = sourceBundleName ?: s(R.string.server_group_access)
+        return ServerNode(
+            id = premiumServerIdFor(this),
+            country = groupName,
+            city = displayName,
+            host = address,
+            port = port,
+            protocol = protocol.name.lowercase(),
+            tags = listOfNotNull(
+                "premium",
+                transport.name.lowercase(),
+                securityMode.name.lowercase().takeIf { it != SecurityMode.NONE.name.lowercase() },
+            ),
+            planScope = profile.offerCode ?: "PREMIUM",
+            countryCode = null,
+            load = 0,
+            ping = 0,
+            groupId = "backend:${profile.userNumber}:${sourceBundleId ?: id}",
+            groupName = groupName,
+            rawConfig = rawConfig,
+            source = "backend",
+            isPinned = isPinned,
+            providerName = subscriptionProviderName,
+            trafficUsedBytes = subscriptionTrafficUsedBytes,
+            trafficTotalBytes = subscriptionTrafficTotalBytes,
+            expiresAt = subscriptionExpiresAt,
+        )
     }
 
     private fun SwimVpnProfile.toImportedServerNode(

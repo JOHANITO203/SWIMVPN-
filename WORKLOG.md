@@ -2552,3 +2552,17 @@ pm run build PASSED.
 - Investigated Dokploy `prisma-migrate` exit 137 after adding the safe migration wrapper.
 - Root cause: the migration container was limited to 128 MB while running Node + Prisma + migration recovery, causing an OOM-style kill.
 - Increased only `prisma-migrate` memory to 384 MB and changed the wrapper to call the local Prisma binary directly instead of `npx` to reduce process overhead.
+
+## [2026-05-02] [Premium Subscription URL Expansion And Plan Quota Truth]
+
+- Adjusted Android premium server handling so a purchased backend subscription URL is expanded into its supported VLESS/VMess/Trojan/Shadowsocks nodes before display/connection.
+- Premium active config cards now use backend plan quota and customer assignment usage instead of supplier total quota metadata.
+- Hid provider website/server host rows for SWIMVPN-managed configs so supplier subscription hosts such as `wb.routerwb.ru` are not shown as VPN nodes.
+- Backend profile payload now reports customer-facing plan quota from `Plan.quota_label` and customer-specific usage from `OrderAssignment.measured_used_bytes`.
+
+## [2026-05-02] [Premium Subscription Runtime Nodes And Plan Quota Truth - Store Guard]
+
+- Added a backend store guard so `http://` / `https://` supplier subscription URLs are not parsed or exposed as runtime VPN servers.
+- Android remains responsible for resolving an entitled premium subscription URL into its real VLESS/VMess/Trojan/Shadowsocks nodes before display/connection.
+- Customer-facing managed quota continues to come from the commercial plan (`Plan.quota_label`) and assignment usage, not supplier global quota metadata.
+- Supplier hosts such as `wb.routerwb.ru` are treated as internal subscription sources, not customer-facing VPN nodes.

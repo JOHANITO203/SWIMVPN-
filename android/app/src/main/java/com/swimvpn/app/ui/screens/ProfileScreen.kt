@@ -512,7 +512,10 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 22.sp
                     )
-                    metadata.serverHost?.takeIf { it.isNotBlank() }?.let { host ->
+                    metadata.serverHost
+                        ?.takeIf { metadata.source != ActiveConfigSource.SWIMVPN_MANAGED }
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { host ->
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = host,
@@ -545,7 +548,10 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
                 )
             }
 
-            metadata.providerName?.takeIf { it.isNotBlank() }?.let { providerName ->
+            metadata.providerName
+                ?.takeIf { metadata.source != ActiveConfigSource.SWIMVPN_MANAGED }
+                ?.takeIf { it.isNotBlank() }
+                ?.let { providerName ->
                 Spacer(modifier = Modifier.height(20.dp))
                 MetadataRow(
                     label = stringResource(R.string.active_config_provider),

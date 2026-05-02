@@ -75,6 +75,61 @@ async function main() {
     'expired inventory must not be treated as active premium access',
   );
 
+  const activePlanQuotaService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-plan-quota',
+          public_id: 'SW-PLAN-QUOTA',
+          device_id: 'device-plan-quota',
+          email: 'plan@example.com',
+          phone: '79000000010',
+          orders: [
+            {
+              id: 'order-plan-quota',
+              order_ref: 'ORD-PLAN-QUOTA',
+              status: 'FULFILLED',
+              plan: {
+                code: 'WEEK',
+                quota_label: '50 GB',
+              },
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-04-30T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-04-30T00:00:00.000Z'),
+              assignments: [
+                {
+                  id: 'assignment-plan-quota',
+                  access_status: 'ACTIVE',
+                  inventory_item_id: 'inventory-plan-quota',
+                  measured_used_bytes: 2n * 1024n * 1024n * 1024n,
+                  inventory_item: {
+                    id: 'inventory-plan-quota',
+                    raw_config: 'https://wb.routerwb.ru/demo',
+                    source_quota_bytes: 1000n * 1024n * 1024n * 1024n,
+                    source_used_bytes: 7n * 1024n * 1024n * 1024n,
+                    supplier_expires_at: new Date('2026-05-21T00:00:00.000Z'),
+                    supplier_provider_name: 'Provider',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const activePlanQuotaProfile = await activePlanQuotaService.getProfile('SW-PLAN-QUOTA');
+  assert(activePlanQuotaProfile.dataLimitGB === 50, 'customer-facing quota must come from the paid plan');
+  assert(
+    activePlanQuotaProfile.dataUsedBytes === (2n * 1024n * 1024n * 1024n).toString(),
+    'customer-facing usage must come from the customer assignment, not supplier shared usage',
+  );
+
   const cancellationEvents: unknown[] = [];
   const revokedAssignments: unknown[] = [];
   const cancellationService = new CustomerService(

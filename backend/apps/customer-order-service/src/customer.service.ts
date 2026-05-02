@@ -421,10 +421,11 @@ export class CustomerService {
       ? this.pickEarlierIsoDate(orderExpiresAt, providerExpiresAt)
       : this.pickEarlierIsoDate(providerExpiresAt, orderExpiresAt);
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
-    const measuredDataLimitGb = inventoryItem?.source_quota_bytes
-      ? this.bytesToGb(inventoryItem.source_quota_bytes)
-      : 0;
-    const measuredDataUsedBytes = inventoryItem?.source_used_bytes?.toString() || '0';
+    const measuredDataLimitGb =
+      latestOrder && !isTrialOrder
+        ? this.parseQuotaLabelToGb(latestOrder.plan.quota_label || '')
+        : 0;
+    const measuredDataUsedBytes = activeAssignment?.measured_used_bytes?.toString() || '0';
     const entitlementState = this.resolveEntitlementState({
       hasCompletedProfile: !!customer.email && !!customer.phone,
       hasOrder: !!latestOrder,
@@ -433,7 +434,9 @@ export class CustomerService {
       accessType,
       hasActiveAssignment: !!activeAssignment?.inventory_item_id,
       subscriptionExpiresAt,
-      quotaExceeded: false,
+      quotaExceeded: latestOrder && !isTrialOrder
+        ? this.isPlanQuotaExceeded(latestOrder.plan.quota_label || '', activeAssignment?.measured_used_bytes)
+        : false,
       inventoryHealthStatus: inventoryItem?.health_status,
       sourceExhausted: this.isSourceQuotaExceeded(
         inventoryItem?.source_quota_bytes,

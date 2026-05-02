@@ -105,7 +105,7 @@ class ActiveConfigMetadataMappingTest {
         )
 
         assertEquals(ActiveConfigSource.SWIMVPN_MANAGED, metadata.source)
-        assertEquals("Moscow, Russia", metadata.displayName)
+        assertEquals("Moscow", metadata.displayName)
         assertEquals("vless", metadata.protocol)
         assertEquals("ru-msk.swimvpn.pro", metadata.serverHost)
         assertNull(metadata.providerName)
@@ -113,6 +113,60 @@ class ActiveConfigMetadataMappingTest {
         assertNull(metadata.trafficTotalBytes)
         assertNull(metadata.expiresAt)
         assertEquals(emptyList<String>(), metadata.warnings)
+    }
+
+    @Test
+    fun `managed active config uses resolved premium node name but plan quota truth`() {
+        val profile = com.swimvpn.app.data.network.AccessProfileResponse(
+            userNumber = "SW-TEST",
+            email = "user@example.com",
+            phone = "+1000",
+            accessType = "PAID",
+            offerCode = "WEEK",
+            planDisplayName = "Basic",
+            planType = "paid",
+            status = "ACTIVE",
+            entitlementState = "ACTIVE_SUBSCRIPTION",
+            trialStartedAt = null,
+            trialExpiresAt = null,
+            subscriptionExpiresAt = "2026-05-09T00:00:00Z",
+            subscriptionUrl = "https://wb.routerwb.ru/demo",
+            devicesAllowed = 2,
+            dataLimitGB = 50.0,
+            dataUsedBytes = (2L * 1024L * 1024L * 1024L).toString(),
+            supplierProviderName = "Backend Provider",
+            supplierExpiresAt = "2026-05-09T00:00:00Z",
+            profileCompletionRequired = false,
+            trialEligible = false,
+        )
+
+        val metadata = ActiveConfigMetadata.fromManagedProfile(
+            profile = profile,
+            server = ServerNode(
+                id = "backend-node-1",
+                country = "Premium Servers",
+                city = "VlessWB NL",
+                host = "nl.example.com",
+                port = 443,
+                protocol = "vless",
+                tags = listOf("premium"),
+                planScope = "WEEK",
+                source = "backend",
+                rawConfig = "vless://11111111-1111-1111-1111-111111111111@nl.example.com:443?security=tls#VlessWB%20NL",
+                providerName = "VlessWB",
+                trafficUsedBytes = 7L,
+                trafficTotalBytes = 100L,
+                expiresAt = "2026-05-21T00:00:00Z",
+            ),
+        )
+
+        assertEquals("VlessWB NL", metadata.displayName)
+        assertEquals("vless", metadata.protocol)
+        assertEquals("nl.example.com", metadata.serverHost)
+        assertEquals("Backend Provider", metadata.providerName)
+        assertEquals(2L * 1024L * 1024L * 1024L, metadata.trafficUsedBytes)
+        assertEquals(50L * 1024L * 1024L * 1024L, metadata.trafficTotalBytes)
+        assertEquals("2026-05-09T00:00:00Z", metadata.expiresAt)
     }
 
     @Test

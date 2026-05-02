@@ -13,6 +13,9 @@ async function main() {
   assert(parsed?.protocol === 'VLESS', 'VLESS protocol should be preserved');
   assert(parsed?.displayName === 'Berlin Premium', 'VLESS display name should be decoded');
 
+  const subscriptionUrl = parseRuntimeEndpoint('https://wb.routerwb.ru/jtz5386jCHkztYRZ');
+  assert(subscriptionUrl === null, 'supplier subscription URLs must not be exposed as HTTPS runtime servers');
+
   let healthStatus = 'HEALTHY';
   const service = new StoreService({
     customer: {

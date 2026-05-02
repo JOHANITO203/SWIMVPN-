@@ -12,7 +12,7 @@ export function parseRuntimeEndpoint(rawConfig?: string | null): RuntimeEndpoint
   const firstConfigLine = rawConfig
     ?.split(/\r?\n/)
     .map((line) => line.trim())
-    .find((line) => /^(vless|vmess|trojan|ss|https?):\/\//i.test(line));
+    .find((line) => /^(vless|vmess|trojan|ss):\/\//i.test(line));
 
   if (!firstConfigLine) {
     return null;

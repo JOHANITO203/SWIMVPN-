@@ -207,6 +207,62 @@ class ConfigRepository(private val context: Context) {
             Result.failure(error)
         }
     }
+
+    suspend fun resolveRuntimeProfilesForConnection(
+        input: String,
+        sourceType: SourceType = SourceType.BACKEND_API,
+    ): Result<List<SwimVpnProfile>> {
+        return try {
+            val resolution = resolveImportInput(input)
+            val profiles = when (resolution) {
+                is ResolvedImportInput.SubscriptionUrl -> {
+                    val fetched = fetchSubscriptionPayload(resolution.url)
+                    selectRuntimeProfiles(
+                        payload = fetched.payload,
+                        sourceType = SourceType.SUBSCRIPTION_URL,
+                        warnings = resolution.warnings + fetched.warnings,
+                        sourceUrl = resolution.url,
+                        headerMetadata = fetched.headerMetadata,
+                    )
+                }
+                is ResolvedImportInput.SwimEncryptedPayload -> {
+                    val userNumber = prefs.userNumberFlow.first()
+                        ?: throw IllegalStateException("No local user profile is available for backend runtime resolution")
+                    val deviceId = getDeviceId()
+                        ?: throw IllegalStateException("Device identity is unavailable for backend runtime resolution")
+                    val resolvedPayload = api.resolveCryptSubscription(
+                        ResolveCryptSubscriptionRequest(
+                            userNumber = userNumber,
+                            deviceId = deviceId,
+                            encryptedLink = resolution.encryptedLink,
+                        ),
+                    )
+                    selectRuntimeProfiles(
+                        payload = resolvedPayload.rawConfig,
+                        sourceType = sourceType,
+                        warnings = resolution.warnings + "Resolved SWIMVPN crypt1 payload via backend",
+                    )
+                }
+                is ResolvedImportInput.DirectConfig -> selectRuntimeProfiles(
+                    payload = resolution.payload,
+                    sourceType = sourceType,
+                    warnings = resolution.warnings,
+                    sourceUrl = resolution.sourceUrl,
+                    headerMetadata = resolution.headerMetadata,
+                )
+                is ResolvedImportInput.HappEncryptedSubscription -> {
+                    throw IllegalArgumentException(buildHappEncryptedSubscriptionMessage(resolution.version))
+                }
+                is ResolvedImportInput.HappRoutingDeepLink -> {
+                    throw IllegalArgumentException("Recognized Happ routing deep link, but Happ routing profile import is not implemented yet")
+                }
+            }
+            Result.success(profiles)
+        } catch (error: Exception) {
+            Log.e(TAG, "Runtime profile resolution failed", error)
+            Result.failure(error)
+        }
+    }
     
     /**
      * Get all imported profiles
@@ -616,6 +672,64 @@ class ConfigRepository(private val context: Context) {
             errors.ifEmpty { listOf("No supported runtime config found in subscription") }
                 .joinToString("; "),
         )
+    }
+
+    private fun selectRuntimeProfiles(
+        payload: String,
+        sourceType: SourceType,
+        warnings: List<String> = emptyList(),
+        sourceUrl: String? = null,
+        headerMetadata: SubscriptionHeaderMetadata? = null,
+    ): List<SwimVpnProfile> {
+        val parsedSubscription = SubscriptionParser.parse(
+            input = payload,
+            sourceType = sourceType,
+            sourceUrl = sourceUrl,
+            headerMetadata = headerMetadata,
+        )
+        val errors = mutableListOf<String>()
+        val profiles = mutableListOf<SwimVpnProfile>()
+        val bundleId = if (parsedSubscription.profiles.size > 1) UUID.randomUUID().toString() else null
+
+        parsedSubscription.profiles.forEachIndexed { index, parsedProfile ->
+            val parseResult = ConfigParserEngine.parseConfig(parsedProfile.raw, sourceType)
+            if (!parseResult.isValid) {
+                errors += parseResult.errors.ifEmpty { listOf("Profile ${index + 1} could not be parsed") }
+                return@forEachIndexed
+            }
+
+            val normalizedProfile = ConfigNormalizationEngine.normalizeProfile(parseResult)
+            if (normalizedProfile == null) {
+                errors += "Failed to normalize profile ${index + 1}"
+                return@forEachIndexed
+            }
+
+            profiles += normalizedProfile.copy(
+                subscriptionProviderName = parsedProfile.providerName ?: parsedSubscription.providerName,
+                subscriptionTrafficUsedBytes = parsedProfile.trafficUsedBytes ?: parsedSubscription.trafficUsedBytes,
+                subscriptionTrafficTotalBytes = parsedProfile.trafficTotalBytes ?: parsedSubscription.trafficTotalBytes,
+                subscriptionExpiresAt = parsedProfile.expiresAt ?: parsedSubscription.expiresAt,
+                subscriptionAutoUpdateIntervalHours = parsedProfile.autoUpdateIntervalHours
+                    ?: parsedSubscription.autoUpdateIntervalHours,
+                parseWarnings = (normalizedProfile.parseWarnings + warnings + parsedProfile.warnings).distinct(),
+            )
+        }
+
+        if (profiles.isEmpty()) {
+            throw IllegalArgumentException(
+                errors.ifEmpty { listOf("No supported runtime config found in subscription") }
+                    .joinToString("; "),
+            )
+        }
+
+        val bundleName = deriveBundleName(profiles)
+        return profiles.mapIndexed { index, profile ->
+            profile.copy(
+                sourceBundleId = bundleId ?: profile.id,
+                sourceBundleName = if (profiles.size > 1) bundleName else profile.displayName,
+                sourceBundleOrder = index,
+            )
+        }
     }
 
     private suspend fun fetchSubscriptionPayload(url: String): SubscriptionFetchResult = withContext(Dispatchers.IO) {

@@ -880,3 +880,11 @@ Decision: A customer-initiated cancellation or revoked paid assignment must not 
 Reason: Cancellation is a voluntary removal of one premium assignment, not an app lockout. The user can still use the app shell, import external configs, and buy a new plan. Showing `EXPIRED` plus supplier remaining days is contradictory and hurts trust.
 
 Consequence: Backend profile bootstrap only treats orders with `ACTIVE` or `PENDING` assignments as current paid entitlement. Historical fulfilled/revoked orders remain traceable for accounting/audit, but they do not drive active plan UI or subscription expiry. Android also defensively hides paid plan/expiry fields unless access is active or pending fulfillment.
+
+## [2026-05-02] Premium Subscription URLs Are Sources, Not Runtime Servers
+
+Decision: A purchased supplier `http://` or `https://` subscription URL is an internal source document. It must not be exposed to Android as an `HTTPS` VPN server. After entitlement is confirmed, Android resolves that source into concrete runtime nodes such as VLESS, VMess, Trojan, or Shadowsocks and only those nodes are selectable/connectable.
+
+Reason: Showing `wb.routerwb.ru` as a server made the app look connected while no usable VPN route existed. The provider domain is not the thing the customer connects through; it is the source that lists the real nodes. The customer-facing quota is also the sold plan quota, while supplier quota remains internal/provider metadata.
+
+Consequence: Store server responses ignore plain HTTP(S) subscription URLs as runtime endpoints. Managed UI hides supplier host/provider details and displays commercial plan quota/usage. Raw supplier config remains preserved for entitlement-backed resolution and future parser refresh.

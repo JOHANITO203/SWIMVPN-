@@ -185,6 +185,10 @@ data class ServerNode(
     val rawConfig: String? = null,
     val source: String? = null,
     val isPinned: Boolean = false,
+    val providerName: String? = null,
+    val trafficUsedBytes: Long? = null,
+    val trafficTotalBytes: Long? = null,
+    val expiresAt: String? = null,
 )
 
 data class ServerGroup(

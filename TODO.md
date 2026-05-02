@@ -970,3 +970,17 @@ u after each future language batch
 
 - After redeploy, confirm `prisma-migrate` no longer exits 137.
 - Expected logs: status check, optional known migration rollback recovery, then `prisma migrate deploy` success.
+
+## Premium config activation QA
+
+- After a paid Basic approval, verify the server selector shows VLESS nodes from the assigned subscription, not `HTTPS - wb.routerwb.ru`.
+- Verify the profile/access quota shows the plan quota (Basic 50 GB, Premium 150 GB, Platinum 500 GB), not the supplier 1000 GB metadata.
+- Verify supplier website/provider host is not shown on the managed active config card.
+
+## Premium subscription runtime node QA
+
+- After backend redeploy and new signed APK install, approve a Basic order backed by `https://wb.routerwb.ru/...` inventory.
+- Confirm `/servers` does not expose `HTTPS - wb.routerwb.ru` as a server row.
+- Confirm Android expands the entitled subscription into selectable VLESS nodes and connects using one of those raw node configs.
+- Confirm the managed profile card shows the plan quota sold to the customer, not the supplier global 1000 GB quota.
+- Confirm supplier website/provider host is not shown on the managed active config card.
