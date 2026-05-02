@@ -1,11 +1,3 @@
-## [2026-05-02] [Obsidian Brain Vault Bootstrap]
-
-- Configured `swimvpnbrain/` as an Obsidian navigation vault for the repository Markdown documentation.
-- Mirrored existing repository `.md` files into `swimvpnbrain/Repository Markdown/` while preserving relative paths.
-- Added a central `SWIMVPN Brain` index and focused maps for architecture, operations, Android, and documentation inventory.
-- Added lightweight Obsidian settings and bookmarks for the core navigation notes.
-- No backend, Android, landing, Prisma, Docker, or entitlement behavior was changed.
-
 # WORKLOG
 
 ## [2026-04-29] [Production Regression Batch - Imported Config, Freemium Quota, Manual Proof]
