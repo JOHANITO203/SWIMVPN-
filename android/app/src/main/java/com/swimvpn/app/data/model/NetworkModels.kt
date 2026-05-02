@@ -29,6 +29,8 @@ data class OrderResponse(
 )
 
 data class CheckoutRequest(
+    @SerializedName("userNumber") val userNumber: String? = null,
+    @SerializedName("deviceId") val deviceId: String? = null,
     @SerializedName("email") val email: String?,
     @SerializedName("phone") val phone: String?,
     @SerializedName("planId") val planId: String,

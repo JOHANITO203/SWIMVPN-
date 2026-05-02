@@ -1001,3 +1001,45 @@ u after each future language batch
   - Confirm Android stops VPN automatically, disables auto-connect, refreshes profile, and returns to `MODE STANDARD`.
   - Confirm imported configs remain visible/usable.
   - Confirm the supplier link capacity is recalculated and can be resold if under cap.
+
+## Multi-agent code review follow-up
+
+- Fix quota reporting integrity:
+  - make `OrderAssignment.measured_used_bytes` monotonic with `max(existing, reported)`;
+  - reject or audit lower client reports unless an admin reset path exists;
+  - keep `reportUsage` response shape compatible with Android.
+- Fix backend entitlement/source truth:
+  - include expired assignments in profile resolution when the correct state is `EXPIRED_TRIAL` or `EXPIRED_SUBSCRIPTION`;
+  - keep revoked/cancelled assignments as `FREEMIUM` / standard mode;
+  - align `customer-order-service` and `store-engine-service` expiry checks.
+- Fix inventory safety:
+  - include `source_quota_bytes/source_used_bytes` in allocation and health status decisions;
+  - prevent source-quota exhaustion from being cleared by health recalculation;
+  - prevent `moveAssignment` from reactivating revoked/expired/failed assignments.
+- Move managed subscription URL expansion behind backend authorization:
+  - Android should not be the authoritative resolver for SWIMVPN-managed supplier subscription URLs;
+  - backend should expose only entitlement-checked runtime nodes/config payloads.
+- Harden manual card/payment bots:
+  - require explicit `ADMIN_USER_IDS` for approve/reject/copy/resend actions;
+  - add a recoverable delivery state for fulfilled-but-email-failed orders;
+  - filter active assignments before resend/copy delivery actions;
+  - avoid storing or broadcasting raw VPN config in broad Telegram group contexts.
+- Harden deploy/bootstrap:
+  - document or template root `DATABASE_URL`;
+  - split production reference seed from demo/starter inventory seed;
+  - provide an explicit fresh-DB admin bootstrap path without default credentials.
+
+## Deploy/bootstrap seed QA
+
+- After dependencies are available, run `cd backend && npm run verify:deploy` to exercise Prisma validate/generate before lint/build/policy tests.
+- On fresh production bootstrap, keep `SEED_DEMO_DATA=false` and create real inventory through the authenticated admin import flow.
+- Create the first `Admin` row through a controlled ops step with a bcrypt `password_hash`; do not add default credentials to seed files.
+
+## Multi-agent review fix batch QA
+
+- Run backend policy tests in a dependency-complete environment: `cd backend && npm run test:policy`.
+- Run backend deploy verification in the container or after dependency restore: `cd backend && npm run verify:deploy`.
+- Run Android targeted test when Windows memory/paging is stable: `cd android && .\gradlew.bat :app:testDebugUnitTest --tests "com.swimvpn.app.data.network.AccessProfileResponseTest" --no-daemon --max-workers=1 --console=plain`.
+- Live QA: create a newer revoked/failed order while an older order remains active and confirm the app still sees the active assignment.
+- Live QA: force a usage-report failure during active backend premium connection and confirm the app does not lose the selected runtime node/config.
+- Admin QA: attempt to move an assignment with measured usage onto a near-exhausted inventory source and confirm the move is rejected.

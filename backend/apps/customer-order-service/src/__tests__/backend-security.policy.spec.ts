@@ -75,6 +75,83 @@ async function main() {
     'expired inventory must not be treated as active premium access',
   );
 
+  const activeOlderOrderService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-active-older',
+          public_id: 'SW-ACTIVE-OLDER',
+          device_id: 'device-active-older',
+          email: 'active-older@example.com',
+          phone: '79000000011',
+          orders: [
+            {
+              id: 'order-new-revoked',
+              order_ref: 'ORD-NEW-REVOKED',
+              status: 'FULFILLED',
+              plan: { code: 'WEEK', quota_label: '50 GB' },
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-05-02T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-05-02T00:00:00.000Z'),
+              assignments: [
+                {
+                  id: 'assignment-new-revoked',
+                  access_status: 'REVOKED',
+                  inventory_item_id: 'inventory-new-revoked',
+                  measured_used_bytes: 0n,
+                  inventory_item: {
+                    id: 'inventory-new-revoked',
+                    raw_config: 'vless://revoked',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                    supplier_expires_at: null,
+                  },
+                },
+              ],
+            },
+            {
+              id: 'order-old-active',
+              order_ref: 'ORD-OLD-ACTIVE',
+              status: 'FULFILLED',
+              plan: { code: 'WEEK', quota_label: '50 GB' },
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-05-01T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-05-01T00:00:00.000Z'),
+              assignments: [
+                {
+                  id: 'assignment-old-active',
+                  access_status: 'ACTIVE',
+                  inventory_item_id: 'inventory-old-active',
+                  measured_used_bytes: 0n,
+                  inventory_item: {
+                    id: 'inventory-old-active',
+                    raw_config: 'vless://active',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                    supplier_expires_at: null,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const activeOlderProfile = await activeOlderOrderService.getProfile('SW-ACTIVE-OLDER');
+  assert(
+    activeOlderProfile.entitlementState === 'ACTIVE_SUBSCRIPTION',
+    'a newer revoked order must not mask an older still-active paid assignment',
+  );
+  assert(
+    activeOlderProfile.subscriptionUrl === 'vless://active',
+    'profile must expose the active assignment runtime config, not the revoked one',
+  );
+
   const activePlanQuotaService = new CustomerService(
     {
       customer: {
@@ -272,6 +349,126 @@ async function main() {
   assert(revokedProfile.offerCode === null, 'revoked subscriptions should not keep paid offer badge');
   assert(revokedProfile.subscriptionExpiresAt === null, 'revoked subscriptions should not show remaining paid days');
 
+  const expiredPaidProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-expired-paid',
+          public_id: 'SW-EXPIRED-PAID',
+          device_id: 'device-expired-paid',
+          email: 'expired-paid@example.com',
+          phone: '79000000004',
+          orders: [
+            {
+              id: 'order-expired-paid',
+              order_ref: 'ORD-EXPIRED-PAID',
+              status: 'FULFILLED',
+              plan: {
+                code: 'MONTH',
+                quota_label: '50 GB',
+              },
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-04-01T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-04-01T00:00:00.000Z'),
+              assignments: [
+                {
+                  id: 'assignment-expired-paid',
+                  access_status: 'EXPIRED',
+                  inventory_item_id: 'inventory-expired-paid',
+                  expires_at: new Date('2026-04-30T00:00:00.000Z'),
+                  measured_used_bytes: 1n,
+                  inventory_item: {
+                    id: 'inventory-expired-paid',
+                    raw_config: 'vless://uuid@expired-paid.example:443#ExpiredPaid',
+                    source_quota_bytes: 1000n,
+                    source_used_bytes: 10n,
+                    supplier_expires_at: new Date('2026-05-10T00:00:00.000Z'),
+                    supplier_provider_name: 'Provider',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const expiredPaidProfile = await expiredPaidProfileService.getProfile('SW-EXPIRED-PAID');
+  assert(
+    expiredPaidProfile.entitlementState === 'EXPIRED_SUBSCRIPTION',
+    'latest expired paid assignment should be represented as expired subscription',
+  );
+  assert(expiredPaidProfile.status === 'EXPIRED', 'expired paid assignment should keep legacy expired status');
+  assert(expiredPaidProfile.subscriptionUrl === null, 'expired paid assignment must not expose runtime config');
+
+  const expiredTrialProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-expired-trial',
+          public_id: 'SW-EXPIRED-TRIAL',
+          device_id: 'device-expired-trial',
+          email: 'expired-trial@example.com',
+          phone: '79000000005',
+          orders: [
+            {
+              id: 'order-expired-trial',
+              order_ref: 'TRIAL-SW-EXPIRED-TRIAL-1',
+              status: 'FULFILLED',
+              plan: {
+                code: 'WEEK',
+                quota_label: '7 GB',
+              },
+              payment_ref: 'TRIAL:3D',
+              created_at: new Date('2026-04-25T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-04-25T00:00:00.000Z'),
+              assignments: [
+                {
+                  id: 'assignment-expired-trial',
+                  access_status: 'EXPIRED',
+                  inventory_item_id: 'inventory-expired-trial',
+                  expires_at: new Date('2026-04-28T00:00:00.000Z'),
+                  measured_used_bytes: 0n,
+                  inventory_item: {
+                    id: 'inventory-expired-trial',
+                    raw_config: 'vless://uuid@expired-trial.example:443#ExpiredTrial',
+                    source_quota_bytes: null,
+                    source_used_bytes: 0n,
+                    supplier_expires_at: new Date('2026-05-10T00:00:00.000Z'),
+                    supplier_provider_name: 'Provider',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => ({ id: 'existing-trial' }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const expiredTrialProfile = await expiredTrialProfileService.getProfile('SW-EXPIRED-TRIAL');
+  assert(
+    expiredTrialProfile.entitlementState === 'EXPIRED_TRIAL',
+    'latest expired trial assignment should be represented as expired trial',
+  );
+  assert(expiredTrialProfile.status === 'EXPIRED', 'expired trial assignment should keep legacy expired status');
+  assert(expiredTrialProfile.subscriptionUrl === null, 'expired trial assignment must not expose runtime config');
+
   const paidPendingProfileService = new CustomerService(
     {
       customer: {
@@ -467,6 +664,269 @@ async function main() {
   assert(
     structuredFulfillmentFailureEvents.length === 1,
     'structured inventory fulfillment failures should be audited',
+  );
+
+  const trialFailureOrderUpdates: unknown[] = [];
+  const trialFailureEvents: unknown[] = [];
+  const trialFulfillmentFailureService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-fail',
+          public_id: 'SW-TRIAL-FAIL',
+          device_id: 'device-trial-fail',
+          email: 'trial-fail@example.com',
+          phone: '79000000006',
+        }),
+        update: async (args: unknown) => args,
+      },
+      order: {
+        findFirst: async () => null,
+        create: async () => ({
+          id: 'order-trial-fail',
+          order_ref: 'TRIAL-SW-TRIAL-FAIL-1',
+        }),
+        update: async (args: unknown) => {
+          trialFailureOrderUpdates.push(args);
+          return args;
+        },
+      },
+      plan: {
+        findFirst: async () => ({ id: 'plan-week' }),
+      },
+      adminEvent: {
+        create: async (event: unknown) => {
+          trialFailureEvents.push(event);
+          return event;
+        },
+      },
+    } as any,
+    {
+      send: () => throwError(() => new Error('Inventory service unavailable')),
+    } as any,
+    {} as any,
+    {} as any,
+  );
+  (trialFulfillmentFailureService as any).getProfile = async () => ({
+    userNumber: 'SW-TRIAL-FAIL',
+    entitlementState: 'PENDING_FULFILLMENT',
+  });
+
+  const trialFailureProfile = await trialFulfillmentFailureService.activateTrial({
+    userNumber: 'SW-TRIAL-FAIL',
+    deviceId: 'device-trial-fail',
+    email: 'trial-fail@example.com',
+    phone: '79000000006',
+  });
+  assert(
+    trialFailureProfile.entitlementState === 'PENDING_FULFILLMENT',
+    'trial fulfillment exception should return pending fulfillment profile',
+  );
+  assert(
+    trialFailureOrderUpdates.some((args: any) => args.data?.status === 'PENDING_FULFILLMENT'),
+    'trial fulfillment exception should leave trial order pending fulfillment instead of silently burning it',
+  );
+  assert(trialFailureEvents.length === 1, 'trial fulfillment exception should be audited');
+
+  const structuredTrialFailureOrderUpdates: unknown[] = [];
+  const structuredTrialFulfillmentFailureService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-structured-fail',
+          public_id: 'SW-TRIAL-STRUCTURED-FAIL',
+          device_id: 'device-trial-structured-fail',
+          email: 'trial-structured-fail@example.com',
+          phone: '79000000007',
+        }),
+        update: async (args: unknown) => args,
+      },
+      order: {
+        findFirst: async () => null,
+        create: async () => ({
+          id: 'order-trial-structured-fail',
+          order_ref: 'TRIAL-SW-TRIAL-STRUCTURED-FAIL-1',
+        }),
+        update: async (args: unknown) => {
+          structuredTrialFailureOrderUpdates.push(args);
+          return args;
+        },
+      },
+      plan: {
+        findFirst: async () => ({ id: 'plan-week' }),
+      },
+      adminEvent: {
+        create: async (event: unknown) => event,
+      },
+    } as any,
+    {
+      send: () => of({ success: false, error: 'No inventory available' }),
+    } as any,
+    {} as any,
+    {} as any,
+  );
+  (structuredTrialFulfillmentFailureService as any).getProfile = async () => ({
+    userNumber: 'SW-TRIAL-STRUCTURED-FAIL',
+    entitlementState: 'PENDING_FULFILLMENT',
+  });
+
+  await structuredTrialFulfillmentFailureService.activateTrial({
+    userNumber: 'SW-TRIAL-STRUCTURED-FAIL',
+    deviceId: 'device-trial-structured-fail',
+    email: 'trial-structured-fail@example.com',
+    phone: '79000000007',
+  });
+  assert(
+    structuredTrialFailureOrderUpdates.some((args: any) => args.data?.status === 'PENDING_FULFILLMENT'),
+    'trial fulfillment success:false should leave trial order pending fulfillment',
+  );
+
+  const usageWithoutActiveOrderService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-usage-no-active',
+          public_id: 'SW-USAGE-NO-ACTIVE',
+          device_id: 'device-usage-no-active',
+          email: 'usage-no-active@example.com',
+          phone: '79000000008',
+          orders: [],
+        }),
+      },
+    } as any,
+    {
+      send: () => {
+        throw new Error('usage should not be recorded without an active fulfilled order');
+      },
+    } as any,
+    {} as any,
+    {} as any,
+  );
+  (usageWithoutActiveOrderService as any).getProfile = async () => ({
+    userNumber: 'SW-USAGE-NO-ACTIVE',
+    status: 'FREEMIUM',
+    entitlementState: 'FREEMIUM',
+    subscriptionUrl: null,
+  });
+
+  const usageWithoutActiveOrderProfile = await usageWithoutActiveOrderService.reportUsage({
+    userNumber: 'SW-USAGE-NO-ACTIVE',
+    deviceId: 'device-usage-no-active',
+    measuredUsedBytes: '123',
+  });
+  assert(
+    usageWithoutActiveOrderProfile.entitlementState === 'FREEMIUM',
+    'usage reporting without active fulfilled order should still return an access profile',
+  );
+  assert(
+    !('ignored' in usageWithoutActiveOrderProfile),
+    'usage reporting response should not switch to a non-profile ignored payload',
+  );
+
+  const checkoutOrders: unknown[] = [];
+  const checkoutCustomerUpdates: unknown[] = [];
+  const checkoutService = new CustomerService(
+    {
+      plan: {
+        findUnique: async () => ({
+          id: 'plan-month',
+          active: true,
+          price_rub: 500,
+          name: 'Premium',
+          duration_label: 'Month',
+          quota_label: '50 GB',
+        }),
+      },
+      customer: {
+        findUnique: async (args: any) => {
+          if (args.where?.public_id === 'SW-CHECKOUT') {
+            return {
+              id: 'customer-checkout',
+              public_id: 'SW-CHECKOUT',
+              device_id: 'device-checkout',
+              email: 'old-checkout@example.com',
+              phone: '79000000009',
+            };
+          }
+          return null;
+        },
+        findFirst: async () => {
+          throw new Error('checkout should prefer provided userNumber before contact lookup');
+        },
+        update: async (args: unknown) => {
+          checkoutCustomerUpdates.push(args);
+          return {
+            id: 'customer-checkout',
+            public_id: 'SW-CHECKOUT',
+            device_id: 'device-checkout',
+            email: 'new-checkout@example.com',
+            phone: '79000000010',
+          };
+        },
+      },
+      order: {
+        create: async (args: unknown) => {
+          checkoutOrders.push(args);
+          return {
+            id: 'order-checkout',
+            order_ref: 'ORD-CHECKOUT',
+            status: 'PENDING',
+          };
+        },
+        update: async (args: unknown) => args,
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {
+      createInvoice: async () => ({
+        invoice_id: 'invoice-checkout',
+        bot_invoice_url: 'https://pay.example/invoice-checkout',
+      }),
+    } as any,
+  );
+
+  await checkoutService.createCheckout({
+    userNumber: 'SW-CHECKOUT',
+    deviceId: 'device-checkout',
+    email: 'new-checkout@example.com',
+    phone: '79000000010',
+    planId: 'plan-month',
+    paymentMethod: 'CRYPTO',
+  } as any);
+  assert(
+    (checkoutOrders[0] as any).data?.customer_id === 'customer-checkout',
+    'checkout should attach order to provided userNumber customer when supplied',
+  );
+  assert(checkoutCustomerUpdates.length === 1, 'checkout should update contact fields on the existing customer');
+
+  const checkoutWithoutDeviceService = new CustomerService(
+    {
+      plan: {
+        findUnique: async () => ({
+          id: 'plan-month',
+          active: true,
+          price_rub: 500,
+          name: 'Premium',
+          duration_label: 'Month',
+          quota_label: '50 GB',
+        }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  await assertRejectsWithRpcException(
+    () => checkoutWithoutDeviceService.createCheckout({
+      userNumber: 'SW-CHECKOUT',
+      email: 'new-checkout@example.com',
+      phone: '79000000010',
+      planId: 'plan-month',
+      paymentMethod: 'CARD_MANUAL',
+    } as any),
+    'user-bound checkout must require the device id',
   );
 
   console.log('backend security policy tests passed');

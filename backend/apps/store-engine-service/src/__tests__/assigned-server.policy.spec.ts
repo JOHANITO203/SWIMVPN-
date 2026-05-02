@@ -18,6 +18,8 @@ async function main() {
 
   let healthStatus = 'HEALTHY';
   let measuredUsedBytes = 1n;
+  let assignmentExpiresAt: Date | null = new Date(Date.now() + 60_000);
+  let supplierExpiresAt: Date | null = new Date(Date.now() + 60_000);
   const service = new StoreService({
     customer: {
       findUnique: async () => ({
@@ -35,7 +37,7 @@ async function main() {
               {
                 id: 'assignment-1',
                 access_status: 'ACTIVE',
-                expires_at: new Date(Date.now() + 60_000),
+                expires_at: assignmentExpiresAt,
                 measured_used_bytes: measuredUsedBytes,
                 inventory_item: {
                   id: 'inventory-1',
@@ -47,6 +49,7 @@ async function main() {
                   health_status: healthStatus,
                   source_quota_bytes: BigInt(1_000),
                   source_used_bytes: BigInt(1),
+                  supplier_expires_at: supplierExpiresAt,
                 },
               },
             ],
@@ -74,6 +77,15 @@ async function main() {
   healthStatus = 'EXPIRED';
   const expiredServers = await service.getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });
   assert(expiredServers.length === 0, 'EXPIRED inventory must not expose premium servers');
+
+  healthStatus = 'HEALTHY';
+  assignmentExpiresAt = null;
+  supplierExpiresAt = new Date(Date.now() - 60_000);
+  const supplierExpiredServers = await service.getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });
+  assert(
+    supplierExpiredServers.length === 0,
+    'supplier expiry must block premium servers when assignment expiry is absent',
+  );
 
   console.log('assigned server policy tests passed');
 }

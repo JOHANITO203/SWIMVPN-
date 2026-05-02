@@ -66,6 +66,8 @@ export class CustomerService {
         email: data.email,
         phone: data.phone,
         planId: data.planId,
+        userNumber: data.userNumber,
+        deviceId: data.deviceId,
       });
 
       if (data.paymentMethod === 'CRYPTO') {
@@ -186,11 +188,19 @@ export class CustomerService {
     });
 
     try {
-      await firstValueFrom(
+      const fulfillmentResult = await firstValueFrom(
         this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
       );
+      if (fulfillmentResult?.success === false) {
+        const errorMessage = fulfillmentResult.error || 'Inventory fulfillment failed';
+        await this.auditFulfillmentFailure(order, 'TRIAL:3D', errorMessage);
+        await this.markOrderPendingFulfillment(order.id);
+      }
     } catch (e) {
+      const errorMessage = this.extractErrorMessage(e, 'Fulfillment failed during trial activation');
       console.error('Fulfillment failed during trial activation:', e);
+      await this.auditFulfillmentFailure(order, 'TRIAL:3D', errorMessage);
+      await this.markOrderPendingFulfillment(order.id);
     }
 
     return this.getProfile(customer.public_id);
@@ -241,7 +251,11 @@ export class CustomerService {
         orders: {
           where: {
             status: {
-              in: [OrderStatus.FULFILLED, OrderStatus.PAID, OrderStatus.PENDING_FULFILLMENT],
+              in: [
+                OrderStatus.FULFILLED,
+                OrderStatus.PAID,
+                OrderStatus.PENDING_FULFILLMENT,
+              ],
             },
           },
           orderBy: { created_at: 'desc' },
@@ -382,23 +396,30 @@ export class CustomerService {
     }
 
     const trialEligible = await this.isTrialEligible(customer, customer.email, customer.phone);
-    const latestOrder = customer.orders.find((order) =>
+    const latestActiveOrder = customer.orders.find((order) =>
+      order.assignments.some((item) => item.access_status === AssignmentAccessStatus.ACTIVE),
+    );
+    const latestPendingOrder = customer.orders.find((order) =>
       order.status === OrderStatus.PAID ||
       order.status === OrderStatus.PENDING_FULFILLMENT ||
-      order.assignments.some(
-        (item) =>
-          item.access_status === AssignmentAccessStatus.ACTIVE ||
-          item.access_status === AssignmentAccessStatus.PENDING,
-      ),
+      order.assignments.some((item) => item.access_status === AssignmentAccessStatus.PENDING),
     );
-    const activeAssignment = latestOrder?.assignments.find(
+    const latestExpiredOrder = customer.orders.find((order) =>
+      order.assignments.some((item) => item.access_status === AssignmentAccessStatus.EXPIRED),
+    );
+    const latestRelevantOrder = latestActiveOrder ?? latestPendingOrder ?? latestExpiredOrder;
+    const activeAssignment = latestRelevantOrder?.assignments.find(
       (item) =>
         item.access_status === AssignmentAccessStatus.ACTIVE,
     );
-    const pendingAssignment = latestOrder?.assignments.find(
+    const pendingAssignment = latestRelevantOrder?.assignments.find(
       (item) => item.access_status === AssignmentAccessStatus.PENDING,
     );
-    const assignment = activeAssignment ?? pendingAssignment;
+    const expiredAssignment = latestRelevantOrder?.assignments.find(
+      (item) => item.access_status === AssignmentAccessStatus.EXPIRED,
+    );
+    const assignment = activeAssignment ?? pendingAssignment ?? expiredAssignment;
+    const latestOrder = latestRelevantOrder && assignment ? latestRelevantOrder : undefined;
     const inventoryItem = assignment?.inventory_item;
     const isTrialOrder = this.isTrialOrder(latestOrder);
     const accessType = latestOrder ? (isTrialOrder ? 'TRIAL' : 'PAID') : 'NONE';
@@ -414,7 +435,7 @@ export class CustomerService {
       ? this.calculateSubscriptionExpiresAt(latestOrder, isTrialOrder)
       : null;
     const providerExpiresAt =
-      activeAssignment?.expires_at?.toISOString() ||
+      assignment?.expires_at?.toISOString() ||
       inventoryItem?.supplier_expires_at?.toISOString() ||
       null;
     const subscriptionExpiresAt = isTrialOrder
@@ -425,7 +446,7 @@ export class CustomerService {
       latestOrder && !isTrialOrder
         ? this.parseQuotaLabelToGb(latestOrder.plan.quota_label || '')
         : 0;
-    const measuredDataUsedBytes = activeAssignment?.measured_used_bytes?.toString() || '0';
+    const measuredDataUsedBytes = assignment?.measured_used_bytes?.toString() || '0';
     const entitlementState = this.resolveEntitlementState({
       hasCompletedProfile: !!customer.email && !!customer.phone,
       hasOrder: !!latestOrder,
@@ -501,7 +522,7 @@ export class CustomerService {
 
     const profile = await this.getProfile(customer.public_id);
     if (!this.isPremiumAllowed(profile.entitlementState)) {
-      throw new Error('Active access is required to resolve encrypted subscription payloads');
+      throw new Error('PREMIUM_REQUIRED: Active access is required to resolve encrypted subscription payloads');
     }
 
     const encryptedLink = data.encryptedLink?.trim();
@@ -596,7 +617,7 @@ export class CustomerService {
       }) || null;
     const latestOrder = bestActiveOrder;
     if (!latestOrder) {
-      return { success: true, ignored: true, reason: 'NO_FULFILLED_ORDER' };
+      return this.getProfile(customer.public_id);
     }
 
     await firstValueFrom(
@@ -841,7 +862,13 @@ export class CustomerService {
     }).catch(() => undefined);
   }
 
-  private async preparePendingOrder(data: { email?: string; phone?: string; planId: string }) {
+  private async preparePendingOrder(data: {
+    email?: string;
+    phone?: string;
+    planId: string;
+    userNumber?: string;
+    deviceId?: string;
+  }) {
     const plan = await this.prisma.plan.findUnique({
       where: { id: data.planId },
     });
@@ -857,7 +884,12 @@ export class CustomerService {
       this.fail('Payment contact email is required before checkout');
     }
 
-    const customer = await this.findOrCreateCustomerByContact(normalizedEmail, normalizedPhone);
+    const customer = await this.findOrCreateCheckoutCustomer({
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      userNumber: data.userNumber,
+      deviceId: data.deviceId,
+    });
     const orderRef = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const order = await this.prisma.order.create({
       data: {
@@ -958,10 +990,78 @@ export class CustomerService {
     return normalized.trim();
   }
 
+  private async findOrCreateCheckoutCustomer(data: {
+    email: string;
+    phone?: string;
+    userNumber?: string;
+    deviceId?: string;
+  }) {
+    const userNumber = data.userNumber?.trim();
+    const deviceId = this.normalizeOptionalDeviceId(data.deviceId);
+
+    if (userNumber && !deviceId) {
+      this.fail('Device is required for user-bound checkout');
+    }
+
+    if (userNumber) {
+      const customer = await this.prisma.customer.findUnique({
+        where: { public_id: userNumber },
+      });
+
+      if (customer) {
+        if (!customer.device_id || customer.device_id !== deviceId) {
+          this.fail('Device is not authorized for checkout');
+        }
+
+        return this.updateCheckoutCustomerContact(customer, data.email, data.phone);
+      }
+    }
+
+    if (deviceId) {
+      const customer = await this.prisma.customer.findUnique({
+        where: { device_id: deviceId },
+      });
+
+      if (customer) {
+        return this.updateCheckoutCustomerContact(customer, data.email, data.phone);
+      }
+    }
+
+    return this.findOrCreateCustomerByContact(data.email, data.phone);
+  }
+
+  private async updateCheckoutCustomerContact(
+    customer: { id: string; email?: string | null; phone?: string | null },
+    email: string,
+    phone?: string,
+  ) {
+    const nextPhone = phone ?? customer.phone ?? undefined;
+    if (customer.email !== email || customer.phone !== nextPhone) {
+      return this.prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          email,
+          phone: nextPhone,
+        },
+      });
+    }
+
+    return customer;
+  }
+
   private normalizeDeviceId(deviceId?: string) {
     const normalized = deviceId?.trim();
     if (!normalized || ['unknown_device_id', 'unknown', 'null'].includes(normalized.toLowerCase())) {
       this.fail('Valid device id is required');
+    }
+
+    return normalized;
+  }
+
+  private normalizeOptionalDeviceId(deviceId?: string) {
+    const normalized = deviceId?.trim();
+    if (!normalized || ['unknown_device_id', 'unknown', 'null'].includes(normalized.toLowerCase())) {
+      return undefined;
     }
 
     return normalized;

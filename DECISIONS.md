@@ -896,3 +896,19 @@ Decision: For paid access, SWIMVPN does not invent a separate local expiration f
 Reason: The supplier controls the actual subscription lifetime. The product responsibility we keep locally is the commercial quota sold to the customer and the app experience after that quota is reached.
 
 Consequence: Plan quota exhaustion marks the assignment ended, recalculates inventory resale capacity, blocks backend Premium server delivery, stops the Android VPN on the next usage report, and returns the user to standard mode without locking the app. Imported configs remain independent and usable.
+
+## [2026-05-02] Production Seed Is Reference-Only By Default
+
+Decision: Prisma production seed must only ensure missing reference plans/servers and must not create starter VPN inventory unless `SEED_DEMO_DATA=true` is explicitly set.
+
+Reason: Production deploy/bootstrap must not expose hardcoded VPN configs or overwrite live pricing/plans. Real inventory must enter through controlled admin/import flows, and the first database admin must be created through an explicit ops step with a bcrypt password hash.
+
+Consequence: Fresh production databases get minimal catalog references, but no usable demo VPN access and no default admin credentials. Existing plan pricing/copy remains database truth after the first creation.
+
+## [2026-05-02] Active Entitlement Selection Prefers Usable Access Over Newer Terminal Orders
+
+Decision: Customer profile resolution must prefer the newest usable active assignment, then pending fulfillment, then expired assignment. Revoked or failed terminal assignments must not mask an older still-active assignment.
+
+Reason: A failed or revoked later order is not proof that an older valid paid access should be removed. Backend entitlement remains the source of truth, but the selection rule must preserve usable access when it exists.
+
+Consequence: Android receives active entitlement when any recent active assignment is still valid, while customers with only revoked/failed terminal assignments return to standard/freemium state.

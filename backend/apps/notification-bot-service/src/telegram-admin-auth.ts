@@ -25,6 +25,13 @@ export function parseAdminUserIds(value?: string | null) {
     .filter(Boolean);
 }
 
+export function isTelegramAdminUser(input: Pick<TelegramAdminAuthInput, 'fromId' | 'adminUserIds'>) {
+  const fromId = normalizeTelegramId(input.fromId);
+  const adminUserIds = (input.adminUserIds || []).map((item) => normalizeTelegramId(item)).filter(Boolean);
+
+  return !!fromId && adminUserIds.includes(fromId);
+}
+
 export function isTelegramAdminContext(input: TelegramAdminAuthInput) {
   const fromId = normalizeTelegramId(input.fromId);
   const chatId = normalizeTelegramId(input.chatId);

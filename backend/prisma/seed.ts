@@ -1,9 +1,10 @@
 import { PrismaClient, PlanCategory } from '@prisma/client';
 
 const prisma = new PrismaClient();
+const shouldSeedDemoData = process.env.SEED_DEMO_DATA === 'true';
 
 async function main() {
-  // 1. Seed Plans
+  // 1. Seed reference plans without overwriting production pricing or copy.
   const plans = [
     {
       code: PlanCategory.WEEK,
@@ -38,11 +39,14 @@ async function main() {
   ];
 
   for (const plan of plans) {
-    await prisma.plan.upsert({
+    const existingPlan = await prisma.plan.findUnique({
       where: { code: plan.code },
-      update: plan,
-      create: plan,
+      select: { id: true },
     });
+
+    if (!existingPlan) {
+      await prisma.plan.create({ data: plan });
+    }
   }
 
   // 2. Seed some Servers
@@ -59,24 +63,30 @@ async function main() {
     });
   }
 
-  // 3. Seed some Inventory (starter WEEK-category inventory used by assignments)
-  const seededConfig = await prisma.inventoryItem.findFirst({
-    where: { batch_name: 'SEED-BATCH' },
-  });
-  if (!seededConfig) {
-    await prisma.inventoryItem.create({
-      data: {
-        category: PlanCategory.WEEK,
-        raw_config: 'vless://8e966870-7389-4e58-958b-083656c07525@de1.swimvpn.net:443?encryption=none&security=tls&type=grpc&serviceName=swimvpn-grpc#SwimVPN-Trial',
-        config_type: 'VLESS',
-        display_protocol: 'VLESS',
-        batch_name: 'SEED-BATCH',
-        status: 'AVAILABLE',
-      },
+  // 3. Demo inventory is opt-in only. Production must ingest real configs through admin flows.
+  if (shouldSeedDemoData) {
+    const seededConfig = await prisma.inventoryItem.findFirst({
+      where: { batch_name: 'SEED-BATCH' },
     });
+    if (!seededConfig) {
+      await prisma.inventoryItem.create({
+        data: {
+          category: PlanCategory.WEEK,
+          raw_config: 'vless://8e966870-7389-4e58-958b-083656c07525@de1.swimvpn.net:443?encryption=none&security=tls&type=grpc&serviceName=swimvpn-grpc#SwimVPN-Trial',
+          config_type: 'VLESS',
+          display_protocol: 'VLESS',
+          batch_name: 'SEED-BATCH',
+          status: 'AVAILABLE',
+        },
+      });
+    }
   }
 
-  console.log('Seed completed: paid plans, servers, and starter WEEK inventory created.');
+  console.log(
+    shouldSeedDemoData
+      ? 'Seed completed: missing reference plans/servers ensured; demo starter inventory enabled.'
+      : 'Seed completed: missing reference plans/servers ensured; demo starter inventory skipped.',
+  );
 }
 
 main()

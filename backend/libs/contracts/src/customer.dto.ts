@@ -96,6 +96,14 @@ export class CreateOrderDto {
 }
 
 export class CreateCheckoutDto {
+  @IsString()
+  @IsOptional()
+  userNumber?: string;
+
+  @IsString()
+  @IsOptional()
+  deviceId?: string;
+
   @IsEmail()
   @IsOptional()
   email?: string;

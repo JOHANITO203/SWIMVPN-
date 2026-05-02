@@ -9,7 +9,16 @@ import {
   buildManualPaymentContactReviewText,
   parseManualPaymentConfirmation,
 } from './manual-card-confirmation';
-import { isTelegramAdminContext, normalizeTelegramId, parseAdminUserIds } from './telegram-admin-auth';
+import {
+  buildActiveDeliverableAssignmentInclude,
+  selectLatestDeliverableAssignment,
+} from './delivery-policy';
+import {
+  isTelegramAdminContext,
+  isTelegramAdminUser,
+  normalizeTelegramId,
+  parseAdminUserIds,
+} from './telegram-admin-auth';
 import { NOTIFICATION_BOT_COMMANDS, formatTelegramCommandHelp } from './telegram-command-menu';
 import { selectPaymentCommandBotToken } from './telegram-token-routing';
 
@@ -107,7 +116,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('resend', async (ctx) => {
-      if (!this.isAdmin(ctx)) return;
+      if (!this.isSensitiveAdminAction(ctx)) return;
       const orderRef = this.extractOrderRef(ctx.message.text);
       if (!orderRef) return ctx.reply('Usage: /resend SW12345');
       const result = await this.notificationService.resendDeliveryEmail(orderRef, 'ru');
@@ -173,7 +182,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('approve_card', async (ctx) => {
-      if (!this.isAdmin(ctx)) return;
+      if (!this.isSensitiveAdminAction(ctx)) return;
       const orderRef = this.extractOrderRef(ctx.message.text);
       if (!orderRef) return ctx.reply('Usage: /approve_card ORD-...');
 
@@ -187,7 +196,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('reject_card', async (ctx) => {
-      if (!this.isAdmin(ctx)) return;
+      if (!this.isSensitiveAdminAction(ctx)) return;
       const orderRef = this.extractOrderRef(ctx.message.text);
       if (!orderRef) return ctx.reply('Usage: /reject_card ORD-...');
       await this.rejectManualCardOrder(ctx, orderRef, 'Manual transfer rejected by admin command');
@@ -447,7 +456,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.action(/resend:(.+)/, async (ctx) => {
-      if (!this.isAdmin(ctx)) {
+      if (!this.isSensitiveAdminAction(ctx)) {
         await ctx.answerCbQuery('Access denied');
         return;
       }
@@ -459,17 +468,25 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.action(/copy:(.+)/, async (ctx) => {
-      if (!this.isAdmin(ctx)) {
+      if (!this.isSensitiveAdminAction(ctx)) {
         await ctx.answerCbQuery('Access denied');
+        return;
+      }
+
+      if (!this.isPrivateAdminChat(ctx)) {
+        await ctx.answerCbQuery('Open a DM with the bot to copy VPN config');
+        await ctx.reply('Raw VPN config is only available in an explicit admin DM. Use /copy from your private chat.');
         return;
       }
 
       const orderRef = ctx.match[1];
       const order = await this.prisma.order.findUnique({
         where: { order_ref: orderRef },
-        include: { assignments: { include: { inventory_item: true } } },
+        include: {
+          assignments: buildActiveDeliverableAssignmentInclude(),
+        },
       });
-      const vpnLink = order?.assignments?.[0]?.inventory_item?.raw_config;
+      const vpnLink = selectLatestDeliverableAssignment(order?.assignments || [])?.inventory_item?.raw_config;
       await ctx.answerCbQuery(vpnLink ? 'VPN link ready' : 'VPN link not found');
       if (vpnLink) {
         await ctx.reply(`VPN link for ${orderRef}:\n${vpnLink}`);
@@ -477,7 +494,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.action(/mark:(.+)/, async (ctx) => {
-      if (!this.isAdmin(ctx)) {
+      if (!this.isSensitiveAdminAction(ctx)) {
         await ctx.answerCbQuery('Access denied');
         return;
       }
@@ -507,7 +524,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.action(/approve_card:(.+):(.+)/, async (ctx) => {
-      if (!this.isAdmin(ctx)) {
+      if (!this.isSensitiveAdminAction(ctx)) {
         await ctx.answerCbQuery('Access denied');
         return;
       }
@@ -519,7 +536,7 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.action(/reject_card:(.+):(.+)/, async (ctx) => {
-      if (!this.isAdmin(ctx)) {
+      if (!this.isSensitiveAdminAction(ctx)) {
         await ctx.answerCbQuery('Access denied');
         return;
       }
@@ -1171,6 +1188,20 @@ export class TelegramCommandService implements OnModuleInit, OnModuleDestroy {
       reviewChatId: this.reviewChatId,
       adminUserIds: this.adminUserIds,
     });
+  }
+
+  private isSensitiveAdminAction(ctx: any) {
+    return isTelegramAdminUser({
+      fromId: ctx.from?.id,
+      adminUserIds: this.adminUserIds,
+    });
+  }
+
+  private isPrivateAdminChat(ctx: any) {
+    const fromId = normalizeTelegramId(ctx.from?.id);
+    const chatId = normalizeTelegramId(ctx.chat?.id || ctx.callbackQuery?.message?.chat?.id);
+
+    return !!fromId && fromId === chatId && this.isSensitiveAdminAction(ctx);
   }
 
   private async handleCardStart(ctx: any, orderRef: string) {

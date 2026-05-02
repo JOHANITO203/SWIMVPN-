@@ -155,7 +155,7 @@ export class StoreService {
 
     // Paid access expiration is supplier-managed. Trials keep the local short window.
     const isTrial = latestOrder.order_ref.startsWith('TRIAL-') || latestOrder.payment_ref === 'TRIAL:3D';
-    const providerExpiresAt = activeAssignment.expires_at;
+    const providerExpiresAt = activeAssignment.expires_at || inventoryItem.supplier_expires_at;
     const trialExpiresAt =
       isTrial && latestOrder.fulfilled_at
         ? new Date(latestOrder.fulfilled_at.getTime() + 3 * 24 * 60 * 60 * 1000)

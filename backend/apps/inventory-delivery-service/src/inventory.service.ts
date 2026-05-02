@@ -225,6 +225,11 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           AND "health_status" = 'HEALTHY'::"InventoryHealthStatus"
           AND "status" IN ('AVAILABLE'::"InventoryStatus", 'ASSIGNED'::"InventoryStatus")
           AND "used_resale_slots" + ${requiredSlots} <= "max_resale_slots"
+          AND (
+            "source_quota_bytes" IS NULL
+            OR "source_quota_bytes" <= 0
+            OR "source_used_bytes" < "source_quota_bytes"
+          )
         ORDER BY "imported_at" ASC
         FOR UPDATE SKIP LOCKED
       `);
@@ -397,17 +402,47 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         throw new Error('Active assignment not found for order');
       }
 
+      const nextMeasuredUsedBytes = this.maxBigInt(
+        assignment.measured_used_bytes ?? 0n,
+        measuredUsedBytes,
+      );
+
       await tx.orderAssignment.update({
         where: { id: assignment.id },
         data: {
-          measured_used_bytes: measuredUsedBytes,
+          measured_used_bytes: nextMeasuredUsedBytes,
           last_measured_at: new Date(),
+        },
+      });
+
+      const sourceUsedBytes = await this.computeMonotoneSourceUsedBytes(
+        tx,
+        assignment.inventory_item_id!,
+        assignment.inventory_item.source_used_bytes,
+      );
+      const sourceExhausted = this.isSourceExhausted(
+        assignment.inventory_item.source_quota_bytes,
+        sourceUsedBytes,
+      );
+
+      await tx.inventoryItem.update({
+        where: { id: assignment.inventory_item_id! },
+        data: {
+          source_used_bytes: sourceUsedBytes,
+          health_status: this.computeHealthStatus({
+            currentHealth: assignment.inventory_item.health_status,
+            supplierExpiresAt: assignment.inventory_item.supplier_expires_at,
+            usedResaleSlots: assignment.inventory_item.used_resale_slots,
+            maxResaleSlots: assignment.inventory_item.max_resale_slots,
+            sourceQuotaBytes: assignment.inventory_item.source_quota_bytes,
+            sourceUsedBytes,
+          }),
         },
       });
 
       const planQuotaExceeded =
         !this.isTrialOrder(order) &&
-        this.isPlanQuotaExceeded(this.getEffectiveQuotaLabel(order), measuredUsedBytes);
+        this.isPlanQuotaExceeded(this.getEffectiveQuotaLabel(order), nextMeasuredUsedBytes);
 
       if (planQuotaExceeded) {
         await tx.orderAssignment.update({
@@ -418,6 +453,20 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             status_reason: 'PLAN_QUOTA_EXHAUSTED',
           },
         });
+
+        if (sourceExhausted) {
+          await tx.orderAssignment.updateMany({
+            where: {
+              inventory_item_id: assignment.inventory_item_id!,
+              access_status: AssignmentAccessStatus.ACTIVE,
+            },
+            data: {
+              access_status: AssignmentAccessStatus.EXPIRED,
+              expires_at: new Date(),
+              status_reason: 'SOURCE_QUOTA_EXHAUSTED',
+            },
+          });
+        }
 
         await this.recalculateInventoryState(tx, assignment.inventory_item_id!);
 
@@ -430,7 +479,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
               orderRef: order.order_ref,
               assignmentId: assignment.id,
               inventoryItemId: assignment.inventory_item_id,
-              measuredUsedBytes: measuredUsedBytes.toString(),
+              measuredUsedBytes: nextMeasuredUsedBytes.toString(),
               quotaLabel: this.getEffectiveQuotaLabel(order),
               updatedAt: new Date().toISOString(),
             } as any,
@@ -440,38 +489,12 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         return {
           success: true,
           orderRef: order.order_ref,
-          measuredUsedBytes: measuredUsedBytes.toString(),
-          sourceUsedBytes: assignment.inventory_item.source_used_bytes?.toString() ?? '0',
-          sourceExhausted: false,
+          measuredUsedBytes: nextMeasuredUsedBytes.toString(),
+          sourceUsedBytes: sourceUsedBytes.toString(),
+          sourceExhausted,
           planQuotaExceeded: true,
         };
       }
-
-      const aggregate = await tx.orderAssignment.aggregate({
-        where: {
-          inventory_item_id: assignment.inventory_item_id,
-          access_status: AssignmentAccessStatus.ACTIVE,
-        },
-        _sum: {
-          measured_used_bytes: true,
-        },
-      });
-
-      const sourceUsedBytes = aggregate._sum.measured_used_bytes ?? 0n;
-      const sourceExhausted = this.isSourceExhausted(
-        assignment.inventory_item.source_quota_bytes,
-        sourceUsedBytes,
-      );
-
-      await tx.inventoryItem.update({
-        where: { id: assignment.inventory_item_id! },
-        data: {
-          source_used_bytes: sourceUsedBytes,
-          health_status: sourceExhausted
-            ? InventoryHealthStatus.FULL
-            : assignment.inventory_item.health_status,
-        },
-      });
 
       if (sourceExhausted) {
         await tx.orderAssignment.updateMany({
@@ -485,6 +508,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             status_reason: 'SOURCE_QUOTA_EXHAUSTED',
           },
         });
+        await this.recalculateInventoryState(tx, assignment.inventory_item_id!);
       }
 
       await tx.adminEvent.create({
@@ -495,7 +519,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           payload_json: {
             orderRef: order.order_ref,
             inventoryItemId: assignment.inventory_item_id,
-            measuredUsedBytes: measuredUsedBytes.toString(),
+            measuredUsedBytes: nextMeasuredUsedBytes.toString(),
             sourceUsedBytes: sourceUsedBytes.toString(),
             sourceQuotaBytes: assignment.inventory_item.source_quota_bytes?.toString() ?? null,
             updatedAt: new Date().toISOString(),
@@ -506,7 +530,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       return {
         success: true,
         orderRef: order.order_ref,
-        measuredUsedBytes: measuredUsedBytes.toString(),
+        measuredUsedBytes: nextMeasuredUsedBytes.toString(),
         sourceUsedBytes: sourceUsedBytes.toString(),
         sourceExhausted,
       };
@@ -720,6 +744,14 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         throw new Error('Assignment not found');
       }
 
+      if (
+        assignment.access_status === AssignmentAccessStatus.REVOKED ||
+        assignment.access_status === AssignmentAccessStatus.EXPIRED ||
+        assignment.access_status === AssignmentAccessStatus.FAILED
+      ) {
+        throw new Error('Terminal assignment cannot be moved or reactivated');
+      }
+
       const target = await tx.inventoryItem.findUnique({
         where: { id: data.targetInventoryItemId },
       });
@@ -728,13 +760,19 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         throw new Error('Target inventory item not found');
       }
 
+      const projectedTargetSourceUsedBytes = this.projectMovedAssignmentSourceUsedBytes(
+        target.source_used_bytes,
+        assignment.measured_used_bytes,
+      );
+
       if (
         !canAllocateSupplierConfig({
           healthStatus: target.health_status,
           usedResaleSlots: target.used_resale_slots,
           maxResaleSlots: target.max_resale_slots,
           requiredSlots: assignment.slot_count,
-        })
+        }) ||
+        this.isSourceExhausted(target.source_quota_bytes, projectedTargetSourceUsedBytes)
       ) {
         throw new Error('Target inventory item has no remaining resale capacity');
       }
@@ -755,10 +793,15 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         where: { id: target.id },
         data: {
           used_resale_slots: { increment: assignment.slot_count },
-          health_status:
-            target.used_resale_slots + assignment.slot_count >= target.max_resale_slots
-              ? InventoryHealthStatus.FULL
-              : InventoryHealthStatus.HEALTHY,
+          source_used_bytes: projectedTargetSourceUsedBytes,
+          health_status: this.computeHealthStatus({
+            currentHealth: target.health_status,
+            supplierExpiresAt: target.supplier_expires_at,
+            usedResaleSlots: target.used_resale_slots + assignment.slot_count,
+            maxResaleSlots: target.max_resale_slots,
+            sourceQuotaBytes: target.source_quota_bytes,
+            sourceUsedBytes: projectedTargetSourceUsedBytes,
+          }),
           status: InventoryStatus.ASSIGNED,
         },
       });
@@ -766,6 +809,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       if (previousInventoryItemId) {
         await this.recalculateInventoryState(tx, previousInventoryItemId);
       }
+      await this.recalculateInventoryState(tx, target.id);
 
       await tx.adminEvent.create({
         data: {
@@ -815,10 +859,14 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.inventoryItem.update({
           where: { id: item.id },
           data: {
-            health_status:
-              item.used_resale_slots >= item.max_resale_slots
-                ? InventoryHealthStatus.FULL
-                : InventoryHealthStatus.HEALTHY,
+            health_status: this.computeHealthStatus({
+              currentHealth: item.health_status,
+              supplierExpiresAt: item.supplier_expires_at,
+              usedResaleSlots: item.used_resale_slots,
+              maxResaleSlots: item.max_resale_slots,
+              sourceQuotaBytes: item.source_quota_bytes,
+              sourceUsedBytes: item.source_used_bytes,
+            }),
           },
         });
         results.healthy++;
@@ -911,7 +959,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         usedResaleSlots: item.used_resale_slots,
         maxResaleSlots: item.max_resale_slots,
         requiredSlots: 1,
-      }),
+      }) && !this.isSourceExhausted(item.source_quota_bytes, item.source_used_bytes),
     ).length;
 
     if (count < 5) {
@@ -993,6 +1041,34 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     return (sourceUsedBytes ?? 0n) >= sourceQuotaBytes;
   }
 
+  private maxBigInt(left: bigint, right: bigint) {
+    return left > right ? left : right;
+  }
+
+  private projectMovedAssignmentSourceUsedBytes(
+    currentSourceUsedBytes?: bigint | null,
+    assignmentMeasuredUsedBytes?: bigint | null,
+  ) {
+    return (currentSourceUsedBytes ?? 0n) + (assignmentMeasuredUsedBytes ?? 0n);
+  }
+
+  private async computeMonotoneSourceUsedBytes(
+    tx: Prisma.TransactionClient,
+    inventoryItemId: string,
+    currentSourceUsedBytes?: bigint | null,
+  ) {
+    const aggregate = await tx.orderAssignment.aggregate({
+      where: {
+        inventory_item_id: inventoryItemId,
+      },
+      _sum: {
+        measured_used_bytes: true,
+      },
+    });
+
+    return this.maxBigInt(currentSourceUsedBytes ?? 0n, aggregate._sum.measured_used_bytes ?? 0n);
+  }
+
   private async recalculateInventoryState(tx: Prisma.TransactionClient, inventoryItemId: string) {
     const assignmentAggregate = await tx.orderAssignment.aggregate({
       where: {
@@ -1009,17 +1085,25 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     });
 
     const usedSlots = assignmentAggregate._sum.slot_count ?? 0;
+    const sourceUsedBytes = await this.computeMonotoneSourceUsedBytes(
+      tx,
+      inventoryItemId,
+      inventoryItem.source_used_bytes,
+    );
     const nextHealth = this.computeHealthStatus({
       currentHealth: inventoryItem.health_status,
       supplierExpiresAt: inventoryItem.supplier_expires_at,
       usedResaleSlots: usedSlots,
       maxResaleSlots: inventoryItem.max_resale_slots,
+      sourceQuotaBytes: inventoryItem.source_quota_bytes,
+      sourceUsedBytes,
     });
 
     await tx.inventoryItem.update({
       where: { id: inventoryItemId },
       data: {
         used_resale_slots: usedSlots,
+        source_used_bytes: sourceUsedBytes,
         health_status: nextHealth,
         status: usedSlots > 0 ? InventoryStatus.ASSIGNED : InventoryStatus.AVAILABLE,
       },
@@ -1031,6 +1115,8 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     supplierExpiresAt: Date | null;
     usedResaleSlots: number;
     maxResaleSlots: number;
+    sourceQuotaBytes?: bigint | null;
+    sourceUsedBytes?: bigint | null;
   }) {
     if (input.currentHealth === InventoryHealthStatus.DISABLED) {
       return InventoryHealthStatus.DISABLED;
@@ -1038,6 +1124,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
 
     if (input.supplierExpiresAt && input.supplierExpiresAt.getTime() <= Date.now()) {
       return InventoryHealthStatus.EXPIRED;
+    }
+
+    if (this.isSourceExhausted(input.sourceQuotaBytes, input.sourceUsedBytes)) {
+      return InventoryHealthStatus.FULL;
     }
 
     if (input.usedResaleSlots >= input.maxResaleSlots) {

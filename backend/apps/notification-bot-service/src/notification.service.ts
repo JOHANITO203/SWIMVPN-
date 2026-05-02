@@ -4,6 +4,11 @@ import { DeliveryPayloadDto, DeliveryLanguage } from './dto/delivery-payload.dto
 import { DeliveryTemplateService } from './templates/delivery-template.service';
 import { TelegramSenderService } from './telegram-sender.service';
 import { EmailSenderService } from './email-sender.service';
+import {
+  buildActiveDeliverableAssignmentInclude,
+  parseDeliveryNotes,
+  selectLatestDeliverableAssignment,
+} from './delivery-policy';
 
 @Injectable()
 export class NotificationService {
@@ -36,7 +41,6 @@ export class NotificationService {
             orderRef: payload.orderRef,
             language: rendered.language,
             status: 'EMAIL_SENT',
-            vpnLink: payload.vpnLink,
             updatedAt: new Date().toISOString(),
           }),
         },
@@ -87,13 +91,13 @@ export class NotificationService {
       include: {
         customer: true,
         plan: true,
-        assignments: {
-          include: { inventory_item: true },
-        },
+        assignments: buildActiveDeliverableAssignmentInclude(),
       },
     });
 
-    if (!order || !order.customer?.email || order.assignments.length === 0) {
+    const assignment = selectLatestDeliverableAssignment(order?.assignments || []);
+
+    if (!order || !order.customer?.email || !assignment?.inventory_item?.raw_config) {
       return { success: false, error: 'Order, customer email, or assigned vpn link not found' };
     }
 
@@ -103,7 +107,7 @@ export class NotificationService {
       customerPhone: order.customer.phone || undefined,
       planCode: order.plan.code,
       planLabel: order.plan.name,
-      vpnLink: order.assignments[0].inventory_item.raw_config,
+      vpnLink: assignment.inventory_item.raw_config,
       expiryLabel: order.plan.duration_label,
       customerLanguage: language || 'ru',
     };
@@ -127,11 +131,16 @@ export class NotificationService {
     }
 
     const latestDelivery = order.deliveries[0] || null;
+    const notes = parseDeliveryNotes(latestDelivery?.notes);
 
     return {
       success: true,
       orderRef,
       delivery: latestDelivery,
+      status: notes?.status || (latestDelivery?.email_sent ? 'EMAIL_SENT' : null),
+      emailSent: latestDelivery?.email_sent ?? false,
+      lastError: notes?.error || null,
+      updatedAt: notes?.updatedAt || null,
     };
   }
 
@@ -184,7 +193,12 @@ export class NotificationService {
   private async ensureDeliveryRecord(orderRef: string, customerEmail: string) {
     const order = await this.prisma.order.findUnique({
       where: { order_ref: orderRef },
-      include: { deliveries: true },
+      include: {
+        deliveries: {
+          orderBy: { sent_at: 'desc' },
+          take: 1,
+        },
+      },
     });
 
     if (!order) {

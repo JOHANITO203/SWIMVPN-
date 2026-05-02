@@ -78,6 +78,21 @@ data class AccessProfileResponse(
     val isPremiumAllowed: Boolean
         get() = isActiveTrial || isActiveSubscription
 
+    fun shouldSuperviseBackendPremiumConnection(serverSource: String?): Boolean =
+        serverSource == "backend" && isPremiumAllowed
+
+    fun preserveRuntimeAccessFrom(previous: AccessProfileResponse): AccessProfileResponse {
+        if (!isPremiumAllowed || !subscriptionUrl.isNullOrBlank()) {
+            return this
+        }
+
+        return copy(
+            subscriptionUrl = previous.subscriptionUrl,
+            supplierProviderName = supplierProviderName ?: previous.supplierProviderName,
+            supplierExpiresAt = supplierExpiresAt ?: previous.supplierExpiresAt,
+        )
+    }
+
     val parsedDataUsedBytes: Long
         get() = dataUsedBytes.filter { it.isDigit() }.toLongOrNull() ?: 0L
 

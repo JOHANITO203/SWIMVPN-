@@ -690,6 +690,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val currentState = _state.value as? AppState.Success ?: return@launch
             try {
                 val request = CheckoutRequest(
+                    userNumber = currentState.profile.userNumber,
+                    deviceId = getDeviceId(),
                     email = currentState.profile.email,
                     phone = currentState.profile.phone,
                     planId = planId,
@@ -791,6 +793,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val vpnState = com.swimvpn.app.vpn.VpnManager.state.value
         if (vpnState != com.swimvpn.app.vpn.VpnState.DISCONNECTED && vpnState != com.swimvpn.app.vpn.VpnState.ERROR) {
+            resumePremiumSupervisionIfRunning(context, successState)
             return
         }
 
@@ -812,12 +815,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun maybeRestoreAutoConnectFromBoot(context: Context) {
         viewModelScope.launch {
             val currentState = _state.value as? AppState.Success ?: return@launch
-            if (!currentState.autoConnect) return@launch
 
             val vpnState = com.swimvpn.app.vpn.VpnManager.state.value
             if (vpnState != com.swimvpn.app.vpn.VpnState.DISCONNECTED && vpnState != com.swimvpn.app.vpn.VpnState.ERROR) {
+                resumePremiumSupervisionIfRunning(context, currentState)
                 return@launch
             }
+
+            if (!currentState.autoConnect) return@launch
 
             val payload = prefs.getAutoConnectPayload() ?: return@launch
             if (payload.runtimeMode == RuntimeMode.FULL_TUNNEL && VpnService.prepare(context) != null) {
@@ -840,6 +845,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun resumePremiumSupervisionIfRunning(context: Context, successState: AppState.Success) {
+        val vpnState = VpnManager.state.value
+        if (vpnState != VpnState.CONNECTED && vpnState != VpnState.CONNECTING) {
+            return
+        }
+
+        val activeServer = successState.activeServer ?: return
+        if (!successState.profile.shouldSuperviseBackendPremiumConnection(activeServer.source)) {
+            return
+        }
+
+        adaptiveActiveServerId = activeServer.id
+        startPremiumUsageReporting(context.applicationContext, successState.profile, activeServer)
+    }
+
 
     private fun startPremiumUsageReporting(
         context: Context,
@@ -848,7 +868,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         stopPremiumUsageReporting()
 
-        if (server.source != "backend" || !profile.isPremiumAllowed || !profile.hasMeasuredLimit) {
+        if (!profile.shouldSuperviseBackendPremiumConnection(server.source)) {
             return
         }
 
@@ -872,16 +892,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val refreshedProfile = reportMeasuredUsage(
                     userNumber = userNumber,
                     baselineUsedBytes = premiumUsageSessionBaselineBytes,
-                ) ?: continue
+                ) ?: refreshPremiumEntitlement(userNumber) ?: continue
+                val profileForState = refreshedProfile.preserveRuntimeAccessFrom(currentState.profile)
 
-                if (!refreshedProfile.isPremiumAllowed) {
-                    handlePremiumAccessEnded(context, currentState, refreshedProfile)
+                if (!profileForState.isPremiumAllowed) {
+                    handlePremiumAccessEnded(context, currentState, profileForState)
                     break
                 }
 
                 _state.value = currentState.copy(
-                    profile = refreshedProfile,
-                    activeConfigMetadata = resolveActiveConfigMetadata(activeServer, refreshedProfile),
+                    profile = profileForState,
+                    activeConfigMetadata = resolveActiveConfigMetadata(activeServer, profileForState),
                 )
             }
         }
@@ -904,6 +925,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         lastAutoConnectSignature = null
         prefs.setAutoConnect(false)
         prefs.clearAutoConnectPayload()
+        clearBackendSelectionIfNeeded(currentState)
 
         val standardState = refreshSuccessState(
             currentState.copy(
@@ -924,14 +946,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         currentState: AppState.Success,
         refreshedProfile: AccessProfileResponse,
     ): AppState.Success {
-        if (!refreshedProfile.isPremiumAllowed) {
-            return refreshSuccessState(currentState.copy(profile = refreshedProfile))
+        val profileForState = refreshedProfile.preserveRuntimeAccessFrom(currentState.profile)
+
+        if (!profileForState.isPremiumAllowed) {
+            clearBackendSelectionIfNeeded(currentState)
+            return refreshSuccessState(currentState.copy(profile = profileForState))
         }
 
         return currentState.copy(
-            profile = refreshedProfile,
-            activeConfigMetadata = resolveActiveConfigMetadata(currentState.activeServer, refreshedProfile),
+            profile = profileForState,
+            activeConfigMetadata = resolveActiveConfigMetadata(currentState.activeServer, profileForState),
         )
+    }
+
+    private suspend fun clearBackendSelectionIfNeeded(currentState: AppState.Success) {
+        val savedServerId = prefs.selectedServerIdFlow.first()
+        val selectedBackend = currentState.activeServer?.source == "backend" ||
+            savedServerId?.startsWith("backend") == true
+        if (!selectedBackend) {
+            return
+        }
+
+        prefs.setSelectedServerId(null)
+        configRepository.clearActiveProfile()
+        adaptiveActiveServerId = null
+        lastAutoConnectSignature = null
     }
 
     private suspend fun reportMeasuredUsage(
@@ -959,6 +998,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
         } catch (e: Exception) {
             Log.e("MainViewModel", "Usage report failed", e)
+            null
+        }
+    }
+
+    private suspend fun refreshPremiumEntitlement(userNumber: String): AccessProfileResponse? {
+        return try {
+            api.getAccessProfile(userNumber)
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Premium entitlement refresh failed", e)
             null
         }
     }
@@ -1114,9 +1162,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val plans = try {
             api.getPlans()
         } catch (e: Exception) {
-            Log.e("MainViewModel", "API Error fetching plans", e)
-            _state.value = AppState.Error(s(R.string.err_fetch_plans_failed))
-            return null
+            Log.e("MainViewModel", "API Error fetching plans; continuing app shell without store plans", e)
+            emptyList()
         }
 
         val resolvedBackendServers = resolveBackendServers(profile, backendServers, pinnedIds)
@@ -1266,6 +1313,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        // Keep the live Android subscription resolver only behind backend entitlement truth
+        // until a backend-side resolver replaces this path.
         val resolvedProfiles = configRepository.resolveRuntimeProfilesForConnection(
             input = subscriptionUrl,
             sourceType = SourceType.BACKEND_API,

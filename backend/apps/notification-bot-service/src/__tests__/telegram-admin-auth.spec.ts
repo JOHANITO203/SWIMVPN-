@@ -1,4 +1,4 @@
-import { isTelegramAdminContext, parseAdminUserIds } from '../telegram-admin-auth';
+import { isTelegramAdminContext, isTelegramAdminUser, parseAdminUserIds } from '../telegram-admin-auth';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -20,7 +20,7 @@ assert(
     chatId: '-1003580609681',
     reviewChatId: '-1003580609681',
   }),
-  'callbacks/messages inside configured review group must be authorized',
+  'callbacks/messages inside configured review group must be authorized for non-sensitive admin context',
 );
 
 assert(
@@ -29,7 +29,7 @@ assert(
     chatId: '-1003912107958',
     adminChatId: '-1003912107958',
   }),
-  'callbacks/messages inside configured admin group must be authorized',
+  'callbacks/messages inside configured admin group must be authorized for non-sensitive admin context',
 );
 
 assert(
@@ -60,6 +60,22 @@ assert(
     adminUserIds: parseAdminUserIds('"7161959711"; 111\n222'),
   }),
   'quoted or multiline ADMIN_USER_IDS must authorize explicit Telegram user ids',
+);
+
+assert(
+  !isTelegramAdminUser({
+    fromId: '123',
+    adminUserIds: ['999'],
+  }),
+  'sensitive admin operations must require fromId in ADMIN_USER_IDS',
+);
+
+assert(
+  isTelegramAdminUser({
+    fromId: '7161959711',
+    adminUserIds: parseAdminUserIds('"7161959711"; 111\n222'),
+  }),
+  'sensitive admin operations must allow explicit ADMIN_USER_IDS',
 );
 
 console.log('telegram admin auth tests passed');

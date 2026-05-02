@@ -2591,3 +2591,47 @@ pm run build PASSED.
 - **Verification**:
   - Android Kotlin compile passed locally.
   - Backend policy test could not run locally because `backend/node_modules` is unavailable (`ts-node` missing). Run `npm run test:policy` in the backend container or after dependency restore.
+
+## [2026-05-02] [Multi-Agent Production Code Review]
+
+- **Status**: READ-ONLY REVIEW COMPLETE / FIXES REQUIRED BEFORE FINAL PRODUCTION READINESS
+- **Scope reviewed**:
+  - Backend entitlement/profile/trial/subscription/quota logic.
+  - Inventory allocation, resale capacity, source quota, revocation, and delivery.
+  - Android runtime/profile/server state and backend contract usage.
+  - Manual card/payment Telegram bot workflow and admin authorization.
+  - Docker/Prisma/env/deploy readiness.
+- **High-priority findings**:
+  - Assignment usage reporting is client-driven and can overwrite usage downward; quota accounting must be monotonic.
+  - `reportUsage` can return a non-profile payload while Android expects `AccessProfileResponse`.
+  - Source quota exhaustion is not enforced consistently in allocation/health recalculation.
+  - `moveAssignment` can reactivate revoked/expired assignments.
+  - Android expands managed supplier subscription URLs client-side, creating a backend source-of-truth/security boundary conflict.
+  - Manual payment delivery can be fulfilled without a durable recovery path if email/post-purchase delivery fails.
+  - Telegram payment admin authorization allows group-context approval instead of requiring explicit `ADMIN_USER_IDS`.
+  - Production seed still creates hardcoded starter VPN inventory and mutates plans on deploy.
+- **Verification**:
+  - `git status --short --branch` showed a clean worktree before documentation note.
+  - `git diff --check` passed before documentation note.
+  - Backend tests/builds were not runnable locally because backend dependencies are absent.
+
+## [2026-05-02] [Deploy Bootstrap Seed Hardening]
+
+- Documented root `DATABASE_URL` as a required Docker/Prisma placeholder without real secrets.
+- Changed Prisma seed behavior so existing production plans are not overwritten during deploy seed runs.
+- Gated starter/demo VPN inventory behind `SEED_DEMO_DATA=true`; production default skips demo inventory.
+- Clarified that no default database admin is seeded and first admin bootstrap must be a controlled ops step with a bcrypt `password_hash`.
+- Reordered backend `verify:deploy` to validate/generate Prisma before TypeScript lint/build checks.
+
+## [2026-05-02] [Multi-Agent Review Fix Batch Applied]
+
+- Hardened backend profile resolution so a newer revoked/failed terminal order does not mask an older still-active fulfilled assignment.
+- Hardened Android premium refresh so a profile refresh without runtime config does not wipe the currently valid backend premium runtime access while entitlement remains active.
+- Hardened inventory admin move so source quota is checked against projected moved usage before moving an assignment.
+- Added targeted policy coverage for older active assignment preservation, Android runtime access preservation, and source-quota-aware assignment move rejection.
+- Verification status:
+  - `git diff --check` passed.
+  - `docker compose --env-file .env.example -f docker-compose.yml config --quiet` passed.
+  - Android `compileDebugKotlin` passed.
+  - Backend policy scripts are still blocked locally because backend dev binaries are missing from `backend/node_modules`.
+  - A forced Android unit-test rerun hit Windows paging-file exhaustion; the prior targeted test invocation completed with exit code 0, but this workstation needs memory/paging relief for repeated forced test runs.
