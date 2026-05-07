@@ -844,8 +844,11 @@ private fun vpnStateForRuntimeStatus(status: RuntimeStatus): VpnState {
         RuntimeStatus.IDLE -> VpnState.DISCONNECTED
         RuntimeStatus.STARTING -> VpnState.CONNECTING
         RuntimeStatus.RUNNING -> VpnState.CONNECTED
+        RuntimeStatus.RECONNECTING -> VpnState.CONNECTING
+        RuntimeStatus.DEGRADED -> VpnState.CONNECTED
         RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
         RuntimeStatus.FAILED -> VpnState.ERROR
+        RuntimeStatus.STOPPED_BY_USER -> VpnState.DISCONNECTED
     }
 }
 

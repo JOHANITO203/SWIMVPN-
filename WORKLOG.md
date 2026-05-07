@@ -2694,3 +2694,17 @@ pm run build PASSED.
 - Verification:
   - The diagnostic fetch with cookies reaches HTTP 200 and decodes to VLESS entries.
   - `cd android && .\gradlew.bat :app:testDebugUnitTest --tests com.swimvpn.app.config.SubscriptionCookieJarTest --tests com.swimvpn.app.config.SubscriptionParserTest` passed.
+
+[2026-05-07] [Android VPN Stability And Provider Parser Hardening]
+- Audited Android VPN service/runtime and subscription parser with parallel agents before implementation.
+- Added service-owned runtime observability states, disconnect causes, battery-optimization logging, network callbacks, and bounded same-session reconnect backoff.
+- Kept backend entitlement boundary intact: service reconnect only retries the currently active runtime payload and does not fetch or grant premium access.
+- Extended Android subscription parsing for missing Base64 padding, supported Clash YAML proxies, supported sing-box JSON outbounds, richer normalized metadata fields, and unknown-provider warnings.
+- Verification so far: targeted Android parser/adaptive unit tests passed after Kotlin compile.
+
+[2026-05-07] [Android Provider Sample VLESS Reality Header Param Fix]
+- Audited live provider subscription `subs.eu-fffast.com` without printing raw secrets.
+- Confirmed Android fetcher User-Agents receive Base64 payload with 29 VLESS Reality TCP nodes and subscription-userinfo metadata.
+- Added regression coverage for provider-style `headerType=&path=&host=` query params.
+- Fixed VLESS/Trojan TCP parsing so blank `headerType` and `host` are treated as absent, preserving raw config while avoiding invalid Xray `header.type=""` output.
+- Verification: targeted parser tests, full Android unit tests, and `assembleDebug` passed.

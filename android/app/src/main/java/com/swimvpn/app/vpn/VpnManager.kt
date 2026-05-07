@@ -48,10 +48,19 @@ object VpnManager {
             RuntimeStatus.IDLE -> VpnState.DISCONNECTED
             RuntimeStatus.STARTING -> VpnState.CONNECTING
             RuntimeStatus.RUNNING -> VpnState.CONNECTED
+            RuntimeStatus.RECONNECTING -> VpnState.CONNECTING
+            RuntimeStatus.DEGRADED -> VpnState.CONNECTED
             RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
             RuntimeStatus.FAILED -> VpnState.ERROR
+            RuntimeStatus.STOPPED_BY_USER -> VpnState.DISCONNECTED
         }
-        if (newStatus == RuntimeStatus.STARTING || newStatus == RuntimeStatus.RUNNING || newStatus == RuntimeStatus.STOPPING) {
+        if (newStatus == RuntimeStatus.STARTING ||
+            newStatus == RuntimeStatus.RUNNING ||
+            newStatus == RuntimeStatus.RECONNECTING ||
+            newStatus == RuntimeStatus.DEGRADED ||
+            newStatus == RuntimeStatus.STOPPING ||
+            newStatus == RuntimeStatus.STOPPED_BY_USER
+        ) {
             _errorMessage.value = null
         }
     }
@@ -78,8 +87,11 @@ object VpnManager {
             RuntimeStatus.IDLE -> VpnState.DISCONNECTED
             RuntimeStatus.STARTING -> VpnState.CONNECTING
             RuntimeStatus.RUNNING -> VpnState.CONNECTED
+            RuntimeStatus.RECONNECTING -> VpnState.CONNECTING
+            RuntimeStatus.DEGRADED -> VpnState.CONNECTED
             RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
             RuntimeStatus.FAILED -> VpnState.ERROR
+            RuntimeStatus.STOPPED_BY_USER -> VpnState.DISCONNECTED
         }
     }
 
@@ -135,8 +147,11 @@ object VpnManager {
         activeMode: String? = null,
         xraySessionId: String? = null,
         xrayLogPath: String? = null,
-        tun2SocksSessionId: String? = null,
-        tun2SocksLogPath: String? = null,
+            tun2SocksSessionId: String? = null,
+            tun2SocksLogPath: String? = null,
+            lastDisconnectCause: DisconnectCause? = null,
+            reconnectCount: Int? = null,
+            sessionStartedAt: Long? = null,
     ) {
         _metrics.value = _metrics.value.copy(
             activeMode = activeMode,
@@ -144,6 +159,9 @@ object VpnManager {
             xrayLogPath = xrayLogPath,
             tun2SocksSessionId = tun2SocksSessionId,
             tun2SocksLogPath = tun2SocksLogPath,
+            lastDisconnectCause = lastDisconnectCause ?: _metrics.value.lastDisconnectCause,
+            reconnectCount = reconnectCount ?: _metrics.value.reconnectCount,
+            sessionStartedAt = sessionStartedAt ?: _metrics.value.sessionStartedAt,
         )
     }
 

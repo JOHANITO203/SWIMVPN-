@@ -41,6 +41,25 @@ object SubscriptionParser {
         )
     }
 
+    fun parseUnknownProviderSubscription(raw: String): ParsedSubscription {
+        val parsed = parse(raw, sourceType = SourceType.SUBSCRIPTION_URL)
+        if (parsed.profiles.isNotEmpty()) {
+            return parsed
+        }
+
+        val detectedScheme = raw.trim()
+            .substringBefore("://", "")
+            .takeIf { it.isNotBlank() && it.length <= 24 }
+
+        return parsed.copy(
+            warnings = (
+                parsed.warnings +
+                    "Unsupported subscription format" +
+                    listOfNotNull(detectedScheme?.let { "Detected unsupported scheme: $it" })
+                ).distinct(),
+        )
+    }
+
     private fun parseEntry(
         entry: String,
         sourceType: SourceType,
@@ -95,13 +114,19 @@ object SubscriptionParser {
             serverPort = profile.port,
             userId = profile.userId,
             password = profile.password,
+            encryption = profile.advancedSettings["encryption"] ?: "none",
             method = profile.method,
             sni = profile.tlsSettings?.sni,
+            alpn = profile.tlsSettings?.alpn ?: emptyList(),
             fingerprint = profile.tlsSettings?.fingerprint,
             path = profile.websocketSettings?.path ?: profile.grpcSettings?.serviceName,
+            hostHeader = profile.websocketSettings?.host ?: profile.tcpSettings?.host,
+            serviceName = profile.grpcSettings?.serviceName,
             flow = profile.flow,
             publicKey = profile.realitySettings?.publicKey,
             shortId = profile.realitySettings?.shortId,
+            spiderX = profile.realitySettings?.spiderX,
+            allowInsecure = profile.tlsSettings?.allowInsecure,
             remark = profile.displayName,
             countryEmoji = SubscriptionMetadataParser.extractCountryEmoji(profile.displayName),
             trafficUsedBytes = metadata.trafficUsedBytes,
@@ -180,9 +205,18 @@ object SubscriptionParser {
             serverHost = host,
             serverPort = port,
             userId = root.get("id")?.asString,
+            encryption = root.get("scy")?.asString ?: root.get("security")?.asString,
             sni = root.get("sni")?.asString ?: root.get("serverName")?.asString,
+            alpn = root.get("alpn")?.asString
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?: emptyList(),
             fingerprint = root.get("fp")?.asString,
             path = path,
+            hostHeader = root.get("host")?.asString?.takeIf { it.isNotBlank() },
+            serviceName = root.get("serviceName")?.asString?.takeIf { it.isNotBlank() }
+                ?: path?.takeIf { network == "grpc" },
             remark = displayName,
             countryEmoji = SubscriptionMetadataParser.extractCountryEmoji(displayName),
             trafficUsedBytes = metadata.trafficUsedBytes,

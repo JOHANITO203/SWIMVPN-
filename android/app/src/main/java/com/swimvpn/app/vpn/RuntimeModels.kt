@@ -15,8 +15,29 @@ enum class RuntimeStatus {
     IDLE,
     STARTING,
     RUNNING,
+    RECONNECTING,
+    DEGRADED,
     STOPPING,
-    FAILED
+    FAILED,
+    STOPPED_BY_USER
+}
+
+enum class DisconnectCause {
+    USER_STOPPED,
+    NETWORK_LOST,
+    SERVER_UNREACHABLE,
+    DNS_FAILURE,
+    HANDSHAKE_FAILURE,
+    ENGINE_CRASH,
+    SERVICE_KILLED,
+    BATTERY_RESTRICTION,
+    CONFIG_INVALID,
+    UNKNOWN;
+
+    companion object {
+        fun fromPersisted(value: String?): DisconnectCause =
+            entries.firstOrNull { it.name == value } ?: UNKNOWN
+    }
 }
 
 data class RuntimeMetrics(
@@ -30,6 +51,9 @@ data class RuntimeMetrics(
     val xrayLogPath: String? = null,
     val tun2SocksSessionId: String? = null,
     val tun2SocksLogPath: String? = null,
+    val lastDisconnectCause: DisconnectCause? = null,
+    val reconnectCount: Int = 0,
+    val sessionStartedAt: Long? = null,
 )
 
 enum class ThemeMode {

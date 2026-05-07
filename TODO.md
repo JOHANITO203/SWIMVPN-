@@ -1070,3 +1070,12 @@ u after each future language batch
 - Confirm the app does not display the supplier website as a runtime VPN server.
 - Confirm the selected runtime node connects and traffic passes.
 - Confirm existing working supplier links such as `wb.routerwb.ru` still expand and connect.
+
+## 2026-05-07 Follow-ups
+- [ ] Capture real-device logcat for disconnects and confirm whether causes are NETWORK_LOST, ENGINE_CRASH, SERVICE_KILLED, or BATTERY_RESTRICTION.
+- [ ] Inspect tun2socks JNI fd ownership and explicitly document whether native duplicates or owns the VPN tun fd.
+- [ ] Add a user-facing battery optimization help screen after validating copy and OEM-specific paths.
+- [ ] Do not add Hysteria/TUIC runtime import until the runtime engine path is designed and tested.
+
+## 2026-05-07 Provider Sample Follow-up
+- [ ] Test one node from `subs.eu-fffast.com` on a real Android device and capture redacted logcat for Xray startup/handshake/runtime errors.

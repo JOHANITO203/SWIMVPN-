@@ -36,11 +36,11 @@ data class DecisionAction(
 )
 
 object AdaptiveDecisionAgent {
-    const val MAX_RECONNECT_ATTEMPTS = 3
+    const val MAX_RECONNECT_ATTEMPTS = 5
     private const val SAME_SERVER_RETRY_LIMIT = 2
     private const val AVOID_AFTER_CONSECUTIVE_FAILURES = 2
     private const val AVOID_DURATION_MS = 10 * 60 * 1000L
-    private val BACKOFF_MS = longArrayOf(2_000L, 5_000L, 15_000L)
+    private val BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
 
     fun recordFailure(
         score: ServerQualityScore,

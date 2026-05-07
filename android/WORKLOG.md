@@ -164,3 +164,13 @@
   - Confirmed the updated test suite failed first on the missing explicit mapper API.
   - Ran `./gradlew.bat --no-daemon testDebugUnitTest --tests com.swimvpn.app.config.ActiveConfigMetadataMappingTest` successfully after implementation.
 
+
+## [2026-05-07] Android VPN Stability And Parser Hardening
+- Added service-level network callbacks, disconnect causes, runtime states, battery optimization detection logs, and bounded same-session reconnect.
+- Added parser coverage for Clash YAML, sing-box JSON, missing Base64 padding, and unknown-provider warning behavior.
+- Kept unsupported modern schemes recognized but non-importable until runtime support is designed.
+
+[2026-05-07] [Android Provider Sample VLESS Reality Header Param Fix]
+- Live provider sample decoded to 29 VLESS Reality TCP nodes.
+- Added parser regression for empty TCP query params and normalized blank header fields to safe absent/default values.
+- Next: validate one decoded node on a real device with logcat, without exposing raw supplier secrets.

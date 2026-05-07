@@ -125,6 +125,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .collect { status ->
                     when (status) {
                         RuntimeStatus.RUNNING -> onAdaptiveRuntimeRunning()
+                        RuntimeStatus.DEGRADED -> Unit
+                        RuntimeStatus.RECONNECTING -> Unit
                         RuntimeStatus.FAILED -> {
                             stopPremiumUsageReporting()
                             handleAdaptiveRuntimeFailure()
@@ -137,7 +139,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             manualStopRequested = false
                         }
                         RuntimeStatus.STARTING,
-                        RuntimeStatus.STOPPING -> Unit
+                        RuntimeStatus.STOPPING,
+                        RuntimeStatus.STOPPED_BY_USER -> Unit
                     }
                 }
         }

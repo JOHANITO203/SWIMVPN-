@@ -110,8 +110,8 @@ object ConfigParserEngine {
                 } else null,
                 tcpSettings = if (transport == Transport.TCP) {
                     TcpSettings(
-                        headerType = query["headerType"] ?: "none",
-                        host = query["host"]
+                        headerType = query["headerType"]?.takeIf { it.isNotBlank() } ?: "none",
+                        host = query["host"]?.takeIf { it.isNotBlank() }
                     )
                 } else null,
                 grpcSettings = if (transport == Transport.GRPC) {
@@ -306,8 +306,8 @@ object ConfigParserEngine {
                 } else null,
                 tcpSettings = if (transport == Transport.TCP) {
                     TcpSettings(
-                        headerType = query["headerType"] ?: "none",
-                        host = query["host"],
+                        headerType = query["headerType"]?.takeIf { it.isNotBlank() } ?: "none",
+                        host = query["host"]?.takeIf { it.isNotBlank() },
                     )
                 } else null,
                 grpcSettings = if (transport == Transport.GRPC) {

@@ -936,3 +936,12 @@ Decision: Android subscription downloads may keep provider cookies in memory whi
 Reason: Some subscription providers gate the actual Base64/VLESS payload behind an HTTP redirect that requires returning a short-lived cookie. Without a cookie jar, the app can follow redirects forever and never receive the importable nodes.
 
 Consequence: The subscription fetcher can interoperate with redirect-cookie providers while preserving the existing parser and raw config handling. Cookies remain host/path scoped by OkHttp matching rules and disappear with the app process; premium authorization remains enforced by backend entitlement, not by cookies.
+
+## [2026-05-07] [Android Service Reconnect Is Same-Session Only]
+- **Decision**: Let `SwimVpnService` perform bounded reconnect attempts for the already active runtime payload when the network changes or the local engine exits unexpectedly.
+- **Why**: VPN stability cannot depend only on `MainViewModel`, because the UI may be closed while the foreground VPN service still owns the tunnel.
+- **Impact**:
+  - Reconnect uses the same raw runtime config that was already selected and authorized before the service started.
+  - The service does not fetch backend premium servers, expand subscriptions, or bypass entitlement checks.
+  - Manual stop maps to `STOPPED_BY_USER` and must not auto-reconnect.
+  - Wider fallback to another server remains in the UI/adaptive layer where the server list and entitlement state are available.

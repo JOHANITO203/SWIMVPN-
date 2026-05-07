@@ -355,4 +355,104 @@ class SubscriptionParserTest {
         assertEquals("PUBLICKEY123", parsed.profiles[0].publicKey)
         assertEquals("Германия", parsed.profiles[1].displayName)
     }
+
+    @Test
+    fun `parses base64 subscription with missing padding`() {
+        val payload = "vless://11111111-1111-1111-1111-111111111111@example.com:443?security=tls&type=tcp#No%20Padding"
+        val encodedWithoutPadding = Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(payload.toByteArray(Charsets.UTF_8))
+
+        val parsed = SubscriptionParser.parse(encodedWithoutPadding, sourceType = SourceType.SUBSCRIPTION_URL)
+
+        assertEquals(1, parsed.profiles.size)
+        assertEquals("No Padding", parsed.profiles.single().displayName)
+    }
+
+    @Test
+    fun `parses clash yaml supported proxies`() {
+        val input = """
+            proxies:
+              - name: "🇳🇱 Clash VLESS"
+                type: vless
+                server: clash.example.com
+                port: 443
+                uuid: 11111111-1111-1111-1111-111111111111
+                network: ws
+                tls: true
+                servername: edge.example.com
+                client-fingerprint: chrome
+                ws-opts:
+                  path: /socket
+                  headers:
+                    Host: cdn.example.com
+              - name: "Trojan Clash"
+                type: trojan
+                server: trojan-clash.example.com
+                port: 443
+                password: supersecret
+                sni: discord.com
+        """.trimIndent()
+
+        val parsed = SubscriptionParser.parse(input, sourceType = SourceType.SUBSCRIPTION_URL)
+
+        assertEquals(2, parsed.profiles.size)
+        assertEquals("vless", parsed.profiles[0].protocol)
+        assertEquals("ws", parsed.profiles[0].transport)
+        assertEquals("tls", parsed.profiles[0].security)
+        assertEquals("edge.example.com", parsed.profiles[0].sni)
+        assertEquals("cdn.example.com", parsed.profiles[0].hostHeader)
+        assertEquals("/socket", parsed.profiles[0].path)
+        assertEquals("trojan", parsed.profiles[1].protocol)
+    }
+
+    @Test
+    fun `parses sing box json supported outbounds`() {
+        val input = """
+            {
+              "outbounds": [
+                {
+                  "type": "vless",
+                  "tag": "Sing Reality",
+                  "server": "sing.example.com",
+                  "server_port": 8443,
+                  "uuid": "11111111-1111-1111-1111-111111111111",
+                  "flow": "xtls-rprx-vision",
+                  "tls": {
+                    "enabled": true,
+                    "server_name": "www.google.com",
+                    "utls": { "fingerprint": "chrome" },
+                    "reality": {
+                      "enabled": true,
+                      "public_key": "PUBLICKEY123",
+                      "short_id": "ab12"
+                    }
+                  }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val parsed = SubscriptionParser.parse(input, sourceType = SourceType.SUBSCRIPTION_URL)
+        val profile = parsed.profiles.single()
+
+        assertEquals("vless", profile.protocol)
+        assertEquals("reality", profile.security)
+        assertEquals("Sing Reality", profile.displayName)
+        assertEquals("PUBLICKEY123", profile.publicKey)
+        assertEquals("ab12", profile.shortId)
+        assertEquals("www.google.com", profile.sni)
+        assertEquals("chrome", profile.fingerprint)
+    }
+
+    @Test
+    fun `unknown provider parser returns useful warnings without crashing`() {
+        val parsed = SubscriptionParser.parseUnknownProviderSubscription(
+            "hysteria2://password@example.com:443?sni=edge.example.com#HY2"
+        )
+
+        assertEquals(0, parsed.profiles.size)
+        assertTrue(parsed.warnings.any { it.contains("Unsupported subscription format", ignoreCase = true) })
+        assertTrue(parsed.warnings.any { it.contains("hysteria2", ignoreCase = true) })
+    }
 }

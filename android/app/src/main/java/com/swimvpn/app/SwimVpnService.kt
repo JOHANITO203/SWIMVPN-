@@ -8,9 +8,13 @@ import android.content.Intent
 import android.content.pm.PackageManager.NameNotFoundException
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.swimvpn.app.BuildConfig
@@ -24,6 +28,7 @@ import com.swimvpn.app.runtime.Tun2SocksNativeBridge
 import com.swimvpn.app.runtime.Tun2SocksNativeBridgeContract
 import com.swimvpn.app.runtime.Tun2SocksRuntimeFilePreparer
 import com.swimvpn.app.runtime.XrayProcessBridge
+import com.swimvpn.app.vpn.DisconnectCause
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.RuntimeStateStore
@@ -45,6 +50,12 @@ class SwimVpnService : VpnService() {
     private var activeRuntimeHeartbeatJob: Job? = null
     private var activeRuntimeMonitorJob: Job? = null
     private var activeStartupJob: Job? = null
+    private var activeReconnectJob: Job? = null
+    private var activeSession: ActiveSession? = null
+    private var reconnectAttempt = 0
+    private var sessionStartedAt: Long? = null
+    private var stoppedByUser = false
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private val serviceJob = Job()
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
     private val xrayBridge by lazy { XrayProcessBridge(applicationContext) }
@@ -65,7 +76,17 @@ class SwimVpnService : VpnService() {
         const val EXTRA_DATA_LIMIT = "DATA_LIMIT_BYTES"
         const val EXTRA_DATA_USED = "DATA_USED_BYTES"
         const val EXTRA_RUNTIME_MODE = "RUNTIME_MODE"
+
+        private val SERVICE_RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
+        private const val MAX_SERVICE_RECONNECT_ATTEMPTS = 5
     }
+
+    private data class ActiveSession(
+        val host: String,
+        val port: Int,
+        val requestedMode: RuntimeMode,
+        val rawConfig: String?,
+    )
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
@@ -77,6 +98,8 @@ class SwimVpnService : VpnService() {
                 val requestedMode = RuntimeMode.fromPersisted(intent.getStringExtra(EXTRA_RUNTIME_MODE))
 
                 startAsForeground("Preparing tunnel to $host...")
+                logBatteryOptimizationState()
+                logRuntimeEvent("vpn_connect_requested", mapOf("mode" to requestedMode.name))
                 startVpn(
                     host = host,
                     port = port,
@@ -85,10 +108,14 @@ class SwimVpnService : VpnService() {
                 )
             }
 
-            ACTION_STOP -> stopVpn(reason = "manual_stop")
+            ACTION_STOP -> {
+                stoppedByUser = true
+                logRuntimeEvent("stopped_by_user")
+                stopVpn(reason = "manual_stop", cause = DisconnectCause.USER_STOPPED, finalStatus = RuntimeStatus.STOPPED_BY_USER)
+            }
         }
 
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     private fun startAsForeground(content: String) {
@@ -102,6 +129,7 @@ class SwimVpnService : VpnService() {
         } else {
             startForeground(notificationId, notification)
         }
+        logRuntimeEvent("foreground_service_started")
     }
 
     private fun startVpn(
@@ -120,10 +148,16 @@ class SwimVpnService : VpnService() {
         VpnManager.resetUsage()
         VpnManager.clearError()
         VpnManager.clearRuntimeDiagnostics()
+        stoppedByUser = false
+        activeSession = ActiveSession(host, port, requestedMode, rawConfig)
+        if (sessionStartedAt == null) {
+            sessionStartedAt = System.currentTimeMillis()
+        }
         AdaptiveEventLogger.log(
             event = "runtime_start_requested",
             details = mapOf("mode" to requestedMode),
         )
+        logRuntimeEvent("vpn_service_started", mapOf("mode" to requestedMode.name))
         updateRuntimeStatus(RuntimeStatus.STARTING, requestedMode)
 
         activeStartupJob?.cancel()
@@ -151,6 +185,11 @@ class SwimVpnService : VpnService() {
                 }
             } catch (e: Exception) {
                 Log.e("SwimVpnService", "Error starting VPN", e)
+                val cause = if (e.message?.contains("config", ignoreCase = true) == true) {
+                    DisconnectCause.CONFIG_INVALID
+                } else {
+                    DisconnectCause.UNKNOWN
+                }
                 AdaptiveEventLogger.log(
                     event = "runtime_failed",
                     details = mapOf(
@@ -159,8 +198,9 @@ class SwimVpnService : VpnService() {
                         "error" to e.localizedMessage,
                     ),
                 )
+                logRuntimeEvent("reconnect_failed", mapOf("error" to (e.localizedMessage ?: "unknown")))
                 setRuntimeError("Connection failed: ${e.localizedMessage}")
-                stopVpn(clearRuntimeState = false, reason = "startup_failure")
+                stopVpn(clearRuntimeState = false, reason = "startup_failure", cause = cause)
             } finally {
                 activeStartupJob = null
             }
@@ -177,6 +217,7 @@ class SwimVpnService : VpnService() {
             runtime = runtime,
             failurePrefix = "Xray tunnel runtime exited before tun2socks could be armed",
         )
+        logRuntimeEvent("engine_started", mapOf("mode" to RuntimeMode.FULL_TUNNEL.name))
 
         val builder = Builder()
             .setSession("SWIMVPN+ (${runtime.profile.displayName})")
@@ -239,7 +280,7 @@ class SwimVpnService : VpnService() {
                         Log.e("SwimVpnService", "tun2socks native bridge failed", error)
                         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
                             setRuntimeError("tun2socks failed: ${error.localizedMessage}")
-                            stopVpn(clearRuntimeState = false, reason = "tun2socks_failure")
+                            scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_failure")
                         }
                         return@launch
                     }
@@ -248,7 +289,7 @@ class SwimVpnService : VpnService() {
                     if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
                         Log.w("SwimVpnService", "tun2socks exited unexpectedly with code $exitCode")
                         setRuntimeError("tun2socks exited with code $exitCode")
-                        stopVpn(clearRuntimeState = false, reason = "tun2socks_exit_$exitCode")
+                        scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_exit_$exitCode")
                     }
                 }
                 activeTun2SocksJob = tunnelJob
@@ -278,11 +319,14 @@ class SwimVpnService : VpnService() {
         delay(350)
         VpnManager.markHandshake()
         updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.FULL_TUNNEL)
+        reconnectAttempt = 0
         VpnManager.setRuntimeDiagnostics(
             activeMode = RuntimeMode.FULL_TUNNEL.name,
             xraySessionId = activeXraySessionId,
             tun2SocksSessionId = activeTun2SocksSessionId,
             tun2SocksLogPath = tun2SocksNativePrep?.stderrLogFile?.absolutePath,
+            reconnectCount = reconnectAttempt,
+            sessionStartedAt = sessionStartedAt,
         )
         startTrafficStatsPolling()
         startRuntimeHeartbeat(RuntimeMode.FULL_TUNNEL)
@@ -290,6 +334,8 @@ class SwimVpnService : VpnService() {
             mode = RuntimeMode.FULL_TUNNEL,
             requireTun2Socks = true,
         )
+        registerNetworkCallback()
+        logRuntimeEvent("tunnel_started", mapOf("mode" to RuntimeMode.FULL_TUNNEL.name))
 
         val runtimeMessage = when (tun2SocksAvailability.preferredLaunchMode) {
             Tun2SocksLaunchMode.JNI -> {
@@ -335,18 +381,24 @@ class SwimVpnService : VpnService() {
             runtime = runtime,
             failurePrefix = "Xray local proxy exited before becoming ready",
         )
+        logRuntimeEvent("engine_started", mapOf("mode" to RuntimeMode.LOCAL_PROXY.name))
 
         VpnManager.markHandshake()
         updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.LOCAL_PROXY)
+        reconnectAttempt = 0
         VpnManager.setRuntimeDiagnostics(
             activeMode = RuntimeMode.LOCAL_PROXY.name,
             xraySessionId = activeXraySessionId,
+            reconnectCount = reconnectAttempt,
+            sessionStartedAt = sessionStartedAt,
         )
         startRuntimeHeartbeat(RuntimeMode.LOCAL_PROXY)
         startRuntimeLivenessMonitor(
             mode = RuntimeMode.LOCAL_PROXY,
             requireTun2Socks = false,
         )
+        registerNetworkCallback()
+        logRuntimeEvent("tunnel_started", mapOf("mode" to RuntimeMode.LOCAL_PROXY.name))
         updateNotification("Local proxy ready: 127.0.0.1:${runtime.ports.socksPort}")
 
         Log.i(
@@ -355,14 +407,29 @@ class SwimVpnService : VpnService() {
         )
     }
 
-    private fun stopVpn(clearRuntimeState: Boolean = true, reason: String = "unspecified") {
+    private fun stopVpn(
+        clearRuntimeState: Boolean = true,
+        reason: String = "unspecified",
+        cause: DisconnectCause = DisconnectCause.UNKNOWN,
+        finalStatus: RuntimeStatus = RuntimeStatus.IDLE,
+        stopService: Boolean = true,
+    ) {
         Log.i("SwimVpnService", "Stopping VPN runtime reason=$reason clearRuntimeState=$clearRuntimeState")
+        logRuntimeEvent(
+            event = if (cause == DisconnectCause.USER_STOPPED) "stopped_by_user" else "stopped_by_system",
+            details = mapOf("reason" to reason, "cause" to cause.name),
+        )
         AdaptiveEventLogger.log(
             event = "tunnel_disconnected",
             details = mapOf(
                 "reason" to reason,
                 "clearRuntimeState" to clearRuntimeState,
             ),
+        )
+        VpnManager.setRuntimeDiagnostics(
+            lastDisconnectCause = cause,
+            reconnectCount = reconnectAttempt,
+            sessionStartedAt = sessionStartedAt,
         )
         if (!hasActiveRuntimeResources() &&
             clearRuntimeState &&
@@ -379,6 +446,10 @@ class SwimVpnService : VpnService() {
         try {
             activeStartupJob?.cancel()
             activeStartupJob = null
+            if (stopService) {
+                activeReconnectJob?.cancel()
+                activeReconnectJob = null
+            }
             activeTun2SocksContract?.let { contract ->
                 runCatching { Tun2SocksNativeBridge.stop(contract) }
                     .onFailure { error ->
@@ -395,6 +466,7 @@ class SwimVpnService : VpnService() {
             activeRuntimeMonitorJob?.cancel()
             activeRuntimeMonitorJob = null
             activeTun2SocksContract = null
+            unregisterNetworkCallback()
             activeXraySessionId?.let { sessionId ->
                 xrayBridge.stop(sessionId)
             }
@@ -407,10 +479,17 @@ class SwimVpnService : VpnService() {
             vpnInterface = null
             VpnManager.clearRuntimeDiagnostics()
             if (clearRuntimeState) {
-                updateRuntimeStatus(RuntimeStatus.IDLE, VpnManager.runtimeMode.value)
+                updateRuntimeStatus(finalStatus, VpnManager.runtimeMode.value, cause = cause)
             }
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            if (stopService) {
+                if (finalStatus == RuntimeStatus.IDLE || finalStatus == RuntimeStatus.STOPPED_BY_USER) {
+                    activeSession = null
+                    sessionStartedAt = null
+                    reconnectAttempt = 0
+                }
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
         }
     }
 
@@ -455,9 +534,10 @@ class SwimVpnService : VpnService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        logRuntimeEvent("service_destroyed")
         serviceScope.cancel()
         if (VpnManager.runtimeStatus.value != RuntimeStatus.FAILED) {
-            stopVpn(reason = "service_destroyed")
+            stopVpn(reason = "service_destroyed", cause = if (stoppedByUser) DisconnectCause.USER_STOPPED else DisconnectCause.SERVICE_KILLED)
         } else {
             try {
                 activeStartupJob?.cancel()
@@ -478,6 +558,7 @@ class SwimVpnService : VpnService() {
                 activeRuntimeMonitorJob?.cancel()
                 activeRuntimeMonitorJob = null
                 activeTun2SocksContract = null
+                unregisterNetworkCallback()
                 activeXraySessionId?.let { sessionId ->
                     xrayBridge.stop(sessionId)
                 }
@@ -496,7 +577,7 @@ class SwimVpnService : VpnService() {
     override fun onRevoke() {
         Log.w("SwimVpnService", "VPN permission was revoked by Android")
         setRuntimeError("VPN permission was revoked by the system")
-        stopVpn(clearRuntimeState = false, reason = "vpn_revoked")
+        stopVpn(clearRuntimeState = false, reason = "vpn_revoked", cause = DisconnectCause.SERVICE_KILLED)
         super.onRevoke()
     }
 
@@ -590,8 +671,9 @@ class SwimVpnService : VpnService() {
                 if (xraySessionId == null || xraySnapshot == null || !xraySnapshot.isAlive) {
                     val exitCode = xraySnapshot?.exitCode?.toString() ?: "unknown"
                     Log.w("SwimVpnService", "Xray process is not alive for mode=$mode exitCode=$exitCode")
+                    logRuntimeEvent("engine_crashed", mapOf("engine" to "xray", "exitCode" to exitCode))
                     setRuntimeError("Xray runtime stopped unexpectedly (exit=$exitCode)")
-                    stopVpn(clearRuntimeState = false, reason = "xray_not_alive_$exitCode")
+                    scheduleReconnect(DisconnectCause.ENGINE_CRASH, "xray_not_alive_$exitCode")
                     return@launch
                 }
 
@@ -600,8 +682,9 @@ class SwimVpnService : VpnService() {
                     val tun2SocksContract = activeTun2SocksContract
                     if (tun2SocksJob == null || tun2SocksContract == null || !tun2SocksJob.isActive) {
                         Log.w("SwimVpnService", "tun2socks monitor detected inactive data plane")
+                        logRuntimeEvent("engine_crashed", mapOf("engine" to "tun2socks"))
                         setRuntimeError("tun2socks data plane stopped unexpectedly")
-                        stopVpn(clearRuntimeState = false, reason = "tun2socks_not_alive")
+                        scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_not_alive")
                         return@launch
                     }
                 }
@@ -611,7 +694,11 @@ class SwimVpnService : VpnService() {
         }
     }
 
-    private fun updateRuntimeStatus(status: RuntimeStatus, mode: RuntimeMode) {
+    private fun updateRuntimeStatus(
+        status: RuntimeStatus,
+        mode: RuntimeMode,
+        cause: DisconnectCause = DisconnectCause.UNKNOWN,
+    ) {
         if (status == RuntimeStatus.RUNNING) {
             AdaptiveEventLogger.log(
                 event = "handshake_success",
@@ -623,6 +710,9 @@ class SwimVpnService : VpnService() {
             status = status,
             mode = mode,
             error = VpnManager.errorMessage.value,
+            lastDisconnectCause = cause,
+            reconnectCount = reconnectAttempt,
+            sessionStartedAt = sessionStartedAt,
         )
         VpnManager.updateRuntimeStatus(status)
     }
@@ -633,6 +723,9 @@ class SwimVpnService : VpnService() {
             status = RuntimeStatus.FAILED,
             mode = VpnManager.runtimeMode.value,
             error = message,
+            lastDisconnectCause = DisconnectCause.UNKNOWN,
+            reconnectCount = reconnectAttempt,
+            sessionStartedAt = sessionStartedAt,
         )
         VpnManager.setError(message)
     }
@@ -647,5 +740,110 @@ class SwimVpnService : VpnService() {
             activeXraySessionId != null ||
             activeTun2SocksSessionId != null ||
             vpnInterface != null
+    }
+
+    private fun registerNetworkCallback() {
+        if (networkCallback != null) return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                logRuntimeEvent("network_available", mapOf("network" to network.toString()))
+                runCatching { setUnderlyingNetworks(arrayOf(network)) }
+                if (VpnManager.runtimeStatus.value == RuntimeStatus.DEGRADED) {
+                    scheduleReconnect(DisconnectCause.NETWORK_LOST, "network_available_after_loss")
+                }
+            }
+
+            override fun onLost(network: Network) {
+                logRuntimeEvent("network_lost", mapOf("network" to network.toString()))
+                updateRuntimeStatus(RuntimeStatus.DEGRADED, VpnManager.runtimeMode.value, cause = DisconnectCause.NETWORK_LOST)
+                updateNotification("Network changed; waiting to reconnect")
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                val transport = when {
+                    networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+                    networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+                    networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+                    else -> "other"
+                }
+                logRuntimeEvent("network_available", mapOf("transport" to transport))
+            }
+        }
+        networkCallback = callback
+        runCatching { connectivityManager.registerDefaultNetworkCallback(callback) }
+            .onFailure { error -> Log.w("SwimVpnService", "Unable to register network callback", error) }
+    }
+
+    private fun unregisterNetworkCallback() {
+        val callback = networkCallback ?: return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+        networkCallback = null
+    }
+
+    private fun scheduleReconnect(cause: DisconnectCause, reason: String) {
+        if (stoppedByUser || VpnManager.runtimeStatus.value == RuntimeStatus.STOPPED_BY_USER) {
+            logRuntimeEvent("stopped_by_user", mapOf("skipReconnectReason" to reason))
+            return
+        }
+
+        val session = activeSession
+        if (session?.rawConfig.isNullOrBlank()) {
+            logRuntimeEvent("reconnect_failed", mapOf("reason" to "missing_active_session", "cause" to cause.name))
+            stopVpn(clearRuntimeState = false, reason = reason, cause = cause)
+            return
+        }
+        val reconnectSession = session ?: return
+
+        if (reconnectAttempt >= MAX_SERVICE_RECONNECT_ATTEMPTS) {
+            logRuntimeEvent("reconnect_failed", mapOf("reason" to "max_attempts", "cause" to cause.name))
+            stopVpn(clearRuntimeState = false, reason = reason, cause = cause)
+            return
+        }
+
+        if (activeReconnectJob?.isActive == true) return
+
+        val delayMs = SERVICE_RECONNECT_BACKOFF_MS[reconnectAttempt.coerceIn(0, SERVICE_RECONNECT_BACKOFF_MS.lastIndex)]
+        logRuntimeEvent(
+            "reconnect_scheduled",
+            mapOf("attempt" to (reconnectAttempt + 1).toString(), "delayMs" to delayMs.toString(), "cause" to cause.name),
+        )
+        updateRuntimeStatus(RuntimeStatus.RECONNECTING, reconnectSession.requestedMode, cause = cause)
+        activeReconnectJob = serviceScope.launch {
+            delay(delayMs)
+            reconnectAttempt += 1
+            logRuntimeEvent("reconnect_started", mapOf("attempt" to reconnectAttempt.toString(), "cause" to cause.name))
+            stopVpn(clearRuntimeState = false, reason = reason, cause = cause, stopService = false)
+            startVpn(
+                host = reconnectSession.host,
+                port = reconnectSession.port,
+                requestedMode = reconnectSession.requestedMode,
+                rawConfig = reconnectSession.rawConfig,
+            )
+            activeReconnectJob = null
+        }
+    }
+
+    private fun logRuntimeEvent(event: String, details: Map<String, String> = emptyMap()) {
+        val redacted = details.mapValues { (_, value) -> redactForLog(value) }
+        Log.i("SwimVpnService", "$event $redacted")
+        AdaptiveEventLogger.log(event = event, details = redacted)
+    }
+
+    private fun logBatteryOptimizationState() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+            logRuntimeEvent("battery_optimization_detected")
+        }
+    }
+
+    private fun redactForLog(value: String): String {
+        return value
+            .replace(Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")) {
+                "${it.value.take(8)}..."
+            }
+            .replace(Regex("(?i)(password|token|uuid|id)=([^&\\s]+)"), "$1=***")
     }
 }

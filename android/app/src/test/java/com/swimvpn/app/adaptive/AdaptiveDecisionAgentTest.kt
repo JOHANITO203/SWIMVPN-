@@ -19,7 +19,7 @@ class AdaptiveDecisionAgentTest {
 
         assertEquals(DecisionActionType.RECONNECT_SAME, action.type)
         assertEquals("server-a", action.targetServerId)
-        assertEquals(2_000L, action.delayMs)
+        assertEquals(1_000L, action.delayMs)
     }
 
     @Test
@@ -74,6 +74,21 @@ class AdaptiveDecisionAgentTest {
 
         assertEquals(DecisionActionType.GIVE_UP, action.type)
         assertNull(action.targetServerId)
+    }
+
+    @Test
+    fun `backoff grows through production retry sequence`() {
+        val delays = (0 until AdaptiveDecisionAgent.MAX_RECONNECT_ATTEMPTS).map { attempt ->
+            AdaptiveDecisionAgent.planAfterFailure(
+                currentServerId = "server-a",
+                candidates = listOf(candidate("server-a"), candidate("server-b")),
+                scores = emptyMap(),
+                reconnectAttempt = attempt,
+                nowMs = 1_000L,
+            ).delayMs
+        }
+
+        assertEquals(listOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L), delays)
     }
 
     private fun candidate(
