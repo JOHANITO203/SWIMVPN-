@@ -15,6 +15,7 @@ import {
   UpdateInventoryHealthDto,
 } from '@app/contracts';
 import * as bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -58,7 +59,7 @@ export class AdminService {
     await this.prisma.adminSession.create({
       data: {
         admin_id: admin.id,
-        refresh_token_hash: token,
+        refresh_token_hash: this.hashSessionToken(token),
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
@@ -83,7 +84,7 @@ export class AdminService {
       const session = await this.prisma.adminSession.findFirst({
         where: {
           admin_id: admin.id,
-          refresh_token_hash: token,
+          refresh_token_hash: this.hashSessionToken(token),
           revoked_at: null,
           expires_at: { gt: new Date() },
         },
@@ -104,7 +105,7 @@ export class AdminService {
   async logout(token: string) {
     const result = await this.prisma.adminSession.updateMany({
       where: {
-        refresh_token_hash: token,
+        refresh_token_hash: this.hashSessionToken(token),
         revoked_at: null,
       },
       data: {
@@ -113,6 +114,10 @@ export class AdminService {
     });
 
     return { success: result.count > 0 };
+  }
+
+  private hashSessionToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   async createPlan(data: CreatePlanDto) {

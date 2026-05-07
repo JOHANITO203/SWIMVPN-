@@ -3,6 +3,7 @@ import { SwimVpnProfile, VpnProtocol } from '@app/contracts';
 import * as crypto from 'crypto';
 import * as zlib from 'zlib';
 import * as net from 'net';
+import { promises as dns } from 'dns';
 
 export interface ConfigPipelineResult {
   rawConfig: string;
@@ -293,6 +294,9 @@ export class VpnConfigService {
     if (profile.validationState === 'INVALID') {
       return { alive: false };
     }
+    if (await this.isBlockedHealthcheckHost(profile.address)) {
+      return { alive: false };
+    }
 
     return new Promise((resolve) => {
       const start = Date.now();
@@ -318,6 +322,57 @@ export class VpnConfigService {
 
       socket.connect(profile.port, profile.address);
     });
+  }
+
+  private async isBlockedHealthcheckHost(host: string): Promise<boolean> {
+    const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, '');
+    if (!normalized || normalized === 'localhost' || normalized.endsWith('.localhost')) {
+      return true;
+    }
+
+    if (net.isIP(normalized)) {
+      return this.isBlockedHealthcheckIp(normalized);
+    }
+
+    try {
+      const addresses = await dns.lookup(normalized, { all: true });
+      return addresses.some((entry) => this.isBlockedHealthcheckIp(entry.address));
+    } catch {
+      return true;
+    }
+  }
+
+  private isBlockedHealthcheckIp(address: string): boolean {
+    const family = net.isIP(address);
+    if (family === 4) {
+      const octets = address.split('.').map((part) => Number.parseInt(part, 10));
+      if (octets.length !== 4 || octets.some((part) => Number.isNaN(part))) {
+        return true;
+      }
+      const [a, b] = octets;
+      return a === 0 ||
+        a === 10 ||
+        a === 127 ||
+        (a === 100 && b >= 64 && b <= 127) ||
+        (a === 169 && b === 254) ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 192 && b === 0) ||
+        (a === 198 && (b === 18 || b === 19)) ||
+        a >= 224;
+    }
+
+    if (family === 6) {
+      const normalized = address.toLowerCase();
+      return normalized === '::' ||
+        normalized === '::1' ||
+        normalized.startsWith('fc') ||
+        normalized.startsWith('fd') ||
+        normalized.startsWith('fe80:') ||
+        normalized.startsWith('ff');
+    }
+
+    return true;
   }
 
   generateSwimCryptImport(data: { rawConfig: string; compress?: boolean }): SwimCryptImportResult {
