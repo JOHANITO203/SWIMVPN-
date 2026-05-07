@@ -1083,3 +1083,37 @@ u after each future language batch
 ## 2026-05-07 18:20:04 +03:00 - Android VPN stability follow-up
 - Test the underlay reconnect fix on a signed build matching the installed package, or reinstall after explicitly preserving/exporting test configs.
 - Run a long screen-off test and Wi-Fi/mobile handoff test with logcat filters for network_lost, reconnect_scheduled, reconnect_success, service_destroyed, and engine_crashed.
+
+## 2026-05-07 19:56:56 +03:00 - Remaining security review items
+- Verify production Docker/Traefik exposure for internal TCP microservice ports before changing bind hosts.
+- Keep raw ANDROID_ID as the documented operational device identity; verify it is not exposed in public APIs or logs.
+- Add gateway/admin rate limiting and decide whether Swagger should be disabled or gated in production.
+- Decide certificate pinning and HTTP subscription policy after confirming backend TLS and supplier requirements.
+
+## 2026-05-07 20:18:31 +03:00 - Security hardening follow-up after multi-agent audit
+- [x] Verify production Docker/Traefik exposure for internal TCP microservice ports before changing bind hosts.
+- [x] Add gateway/admin rate limiting and decide whether Swagger should be disabled or gated in production.
+- [ ] Keep raw ANDROID_ID as the documented operational device identity; verify it is not exposed in public APIs or logs.
+- [ ] Decide certificate pinning and HTTP subscription policy after confirming backend TLS and supplier requirements.
+- [ ] Add explicit `traefik.enable=false` labels to private-only services in the production compose.
+- [ ] Bind `backend/docker-compose.yml` local Postgres/gateway port mappings to `127.0.0.1` or document that file as dev-only.
+- [ ] Configure `GATEWAY_CORS_ORIGINS` in production with the final landing/admin origins.
+- [ ] Decide whether `GET /access/:userNumber` should require matching device proof before returning email/phone.
+
+## 2026-05-07 20:44:12 +03:00 - After installed-system audit
+- [ ] Apply only low-risk compose/gateway hardening next: private Traefik deny labels, localhost-only dev compose ports, production CORS env.
+- [ ] Keep raw ANDROID_ID as the operational device identity; protect DB/backups/secrets/admin access around it.
+- [ ] Replace or reduce public `GET /access/:userNumber` only after mapping Android refresh usage and adding a safe profile mode.
+- [ ] Add Android long-run QA for screen-off, Wi-Fi/mobile handoff, and reconnect cause logs before release tagging.
+
+## 2026-05-07 21:02:44 +03:00 - Documentation alignment follow-up
+- [ ] Continue treating current code/worklogs as source of truth when reviewing old docs.
+- [ ] Do not document or plan device hashing unless the product decision changes.
+- [ ] Keep legal/privacy copy aligned with implemented behavior after future privacy migrations.
+
+
+## 2026-05-07 21:16:09 +03:00 - Raw Android device identity protection
+- [ ] Verify no public API response includes raw `device_id`.
+- [ ] Verify logs do not print raw Android device identifiers.
+- [ ] Keep backend device checks on trial activation, profile completion, checkout binding, cancellation, crypt1 resolution, server exposure, and usage reporting.
+- [ ] Protect DB backups, secrets, and admin access because raw device identity is intentionally stored.

@@ -2713,3 +2713,32 @@ pm run build PASSED.
 - Diagnosed live via ADB on Samsung SM-S916B: SwimVPN foreground service and notification stay active, but network monitoring was observing the VPN default network instead of the physical underlay.
 - Fixed SwimVpnService to monitor INTERNET + NOT_VPN networks only and to set underlying networks only to Wi-Fi/cellular/ethernet underlays.
 - Verification: testDebugUnitTest and assembleDebug passed. ADB install smoke was blocked by signature mismatch with the already installed app; app data was not wiped.
+
+## 2026-05-07 19:46:58 +03:00 - Plan mise a jour securite/camouflage
+- Added docs/PLAN_MISE_A_JOUR_SECURITE_CAMOUFLAGE.md to split immediate security release work from the parallel cloud feature work for adaptive network privacy and camouflage.
+- Document notes that the external security review results are the next required input before prioritizing production fixes.
+
+## 2026-05-07 19:56:56 +03:00 - Security review fixes batch 1
+- Implemented backend fixes from the security review: admin sessions now store SHA-256 token fingerprints instead of reusable JWT plaintext, and supplier inventory healthchecks reject loopback/private/reserved targets before opening sockets.
+- Added policy tests for admin session token storage and healthcheck SSRF prevention. Verification passed: backend test:policy, lint, and build:all.
+
+## 2026-05-07 20:18:31 +03:00 - Gateway public surface hardening
+- Ran read-only multi-agent audits for gateway/admin exposure, Android device identity privacy, and Docker/Traefik network boundaries.
+- Added targeted in-memory gateway rate limits for admin login, public access profile lookup, and crypt import resolution without adding a new dependency.
+- Disabled Swagger in production unless `GATEWAY_SWAGGER_ENABLED=true`; added optional `GATEWAY_CORS_ORIGINS` allowlist while preserving legacy open CORS if unset.
+- Added a gateway policy test for admin-login rate limiting. Targeted gateway test and backend test:policy passed.
+
+## 2026-05-07 20:44:12 +03:00 - Audit systeme installe SWIMVPN
+- Audited the installed backend, Android runtime, parser, deployment, and legal/privacy surfaces before applying more security patches.
+- Added docs/AUDIT_SYSTEME_INSTALLE_SWIMVPN.md to document real flows, sources of truth, contradictions, safe patches, and migration-only areas.
+- Key finding: profile/device/privacy fixes must be staged; `getProfile()` and raw Android ID cannot be locked or replaced abruptly without breaking installed flows.
+
+## 2026-05-07 21:02:44 +03:00 - Documentation realigned to installed code
+- Re-read root/backend/android worklogs and treated the installed code plus recent worklogs as the operational source of truth.
+- Updated backend architecture roadmap, architecture docs, domain model, installed-system audit, privacy copy, and terms copy to follow current behavior instead of stale target-state assumptions.
+- Reframed previous "contradictions" as documentation drift unless the installed code breaks a real flow.
+
+## 2026-05-07 21:16:09 +03:00 - Raw Android device identity documented as operational truth
+- Aligned docs and privacy copy with the product decision that raw Android device identity remains the operational model for continuity, trial anti-abuse, and backend-sensitive actions.
+- Removed remaining TODO/roadmap language that treated device hashing as an intended migration.
+- Documented required protections around the model: no public exposure, no raw logs, protected DB/backups/secrets/admin access, and backend device checks retained.

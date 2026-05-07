@@ -949,3 +949,23 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 ## 2026-05-07 18:20:04 +03:00 - VPN network monitoring source of truth
 - Decision: SwimVpnService reconnection logic must monitor NOT_VPN physical underlay networks, not registerDefaultNetworkCallback after the VPN is established.
 - Reason: Android's default network can become the VPN itself; using it as setUnderlyingNetworks creates a self-referential underlay and hides Wi-Fi/mobile changes from reconnect logic.
+
+## 2026-05-07 19:56:56 +03:00 - Backend security batch 1
+- Decision: keep the existing AdminSession.refresh_token_hash column but store SHA-256 fingerprints of JWTs rather than plaintext tokens.
+- Decision: inventory healthchecks must only probe public supplier endpoints; loopback, private, link-local, multicast/reserved, localhost, and unresolvable hosts return unhealthy without opening a socket.
+
+## 2026-05-07 20:18:31 +03:00 - Gateway public security defaults
+- Decision: keep gateway rate limiting local and dependency-free for this stabilization release.
+- Reason: the immediate production risk is brute force/enumeration pressure on a small set of public routes; a minimal middleware avoids a broad dependency/config migration before release.
+- Decision: Swagger is disabled by default in production and can be explicitly re-enabled with `GATEWAY_SWAGGER_ENABLED=true`.
+- Decision: CORS can be restricted with `GATEWAY_CORS_ORIGINS`, but remains open if unset to avoid breaking unknown current landing/admin origins during this batch.
+
+## 2026-05-07 21:02:44 +03:00 - Installed code is the operational truth
+- Decision: when stale documentation conflicts with current code and recent worklogs, the documentation must be corrected first.
+- Reason: the installed system reflects field-driven changes around freemium, supplier subscriptions, quota enforcement, Android runtime parsing, manual/Crypto payment flows, and VPN stability.
+- Consequence: future security patches must start from the current flows and should not rewrite working business logic just to match older roadmap text.
+
+## 2026-05-07 21:16:09 +03:00 - Raw Android device identity remains the product model
+- Decision: keep the normalized Android device identifier as the operational `Customer.device_id` model.
+- Reason: the installed app relies on it for stable customer continuity, trial anti-abuse, premium server exposure, crypt1 resolution, cancellation, and usage reporting.
+- Consequence: do not plan or implement raw-to-hash migration unless the product decision changes. Security work should protect this identifier through logging discipline, API non-exposure, database/backups/secrets protection, and backend device checks.

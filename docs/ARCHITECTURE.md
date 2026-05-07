@@ -27,23 +27,27 @@ SWIMVPN+ backend is microservice-oriented. The architecture optimizes for clear 
 - Integrates Telegram as admin control interface, not as data authority.
 
 ### vpn-config-engine-service
-- Owns config ingest/parse/validate/normalize/classify/preview/runtime-payload preparation.
+- Owns backend config ingest/parse/validate/normalize/classify/preview/runtime-payload preparation for inventory/admin flows.
 - Preserves raw supplier config unchanged.
+- Does not replace the Android runtime parser, which currently supports additional provider/runtime formats.
 
 ### store-engine-service
-- Owns offers and store-facing pricing metadata for MVP plans (`week`, `month`, `quarter`) in `RUB` by default.
+- Owns offers, store-facing pricing metadata, and assigned premium server exposure.
+- Verifies device, entitlement, assignment health, expiry, and quota before returning backend premium nodes.
 
 ## Explicit MVP Non-Goals
 - No VPN server provisioning.
 - No WireGuard/OpenVPN backend server operations as core business logic.
-- No PSP integration in current MVP stage.
+- No full generic PSP platform in current MVP stage.
 - No additional services beyond target list without explicit justification.
 
 ## Compliance Notes
-- PSP handlers may exist internally for deferred integration work but must not be exposed as active public MVP APIs.
+- Payment support is provider-specific: manual card and Crypto Pay flows exist when configured; Stripe/YooKassa remain disabled until signature verification is implemented.
 - `Server` remains optional internal support data and is not a required business entity in MVP order fulfillment.
 
 ## Consistency Rules
 - Every paid order must be traceable to customer, plan, assigned config, and delivery status.
 - Inventory modeling remains simple for MVP.
 - Delivery workflow remains intentionally lightweight in MVP.
+- Freemium access is intentional: expired users keep the app shell and local/imported configs, while backend premium servers remain entitlement-gated.
+- Current code and recent worklogs are the operational truth when older roadmap text disagrees.

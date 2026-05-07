@@ -19,14 +19,14 @@ export default function TermsOfService() {
           SwimVPN+ operates on a freemium model. You are entitled to use the application and its free-tier features without charge, indefinitely. We do not force purchases, nor do we lock you out of the application entirely if a trial or subscription expires.
         </p>
         <p className="text-slate-400 leading-relaxed">
-          Premium nodes, higher bandwidth limits, and advanced obfuscation routes require an active subscription. Once a premium subscription or trial expires, your access will automatically revert to the free-tier limitations until you choose to renew.
+          Premium nodes and higher bandwidth limits require an active subscription or trial. Once a premium subscription or trial expires, your access will automatically revert to the free-tier limitations until you choose to renew.
         </p>
       </section>
 
       <section className="mb-10">
         <h2 className="text-2xl text-white mb-4">3. Fair Usage & Abuse Prevention</h2>
         <p className="text-slate-400 mb-4 leading-relaxed">
-          We offer a one-time 3-day trial for new users to test our premium infrastructure. To prevent abuse, we utilize anonymized device fingerprinting. Attempting to bypass trial restrictions via spoofing, emulators, or reverse engineering violates these terms.
+          We offer a one-time 3-day trial for new users to test our premium infrastructure. To prevent abuse, we use device and contact metadata for trial validation. Attempting to bypass trial restrictions via spoofing, emulators, or reverse engineering violates these terms.
         </p>
         <p className="text-slate-400 leading-relaxed">
           SwimVPN+ is designed for personal privacy and security. You agree not to use our infrastructure for:

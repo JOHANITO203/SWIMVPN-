@@ -1,267 +1,241 @@
-# SWIMVPN+ Backend Architecture & Roadmap
+# SWIMVPN+ Backend Architecture And Operational Roadmap
 
-## 1. High-Level Architecture
-The system follows an API Gateway pattern over an internal Microservices mesh. 
-* **External Layer:** Mobile App, Admin Web Dashboard, Telegram API, Future PSP Webhooks.
-* **Entrypoint:** `gateway-service` (REST API). Handles authentication, rate-limiting, and request routing.
-* **Internal Mesh:** NestJS microservices communicating via lightweight TCP or Redis transport.
-* **Data Layer:** A single, authoritative PostgreSQL database. For MVP speed and referential integrity, services share a unified database schema managed by Prisma ORM.
-* **Notification Layer:** Telegram bot integrated into `admin-control-service` for outbound alerts and basic triage commands.
+Date aligned: 2026-05-07
 
-## 2. Service Boundaries & Responsibilities
-* **`gateway-service`**: HTTP REST API. Has no direct DB access. Validates JWTs, applies rate limits, and proxies requests to internal microservices via RPC.
-* **`customer-order-service`**: Manages the core business lifecycle. Creates customers, opens orders, and tracks order status (Pending -> Paid -> Fulfilled).
-* **`inventory-delivery-service`**: Manages the stock of pre-configured VPN links. Queries available stock by category, assigns it to paid orders, and tracks delivery state.
-* **`store-engine-service`**: Manages the catalog (`plans`), pricing in RUB, and exposes the future PSP integration seam.
-* **`vpn-config-engine-service`**: Pure computational service (stateless). Receives raw strings/files, identifies the protocol (VLESS, VMess, etc.), extracts metadata, and normalizes it into the canonical `SwimVpnProfile`.
-* **`admin-control-service`**: Handles Admin RBAC, JWT issuance, audit logging (`admin_events`), and Telegram Webhook ingestion/dispatch.
+## 1. Current Reality
 
-## 3. Folder Structure (NestJS Monorepo)
-Optimize for a single repository to share the Prisma client, DTOs, and TS interfaces natively.
+This document describes the installed backend as it works now. Older roadmap ideas are subordinate to the current code and worklogs.
 
-```text
-swimvpn-backend/
-├── apps/
-│   ├── gateway-service/       # REST API, Swagger, Auth Guards
-│   ├── customer-order-service/
-│   ├── inventory-delivery-service/
-│   ├── store-engine-service/
-│   ├── vpn-config-engine-service/
-│   └── admin-control-service/
-├── libs/
-│   ├── database/              # Prisma schema, migrations, generated client
-│   ├── contracts/             # Shared DTOs, canonical SwimVpnProfile interface
-│   └── common/                # Shared utilities, Logger, TCP config
-├── docker-compose.yml
-├── Dockerfile.microservice
-├── Dockerfile.gateway
-├── package.json
-└── tsconfig.json
-```
+SWIMVPN+ uses:
 
-## 4. Prisma Schema (`libs/database/schema.prisma`)
-*Note: We use a shared schema for the MVP to enforce strict foreign keys and simplify transactions. Service boundaries are enforced at the application code level.*
+- a public NestJS `gateway-service`
+- internal NestJS TCP microservices
+- one PostgreSQL database managed through Prisma
+- supplier-provided VPN configs stored as preserved raw inventory
+- Android as the runtime authority for local import parsing and Xray/tun2socks execution
+- Telegram as admin control/notification, not as data truth
 
-```prisma
-generator client {
-  provider = "prisma-client-js"
-}
+There is no Redis transport in the current deployed architecture. Internal service communication uses NestJS TCP transport.
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+## 2. Service Boundaries
 
-enum PlanCategory {
-  WEEK
-  MONTH
-  QUARTER
-}
+### gateway-service
 
-enum OrderStatus {
-  PENDING
-  PAID
-  FULFILLED
-  FAILED
-  CANCELLED
-}
+Public HTTP entrypoint. It routes app/admin/payment requests to internal TCP services. It has no direct Prisma ownership.
 
-enum InventoryStatus {
-  AVAILABLE
-  RESERVED
-  ASSIGNED
-  DEAD
-}
+Current public surface includes:
 
-model Customer {
-  id         String   @id @default(uuid())
-  public_id  String   @unique @default(dbgenerated("nanoid(12)"))
-  email      String?
-  phone      String?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+- `POST /api/v1/access/bootstrap`
+- `POST /api/v1/access/trial`
+- `POST /api/v1/access/trial/activate`
+- `POST /api/v1/access/profile/complete`
+- `GET /api/v1/access/:userNumber`
+- `GET /api/v1/servers`
+- `GET /api/v1/store/plans`
+- `POST /api/v1/orders/checkout`
+- `POST /api/v1/payments/crypto/webhook`
+- `POST /api/v1/admin/login`
+- protected `/api/v1/admin/*` routes
 
-  orders           Order[]
-  inventory_items  InventoryItem[]
-}
+Current hardening in the working tree:
 
-model Plan {
-  id             String       @id @default(uuid())
-  code           PlanCategory @unique
-  name           String
-  duration_label String
-  quota_label    String
-  price_rub      Decimal      @db.Decimal(10, 2)
-  active         Boolean      @default(true)
-  display_order  Int          @default(0)
+- targeted gateway rate limits
+- production Swagger disabled unless explicitly enabled
+- optional CORS allowlist through `GATEWAY_CORS_ORIGINS`
 
-  orders Order[]
-}
+### customer-order-service
 
-model Order {
-  id           String      @id @default(uuid())
-  order_ref    String      @unique
-  customer_id  String
-  plan_id      String
-  status       OrderStatus @default(PENDING)
-  amount_rub   Decimal     @db.Decimal(10, 2)
-  payment_ref  String?
-  created_at   DateTime    @default(now())
-  paid_at      DateTime?
-  fulfilled_at DateTime?
+Owns customer/order/entitlement lifecycle:
 
-  customer    Customer          @relation(fields: [customer_id], references: [id])
-  plan        Plan              @relation(fields: [plan_id], references: [id])
-  assignments OrderAssignment[]
-  deliveries  Delivery[]
-}
+- device-bound bootstrap
+- trial eligibility and activation
+- profile completion
+- checkout preparation
+- Crypto Pay webhook handling
+- manual card approval/rejection
+- profile state resolution
+- premium usage reporting
+- `swimvpn://crypt1/...` entitlement-bound resolution
 
-model InventoryItem {
-  id                   String          @id @default(uuid())
-  category             PlanCategory
-  raw_config           String          @db.Text
-  config_type          String          // "VLESS", "VMESS", etc.
-  display_protocol     String
-  batch_name           String?
-  status               InventoryStatus @default(AVAILABLE)
-  assigned_order_id    String?         @unique
-  assigned_customer_id String?
-  imported_at          DateTime        @default(now())
-  assigned_at          DateTime?
+`getProfile()` is an internal business function used by multiple flows. Do not globally lock it by device without adding an explicit mode or contract.
 
-  customer    Customer?        @relation(fields: [assigned_customer_id], references: [id])
-  assignments OrderAssignment?
-}
+### inventory-delivery-service
 
-model OrderAssignment {
-  id                      String   @id @default(uuid())
-  order_id                String
-  inventory_item_id       String   @unique
-  fallback_offer_title    String
-  fallback_duration_label String
-  fallback_quota_label    String
-  assigned_at             DateTime @default(now())
+Owns inventory and assignment:
 
-  order          Order         @relation(fields: [order_id], references: [id])
-  inventory_item InventoryItem @relation(fields: [inventory_item_id], references: [id])
-}
+- supplier config import
+- assignment creation
+- resale slot accounting
+- supplier capacity checks
+- source quota and sold-plan quota accounting
+- assignment revocation/move
+- scheduled health checks when enabled
+- delivery notification triggers
 
-model Delivery {
-  id                String    @id @default(uuid())
-  order_id          String
-  customer_email    String?
-  telegram_notified Boolean   @default(false)
-  email_sent        Boolean   @default(false)
-  delivery_mode     String    // "APP_ONLY", "EMAIL", "TELEGRAM"
-  sent_at           DateTime?
-  notes             String?   @db.Text
+Allocation uses transactional selection and `FOR UPDATE SKIP LOCKED`.
 
-  order Order @relation(fields: [order_id], references: [id])
-}
+### store-engine-service
 
-model Admin {
-  id            String   @id @default(uuid())
-  username      String   @unique
-  password_hash String
-  role          String   @default("SUPER_ADMIN")
-  active        Boolean  @default(true)
-  created_at    DateTime @default(now())
+Owns plan catalog exposure and assigned premium server exposure.
 
-  sessions AdminSession[]
-  events   AdminEvent[]
-}
+It only returns backend premium servers when:
 
-model AdminSession {
-  id                 String    @id @default(uuid())
-  admin_id           String
-  refresh_token_hash String
-  created_at         DateTime  @default(now())
-  expires_at         DateTime
-  revoked_at         DateTime?
+- customer exists
+- `x-device-id` matches `Customer.device_id`
+- active assignment exists
+- inventory health allows use
+- provider/source quota is not exhausted
+- sold-plan quota is not exhausted
+- access has not expired
 
-  admin Admin @relation(fields: [admin_id], references: [id])
-}
+### vpn-config-engine-service
 
-model AdminEvent {
-  id           String   @id @default(uuid())
-  admin_id     String?
-  event_type   String   // "CONFIG_IMPORTED", "ORDER_MANUALLY_FULFILLED"
-  entity_type  String   // "ORDER", "INVENTORY"
-  entity_id    String
-  payload_json Json
-  created_at   DateTime @default(now())
+Owns backend config processing for inventory/admin flows:
 
-  admin Admin? @relation(fields: [admin_id], references: [id])
-}
-```
+- ingest
+- parse
+- validate
+- normalize
+- classify
+- preview
+- prepare runtime payload
+- crypt1 wrapping/resolution
+- supplier health checks
 
-## 5. API Contracts (Exposed by Gateway)
+The backend parser is intentionally narrower than the Android runtime parser today. Android handles more runtime import formats.
 
-**Public / App Routes:**
-* `GET /api/v1/store/plans` -> Returns active plans.
-* `POST /api/v1/orders/checkout` -> Body: `{ email, phone, plan_code }`. Returns `OrderRef`.
-* `GET /api/v1/orders/:ref/status` -> Long-polling or simple fetch for app to check if paid/fulfilled.
-* `GET /api/v1/customers/:public_id/configs` -> Fetch canonical `SwimVpnProfile` for the app.
+### admin-control-service
 
-**Future Webhook:**
-* `POST /api/v1/webhooks/psp` -> Receives PSP callback, triggers `markOrderPaid`.
+Owns:
 
-**Admin Routes (Protected by Admin JWT):**
-* `POST /admin/v1/auth/login`
-* `GET /admin/v1/dashboard/stats` -> Unsold stock counts, daily revenue.
-* `POST /admin/v1/inventory/import` -> Body: `{ category: "WEEK", rawConfigs: ["vless://..."] }`
-* `GET /admin/v1/inventory` -> Search/Filter configs.
-* `PUT /admin/v1/inventory/:id/status` -> Mark as DEAD.
-* `GET /admin/v1/orders`
-* `POST /admin/v1/orders/:id/reassign` -> Force assign new config to a failing order.
+- admin login
+- admin JWT validation
+- admin sessions
+- admin events
+- admin inventory actions
+- Telegram admin/support bots
+- accounting entries
 
-## 6. Docker Strategy & Target Hosting
-Target hosting: **Hetzner (Finland/Germany)** or **DigitalOcean (Frankfurt)**. Extremely low cost, low latency to CIS/Russia, Docker-friendly. 
+Current hardening in the working tree stores a SHA-256 fingerprint of admin JWT sessions instead of storing reusable token plaintext.
 
-**`docker-compose.prod.yml` Overview:**
-* **postgres**: `postgres:15-alpine` (Mapped volume, strict local-only exposure).
-* **redis**: `redis:7-alpine` (Used as the message transport layer between NestJS microservices).
-* **gateway-service**: Port `3000` mapped to host. Handled via NGINX/Traefik reverse proxy (handles SSL).
-* **internal-services** (x5): Replicas configured, no ports exposed to the host. Communicate strictly via Redis transport.
+### notification-bot-service
 
-## 7. Implementation Roadmap (MVP Timeline)
-* **Day 1: Infrastructure & DB.** Initialize NestJS monorepo, generate Prisma schema, spin up Postgres/Redis locally.
-* **Day 2: Core Domain.** Build `customer-order-service` and `store-engine-service`. Create basic CRUD for customers and catalog.
-* **Day 3: The Engine.** Build `vpn-config-engine-service`. Implement Regex/parsers for VLESS/VMess/Reality. Define `SwimVpnProfile` canonical model.
-* **Day 4: Inventory & Fulfillment.** Build `inventory-delivery-service`. Implement the import workflow and the transaction: Find available config -> Reserve -> Assign -> Mark Fulfilled.
-* **Day 5: Gateway & Admin.** Build `gateway-service` routes and `admin-control-service`. Integrate Telegram alerts. End-to-end testing.
+Owns post-purchase/manual-card notifications and Telegram/email delivery helpers.
 
-## 8. Security Notes
-1. **Strict Boundary:** Only `gateway-service` accepts external HTTP.
-2. **Config Sanitization:** The `vpn-config-engine-service` must strictly type-check and sanitize inputs to prevent NoSQL injection (even in JSON payloads) or log spoofing.
-3. **Audit Logs:** Every admin action (e.g., marking an inventory item DEAD, manual assignment) writes an immutable record to `AdminEvent`.
-4. **No PSP Keys locally yet:** The system expects PSP data only via webhook signature validation (to be implemented later).
+## 3. Data Model Summary
 
-## 9. Admin Module Scope
-The Admin Panel is the control tower:
-* **Stock Management:** View counts of `AVAILABLE` vs `ASSIGNED` vs `DEAD` configs per category.
-* **Batch Import:** Paste 500 VLESS strings. The system pushes them to the config-engine, validates them, and writes to `InventoryItem`.
-* **Order Triage:** Search orders by phone/email. If an order is stuck, the admin can click "Reassign Config" to pull a fresh config from stock and push it to the user.
+PostgreSQL/Prisma is the source of truth.
 
-## 10. Telegram Control Scope
-Telegram is **read-heavy, action-light**:
-* **Outbound Alerts:** Real-time push to a private admin group when:
-  * An order is successfully fulfilled.
-  * Stock for `WEEK` drops below 10 items.
-  * A critical failure occurs (e.g., PSP paid but 0 inventory available).
-* **Inbound Commands (Future MVP+):** `/stock` to get current counts. `/dead <config_id>` to kill a reported config. Telegram requests hit the gateway webhook, which validates the Chat ID against a whitelist.
+Core models:
 
-## 11. Config Import Strategy
-1. Admin uploads a `.txt` file or pastes a list of strings to the Gateway.
-2. Gateway sends payload via RPC to `inventory-delivery-service`.
-3. `inventory-delivery-service` streams each line to `vpn-config-engine-service`.
-4. Engine returns `SwimVpnProfile` with `isValid`, `protocol`, `warnings`.
-5. If valid, `inventory-delivery-service` inserts into Postgres with `category`, `raw_config`, and `display_protocol`.
-6. *Crucial Rule:* Duplicate `raw_config` strings are rejected at the DB level (unique constraint or explicit pre-check).
+- `Customer`
+- `Plan`
+- `Order`
+- `InventoryItem`
+- `OrderAssignment`
+- `Delivery`
+- `Admin`
+- `AdminSession`
+- `AdminEvent`
+- `AccountingEntry`
+- optional `Server`
 
-## 12. Future PSP Integration Seam
-The system is built to wait for the PSP. 
-* **Current State:** Orders remain `PENDING`. Admins can manually trigger `markOrderPaid` via the dashboard for testing.
-* **Future State:** You configure the PSP. The PSP sends an HTTP POST to `gateway-service` `/api/v1/webhooks/psp`.
-* **The Seam:** The Gateway validates the webhook signature, extracts `payment_ref` and `order_ref`, and fires an RPC event: `order.paid`.
-* **Fulfillment Reactor:** `customer-order-service` hears `order.paid`, updates the DB, and fires `order.ready_to_fulfill`. The `inventory-delivery-service` catches this, assigns the config, and finalizes the transaction.
+Important current fields include:
+
+- `Customer.device_id`
+- `InventoryItem.raw_config`
+- `InventoryItem.health_status`
+- `InventoryItem.source_quota_bytes`
+- `InventoryItem.source_used_bytes`
+- `InventoryItem.max_resale_slots`
+- `InventoryItem.used_resale_slots`
+- `InventoryItem.max_customer_allocations`
+- `InventoryItem.supplier_expires_at`
+- `OrderAssignment.access_status`
+- `OrderAssignment.measured_used_bytes`
+
+## 4. Access Model
+
+The current app is freemium-capable:
+
+- expired users are not locked out of the app shell
+- imported configs remain usable
+- backend premium servers/configs require active trial/subscription entitlement
+- backend premium server exposure is enforced by backend device and assignment checks
+
+States used by Android/backend include:
+
+- `PROFILE_INCOMPLETE`
+- `TRIAL_AVAILABLE`
+- `ACTIVE_TRIAL`
+- `ACTIVE_SUBSCRIPTION`
+- `PENDING_FULFILLMENT`
+- `EXPIRED_TRIAL`
+- `EXPIRED_SUBSCRIPTION`
+- `FREEMIUM`
+
+## 5. Config Handling
+
+Raw supplier configs are preserved as original input.
+
+Current design reality:
+
+- backend inventory stores raw supplier resources
+- Android expands remote subscriptions and chooses runtime nodes when needed
+- Android parser currently supports more provider/runtime formats than the backend parser
+- backend must not mutate raw configs to "fix" runtime behavior
+
+## 6. Payments
+
+Payment logic is no longer purely future-state.
+
+Current code includes:
+
+- manual card checkout path through Telegram payment bot
+- manual card proof/approval/rejection workflow
+- Crypto Pay invoice and webhook handling when configured
+- disabled Stripe/YooKassa handlers until signature verification is configured
+
+Do not describe all PSP/payment integration as absent. The accurate statement is: payment support is partial and provider-specific, with Crypto/manual-card paths active when configured and other PSPs deferred.
+
+## 7. Deployment
+
+The production root `docker-compose.yml` is Dokploy/Traefik oriented:
+
+- no host `ports:` mappings
+- gateway and landing attach to `dokploy-network`
+- internal services and DB attach to the private `swimvpn-private` network
+- internal TCP ports are not published to the host
+
+`backend/docker-compose.yml` is a local/dev compose file and must not be treated as the production topology without hardening.
+
+## 8. Roadmap From Current Reality
+
+### Release stabilization
+
+- keep current freemium/entitlement behavior
+- keep Android runtime reconnect improvements
+- add low-risk compose/gateway hardening
+- run long Android screen-off and network-handoff QA
+
+### Device identity alignment
+
+The current code intentionally uses the normalized Android device identifier for anti-abuse, customer continuity, entitlement checks, server exposure, crypt1 resolution, cancellation, and usage reporting.
+
+This is the operational device identity model. Do not replace it with hashing unless the product decision changes and a separate migration is explicitly planned.
+
+Required protections around this model:
+
+- never expose `device_id` in public API responses
+- never log raw device identifiers
+- keep device matching on backend-sensitive actions
+- protect database backups, secrets, and admin access
+- keep privacy/legal copy aligned with this implemented behavior
+
+### Parser alignment
+
+Keep Android parser as runtime authority for now. Add backend parser support only where inventory/admin workflows require it.
+
+### Local data protection
+
+Config and auto-connect local storage should be encrypted in a future migration, but this is local data protection, not network obfuscation.

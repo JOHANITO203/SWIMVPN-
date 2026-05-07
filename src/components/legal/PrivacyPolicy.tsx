@@ -26,10 +26,10 @@ export default function PrivacyPolicy() {
       <section className="mb-10">
         <h2 className="text-2xl text-white mb-4">2. Device Fingerprinting & Trial Management</h2>
         <p className="text-slate-400 mb-4 leading-relaxed">
-          SwimVPN+ offers an initial 3-day trial. To prevent abuse of this trial system and ensure fair network access, we generate an anonymous <strong>device fingerprint</strong> when you activate the trial.
+          SwimVPN+ offers an initial 3-day trial. To prevent abuse of this trial system and ensure fair network access, the Android app sends the device identifier provided by Android for trial validation and account continuity.
         </p>
         <p className="text-slate-400 mb-4 leading-relaxed">
-          This fingerprint is an irreversible cryptographic hash. It cannot be used to identify your personal hardware specifics outside of our trial-validation database. It is strictly used to answer one question: <em>"Has this device already consumed a trial?"</em>
+          This identifier is used to answer limited operational questions such as: <em>"Has this device already consumed a trial?"</em> and <em>"Is this device authorized to access this assigned premium configuration?"</em> It is not displayed publicly and is not used to monitor browsing activity or VPN traffic destinations.
         </p>
         <p className="text-slate-400 leading-relaxed">
           We do not collect your name, physical address, or identity documents. If you choose to provide an email address or phone number for account recovery or payment receipts, it is kept heavily secured and completely decoupled from your VPN traffic data.
