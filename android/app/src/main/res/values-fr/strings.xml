@@ -22,6 +22,7 @@
     <string name="status_connecting">Connexion...</string>
     <string name="status_disconnecting">Déconnexion...</string>
     <string name="status_error">Erreur de connexion</string>
+    <string name="vpn_notification_running">En marche</string>
     <string name="msg_secure_connection">Connexion sécurisée établie</string>
     <string name="msg_tap_to_connect">Touchez pour vous connecter</string>
     <string name="no_server">AUCUN SERVEUR</string>

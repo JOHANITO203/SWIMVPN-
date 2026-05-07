@@ -311,9 +311,8 @@ object TunnelRuntimeAdapter {
         val document = JsonObject()
         document.add("log", buildLogSection())
         document.add("dns", buildDnsSection(networkPolicy))
-        document.add("policy", buildPolicySection())
-        document.add("stats", JsonObject())
-        document.add("inbounds", buildStandardInbounds())
+        document.add("policy", buildPolicySection(enableStats = false))
+        document.add("inbounds", buildStandardInbounds(enableSniffing = false))
         document.add("outbounds", buildStandardOutbounds(primaryOutbound))
         document.add("routing", buildRoutingSection(networkPolicy))
         return document
@@ -330,19 +329,23 @@ object TunnelRuntimeAdapter {
             document.add("dns", buildDnsSection(networkPolicy))
         }
         if (!document.has("policy")) {
-            document.add("policy", buildPolicySection())
+            document.add("policy", buildPolicySection(enableStats = true))
         }
         if (!document.has("stats")) {
             document.add("stats", JsonObject())
         }
 
+        val hasRoutingRules = document.getAsJsonObject("routing")
+            ?.getAsJsonArray("rules")
+            ?.let { it.size() > 0 }
+            ?: false
         val inbounds = if (document.has("inbounds") && document.get("inbounds").isJsonArray) {
             document.getAsJsonArray("inbounds")
         } else {
             JsonArray()
         }
-        ensureInbound(inbounds, "socks-in") { buildSocksInbound() }
-        ensureInbound(inbounds, "http-in") { buildHttpInbound() }
+        ensureInbound(inbounds, "socks-in") { buildSocksInbound(enableSniffing = hasRoutingRules) }
+        ensureInbound(inbounds, "http-in") { buildHttpInbound(enableSniffing = hasRoutingRules) }
         document.add("inbounds", inbounds)
 
         val outbounds = if (document.has("outbounds") && document.get("outbounds").isJsonArray) {
@@ -379,14 +382,14 @@ object TunnelRuntimeAdapter {
         }
     }
 
-    private fun buildStandardInbounds(): JsonArray {
+    private fun buildStandardInbounds(enableSniffing: Boolean): JsonArray {
         return JsonArray().apply {
-            add(buildSocksInbound())
-            add(buildHttpInbound())
+            add(buildSocksInbound(enableSniffing))
+            add(buildHttpInbound(enableSniffing))
         }
     }
 
-    private fun buildSocksInbound(): JsonObject {
+    private fun buildSocksInbound(enableSniffing: Boolean): JsonObject {
         return JsonObject().apply {
             addProperty("tag", "socks-in")
             addProperty("listen", "127.0.0.1")
@@ -397,7 +400,7 @@ object TunnelRuntimeAdapter {
                 addProperty("auth", "noauth")
             })
             add("sniffing", JsonObject().apply {
-                addProperty("enabled", true)
+                addProperty("enabled", enableSniffing)
                 add("destOverride", JsonArray().apply {
                     add("http")
                     add("tls")
@@ -407,7 +410,7 @@ object TunnelRuntimeAdapter {
         }
     }
 
-    private fun buildHttpInbound(): JsonObject {
+    private fun buildHttpInbound(enableSniffing: Boolean): JsonObject {
         return JsonObject().apply {
             addProperty("tag", "http-in")
             addProperty("listen", "127.0.0.1")
@@ -415,7 +418,7 @@ object TunnelRuntimeAdapter {
             addProperty("protocol", "http")
             add("settings", JsonObject())
             add("sniffing", JsonObject().apply {
-                addProperty("enabled", true)
+                addProperty("enabled", enableSniffing)
                 add("destOverride", JsonArray().apply {
                     add("http")
                     add("tls")
@@ -464,7 +467,7 @@ object TunnelRuntimeAdapter {
         }
     }
 
-    private fun buildPolicySection(): JsonObject {
+    private fun buildPolicySection(enableStats: Boolean): JsonObject {
         return JsonObject().apply {
             add("levels", JsonObject().apply {
                 add("0", JsonObject().apply {
@@ -472,16 +475,20 @@ object TunnelRuntimeAdapter {
                     addProperty("connIdle", 300)
                     addProperty("uplinkOnly", 2)
                     addProperty("downlinkOnly", 5)
-                    addProperty("statsUserUplink", true)
-                    addProperty("statsUserDownlink", true)
+                    if (enableStats) {
+                        addProperty("statsUserUplink", true)
+                        addProperty("statsUserDownlink", true)
+                    }
                 })
             })
-            add("system", JsonObject().apply {
-                addProperty("statsInboundUplink", true)
-                addProperty("statsInboundDownlink", true)
-                addProperty("statsOutboundUplink", true)
-                addProperty("statsOutboundDownlink", true)
-            })
+            if (enableStats) {
+                add("system", JsonObject().apply {
+                    addProperty("statsInboundUplink", true)
+                    addProperty("statsInboundDownlink", true)
+                    addProperty("statsOutboundUplink", true)
+                    addProperty("statsOutboundDownlink", true)
+                })
+            }
         }
     }
 

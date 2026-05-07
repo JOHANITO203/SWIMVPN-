@@ -3,17 +3,20 @@ package com.swimvpn.app
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager.NameNotFoundException
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
+import android.os.LocaleList
 import android.os.ParcelFileDescriptor
 import android.os.PowerManager
 import android.util.Log
@@ -24,7 +27,6 @@ import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.runtime.Tun2SocksAssetCatalog
-import com.swimvpn.app.runtime.Tun2SocksLaunchMode
 import com.swimvpn.app.runtime.Tun2SocksLaunchSpec
 import com.swimvpn.app.runtime.Tun2SocksNativeBridge
 import com.swimvpn.app.runtime.Tun2SocksNativeBridgeContract
@@ -36,6 +38,7 @@ import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.StickyReconnectPolicy
 import com.swimvpn.app.vpn.VpnManager
+import com.swimvpn.app.vpn.VpnNotificationLanguage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,6 +46,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class SwimVpnService : VpnService() {
     private var vpnInterface: ParcelFileDescriptor? = null
@@ -57,6 +61,7 @@ class SwimVpnService : VpnService() {
     private var activeReconnectJob: Job? = null
     private var activeSession: ActiveSession? = null
     private var activeUnderlyingNetwork: Network? = null
+    private var notificationLanguage = "en"
     private var reconnectAttempt = 0
     private var sessionStartedAt: Long? = null
     private var stoppedByUser = false
@@ -102,7 +107,8 @@ class SwimVpnService : VpnService() {
                 val port = intent.getIntExtra(EXTRA_SERVER_PORT, 443)
                 val requestedMode = RuntimeMode.fromPersisted(intent.getStringExtra(EXTRA_RUNTIME_MODE))
 
-                startAsForeground("Preparing tunnel to $host...")
+                startAsForeground()
+                refreshNotificationLanguage()
                 logBatteryOptimizationState()
                 logRuntimeEvent("vpn_connect_requested", mapOf("mode" to requestedMode.name))
                 startVpn(
@@ -141,7 +147,8 @@ class SwimVpnService : VpnService() {
             return
         }
 
-        startAsForeground("Restoring VPN tunnel...")
+        startAsForeground()
+        refreshNotificationLanguage()
         serviceScope.launch {
             val prefs = PreferencesManager(applicationContext)
             runCatching {
@@ -186,8 +193,8 @@ class SwimVpnService : VpnService() {
         }
     }
 
-    private fun startAsForeground(content: String) {
-        val notification = createNotification(content)
+    private fun startAsForeground() {
+        val notification = createNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 notificationId,
@@ -198,6 +205,19 @@ class SwimVpnService : VpnService() {
             startForeground(notificationId, notification)
         }
         logRuntimeEvent("foreground_service_started")
+    }
+
+    private fun refreshNotificationLanguage() {
+        serviceScope.launch {
+            val language = runCatching {
+                PreferencesManager(applicationContext).languageFlow.first()
+            }.getOrDefault("en")
+            val normalized = VpnNotificationLanguage.normalize(language)
+            if (notificationLanguage != normalized) {
+                notificationLanguage = normalized
+                updateNotification()
+            }
+        }
     }
 
     private fun startVpn(
@@ -405,22 +425,7 @@ class SwimVpnService : VpnService() {
         registerNetworkCallback()
         logRuntimeEvent("tunnel_started", mapOf("mode" to RuntimeMode.FULL_TUNNEL.name))
 
-        val runtimeMessage = when (tun2SocksAvailability.preferredLaunchMode) {
-            Tun2SocksLaunchMode.JNI -> {
-                if (nativeBridgeStarted) {
-                    "Full tunnel active; tun2socks JNI data plane running"
-                } else {
-                    "Tunnel interface ready; tun2socks native library packaged, JNI shim unavailable"
-                }
-            }
-            Tun2SocksLaunchMode.EXECUTABLE -> {
-                "Tunnel interface ready; tun2socks executable packaged, Android native bridge pending"
-            }
-            Tun2SocksLaunchMode.MISSING -> {
-                "Tunnel interface ready; tun2socks native bridge is not packaged yet, transitional mode"
-            }
-        }
-        updateNotification(runtimeMessage)
+        updateNotification()
 
         Log.i(
             "SwimVpnService",
@@ -467,7 +472,7 @@ class SwimVpnService : VpnService() {
         )
         registerNetworkCallback()
         logRuntimeEvent("tunnel_started", mapOf("mode" to RuntimeMode.LOCAL_PROXY.name))
-        updateNotification("Local proxy ready: 127.0.0.1:${runtime.ports.socksPort}")
+        updateNotification()
 
         Log.i(
             "SwimVpnService",
@@ -565,10 +570,11 @@ class SwimVpnService : VpnService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "VPN Status",
+                localizedNotificationText(),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "Shows when VPN is active"
+                description = localizedNotificationText()
+                setShowBadge(false)
             }
 
             val notificationManager =
@@ -577,17 +583,23 @@ class SwimVpnService : VpnService() {
         }
     }
 
-    private fun createNotification(content: String): Notification {
+    private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("SWIMVPN+")
-            .setContentText(content)
+            .setContentText(localizedNotificationText())
             .setSmallIcon(R.drawable.swimvpn_logo)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setLocalOnly(true)
+            .setContentIntent(mainActivityPendingIntent())
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
 
-    private fun updateNotification(content: String) {
+    private fun updateNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -597,7 +609,34 @@ class SwimVpnService : VpnService() {
 
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(notificationId, createNotification(content))
+        notificationManager.notify(notificationId, createNotification())
+    }
+
+    private fun localizedNotificationText(): String {
+        val localizedContext = localizedContextFor(notificationLanguage)
+        return localizedContext.getString(R.string.vpn_notification_running)
+    }
+
+    private fun localizedContextFor(language: String): Context {
+        val locale = Locale.forLanguageTag(VpnNotificationLanguage.normalize(language))
+        val configuration = Configuration(resources.configuration)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            configuration.setLocales(LocaleList(locale))
+        } else {
+            @Suppress("DEPRECATION")
+            configuration.setLocale(locale)
+        }
+        return createConfigurationContext(configuration)
+    }
+
+    private fun mainActivityPendingIntent(): PendingIntent {
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            this.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        return PendingIntent.getActivity(this, 0, intent, flags)
     }
 
     override fun onDestroy() {
@@ -836,7 +875,7 @@ class SwimVpnService : VpnService() {
                 activeUnderlyingNetwork = null
                 logRuntimeEvent("network_lost", mapOf("network" to network.toString()))
                 updateRuntimeStatus(RuntimeStatus.DEGRADED, VpnManager.runtimeMode.value, cause = DisconnectCause.NETWORK_LOST)
-                updateNotification("Network changed; waiting to reconnect")
+                updateNotification()
                 scheduleReconnect(DisconnectCause.NETWORK_LOST, "underlying_network_lost")
             }
 

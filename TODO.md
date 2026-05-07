@@ -1122,3 +1122,14 @@ u after each future language batch
 - [ ] On a real device, connect VPN, keep auto-connect enabled, then simulate service process death and confirm `sticky_restore_started` appears and tunnel reconnects.
 - [ ] Repeat after waiting more than 15 seconds with a stale runtime snapshot and confirm sticky restore is skipped.
 - [ ] Keep the boot-completed flow bootstrap-gated; do not add direct premium restore after reboot without entitlement revalidation.
+
+## 2026-05-07 22:34:00 +03:00 - Tunnel speed QA follow-up
+- [ ] Install matching signed build and compare CPU/débit for full tunnel before/after Xray stats/sniffing trim.
+- [ ] Benchmark full tunnel vs local proxy on the same server and same network.
+- [ ] Test Wi-Fi 2.4 GHz, stronger Wi-Fi/5 GHz if available, and mobile network separately before changing MTU.
+- [ ] Only tune MTU/tun2socks buffers after collecting baseline speed, CPU, reconnect, and packet-loss evidence.
+
+## 2026-05-07 22:52:00 +03:00 - Notification QA
+- [ ] Install debug APK and verify the foreground notification text is `Run`, `En marche`, or `????????` according to the selected app language.
+- [ ] Tap the VPN notification and confirm it returns to SwimVPN without restarting the tunnel.
+- [ ] Lock screen for several minutes and confirm the foreground notification remains present and the VPN stays connected.

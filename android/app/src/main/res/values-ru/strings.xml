@@ -22,6 +22,7 @@
     <string name="status_connecting">Подключение...</string>
     <string name="status_disconnecting">Отключение...</string>
     <string name="status_error">Ошибка подключения</string>
+    <string name="vpn_notification_running">Работает</string>
     <string name="msg_secure_connection">Защищенное соединение установлено</string>
     <string name="msg_tap_to_connect">Нажмите, чтобы подключиться</string>
     <string name="no_server">НЕТ СЕРВЕРА</string>

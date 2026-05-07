@@ -2748,3 +2748,15 @@ pm run build PASSED.
 - Found that `SwimVpnService` returned `START_STICKY` but did not handle Android sticky restarts with `intent == null`, leaving a system-restarted service without a restored tunnel.
 - Added a bounded sticky-restore policy: only restore a very fresh active runtime snapshot, with auto-connect enabled and a saved runtime payload. This avoids turning boot restore into a backend entitlement bypass.
 - Verification: targeted StickyReconnectPolicy unit test, full Android debug unit tests, and assembleDebug passed.
+
+## 2026-05-07 22:34:00 +03:00 - Android Xray runtime performance trim
+- Audited tunnel/proxy runtime path with ADB: foreground service is active, Xray runs as a separate process, and tun2socks JNI appears to run inside the app process.
+- Added tests for generated Xray runtime documents to keep proxy outbounds valid while avoiding unused Xray stats and inbound sniffing on empty-routing configs.
+- Trimmed generated app-owned runtime documents: no unused Xray stats policy and no inbound sniffing when routing rules are empty. Supplier full JSON documents keep their existing policy/stats behavior unless already missing inbounds.
+- Verification: targeted TunnelRuntimeAdapterPerformanceTest, full Android debug unit tests, and assembleDebug passed.
+
+## 2026-05-07 22:52:00 +03:00 - Android foreground VPN notification polish
+- Simplified the foreground VPN notification text to a single localized running state instead of runtime/debug details.
+- Added notification translations: English `Run`, French `En marche`, Russian `????????`.
+- Updated SwimVpnService notification behavior for background stability: ongoing, silent, only-alert-once, local-only, foreground-service immediate, and tap-to-return-to-app intent.
+- Verification: VpnNotificationLanguageTest, full Android debug unit tests, and assembleDebug passed.

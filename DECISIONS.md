@@ -974,3 +974,13 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: `SwimVpnService` may restore from `START_STICKY` only when `RuntimeStateStore` shows a fresh active state (`STARTING`, `RUNNING`, `RECONNECTING`, or `DEGRADED`).
 - Reason: Android/OEM can kill and relaunch a foreground VPN service with a null intent; without this path, the service restart does not actually restore the tunnel.
 - Consequence: normal boot/package-replaced restore still depends on app bootstrap revalidation. Stale snapshots, stopped states, missing VPN permission, disabled auto-connect, or missing payload do not restore.
+
+## 2026-05-07 22:34:00 +03:00 - Runtime speed tuning must be measured and conservative
+- Decision: begin speed work by removing app-generated Xray overhead that is not used by current business logic, instead of changing MTU, tun2socks buffers, or provider configs first.
+- Reason: usage/quota comes from tun2socks stats, while generated Xray stats and sniffing on empty routing rules add work without clear value in the standard full-tunnel path.
+- Consequence: MTU and tun2socks buffer tuning remain measurement-gated ADB tasks. Raw supplier configs and entitlement flows are unchanged.
+
+## 2026-05-07 22:52:00 +03:00 - VPN notification is user-facing, not runtime diagnostics
+- Decision: the foreground VPN notification should show only the localized running state while the tunnel/proxy is active.
+- Reason: detailed runtime text belongs in logs/debug UI, not in the Android notification shade. A stable short notification is clearer and less noisy while preserving the foreground service signal.
+- Consequence: service logs still keep runtime details; notification content remains minimal and translated from the user's saved language preference.
