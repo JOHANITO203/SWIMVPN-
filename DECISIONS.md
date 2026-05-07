@@ -984,3 +984,13 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: the foreground VPN notification should show only the localized running state while the tunnel/proxy is active.
 - Reason: detailed runtime text belongs in logs/debug UI, not in the Android notification shade. A stable short notification is clearer and less noisy while preserving the foreground service signal.
 - Consequence: service logs still keep runtime details; notification content remains minimal and translated from the user's saved language preference.
+
+## 2026-05-07 23:22:00 +03:00 - User routing defaults to full tunnel
+- Decision: do not expose LOCAL_PROXY as a normal user routing mode in production UI.
+- Reason: LOCAL_PROXY only opens local Xray listeners for apps that explicitly use 127.0.0.1:10808/10809. It cannot make Chrome or arbitrary Android apps route through the proxy without a VPN/TUN path, root, device-owner policy, or external app proxy configuration.
+- Consequence: legacy PROXY/LOCAL_PROXY user preferences are normalized to FULL_TUNNEL. The internal RuntimeMode.LOCAL_PROXY remains available for future diagnostics or dedicated advanced tooling.
+
+## 2026-05-07 23:45:00 +03:00 - Local proxy remains an advanced user mode
+- Decision: keep LOCAL_PROXY visible as an advanced/manual mode.
+- Reason: the proxy runtime is technically valid and useful for proxy-aware apps, explicit SOCKS/HTTP tests, and advanced users; the limitation is that Android apps do not automatically use local proxy listeners.
+- Consequence: FULL_TUNNEL remains the recommended/default mode for normal browsing, while LOCAL_PROXY must be labeled as manual and must show 127.0.0.1:10808/10809 ports. Mode switches must be handled as service-owned restarts, not as STOPPED_BY_USER disconnects.

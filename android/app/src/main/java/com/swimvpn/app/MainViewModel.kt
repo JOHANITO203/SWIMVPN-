@@ -35,6 +35,7 @@ import com.swimvpn.app.config.SecurityMode
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.vpn.RuntimeMode
+import com.swimvpn.app.vpn.RuntimeModePreference
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.ThemeMode
 import com.swimvpn.app.vpn.VpnManager
@@ -327,18 +328,71 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setRoutingMode(mode: String) {
         viewModelScope.launch {
-            val runtimeMode = when (mode) {
-                "TUNNEL" -> RuntimeMode.FULL_TUNNEL
-                "PROXY" -> RuntimeMode.LOCAL_PROXY
-                else -> RuntimeMode.fromPersisted(mode)
+            val runtimeMode = RuntimeModePreference.fromUserSelectable(mode)
+            val previousMode = when (val currentState = _state.value) {
+                is AppState.Success -> currentState.routingMode
+                is AppState.TrialSetup -> currentState.routingMode
+                else -> null
             }
+            if (previousMode == runtimeMode) {
+                prefs.setRuntimeMode(runtimeMode)
+                return@launch
+            }
+
             prefs.setRuntimeMode(runtimeMode)
             when (val currentState = _state.value) {
-                is AppState.Success -> _state.value = currentState.copy(routingMode = runtimeMode)
+                is AppState.Success -> {
+                    val nextState = currentState.copy(routingMode = runtimeMode)
+                    _state.value = nextState
+                    restartRuntimeForModeChangeIfNeeded(nextState)
+                }
                 is AppState.TrialSetup -> _state.value = currentState.copy(routingMode = runtimeMode)
                 else -> {}
             }
         }
+    }
+
+    private suspend fun restartRuntimeForModeChangeIfNeeded(nextState: AppState.Success) {
+        val vpnState = VpnManager.state.value
+        if (vpnState != VpnState.CONNECTED && vpnState != VpnState.CONNECTING) {
+            return
+        }
+
+        val server = nextState.activeServer ?: return
+        val profile = nextState.profile
+        val runtimeConfig = server.rawConfig ?: profile.subscriptionUrl
+        if ((!profile.isPremiumAllowed && server.source == "backend") || runtimeConfig.isNullOrBlank()) {
+            return
+        }
+
+        stopPremiumUsageReporting()
+        manualStopRequested = false
+        adaptiveReconnectAttempt = 0
+        lastAutoConnectSignature = null
+        AdaptiveEventLogger.log(
+            event = "routing_mode_restart_requested",
+            details = mapOf("mode" to nextState.routingMode.name),
+        )
+        prefs.saveAutoConnectPayload(
+            AutoConnectPayload(
+                host = server.host,
+                port = server.port,
+                protocol = server.protocol,
+                runtimeConfig = runtimeConfig,
+                runtimeMode = nextState.routingMode,
+            )
+        )
+
+        val context = app.applicationContext
+        val restartIntent = Intent(context, SwimVpnService::class.java).apply {
+            action = SwimVpnService.ACTION_RESTART
+            putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
+            putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
+            putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
+            putExtra(SwimVpnService.EXTRA_URL, runtimeConfig)
+            putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, nextState.routingMode.name)
+        }
+        context.startService(restartIntent)
     }
 
     fun setAutoConnect(enabled: Boolean) {

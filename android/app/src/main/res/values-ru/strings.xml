@@ -36,7 +36,7 @@
     <string name="home_badge_pending_fulfillment">ЗАКАЗ В РАБОТЕ</string>
     <string name="home_badge_access">ДОСТУП АКТИВЕН</string>
     <string name="home_badge_standard">СТАНДАРТНЫЙ РЕЖИМ</string>
-    <string name="home_proxy_ready">Локальный прокси готов для ручного использования или proxy-aware приложений</string>
+    <string name="home_proxy_ready">Расширенный прокси готов: HTTP 127.0.0.1:10809, SOCKS 127.0.0.1:10808</string>
     <string name="home_connected_via">Подключено через %1$s, %2$s</string>
     <string name="home_connected">Подключено</string>
     <string name="home_starting_proxy">Запуск локального прокси...</string>
@@ -44,7 +44,7 @@
     <string name="home_stopping_proxy">Остановка локального прокси...</string>
     <string name="home_stopping_tunnel">Остановка защищенного туннеля...</string>
     <string name="home_check_server">Проверьте сервер или импортированную конфигурацию.</string>
-    <string name="home_tap_start_proxy">Нажмите, чтобы запустить локальный прокси для ручного использования</string>
+    <string name="home_tap_start_proxy">Нажмите, чтобы запустить расширенный локальный прокси</string>
     <string name="home_tap_connect_selected">Нажмите, чтобы подключиться через выбранный сервер</string>
     <string name="home_select_server_first">Сначала выберите сервер или импортируйте конфигурацию</string>
     <string name="content_desc_profile">Профиль</string>
@@ -245,8 +245,9 @@
     <string name="routing_badge_recommended">РЕКОМЕНДУЕТСЯ</string>
     <string name="routing_badge_tunneling">ТУННЕЛИРОВАНИЕ</string>
     <string name="routing_badge_advanced">РАСШИРЕННЫЙ</string>
+    <string name="routing_mode_local_proxy_help">Расширенный режим: SWIMVPN запускает только локальные прокси. Настройте приложение с поддержкой прокси: SOCKS 127.0.0.1:10808 или HTTP 127.0.0.1:10809. Этот режим не маршрутизирует весь Android-трафик; для обычного браузинга используйте Туннель.</string>
     <string name="tunnel_title">VPN-туннель (Рекомендуется)</string>
-    <string name="proxy_title">Только локальный прокси</string>
+    <string name="proxy_title">Расширенный локальный прокси</string>
     <string name="section_connectivity">ПОДКЛЮЧЕНИЕ</string>
     <string name="auto_connect">Автоподключение</string>
     <string name="kill_switch">Kill Switch</string>

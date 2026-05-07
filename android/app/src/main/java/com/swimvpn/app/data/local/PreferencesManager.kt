@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.swimvpn.app.vpn.RuntimeMode
+import com.swimvpn.app.vpn.RuntimeModePreference
 import com.swimvpn.app.vpn.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -51,11 +52,7 @@ class PreferencesManager(private val context: Context) {
 
     val runtimeModeFlow: Flow<RuntimeMode> = context.dataStore.data
         .map { preferences ->
-            when (preferences[ROUTING_MODE_KEY]) {
-                "TUNNEL" -> RuntimeMode.FULL_TUNNEL
-                "PROXY" -> RuntimeMode.LOCAL_PROXY
-                else -> RuntimeMode.fromPersisted(preferences[ROUTING_MODE_KEY])
-            }
+            RuntimeModePreference.fromUserSelectable(preferences[ROUTING_MODE_KEY])
         }
 
     val routingModeFlow: Flow<String> = runtimeModeFlow
@@ -89,11 +86,7 @@ class PreferencesManager(private val context: Context) {
     }
 
     suspend fun setRoutingMode(mode: String) {
-        val runtimeMode = when (mode) {
-            "TUNNEL" -> RuntimeMode.FULL_TUNNEL
-            "PROXY" -> RuntimeMode.LOCAL_PROXY
-            else -> RuntimeMode.fromPersisted(mode)
-        }
+        val runtimeMode = RuntimeModePreference.fromUserSelectable(mode)
         setRuntimeMode(runtimeMode)
     }
 

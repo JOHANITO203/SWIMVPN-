@@ -2760,3 +2760,21 @@ pm run build PASSED.
 - Added notification translations: English `Run`, French `En marche`, Russian `????????`.
 - Updated SwimVpnService notification behavior for background stability: ongoing, silent, only-alert-once, local-only, foreground-service immediate, and tap-to-return-to-app intent.
 - Verification: VpnNotificationLanguageTest, full Android debug unit tests, and assembleDebug passed.
+
+## 2026-05-07 23:22:00 +03:00 - Local proxy routing UX correction
+- Audited the reported slow proxy route on device with ADB.
+- Confirmed Xray local HTTP/SOCKS listeners are alive on 127.0.0.1:10809 and 127.0.0.1:10808, and explicit curl traffic through both proxies succeeds.
+- Root cause: LOCAL_PROXY is a manual/proxy-aware app mode, not global Android routing; normal browsers do not use it automatically.
+- Hid LOCAL_PROXY from the user routing selector and migrated user-selectable legacy PROXY/LOCAL_PROXY preferences to FULL_TUNNEL so normal page loading uses the VPN TUN path.
+- Verification: RuntimeModePreferenceTest, full Android debug unit tests, and assembleDebug passed.
+
+## 2026-05-07 23:45:00 +03:00 - Advanced local proxy retained and switch hardened
+- Corrected the previous local proxy direction after product review: LOCAL_PROXY remains available as an advanced/manual mode, not a hidden diagnostic-only path.
+- Kept the operational finding from ADB: local HTTP/SOCKS listeners work when the client app is explicitly configured, but normal Android browsing still requires FULL_TUNNEL.
+- Added a service-owned runtime restart path for routing-mode changes so switching proxy/tunnel no longer uses the user-stop path or races against service teardown.
+- Added UI copy that exposes HTTP 127.0.0.1:10809 and SOCKS 127.0.0.1:10808 for proxy-aware apps.
+- Verification: pending for full Android debug tests and assembleDebug.
+
+## 2026-05-07 23:58:00 +03:00 - Advanced local proxy verification
+- Verification passed: RuntimeModePreferenceTest, full Android debug unit tests, git diff --check, and assembleDebug.
+- Remaining validation is manual device QA for live switching FULL_TUNNEL <-> LOCAL_PROXY while connected.

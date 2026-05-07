@@ -77,6 +77,7 @@ class SwimVpnService : VpnService() {
     companion object {
         private const val DEFAULT_VPN_MTU = 1280
         const val ACTION_START = "com.swimvpn.app.START_VPN"
+        const val ACTION_RESTART = "com.swimvpn.app.RESTART_VPN"
         const val ACTION_STOP = "com.swimvpn.app.STOP_VPN"
 
         const val EXTRA_SERVER_HOST = "SERVER_HOST"
@@ -116,6 +117,23 @@ class SwimVpnService : VpnService() {
                     port = port,
                     requestedMode = requestedMode,
                     rawConfig = intent.getStringExtra(EXTRA_URL),
+                )
+            }
+
+            ACTION_RESTART -> {
+                val host = intent.getStringExtra(EXTRA_SERVER_HOST) ?: activeSession?.host ?: "unknown"
+                val port = intent.getIntExtra(EXTRA_SERVER_PORT, activeSession?.port ?: 443)
+                val requestedMode = RuntimeMode.fromPersisted(intent.getStringExtra(EXTRA_RUNTIME_MODE))
+                val rawConfig = intent.getStringExtra(EXTRA_URL) ?: activeSession?.rawConfig
+
+                startAsForeground()
+                refreshNotificationLanguage()
+                logRuntimeEvent("vpn_restart_requested", mapOf("mode" to requestedMode.name))
+                restartVpn(
+                    host = host,
+                    port = port,
+                    requestedMode = requestedMode,
+                    rawConfig = rawConfig,
                 )
             }
 
@@ -217,6 +235,42 @@ class SwimVpnService : VpnService() {
                 notificationLanguage = normalized
                 updateNotification()
             }
+        }
+    }
+
+    private fun restartVpn(
+        host: String,
+        port: Int,
+        requestedMode: RuntimeMode,
+        rawConfig: String?,
+    ) {
+        if (rawConfig.isNullOrBlank()) {
+            logRuntimeEvent("reconnect_failed", mapOf("reason" to "missing_restart_config", "mode" to requestedMode.name))
+            stopVpn(clearRuntimeState = false, reason = "missing_restart_config", cause = DisconnectCause.CONFIG_INVALID)
+            return
+        }
+
+        activeStartupJob?.cancel()
+        activeReconnectJob?.cancel()
+        activeReconnectJob = null
+        reconnectAttempt = 0
+        stoppedByUser = false
+
+        serviceScope.launch {
+            logRuntimeEvent("vpn_restart_started", mapOf("mode" to requestedMode.name))
+            stopVpn(
+                clearRuntimeState = true,
+                reason = "runtime_mode_change",
+                cause = DisconnectCause.UNKNOWN,
+                finalStatus = RuntimeStatus.STOPPING,
+                stopService = false,
+            )
+            startVpn(
+                host = host,
+                port = port,
+                requestedMode = requestedMode,
+                rawConfig = rawConfig,
+            )
         }
     }
 

@@ -36,7 +36,7 @@
     <string name="home_badge_pending_fulfillment">COMMANDE EN COURS</string>
     <string name="home_badge_access">ACCÈS ACTIF</string>
     <string name="home_badge_standard">MODE STANDARD</string>
-    <string name="home_proxy_ready">Proxy local prêt pour usage manuel ou apps compatibles proxy</string>
+    <string name="home_proxy_ready">Proxy avancé prêt : HTTP 127.0.0.1:10809, SOCKS 127.0.0.1:10808</string>
     <string name="home_connected_via">Connecté via %1$s, %2$s</string>
     <string name="home_connected">Connecté</string>
     <string name="home_starting_proxy">Démarrage du proxy local natif...</string>
@@ -44,7 +44,7 @@
     <string name="home_stopping_proxy">Arrêt du proxy local...</string>
     <string name="home_stopping_tunnel">Arrêt du tunnel sécurisé...</string>
     <string name="home_check_server">Vérifiez votre serveur ou votre configuration importée.</string>
-    <string name="home_tap_start_proxy">Touchez pour démarrer le proxy local en usage manuel</string>
+    <string name="home_tap_start_proxy">Touchez pour démarrer le proxy local avancé</string>
     <string name="home_tap_connect_selected">Touchez pour vous connecter avec le serveur sélectionné</string>
     <string name="home_select_server_first">Sélectionnez un serveur ou importez d’abord une configuration</string>
     <string name="content_desc_profile">Profil</string>
@@ -245,8 +245,9 @@
     <string name="routing_badge_recommended">RECOMMANDÉ</string>
     <string name="routing_badge_tunneling">TUNNELISATION</string>
     <string name="routing_badge_advanced">AVANCÉ</string>
+    <string name="routing_mode_local_proxy_help">Mode avancé : SWIMVPN démarre uniquement des proxies locaux. Configurez une app compatible proxy avec SOCKS 127.0.0.1:10808 ou HTTP 127.0.0.1:10809. Ce mode ne route pas tout Android ; utilisez Tunnel pour la navigation normale.</string>
     <string name="tunnel_title">Tunnel VPN (Recommandé)</string>
-    <string name="proxy_title">Proxy local uniquement</string>
+    <string name="proxy_title">Proxy local avancé</string>
     <string name="section_connectivity">CONNECTIVITÉ</string>
     <string name="auto_connect">Connexion automatique</string>
     <string name="kill_switch">Kill Switch</string>

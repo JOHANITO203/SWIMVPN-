@@ -1133,3 +1133,15 @@ u after each future language batch
 - [ ] Install debug APK and verify the foreground notification text is `Run`, `En marche`, or `????????` according to the selected app language.
 - [ ] Tap the VPN notification and confirm it returns to SwimVPN without restarting the tunnel.
 - [ ] Lock screen for several minutes and confirm the foreground notification remains present and the VPN stays connected.
+
+## 2026-05-07 23:22:00 +03:00 - Proxy route follow-up
+- [ ] Install debug APK and verify an old LOCAL_PROXY preference opens the app in FULL_TUNNEL mode.
+- [ ] Confirm the routing settings screen exposes only the production-safe full tunnel route.
+- [ ] Keep local proxy internals for debug/manual proxy-aware tests only; do not present it as browser/global routing.
+
+## 2026-05-07 23:45:00 +03:00 - Advanced proxy QA follow-up
+- [ ] Install debug APK and verify LOCAL_PROXY is visible as an advanced/manual mode with HTTP/SOCKS port guidance.
+- [ ] Start FULL_TUNNEL, switch to LOCAL_PROXY, and confirm Xray remains running while tun2socks/TUN are stopped.
+- [ ] Start LOCAL_PROXY, switch to FULL_TUNNEL, and confirm VPN interface plus tun2socks are restored without a process kill.
+- [ ] Verify explicit HTTP proxy 127.0.0.1:10809 and SOCKS proxy 127.0.0.1:10808 with a proxy-aware client.
+- [ ] Keep using FULL_TUNNEL for normal browser/global Android routing tests.

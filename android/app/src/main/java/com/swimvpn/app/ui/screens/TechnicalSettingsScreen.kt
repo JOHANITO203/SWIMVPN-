@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
@@ -530,6 +531,17 @@ private fun RoutingControlPanel(
             )
         }
 
+        if (normalizedSelectedMode == LOCAL_PROXY_MODE) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = stringResource(R.string.routing_mode_local_proxy_help),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 

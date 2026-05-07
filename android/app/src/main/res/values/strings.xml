@@ -36,7 +36,7 @@
     <string name="home_badge_pending_fulfillment">ORDER IN PROGRESS</string>
     <string name="home_badge_access">ACCESS ACTIVE</string>
     <string name="home_badge_standard">STANDARD MODE</string>
-    <string name="home_proxy_ready">Local proxy ready for manual or proxy-aware apps</string>
+    <string name="home_proxy_ready">Advanced proxy ready: HTTP 127.0.0.1:10809, SOCKS 127.0.0.1:10808</string>
     <string name="home_connected_via">Connected via %1$s, %2$s</string>
     <string name="home_connected">Connected</string>
     <string name="home_starting_proxy">Starting native local proxy...</string>
@@ -44,7 +44,7 @@
     <string name="home_stopping_proxy">Stopping local proxy...</string>
     <string name="home_stopping_tunnel">Stopping secure tunnel...</string>
     <string name="home_check_server">Check your server or imported config.</string>
-    <string name="home_tap_start_proxy">Tap to start the local proxy for manual use</string>
+    <string name="home_tap_start_proxy">Tap to start advanced local proxy mode</string>
     <string name="home_tap_connect_selected">Tap to connect using the selected server</string>
     <string name="home_select_server_first">Select a server or import a config first</string>
     <string name="content_desc_profile">Profile</string>
@@ -245,8 +245,9 @@
     <string name="routing_badge_recommended">RECOMMENDED</string>
     <string name="routing_badge_tunneling">TUNNELING</string>
     <string name="routing_badge_advanced">ADVANCED</string>
+    <string name="routing_mode_local_proxy_help">Advanced mode: SWIMVPN only starts local proxies. Configure a proxy-aware app with SOCKS 127.0.0.1:10808 or HTTP 127.0.0.1:10809. This mode does not route all Android traffic; use Tunnel for normal browsing.</string>
     <string name="tunnel_title">VPN Tunnel (Recommended)</string>
-    <string name="proxy_title">Local Proxy Only</string>
+    <string name="proxy_title">Advanced Local Proxy</string>
     <string name="section_connectivity">CONNECTIVITY</string>
     <string name="auto_connect">Auto-Connect</string>
     <string name="kill_switch">Kill Switch</string>
