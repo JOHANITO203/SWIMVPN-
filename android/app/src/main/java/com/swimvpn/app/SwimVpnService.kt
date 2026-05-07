@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -52,6 +53,7 @@ class SwimVpnService : VpnService() {
     private var activeStartupJob: Job? = null
     private var activeReconnectJob: Job? = null
     private var activeSession: ActiveSession? = null
+    private var activeUnderlyingNetwork: Network? = null
     private var reconnectAttempt = 0
     private var sessionStartedAt: Long? = null
     private var stoppedByUser = false
@@ -747,31 +749,52 @@ class SwimVpnService : VpnService() {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                logRuntimeEvent("network_available", mapOf("network" to network.toString()))
+                val capabilities = connectivityManager.getNetworkCapabilities(network)
+                if (!isUsableUnderlyingNetwork(capabilities)) return
+
+                activeUnderlyingNetwork = network
+                logRuntimeEvent(
+                    "network_available",
+                    mapOf("network" to network.toString(), "transport" to transportLabel(capabilities)),
+                )
                 runCatching { setUnderlyingNetworks(arrayOf(network)) }
+                    .onFailure { error -> Log.w("SwimVpnService", "Unable to update VPN underlying network", error) }
                 if (VpnManager.runtimeStatus.value == RuntimeStatus.DEGRADED) {
                     scheduleReconnect(DisconnectCause.NETWORK_LOST, "network_available_after_loss")
                 }
             }
 
             override fun onLost(network: Network) {
+                if (activeUnderlyingNetwork != network) return
+
+                activeUnderlyingNetwork = null
                 logRuntimeEvent("network_lost", mapOf("network" to network.toString()))
                 updateRuntimeStatus(RuntimeStatus.DEGRADED, VpnManager.runtimeMode.value, cause = DisconnectCause.NETWORK_LOST)
                 updateNotification("Network changed; waiting to reconnect")
+                scheduleReconnect(DisconnectCause.NETWORK_LOST, "underlying_network_lost")
             }
 
             override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-                val transport = when {
-                    networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
-                    networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
-                    networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
-                    else -> "other"
+                if (!isUsableUnderlyingNetwork(networkCapabilities)) return
+
+                val wasActive = activeUnderlyingNetwork == network
+                activeUnderlyingNetwork = network
+                if (!wasActive) {
+                    logRuntimeEvent(
+                        "network_available",
+                        mapOf("network" to network.toString(), "transport" to transportLabel(networkCapabilities)),
+                    )
                 }
-                logRuntimeEvent("network_available", mapOf("transport" to transport))
+                runCatching { setUnderlyingNetworks(arrayOf(network)) }
+                    .onFailure { error -> Log.w("SwimVpnService", "Unable to update VPN underlying capabilities", error) }
             }
         }
         networkCallback = callback
-        runCatching { connectivityManager.registerDefaultNetworkCallback(callback) }
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        runCatching { connectivityManager.registerNetworkCallback(request, callback) }
             .onFailure { error -> Log.w("SwimVpnService", "Unable to register network callback", error) }
     }
 
@@ -779,7 +802,27 @@ class SwimVpnService : VpnService() {
         val callback = networkCallback ?: return
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+        activeUnderlyingNetwork = null
         networkCallback = null
+    }
+
+    private fun isUsableUnderlyingNetwork(capabilities: NetworkCapabilities?): Boolean {
+        if (capabilities == null) return false
+        if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return false
+        if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)) return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+    }
+
+    private fun transportLabel(capabilities: NetworkCapabilities?): String {
+        return when {
+            capabilities == null -> "unknown"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+            else -> "other"
+        }
     }
 
     private fun scheduleReconnect(cause: DisconnectCause, reason: String) {

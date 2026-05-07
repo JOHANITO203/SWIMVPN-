@@ -1079,3 +1079,7 @@ u after each future language batch
 
 ## 2026-05-07 Provider Sample Follow-up
 - [ ] Test one node from `subs.eu-fffast.com` on a real Android device and capture redacted logcat for Xray startup/handshake/runtime errors.
+
+## 2026-05-07 18:20:04 +03:00 - Android VPN stability follow-up
+- Test the underlay reconnect fix on a signed build matching the installed package, or reinstall after explicitly preserving/exporting test configs.
+- Run a long screen-off test and Wi-Fi/mobile handoff test with logcat filters for network_lost, reconnect_scheduled, reconnect_success, service_destroyed, and engine_crashed.

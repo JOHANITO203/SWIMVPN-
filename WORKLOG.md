@@ -2708,3 +2708,8 @@ pm run build PASSED.
 - Added regression coverage for provider-style `headerType=&path=&host=` query params.
 - Fixed VLESS/Trojan TCP parsing so blank `headerType` and `host` are treated as absent, preserving raw config while avoiding invalid Xray `header.type=""` output.
 - Verification: targeted parser tests, full Android unit tests, and `assembleDebug` passed.
+
+## 2026-05-07 18:20:04 +03:00 - Android VPN underlay reconnect fix
+- Diagnosed live via ADB on Samsung SM-S916B: SwimVPN foreground service and notification stay active, but network monitoring was observing the VPN default network instead of the physical underlay.
+- Fixed SwimVpnService to monitor INTERNET + NOT_VPN networks only and to set underlying networks only to Wi-Fi/cellular/ethernet underlays.
+- Verification: testDebugUnitTest and assembleDebug passed. ADB install smoke was blocked by signature mismatch with the already installed app; app data was not wiped.

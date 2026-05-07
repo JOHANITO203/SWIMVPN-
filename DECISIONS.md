@@ -945,3 +945,7 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
   - The service does not fetch backend premium servers, expand subscriptions, or bypass entitlement checks.
   - Manual stop maps to `STOPPED_BY_USER` and must not auto-reconnect.
   - Wider fallback to another server remains in the UI/adaptive layer where the server list and entitlement state are available.
+
+## 2026-05-07 18:20:04 +03:00 - VPN network monitoring source of truth
+- Decision: SwimVpnService reconnection logic must monitor NOT_VPN physical underlay networks, not registerDefaultNetworkCallback after the VPN is established.
+- Reason: Android's default network can become the VPN itself; using it as setUnderlyingNetworks creates a self-referential underlay and hides Wi-Fi/mobile changes from reconnect logic.
