@@ -22,6 +22,7 @@ import com.swimvpn.app.BuildConfig
 import com.swimvpn.app.adaptive.AdaptiveEventLogger
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
+import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.runtime.Tun2SocksAssetCatalog
 import com.swimvpn.app.runtime.Tun2SocksLaunchMode
 import com.swimvpn.app.runtime.Tun2SocksLaunchSpec
@@ -33,12 +34,14 @@ import com.swimvpn.app.vpn.DisconnectCause
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.RuntimeStateStore
+import com.swimvpn.app.vpn.StickyReconnectPolicy
 import com.swimvpn.app.vpn.VpnManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class SwimVpnService : VpnService() {
@@ -115,9 +118,72 @@ class SwimVpnService : VpnService() {
                 logRuntimeEvent("stopped_by_user")
                 stopVpn(reason = "manual_stop", cause = DisconnectCause.USER_STOPPED, finalStatus = RuntimeStatus.STOPPED_BY_USER)
             }
+
+            null -> {
+                restoreStickySessionIfAllowed()
+            }
         }
 
         return START_STICKY
+    }
+
+    private fun restoreStickySessionIfAllowed() {
+        val snapshot = RuntimeStateStore.read(applicationContext)
+        if (!StickyReconnectPolicy.shouldRestoreStickySession(snapshot)) {
+            logRuntimeEvent(
+                "sticky_restore_skipped",
+                mapOf(
+                    "status" to snapshot.status.name,
+                    "cause" to snapshot.lastDisconnectCause.name,
+                ),
+            )
+            stopSelf()
+            return
+        }
+
+        startAsForeground("Restoring VPN tunnel...")
+        serviceScope.launch {
+            val prefs = PreferencesManager(applicationContext)
+            runCatching {
+                if (!prefs.autoConnectFlow.first()) {
+                    logRuntimeEvent("sticky_restore_skipped", mapOf("reason" to "auto_connect_disabled"))
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return@launch
+                }
+
+                val payload = prefs.getAutoConnectPayload()
+                if (payload == null) {
+                    logRuntimeEvent("sticky_restore_skipped", mapOf("reason" to "missing_payload"))
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return@launch
+                }
+
+                if (payload.runtimeMode == RuntimeMode.FULL_TUNNEL && prepare(applicationContext) != null) {
+                    logRuntimeEvent("sticky_restore_skipped", mapOf("reason" to "vpn_permission_missing"))
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return@launch
+                }
+
+                logBatteryOptimizationState()
+                logRuntimeEvent(
+                    "sticky_restore_started",
+                    mapOf("mode" to payload.runtimeMode.name),
+                )
+                startVpn(
+                    host = payload.host,
+                    port = payload.port,
+                    requestedMode = payload.runtimeMode,
+                    rawConfig = payload.runtimeConfig,
+                )
+            }.onFailure { error ->
+                Log.e("SwimVpnService", "Unable to restore sticky VPN session", error)
+                setRuntimeError("VPN restore failed: ${error.localizedMessage}")
+                stopVpn(clearRuntimeState = false, reason = "sticky_restore_failed", cause = DisconnectCause.UNKNOWN)
+            }
+        }
     }
 
     private fun startAsForeground(content: String) {

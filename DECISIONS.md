@@ -969,3 +969,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: keep the normalized Android device identifier as the operational `Customer.device_id` model.
 - Reason: the installed app relies on it for stable customer continuity, trial anti-abuse, premium server exposure, crypt1 resolution, cancellation, and usage reporting.
 - Consequence: do not plan or implement raw-to-hash migration unless the product decision changes. Security work should protect this identifier through logging discipline, API non-exposure, database/backups/secrets protection, and backend device checks.
+
+## 2026-05-07 22:02:00 +03:00 - Sticky service restore is fresh-session only
+- Decision: `SwimVpnService` may restore from `START_STICKY` only when `RuntimeStateStore` shows a fresh active state (`STARTING`, `RUNNING`, `RECONNECTING`, or `DEGRADED`).
+- Reason: Android/OEM can kill and relaunch a foreground VPN service with a null intent; without this path, the service restart does not actually restore the tunnel.
+- Consequence: normal boot/package-replaced restore still depends on app bootstrap revalidation. Stale snapshots, stopped states, missing VPN permission, disabled auto-connect, or missing payload do not restore.

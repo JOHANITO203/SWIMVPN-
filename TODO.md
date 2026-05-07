@@ -1117,3 +1117,8 @@ u after each future language batch
 - [ ] Verify logs do not print raw Android device identifiers.
 - [ ] Keep backend device checks on trial activation, profile completion, checkout binding, cancellation, crypt1 resolution, server exposure, and usage reporting.
 - [ ] Protect DB backups, secrets, and admin access because raw device identity is intentionally stored.
+
+## 2026-05-07 22:02:00 +03:00 - Android sticky restore QA
+- [ ] On a real device, connect VPN, keep auto-connect enabled, then simulate service process death and confirm `sticky_restore_started` appears and tunnel reconnects.
+- [ ] Repeat after waiting more than 15 seconds with a stale runtime snapshot and confirm sticky restore is skipped.
+- [ ] Keep the boot-completed flow bootstrap-gated; do not add direct premium restore after reboot without entitlement revalidation.

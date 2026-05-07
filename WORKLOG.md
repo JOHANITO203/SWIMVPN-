@@ -2742,3 +2742,9 @@ pm run build PASSED.
 - Aligned docs and privacy copy with the product decision that raw Android device identity remains the operational model for continuity, trial anti-abuse, and backend-sensitive actions.
 - Removed remaining TODO/roadmap language that treated device hashing as an intended migration.
 - Documented required protections around the model: no public exposure, no raw logs, protected DB/backups/secrets/admin access, and backend device checks retained.
+
+## 2026-05-07 22:02:00 +03:00 - Android sticky VPN service restore hardening
+- Audited the installed Android auto-connect path after confirming bootstrap, purchase/entitlement, manual VPN connection, admin login, and supplier import flows are already production-working.
+- Found that `SwimVpnService` returned `START_STICKY` but did not handle Android sticky restarts with `intent == null`, leaving a system-restarted service without a restored tunnel.
+- Added a bounded sticky-restore policy: only restore a very fresh active runtime snapshot, with auto-connect enabled and a saved runtime payload. This avoids turning boot restore into a backend entitlement bypass.
+- Verification: targeted StickyReconnectPolicy unit test, full Android debug unit tests, and assembleDebug passed.
