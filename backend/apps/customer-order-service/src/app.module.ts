@@ -5,6 +5,7 @@ import { DatabaseModule } from '@app/database';
 import { CustomerController } from './customer.controller';
 import { CustomerService } from './customer.service';
 import { CryptoPayService } from './crypto-pay.service';
+import { SwimPayService } from './swim-pay.service';
 
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { CryptoPayService } from './crypto-pay.service';
     ]),
   ],
   controllers: [CustomerController],
-  providers: [CustomerService, CryptoPayService],
+  providers: [CustomerService, CryptoPayService, SwimPayService],
   exports: [CustomerService],
 })
 export class AppModule {}

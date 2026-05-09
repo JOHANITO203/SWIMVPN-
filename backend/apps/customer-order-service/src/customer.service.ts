@@ -16,6 +16,7 @@ import {
   ReportUsageDto,
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
+import { SwimPayService } from './swim-pay.service';
 import {
   looksLikeTelegramBotToken,
   normalizeConfiguredPaymentBotUsername,
@@ -32,6 +33,7 @@ export class CustomerService {
     @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientProxy,
     @Inject('VPN_CONFIG_SERVICE') private readonly vpnConfigClient: ClientProxy,
     private readonly cryptoPayService: CryptoPayService,
+    private readonly swimPayService?: SwimPayService,
   ) {}
 
   async bootstrapAccess(data: BootstrapAccessDto) {
@@ -92,6 +94,35 @@ export class CustomerService {
           paymentMethod: 'CRYPTO',
           redirectUrl: invoice.bot_invoice_url || invoice.mini_app_invoice_url || invoice.web_app_invoice_url || null,
           message: 'Crypto invoice created',
+        };
+      }
+
+      if (data.paymentMethod === 'SWIMPAY') {
+        if (!this.swimPayService?.isConfigured()) {
+          this.fail('SwimPay API is not configured');
+        }
+
+        const swimPayCheckout = await this.swimPayService.createCheckout({
+          amountRub: checkout.plan.price_rub.toString(),
+          orderRef: checkout.order.order_ref,
+          planLabel: `${checkout.plan.name} - ${checkout.plan.duration_label} - ${checkout.plan.quota_label}`,
+          customerPhone: checkout.customer.phone,
+        });
+
+        await this.prisma.order.update({
+          where: { id: checkout.order.id },
+          data: {
+            payment_ref: `SWIMPAY_SESSION:${swimPayCheckout.paymentSessionId}:${swimPayCheckout.orderId}`,
+          },
+        });
+
+        return {
+          orderRef: checkout.order.order_ref,
+          status: checkout.order.status,
+          amountRub: checkout.plan.price_rub.toString(),
+          paymentMethod: 'SWIMPAY',
+          redirectUrl: swimPayCheckout.checkoutUrl,
+          message: 'SwimPay checkout created',
         };
       }
 
@@ -843,6 +874,81 @@ export class CustomerService {
         error: `Fulfillment pending: ${errorMessage}`,
       };
     }
+  }
+
+  async handleSwimPayWebhook(data: { rawBody: string; headers: Record<string, string | string[] | number | undefined> }) {
+    if (!this.swimPayService?.isConfigured()) {
+      throw new Error('SwimPay API is not configured');
+    }
+
+    const event = this.swimPayService.verifyWebhook(data.rawBody, data.headers);
+    const existingEvent = await this.prisma.adminEvent.findFirst({
+      where: {
+        event_type: 'SWIMPAY_WEBHOOK_RECEIVED',
+        entity_id: event.id,
+      },
+    }).catch(() => null);
+
+    if (existingEvent) {
+      return { received: true, duplicate: true, eventId: event.id };
+    }
+
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'SWIMPAY_WEBHOOK_RECEIVED',
+        entity_type: 'PAYMENT_WEBHOOK',
+        entity_id: event.id,
+        payload_json: {
+          type: event.type,
+          externalOrderId: event.data.externalOrderId || null,
+          orderId: event.data.orderId,
+          paymentSessionId: event.data.paymentSessionId,
+          amountMinor: event.data.amountMinor,
+          currency: event.data.currency,
+          confirmationType: event.data.confirmationType || null,
+          officialBankConfirmation: false,
+          decision: event.data.decision || null,
+          receivedAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+
+    const orderRef = event.data.externalOrderId;
+    if (!orderRef) {
+      return { received: true, ignored: true, error: 'Missing external order id' };
+    }
+
+    if (event.type === 'payment.confirmed') {
+      const result = await this.fulfillOrderByRef(
+        orderRef,
+        `SWIMPAY_CONFIRMED:${event.data.paymentSessionId}:${event.id}`,
+      );
+      return {
+        received: true,
+        eventId: event.id,
+        ...result,
+      };
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { order_ref: orderRef },
+    });
+    if (order?.status === OrderStatus.PENDING) {
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: OrderStatus.FAILED,
+          payment_ref: `SWIMPAY_${event.type === 'payment.expired' ? 'EXPIRED' : 'REJECTED'}:${event.data.paymentSessionId}:${event.id}`,
+        },
+      });
+    }
+
+    return {
+      received: true,
+      eventId: event.id,
+      terminal: true,
+      type: event.type,
+    };
   }
 
   private async markOrderPendingFulfillment(orderId: string) {

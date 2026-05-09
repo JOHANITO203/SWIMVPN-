@@ -216,6 +216,7 @@
     <string name="btn_create_order">PAY NOW</string>
     <string name="payment_method_title">PAYMENT METHOD</string>
     <string name="payment_method_card">CARD</string>
+    <string name="payment_method_swimpay">SWIMPAY</string>
     <string name="payment_method_crypto">CRYPTO</string>
     <string name="plan_code_week">WEEK</string>
     <string name="plan_code_month">MONTH</string>

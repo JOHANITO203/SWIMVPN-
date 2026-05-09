@@ -96,6 +96,13 @@ export class CustomerController {
     return this.customerService.handleCryptoWebhook(data);
   }
 
+  @MessagePattern({ cmd: 'handle_swimpay_webhook' })
+  async handleSwimPayWebhook(
+    @Payload() data: { rawBody: string; headers: Record<string, string | string[] | number | undefined> },
+  ) {
+    return this.customerService.handleSwimPayWebhook(data);
+  }
+
   @MessagePattern({ cmd: 'approve_manual_card_payment' })
   async approveManualCardPayment(
     @Payload() data: { orderRef: string; paymentRef: string; proofEventId?: string },

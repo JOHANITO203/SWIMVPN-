@@ -169,6 +169,12 @@ fun SubscriptionScreen(
             )
             PaymentMethodCard(
                 modifier = Modifier.weight(1f),
+                title = stringResource(R.string.payment_method_swimpay),
+                isSelected = selectedPaymentMethod == "SWIMPAY",
+                onClick = { selectedPaymentMethod = "SWIMPAY" }
+            )
+            PaymentMethodCard(
+                modifier = Modifier.weight(1f),
                 title = stringResource(R.string.payment_method_crypto),
                 isSelected = selectedPaymentMethod == "CRYPTO",
                 onClick = { selectedPaymentMethod = "CRYPTO" }

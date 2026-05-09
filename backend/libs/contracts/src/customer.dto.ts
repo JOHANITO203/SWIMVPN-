@@ -118,7 +118,7 @@ export class CreateCheckoutDto {
 
   @IsString()
   @IsNotEmpty()
-  paymentMethod: 'CRYPTO' | 'CARD_MANUAL';
+  paymentMethod: 'CRYPTO' | 'CARD_MANUAL' | 'SWIMPAY';
 
   @IsString()
   @IsOptional()

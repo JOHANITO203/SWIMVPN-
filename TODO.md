@@ -1,5 +1,11 @@
 # TODO
 
+## [2026-05-09] SwimPay Live QA
+- [ ] Configure full show-once `SWIMPAY_SECRET_KEY` and `SWIMPAY_WEBHOOK_SECRET` in production env.
+- [ ] Save `https://api.swimvpn.pro/api/v1/payments/swimpay/webhook` in SwimPay Developer Integration.
+- [ ] Run SwimPay test webhook.
+- [ ] Create a SWIMVPN `SWIMPAY` checkout from Android.
+- [ ] Manually confirm in SwimPay and verify premium fulfillment occurs only after signed `payment.confirmed`.
 ## Now
 - Continue Android VPN core maturity from the now-live runtime baseline:
   - extend true routing/system integration after validated `FULL_TUNNEL` and `LOCAL_PROXY`

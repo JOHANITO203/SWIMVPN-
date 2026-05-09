@@ -1,4 +1,13 @@
-﻿# DECISIONS
+# DECISIONS
+
+## [2026-05-09] [SwimPay Is Manual-Confirmation Payment Signal Only]
+- **Decision**: Integrate SwimPay as a backend-created checkout plus signed webhook provider, not as an Android-side payment authority.
+- **Why**: SwimPay V1 is a manual-confirmation Payment Signal Engine. Checkout return, notification signals, matching scores, or Android state are not payment confirmation.
+- **Impact**:
+  - `SWIMPAY` orders stay `PENDING` until a verified public `payment.confirmed` webhook is accepted by the backend.
+  - Backend fulfillment still goes through the existing order/inventory path and never bypasses entitlement checks.
+  - Android only opens `checkoutUrl`; no SwimPay secret is shipped in the APK.
+  - SwimPay webhook idempotence is stored via `AdminEvent` for the MVP batch instead of adding a new webhook table.
 
 ## [2026-04-29] [Manual Card Proof Uses AdminEvent Recovery For MVP]
 - **Decision**: Keep manual card payment proof state on the existing `AdminEvent` audit trail for this MVP batch instead of introducing a new Prisma `PaymentProof` table.

@@ -1,3 +1,32 @@
+## 2026-05-09 - SwimPay local env secrets configured
+
+- Copied SwimPay environment values from the private `C:\Users\Lenovo\StudioProjects\SWIMPAY SECRETS.txt` file into local SWIMVPN `.env` and `backend/.env`.
+- Added only environment variable names in logs; secret values were not printed or committed.
+- VPS still needs the same SwimPay variables configured in the production service environment before live webhook testing.
+# WORKLOG
+
+## [2026-05-09] [SwimPay Checkout And Webhook Integration]
+- **Status**: IMPLEMENTED / NEEDS STAGING CREDENTIALS + LIVE WEBHOOK QA
+- **Changes**:
+  - Added `SWIMPAY` as a checkout method alongside manual card and Crypto Pay.
+  - Added a backend SwimPay client service for server-side checkout creation and signed webhook verification using the SwimPay V1 public contract.
+  - Added `POST /api/v1/payments/swimpay/webhook` with raw-body signature handling and `GET /api/v1/payments/swimpay/return` as a non-confirming checkout return endpoint.
+  - Kept fulfillment behind the existing backend `fulfillOrderByRef()` boundary; Android only opens the checkout URL and never marks payment as confirmed.
+  - Added idempotence through `AdminEvent` records keyed by SwimPay event id.
+  - Added SwimPay as an Android subscription payment option.
+  - Added SwimPay environment variables to root/backend env examples and compose files.
+- **Verification**:
+  - Backend SwimPay service policy test passed.
+  - Backend SwimPay checkout/webhook policy test passed.
+  - `npm run verify:deploy` passed.
+  - `docker compose --env-file .env.example -f docker-compose.yml config --quiet` passed.
+  - `android\\gradlew.bat --no-daemon :app:processDebugResources :app:compileDebugKotlin` passed.
+  - `android\\gradlew.bat --no-daemon assembleDebug` passed with existing Gradle/JDK/CMake warnings.
+- **Live QA needed**:
+  - Provision full show-once `SWIMPAY_SECRET_KEY` and `SWIMPAY_WEBHOOK_SECRET`.
+  - Save/test the public webhook URL in SwimPay.
+  - Create a real SWIMVPN order with `SWIMPAY`, complete checkout, manually confirm in SwimPay, and verify premium fulfillment only after `payment.confirmed`.
+
 [2026-05-02] [Android Subscription Fetch Isolation]
 - Extracted remote subscription fetching into a testable Android SubscriptionFetcher.
 - Isolated OkHttp/cookie state per fallback User-Agent so provider redirect cookies from a failed attempt cannot poison v2rayNG/Happ-compatible retries.

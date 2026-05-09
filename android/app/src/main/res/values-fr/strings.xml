@@ -216,6 +216,7 @@
     <string name="btn_create_order">PAYER MAINTENANT</string>
     <string name="payment_method_title">MODE DE PAIEMENT</string>
     <string name="payment_method_card">CARTE</string>
+    <string name="payment_method_swimpay">SWIMPAY</string>
     <string name="payment_method_crypto">CRYPTO</string>
     <string name="plan_code_week">SEMAINE</string>
     <string name="plan_code_month">MOIS</string>

@@ -216,6 +216,11 @@ services:
       CRYPTO_PAY_API_BASE_URL: ${CRYPTO_PAY_API_BASE_URL:-https://pay.crypt.bot/api}
       CRYPTO_PAY_ACCEPTED_ASSETS: ${CRYPTO_PAY_ACCEPTED_ASSETS:-USDT,TON,BTC,ETH,TRX,LTC,BNB,USDC}
       CRYPTO_PAY_INVOICE_EXPIRES_IN: ${CRYPTO_PAY_INVOICE_EXPIRES_IN:-1800}
+      SWIMPAY_API_BASE_URL: ${SWIMPAY_API_BASE_URL:-https://staging.swimpay.pro}
+      SWIMPAY_SECRET_KEY: ${SWIMPAY_SECRET_KEY:-}
+      SWIMPAY_WEBHOOK_SECRET: ${SWIMPAY_WEBHOOK_SECRET:-}
+      SWIMPAY_WEBHOOK_URL: ${SWIMPAY_WEBHOOK_URL:-https://api.swimvpn.pro/api/v1/payments/swimpay/webhook}
+      SWIMPAY_RETURN_BASE_URL: ${SWIMPAY_RETURN_BASE_URL:-https://api.swimvpn.pro/api/v1/payments/swimpay/return}
       PAYMENT_BOT_USERNAME: ${PAYMENT_BOT_USERNAME:-}
     depends_on:
       db:
