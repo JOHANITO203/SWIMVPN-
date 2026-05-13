@@ -3,12 +3,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { createGatewayRateLimitMiddleware } from './security/gateway-rate-limit';
+import { SWIMPAY_LEGACY_WEBHOOK_ROUTE } from './swimpay-route-compat';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // Global Prefix
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: [SWIMPAY_LEGACY_WEBHOOK_ROUTE],
+  });
 
   // Validation
   app.useGlobalPipes(new ValidationPipe({

@@ -1,3 +1,8 @@
+# 2026-05-13 - Keep SwimPay canonical route and support legacy alias
+
+Decision: SwimVPN keeps `/api/v1/payments/swimpay/webhook` as the canonical signed webhook endpoint and also accepts `POST /webhooks/swimpay` as a compatibility alias.
+
+Reason: SwimPay staging was configured with `/webhooks/swimpay`; accepting the alias removes a production-staging 404 without changing the customer-order webhook trust boundary or fulfillment rules.
 # DECISIONS
 
 ## [2026-05-09] [SwimPay Is Manual-Confirmation Payment Signal Only]

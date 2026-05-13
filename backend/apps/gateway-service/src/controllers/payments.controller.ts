@@ -23,11 +23,7 @@ export class PaymentsController {
     @Body() body: Record<string, unknown>,
     @Headers() headers: Record<string, string | string[] | number | undefined>,
   ) {
-    const rawBody = request.rawBody?.toString('utf8') || JSON.stringify(body || {});
-    return this.customerClient.send(
-      { cmd: 'handle_swimpay_webhook' },
-      { rawBody, headers },
-    );
+    return forwardSwimPayWebhook(this.customerClient, request, body, headers);
   }
 
   @Get('swimpay/return')
@@ -38,4 +34,31 @@ export class PaymentsController {
       message: 'Return received. Payment is confirmed only after the signed SwimPay webhook.',
     };
   }
+}
+
+@Controller('webhooks')
+export class SwimPayWebhookAliasController {
+  constructor(@Inject('CUSTOMER_SERVICE') private readonly customerClient: ClientProxy) {}
+
+  @Post('swimpay')
+  handleSwimPayWebhookAlias(
+    @Req() request: Request & { rawBody?: Buffer },
+    @Body() body: Record<string, unknown>,
+    @Headers() headers: Record<string, string | string[] | number | undefined>,
+  ) {
+    return forwardSwimPayWebhook(this.customerClient, request, body, headers);
+  }
+}
+
+function forwardSwimPayWebhook(
+  customerClient: ClientProxy,
+  request: Request & { rawBody?: Buffer },
+  body: Record<string, unknown>,
+  headers: Record<string, string | string[] | number | undefined>,
+) {
+  const rawBody = request.rawBody?.toString('utf8') || JSON.stringify(body || {});
+  return customerClient.send(
+    { cmd: 'handle_swimpay_webhook' },
+    { rawBody, headers },
+  );
 }

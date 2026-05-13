@@ -8,6 +8,12 @@ async function main() {
   const adminEvents: any[] = [];
   const fulfilledOrderIds: string[] = [];
   const swimPayRequests: any[] = [];
+  let currentWebhookEvent: SwimPayPublicWebhookEvent = createSwimPayEvent(
+    'evt_1',
+    'payment.confirmed',
+    'ORD-SWIMPAY-1',
+    'manual_confirmed',
+  );
 
   const prisma = {
     plan: {
@@ -96,22 +102,7 @@ async function main() {
         expiresAt: '2026-05-10T00:00:00.000Z',
       };
     },
-    verifyWebhook: () =>
-      ({
-        id: 'evt_1',
-        type: 'payment.confirmed',
-        createdAt: '2026-05-09T10:00:00.000Z',
-        data: {
-          externalOrderId: 'ORD-SWIMPAY-1',
-          orderId: 'swp_order_1',
-          paymentSessionId: 'swp_session_1',
-          amountMinor: 42500,
-          currency: 'RUB',
-          confirmationType: 'notification_signal',
-          officialBankConfirmation: false,
-          decision: 'manual_confirmed',
-        },
-      }) as SwimPayPublicWebhookEvent,
+    verifyWebhook: () => currentWebhookEvent,
   };
 
   const service = new CustomerService(
@@ -154,7 +145,87 @@ async function main() {
   assert.equal(duplicateResult.duplicate, true, 'duplicate SwimPay events must be idempotent');
   assert.deepEqual(fulfilledOrderIds, ['order-1'], 'duplicate SwimPay events must not fulfill twice');
 
+  orders.set('ORD-SWIMPAY-REJECTED', createPendingOrder('order-rejected', 'ORD-SWIMPAY-REJECTED'));
+  currentWebhookEvent = createSwimPayEvent(
+    'evt_rejected',
+    'payment.rejected',
+    'ORD-SWIMPAY-REJECTED',
+    'manual_rejected',
+  );
+  const rejectedResult = await service.handleSwimPayWebhook({
+    rawBody: '{}',
+    headers: {},
+  });
+
+  assert.equal(rejectedResult.received, true);
+  assert.equal(rejectedResult.terminal, true);
+  assert.equal(rejectedResult.type, 'payment.rejected');
+  assert.equal(orders.get('ORD-SWIMPAY-REJECTED').status, 'FAILED');
+  assert.equal(
+    orders.get('ORD-SWIMPAY-REJECTED').payment_ref,
+    'SWIMPAY_REJECTED:swp_session_1:evt_rejected',
+  );
+  assert.deepEqual(fulfilledOrderIds, ['order-1'], 'rejected SwimPay events must not fulfill');
+
+  orders.set('ORD-SWIMPAY-EXPIRED', createPendingOrder('order-expired', 'ORD-SWIMPAY-EXPIRED'));
+  currentWebhookEvent = createSwimPayEvent(
+    'evt_expired',
+    'payment.expired',
+    'ORD-SWIMPAY-EXPIRED',
+    'expired',
+  );
+  const expiredResult = await service.handleSwimPayWebhook({
+    rawBody: '{}',
+    headers: {},
+  });
+
+  assert.equal(expiredResult.received, true);
+  assert.equal(expiredResult.terminal, true);
+  assert.equal(expiredResult.type, 'payment.expired');
+  assert.equal(orders.get('ORD-SWIMPAY-EXPIRED').status, 'FAILED');
+  assert.equal(
+    orders.get('ORD-SWIMPAY-EXPIRED').payment_ref,
+    'SWIMPAY_EXPIRED:swp_session_1:evt_expired',
+  );
+  assert.deepEqual(fulfilledOrderIds, ['order-1'], 'expired SwimPay events must not fulfill');
+
   console.log('swim-pay-checkout.policy.spec.ts passed');
+}
+
+function createPendingOrder(id: string, orderRef: string) {
+  return {
+    id,
+    order_ref: orderRef,
+    customer_id: 'customer-1',
+    plan_id: 'plan-month',
+    amount_rub: '425.00',
+    status: 'PENDING',
+    payment_ref: null,
+    paid_at: null,
+  };
+}
+
+function createSwimPayEvent(
+  id: string,
+  type: SwimPayPublicWebhookEvent['type'],
+  externalOrderId: string,
+  decision: NonNullable<SwimPayPublicWebhookEvent['data']['decision']>,
+): SwimPayPublicWebhookEvent {
+  return {
+    id,
+    type,
+    createdAt: '2026-05-09T10:00:00.000Z',
+    data: {
+      externalOrderId,
+      orderId: 'swp_order_1',
+      paymentSessionId: 'swp_session_1',
+      amountMinor: 42500,
+      currency: 'RUB',
+      confirmationType: 'notification_signal',
+      officialBankConfirmation: false,
+      decision,
+    },
+  };
 }
 
 main().catch((error) => {

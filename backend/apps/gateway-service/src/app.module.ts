@@ -4,7 +4,7 @@ import { StoreController } from './controllers/store.controller';
 import { CustomerController } from './controllers/customer.controller';
 import { AdminController } from './controllers/admin.controller';
 import { AccessController } from './controllers/access.controller';
-import { PaymentsController } from './controllers/payments.controller';
+import { PaymentsController, SwimPayWebhookAliasController } from './controllers/payments.controller';
 
 @Module({
   imports: [
@@ -36,7 +36,14 @@ import { PaymentsController } from './controllers/payments.controller';
       },
     ]),
   ],
-  controllers: [StoreController, CustomerController, AdminController, AccessController, PaymentsController],
+  controllers: [
+    StoreController,
+    CustomerController,
+    AdminController,
+    AccessController,
+    PaymentsController,
+    SwimPayWebhookAliasController,
+  ],
   providers: [],
 })
 export class AppModule {}

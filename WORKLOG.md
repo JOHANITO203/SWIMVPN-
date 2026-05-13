@@ -1,3 +1,9 @@
+# 2026-05-13 - SwimPay webhook compatibility alias
+
+- Added a non-breaking gateway alias for SwimPay staging webhooks: `POST /webhooks/swimpay`.
+- Kept the canonical route intact: `POST /api/v1/payments/swimpay/webhook`.
+- Confirmed `GET /api/v1/payments/swimpay/return` remains informational only and does not confirm payment.
+- Added policy coverage for gateway route metadata/forwarding, invalid signatures, duplicate event idempotence, confirmed fulfillment, and rejected/expired terminal states.
 ## 2026-05-09 - SwimPay local env secrets configured
 
 - Copied SwimPay environment values from the private `C:\Users\Lenovo\StudioProjects\SWIMPAY SECRETS.txt` file into local SWIMVPN `.env` and `backend/.env`.

@@ -81,6 +81,17 @@ async function main() {
     assert.equal(confirmed.data.externalOrderId, 'ORD-SWIMPAY-1');
     assert.equal(confirmed.data.officialBankConfirmation, false);
 
+    assert.throws(
+      () =>
+        service.verifyWebhook(confirmedRaw, {
+          'SwimPay-Event-Id': 'evt_confirmed_1',
+          'SwimPay-Timestamp': timestamp,
+          'SwimPay-Signature': 'sha256=invalid',
+        }),
+      /Invalid SwimPay webhook signature/,
+      'invalid SwimPay signatures must be rejected',
+    );
+
     const internalRaw = JSON.stringify({
       id: 'evt_internal_1',
       type: 'payment.signal_detected',
