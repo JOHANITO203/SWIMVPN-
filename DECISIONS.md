@@ -1008,3 +1008,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: keep LOCAL_PROXY visible as an advanced/manual mode.
 - Reason: the proxy runtime is technically valid and useful for proxy-aware apps, explicit SOCKS/HTTP tests, and advanced users; the limitation is that Android apps do not automatically use local proxy listeners.
 - Consequence: FULL_TUNNEL remains the recommended/default mode for normal browsing, while LOCAL_PROXY must be labeled as manual and must show 127.0.0.1:10808/10809 ports. Mode switches must be handled as service-owned restarts, not as STOPPED_BY_USER disconnects.
+
+## 2026-05-17: Backend VPN Parser Contract Parity
+- **Decision:** Extend backend VPN profile fields as optional metadata and parse VMess, Trojan, Shadowsocks plugin metadata, and JSON Xray/V2Ray outbounds in `vpn-config-engine-service`.
+- **Reason:** Backend validation/classification must not lag behind Android import support, and raw config data must remain intact for runtime preparation and audits.
+- **Consequences:** The backend contract remains backward-compatible because new fields are optional; persistence strategy for the extra metadata is deferred until real provider fixtures are reviewed.

@@ -174,3 +174,79 @@
 - Live provider sample decoded to 29 VLESS Reality TCP nodes.
 - Added parser regression for empty TCP query params and normalized blank header fields to safe absent/default values.
 - Next: validate one decoded node on a real device with logcat, without exposing raw supplier secrets.
+
+---
+
+## 2026-05-17 - Phase 1 VPN Runtime Readiness Probe
+
+**Task:** Start Phase 1 technical VPN stability improvements.
+
+### Changes Made:
+- Added a bounded local SOCKS readiness probe after Xray process launch and before declaring the runtime ready.
+- Kept the probe local-only (`127.0.0.1`) to avoid external network dependencies and avoid changing entitlement/business logic.
+- Improved startup failure detail when Xray exits early or never opens the local SOCKS listener.
+
+### Verification Target:
+- Android debug build / compile check.
+- Manual device validation remains required for Wi-Fi to cellular handoff and real provider configs.
+
+---
+
+## 2026-05-17 - Phase 2 Android Runtime Generation Unification
+
+**Task:** Make `TunnelRuntimeAdapter` the single Android source for executable Xray runtime document generation.
+
+### Changes Made:
+- Removed manual protocol runtime JSON generation from `ConfigNormalizationEngine`.
+- Kept `ConfigNormalizationEngine` focused on validation, metadata enrichment, and preserving complete imported JSON runtime documents.
+- Preserved full JSON Xray/V2Ray imports through `normalizedRuntimeConfig` so `TunnelRuntimeAdapter` can augment existing documents without losing user-supplied routing/inbounds/outbounds.
+
+### Verification Target:
+- Android compile/build check where toolchain/network allows.
+- Add runtime JSON snapshot tests in a follow-up to lock VLESS Reality, VMess, Trojan, and Shadowsocks output.
+
+---
+
+## 2026-05-17 - Phase 4 Obfuscation Runtime Boundary
+
+**Task:** Make obfuscation support explicit and safe in Android runtime compatibility checks.
+
+### Changes Made:
+- Added runtime support guards for Reality configs so missing public keys or SNI/server names fail before Xray document generation.
+- Made Shadowsocks plugin obfuscation an explicit unsupported-runtime state while preserving plugin metadata in parsed profiles.
+- Added parser/runtime compatibility unit coverage for Shadowsocks plugin preservation, missing Reality public key denial, and complete Reality support.
+
+### Verification Target:
+- Targeted Android unit test for `ConfigParserEngineTest` where Gradle/toolchain allows.
+- Real-device verification remains required for VLESS Reality nodes.
+
+---
+
+## 2026-05-17 - Phase 5 Latency Probe Throttling
+
+**Task:** Improve server latency measurement speed and stability without changing backend access rules.
+
+### Changes Made:
+- Added a bounded concurrency limit to Android TCP latency probes to avoid opening one socket per server at once.
+- Added a short in-memory TTL cache keyed by `host:port` so repeated refreshes reuse recent latency results.
+- Kept failed measurements non-destructive: the previous server ping is preserved if a probe fails.
+- Added unit coverage for cache reuse, cache expiry, failed-probe fallback, and concurrency limiting.
+
+### Verification Target:
+- Targeted `ServerLatencyEvaluatorTest` where Gradle/toolchain allows.
+- Real-device validation should compare perceived refresh speed on large server lists.
+
+---
+
+## 2026-05-17 - Phase 6 Xray Runtime Contract Tests
+
+**Task:** Add snapshot-style contract coverage for Android Xray runtime generation.
+
+### Changes Made:
+- Added structure-focused runtime tests for VLESS Reality TCP, VMess WS/TLS, Trojan WS/TLS, and basic Shadowsocks.
+- Added coverage that imported full Xray JSON documents are augmented with standard inbounds/direct/block outbounds without replacing the existing proxy outbound or routing rules.
+- Kept tests focused on critical runtime contract fields instead of brittle full JSON snapshots.
+
+### Verification Target:
+- Targeted `TunnelRuntimeAdapterSnapshotTest` where Gradle/toolchain allows.
+- Real-device runtime validation remains required for provider configs.

@@ -229,6 +229,8 @@ object TunnelRuntimeAdapter {
             return Pair(false, "Invalid port number")
         }
 
+        realitySupportError(profile)?.let { return Pair(false, it) }
+
         return when (profile.protocol) {
             Protocol.VLESS -> {
                 if (profile.userId.isNullOrBlank()) {
@@ -259,6 +261,11 @@ object TunnelRuntimeAdapter {
                     Pair(false, "Shadowsocks requires password")
                 } else if (profile.method.isNullOrBlank()) {
                     Pair(false, "Shadowsocks requires encryption method")
+                } else if (profile.shadowsocksPluginSettings != null) {
+                    Pair(
+                        false,
+                        "Shadowsocks plugin obfuscation is preserved but is not supported by the current Android runtime",
+                    )
                 } else {
                     Pair(true, "Shadowsocks protocol supported")
                 }
@@ -266,6 +273,22 @@ object TunnelRuntimeAdapter {
 
             Protocol.UNKNOWN -> Pair(false, "Unknown protocol")
         }
+    }
+
+    private fun realitySupportError(profile: SwimVpnProfile): String? {
+        if (profile.securityMode != SecurityMode.REALITY) {
+            return null
+        }
+
+        val reality = profile.realitySettings
+            ?: return "Reality security requires reality settings"
+        if (reality.publicKey.isBlank()) {
+            return "Reality security requires public key"
+        }
+        if (profile.tlsSettings?.sni.isNullOrBlank()) {
+            return "Reality security requires server name/SNI"
+        }
+        return null
     }
 
     /**
@@ -688,11 +711,12 @@ object TunnelRuntimeAdapter {
 
     private fun buildRealitySettings(profile: SwimVpnProfile): JsonObject {
         val reality = profile.realitySettings
+            ?: error("Reality settings missing")
         return JsonObject().apply {
-            addProperty("publicKey", reality?.publicKey)
-            addProperty("shortId", reality?.shortId ?: "")
+            addProperty("publicKey", reality.publicKey)
+            addProperty("shortId", reality.shortId)
             addProperty("serverName", profile.tlsSettings?.sni ?: profile.address)
-            reality?.spiderX?.let { addProperty("spiderX", it) }
+            reality.spiderX?.let { addProperty("spiderX", it) }
             profile.tlsSettings?.fingerprint?.takeIf { it.isNotBlank() }?.let {
                 addProperty("fingerprint", it)
             }
