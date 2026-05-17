@@ -1,3 +1,10 @@
+# 2026-05-17 - SwimPay webhook fulfillment hardening merge
+
+- Preserved the current gateway compatibility behavior for both `POST /api/v1/payments/swimpay/webhook` and `POST /webhooks/swimpay`.
+- Hardened customer-order SwimPay fulfillment so a signed public webhook must match the stored `SWIMPAY_SESSION` session id and SwimPay order id, with RUB amount not lower than the backend order amount. Higher SwimPay merchant anti-collision micro-adjustments are accepted.
+- Replaced hardcoded SwimPay compose secrets with required deployment environment variables after secret rotation.
+- Added regression coverage for mismatched SwimPay webhook session/order data staying ignored with the order still pending and no inventory fulfillment.
+- Added regression coverage for accepting higher SwimPay anti-collision amounts while still rejecting lower paid amounts.
 # 2026-05-13 - SwimPay webhook compatibility alias
 
 - Added a non-breaking gateway alias for SwimPay staging webhooks: `POST /webhooks/swimpay`.

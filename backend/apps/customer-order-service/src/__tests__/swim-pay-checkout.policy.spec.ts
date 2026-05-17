@@ -127,6 +127,75 @@ async function main() {
   assert.equal(swimPayRequests[0].orderRef, 'ORD-SWIMPAY-1');
   assert.equal(orders.get('ORD-SWIMPAY-1').payment_ref, 'SWIMPAY_SESSION:swp_session_1:swp_order_1');
 
+  currentWebhookEvent = {
+    ...currentWebhookEvent,
+    id: 'evt_forged_mismatch',
+    data: {
+      ...currentWebhookEvent.data,
+      orderId: 'swp_attacker_order',
+      paymentSessionId: 'swp_attacker_session',
+    },
+  };
+  const forgedWebhookResult = await service.handleSwimPayWebhook({
+    rawBody: '{}',
+    headers: {},
+  });
+
+  assert.equal(forgedWebhookResult.received, true);
+  assert.equal(forgedWebhookResult.ignored, true);
+  assert.equal(orders.get('ORD-SWIMPAY-1').status, 'PENDING');
+  assert.equal(orders.get('ORD-SWIMPAY-1').payment_ref, 'SWIMPAY_SESSION:swp_session_1:swp_order_1');
+  assert.deepEqual(fulfilledOrderIds, [], 'mismatched SwimPay webhook must not fulfill the order');
+
+  currentWebhookEvent = {
+    ...createSwimPayEvent(
+      'evt_micro_adjusted',
+      'payment.confirmed',
+      'ORD-SWIMPAY-1',
+      'manual_confirmed',
+      42501,
+    ),
+  };
+  const microAdjustedWebhookResult = await service.handleSwimPayWebhook({
+    rawBody: '{}',
+    headers: {},
+  });
+
+  assert.equal(microAdjustedWebhookResult.received, true);
+  assert.equal(microAdjustedWebhookResult.success, true);
+  assert.equal(orders.get('ORD-SWIMPAY-1').status, 'PAID');
+  assert.deepEqual(fulfilledOrderIds, ['order-1'], 'higher SwimPay anti-collision amount must fulfill');
+
+  orders.get('ORD-SWIMPAY-1').status = 'PENDING';
+  orders.get('ORD-SWIMPAY-1').payment_ref = 'SWIMPAY_SESSION:swp_session_1:swp_order_1';
+  orders.get('ORD-SWIMPAY-1').paid_at = null;
+  fulfilledOrderIds.length = 0;
+
+  currentWebhookEvent = {
+    ...createSwimPayEvent(
+      'evt_underpaid',
+      'payment.confirmed',
+      'ORD-SWIMPAY-1',
+      'manual_confirmed',
+      42499,
+    ),
+  };
+  const underpaidWebhookResult = await service.handleSwimPayWebhook({
+    rawBody: '{}',
+    headers: {},
+  });
+
+  assert.equal(underpaidWebhookResult.received, true);
+  assert.equal(underpaidWebhookResult.ignored, true);
+  assert.equal(orders.get('ORD-SWIMPAY-1').status, 'PENDING');
+  assert.deepEqual(fulfilledOrderIds, [], 'lower SwimPay amount must not fulfill');
+
+  currentWebhookEvent = createSwimPayEvent(
+    'evt_1',
+    'payment.confirmed',
+    'ORD-SWIMPAY-1',
+    'manual_confirmed',
+  );
   const webhookResult = await service.handleSwimPayWebhook({
     rawBody: '{}',
     headers: {},
@@ -200,7 +269,7 @@ function createPendingOrder(id: string, orderRef: string) {
     plan_id: 'plan-month',
     amount_rub: '425.00',
     status: 'PENDING',
-    payment_ref: null,
+    payment_ref: 'SWIMPAY_SESSION:swp_session_1:swp_order_1',
     paid_at: null,
   };
 }
@@ -210,6 +279,7 @@ function createSwimPayEvent(
   type: SwimPayPublicWebhookEvent['type'],
   externalOrderId: string,
   decision: NonNullable<SwimPayPublicWebhookEvent['data']['decision']>,
+  amountMinor = 42500,
 ): SwimPayPublicWebhookEvent {
   return {
     id,
@@ -219,7 +289,7 @@ function createSwimPayEvent(
       externalOrderId,
       orderId: 'swp_order_1',
       paymentSessionId: 'swp_session_1',
-      amountMinor: 42500,
+      amountMinor,
       currency: 'RUB',
       confirmationType: 'notification_signal',
       officialBankConfirmation: false,

@@ -1,3 +1,11 @@
+# 2026-05-17 - SwimPay webhooks must bind to stored checkout state
+
+Decision: A signed SwimPay public webhook is not enough to fulfill an order; the event must match the backend-stored `SWIMPAY_SESSION` payment session id and SwimPay order id. The webhook amount must be in RUB and must not be lower than the backend order amount, but it may be higher because SwimPay can apply merchant anti-collision micro-adjustments.
+
+Reason: The previously committed SwimPay secrets were rotated, but fulfillment still must not rely on signature authenticity alone. Backend order state remains the payment source of truth before inventory delivery.
+
+Impact: Mismatched SwimPay events and underpaid events are acknowledged as received but ignored without marking orders paid or starting fulfillment. Higher SwimPay amounts for the same session/order are accepted. SwimPay secrets must be supplied by protected deployment environment variables, not Docker compose literals.
+
 # 2026-05-13 - Keep SwimPay canonical route and support legacy alias
 
 Decision: SwimVPN keeps `/api/v1/payments/swimpay/webhook` as the canonical signed webhook endpoint and also accepts `POST /webhooks/swimpay` as a compatibility alias.
