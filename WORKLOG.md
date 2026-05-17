@@ -1,3 +1,11 @@
+# 2026-05-18 - VPN update audit program
+
+- Created `AUDIT_UPDATE_VPN_2026-05.md` to program a cold audit of the current `main` VPN stack before implementation.
+- Documented the intended separation between backend business/inventory truth and Android parser/runtime truth.
+- Listed audit lots for documentation, Android parser, Android runtime, backend VPN/inventory, camouflage/obfuscation, performance, and real-device QA.
+- Added go/no-go criteria to avoid treating intentional layer separation as accidental duplication.
+- No Android, backend, entitlement, deployment, payment, Prisma, or runtime behavior was changed.
+
 # 2026-05-17 - SwimPay webhook fulfillment hardening merge
 
 - Preserved the current gateway compatibility behavior for both `POST /api/v1/payments/swimpay/webhook` and `POST /webhooks/swimpay`.

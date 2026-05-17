@@ -1,5 +1,14 @@
 # TODO
 
+## [2026-05-18] VPN Update Audit
+- [ ] Execute Lot A: document responsibility map for parser, normalization, runtime, backend metadata, entitlement, and inventory.
+- [ ] Execute Lot B: build parser/runtime matrix for VLESS, VMess, Trojan, Shadowsocks, JSON Xray/V2Ray, Clash/sing-box, Happ wrappers, and unsupported modern schemes.
+- [ ] Execute Lot C: build Android runtime readiness/liveness matrix for Xray, SOCKS, tun2socks, reconnect, network handoff, and persisted runtime state.
+- [ ] Execute Lot D: verify backend VPN/inventory boundary, including raw config preservation, device binding, entitlement, and non-exposure of premium configs to expired users.
+- [ ] Execute Lot E: define camouflage scoring versus real obfuscation support without inventing server-side capabilities.
+- [ ] Execute Lot F: collect performance evidence before tuning latency, DNS, MTU, Xray, or tun2socks behavior.
+- [ ] Execute Lot G: run real-device QA for imported configs, backend premium configs, freemium, screen-off, Wi-Fi/mobile handoff, and runtime failures.
+
 ## [2026-05-09] SwimPay Live QA
 - [ ] Configure the rotated `SWIMPAY_SECRET_KEY` and `SWIMPAY_WEBHOOK_SECRET` in production env.
 - [ ] Save `https://api.swimvpn.pro/api/v1/payments/swimpay/webhook` in SwimPay Developer Integration.
