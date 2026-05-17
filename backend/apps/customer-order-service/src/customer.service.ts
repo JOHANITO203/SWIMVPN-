@@ -882,6 +882,11 @@ export class CustomerService {
     }
 
     const event = this.swimPayService.verifyWebhook(data.rawBody, data.headers);
+    const orderRef = event.data.externalOrderId;
+    if (!orderRef) {
+      return { received: true, ignored: true, error: 'Missing external order id' };
+    }
+
     const existingEvent = await this.prisma.adminEvent.findFirst({
       where: {
         event_type: 'SWIMPAY_WEBHOOK_RECEIVED',
@@ -891,6 +896,16 @@ export class CustomerService {
 
     if (existingEvent) {
       return { received: true, duplicate: true, eventId: event.id };
+    }
+
+    const swimPayOrderCheck = await this.validateSwimPayWebhookOrder(orderRef, event);
+    if (swimPayOrderCheck.valid === false) {
+      return {
+        received: true,
+        eventId: event.id,
+        ignored: true,
+        error: swimPayOrderCheck.error,
+      };
     }
 
     await this.prisma.adminEvent.create({
@@ -913,11 +928,6 @@ export class CustomerService {
       },
     });
 
-    const orderRef = event.data.externalOrderId;
-    if (!orderRef) {
-      return { received: true, ignored: true, error: 'Missing external order id' };
-    }
-
     if (event.type === 'payment.confirmed') {
       const result = await this.fulfillOrderByRef(
         orderRef,
@@ -930,9 +940,7 @@ export class CustomerService {
       };
     }
 
-    const order = await this.prisma.order.findUnique({
-      where: { order_ref: orderRef },
-    });
+    const order = swimPayOrderCheck.order;
     if (order?.status === OrderStatus.PENDING) {
       await this.prisma.order.update({
         where: { id: order.id },
@@ -949,6 +957,56 @@ export class CustomerService {
       terminal: true,
       type: event.type,
     };
+  }
+
+  private async validateSwimPayWebhookOrder(
+    orderRef: string,
+    event: ReturnType<SwimPayService['verifyWebhook']>,
+  ): Promise<{ valid: true; order: any } | { valid: false; error: string }> {
+    const order = await this.prisma.order.findUnique({
+      where: { order_ref: orderRef },
+    });
+
+    if (!order) return { valid: false, error: 'Order not found' };
+
+    const storedPayment = this.parseSwimPaySessionRef(order.payment_ref);
+    if (!storedPayment) {
+      return { valid: false, error: 'Order is not bound to a pending SwimPay session' };
+    }
+
+    if (storedPayment.paymentSessionId !== event.data.paymentSessionId || storedPayment.orderId !== event.data.orderId) {
+      return { valid: false, error: 'SwimPay webhook session does not match order' };
+    }
+
+    if (this.orderAmountRubMinor(order.amount_rub) !== event.data.amountMinor) {
+      return { valid: false, error: 'SwimPay webhook amount does not match order' };
+    }
+
+    if (event.data.currency.toUpperCase() !== 'RUB') {
+      return { valid: false, error: 'SwimPay webhook currency does not match order' };
+    }
+
+    return { valid: true, order };
+  }
+
+  private parseSwimPaySessionRef(paymentRef?: string | null) {
+    if (!paymentRef) return null;
+
+    const match = paymentRef.match(/^SWIMPAY_SESSION:([^:]+):([^:]+)$/);
+    if (!match) return null;
+
+    return {
+      paymentSessionId: match[1],
+      orderId: match[2],
+    };
+  }
+
+  private orderAmountRubMinor(amountRub: unknown) {
+    const normalized = String(amountRub).replace(',', '.');
+    if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return Number.NaN;
+
+    const [whole = '0', decimals = ''] = normalized.split('.');
+    return Number(whole) * 100 + Number(decimals.padEnd(2, '0'));
   }
 
   private async markOrderPendingFulfillment(orderId: string) {

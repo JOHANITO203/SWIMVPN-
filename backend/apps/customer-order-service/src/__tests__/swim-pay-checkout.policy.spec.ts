@@ -8,6 +8,7 @@ async function main() {
   const adminEvents: any[] = [];
   const fulfilledOrderIds: string[] = [];
   const swimPayRequests: any[] = [];
+  let nextWebhookEvent: SwimPayPublicWebhookEvent;
 
   const prisma = {
     plan: {
@@ -96,22 +97,23 @@ async function main() {
         expiresAt: '2026-05-10T00:00:00.000Z',
       };
     },
-    verifyWebhook: () =>
-      ({
-        id: 'evt_1',
-        type: 'payment.confirmed',
-        createdAt: '2026-05-09T10:00:00.000Z',
-        data: {
-          externalOrderId: 'ORD-SWIMPAY-1',
-          orderId: 'swp_order_1',
-          paymentSessionId: 'swp_session_1',
-          amountMinor: 42500,
-          currency: 'RUB',
-          confirmationType: 'notification_signal',
-          officialBankConfirmation: false,
-          decision: 'manual_confirmed',
-        },
-      }) as SwimPayPublicWebhookEvent,
+    verifyWebhook: () => nextWebhookEvent,
+  };
+
+  nextWebhookEvent = {
+    id: 'evt_1',
+    type: 'payment.confirmed',
+    createdAt: '2026-05-09T10:00:00.000Z',
+    data: {
+      externalOrderId: 'ORD-SWIMPAY-1',
+      orderId: 'swp_order_1',
+      paymentSessionId: 'swp_session_1',
+      amountMinor: 42500,
+      currency: 'RUB',
+      confirmationType: 'notification_signal',
+      officialBankConfirmation: false,
+      decision: 'manual_confirmed',
+    },
   };
 
   const service = new CustomerService(
@@ -135,6 +137,37 @@ async function main() {
   assert.equal(checkout.redirectUrl, 'https://staging.swimpay.pro/checkout/swp_session_1');
   assert.equal(swimPayRequests[0].orderRef, 'ORD-SWIMPAY-1');
   assert.equal(orders.get('ORD-SWIMPAY-1').payment_ref, 'SWIMPAY_SESSION:swp_session_1:swp_order_1');
+
+  nextWebhookEvent = {
+    ...nextWebhookEvent,
+    id: 'evt_forged_mismatch',
+    data: {
+      ...nextWebhookEvent.data,
+      orderId: 'swp_attacker_order',
+      paymentSessionId: 'swp_attacker_session',
+    },
+  };
+
+  const forgedWebhookResult = await service.handleSwimPayWebhook({
+    rawBody: '{}',
+    headers: {},
+  });
+
+  assert.equal(forgedWebhookResult.received, true);
+  assert.equal(forgedWebhookResult.ignored, true);
+  assert.equal(orders.get('ORD-SWIMPAY-1').status, 'PENDING');
+  assert.equal(orders.get('ORD-SWIMPAY-1').payment_ref, 'SWIMPAY_SESSION:swp_session_1:swp_order_1');
+  assert.deepEqual(fulfilledOrderIds, [], 'mismatched SwimPay webhook must not fulfill the order');
+
+  nextWebhookEvent = {
+    ...nextWebhookEvent,
+    id: 'evt_1',
+    data: {
+      ...nextWebhookEvent.data,
+      orderId: 'swp_order_1',
+      paymentSessionId: 'swp_session_1',
+    },
+  };
 
   const webhookResult = await service.handleSwimPayWebhook({
     rawBody: '{}',

@@ -1,3 +1,10 @@
+## 2026-05-09 - SwimPay secret leak and webhook binding remediation
+
+- Removed committed SwimPay API/webhook secret values from backend compose and switched deployment config to require environment-provided secrets.
+- Added backend SwimPay webhook binding checks so confirmed/rejected/expired events must match the stored `SWIMPAY_SESSION` payment session id, SwimPay order id, expected RUB amount, and currency before any order status or fulfillment change.
+- Added policy coverage proving a mismatched signed SwimPay confirmation is ignored and does not trigger inventory fulfillment.
+- Follow-up: leaked SwimPay credentials from prior source history must be revoked/rotated in SwimPay before production use.
+
 ## 2026-05-09 - SwimPay local env secrets configured
 
 - Copied SwimPay environment values from the private `C:\Users\Lenovo\StudioProjects\SWIMPAY SECRETS.txt` file into local SWIMVPN `.env` and `backend/.env`.
@@ -2049,7 +2056,7 @@ pm run build PASSED.
     - Split resale slot semantics from customer-facing device allowance: backend allocation uses one resale slot per order, while profile/subscription UI can display up to two devices.
     - Updated plan seed slot counts to `1` for Basic, Premium, and Platinum.
     - Added Prisma migration `20260430093000_resale_cap_two_orders` to set inventory default max resale slots to `2`, normalize plan/assignment slot counts to `1`, recalculate used resale slots, and refresh health status while preserving expired/disabled states.
-    - Updated Android subscription cards to show `Up to 2 devices` / `Jusqu�� 2 appareils` / `?? 2 ?????????`.
+    - Updated Android subscription cards to show `Up to 2 devices` / `Jusquà 2 appareils` / `?? 2 ?????????`.
 - **Verification**:
     - `cd backend && npm run prisma:validate` PASSED.
     - `cd backend && npm run lint` PASSED.
@@ -2080,7 +2087,7 @@ pm run build PASSED.
 - **Problem**: Docker/Dokploy stopped at `prisma-migrate` with exit 1, blocking all app tests.
 - **Root Cause**:
     - Root `docker-compose.yml` rebuilt `DATABASE_URL` from raw `POSTGRES_PASSWORD`; the current password contains URL-sensitive characters, so Prisma failed with `P1013 invalid port number in database URL`.
-    - The new migration `20260430093000_resale_cap_two_orders` also contained a UTF-8 BOM, causing PostgreSQL to fail at `syntax error at or near "﻿ALTER"`.
+    - The new migration `20260430093000_resale_cap_two_orders` also contained a UTF-8 BOM, causing PostgreSQL to fail at `syntax error at or near "ï»¿ALTER"`.
 - **Changes**:
     - Updated all root compose backend services to consume `${DATABASE_URL}` directly instead of reconstructing it from raw Postgres credentials.
     - Rewrote `backend/prisma/migrations/20260430093000_resale_cap_two_orders/migration.sql` without BOM while preserving its SQL logic.
@@ -2507,7 +2514,7 @@ pm run build PASSED.
 - **Change**:
   - Added customer cancellation contract, gateway endpoint, and customer-service handler.
   - Customer cancellation verifies `userNumber + deviceId`, finds the active assignment, then calls inventory `revoke_assignment` so `used_resale_slots` and inventory health are recalculated by the existing source-of-truth logic.
-  - Android profile screen now shows a guarded �Cancel access / R�silier l�acc�s� action for active paid subscriptions.
+  - Android profile screen now shows a guarded Cancel access / Résilier laccès action for active paid subscriptions.
   - Confirming cancellation calls the backend, clears selected backend premium config/auto-connect when relevant, stops the backend VPN session if it is active, and refreshes the profile. Imported configs remain available.
 - **Verification**:
   - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
@@ -2549,7 +2556,7 @@ pm run build PASSED.
 ## [2026-05-02] [Pending Fulfillment Cancellation Returns To Standard]
 - **Status**: IMPLEMENTED / NEEDS BACKEND REDEPLOY + RELEASE APK QA
 - **Problem**:
-  - A customer who had a paid/manual-card order with no assigned config could still see `Accès en préparation` after trying to cancel, because no active assignment existed to revoke and the paid order stayed open.
+  - A customer who had a paid/manual-card order with no assigned config could still see `AccÃ¨s en prÃ©paration` after trying to cancel, because no active assignment existed to revoke and the paid order stayed open.
   - The pending badge was rendered in red, and stale VPN runtime errors could still appear when no server was selected.
   - The freemium explanatory text was too heavy for the desired product UX.
 - **Change**:

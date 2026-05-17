@@ -1,5 +1,13 @@
 # DECISIONS
 
+## [2026-05-09] [SwimPay Webhooks Must Bind To Stored Checkout State]
+- **Decision**: A signed SwimPay public webhook is not enough to fulfill an order; the event must match the backend-stored `SWIMPAY_SESSION` payment session id, SwimPay order id, expected RUB amount, and currency.
+- **Why**: The webhook HMAC secret was previously committed, so relying on signature authenticity alone could allow forged `payment.confirmed` events against known pending order references.
+- **Impact**:
+  - SwimPay secrets must be provided by protected deployment environment variables and rotated outside the repository.
+  - Backend order records remain the payment source of truth before fulfillment.
+  - Mismatched SwimPay events are acknowledged as received but ignored without marking orders paid or starting inventory delivery.
+
 ## [2026-05-09] [SwimPay Is Manual-Confirmation Payment Signal Only]
 - **Decision**: Integrate SwimPay as a backend-created checkout plus signed webhook provider, not as an Android-side payment authority.
 - **Why**: SwimPay V1 is a manual-confirmation Payment Signal Engine. Checkout return, notification signals, matching scores, or Android state are not payment confirmation.
