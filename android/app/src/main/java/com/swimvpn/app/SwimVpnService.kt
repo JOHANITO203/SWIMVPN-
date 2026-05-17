@@ -26,6 +26,7 @@ import com.swimvpn.app.adaptive.AdaptiveEventLogger
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
 import com.swimvpn.app.data.local.PreferencesManager
+import com.swimvpn.app.runtime.RunningXrayProcess
 import com.swimvpn.app.runtime.Tun2SocksAssetCatalog
 import com.swimvpn.app.runtime.Tun2SocksLaunchSpec
 import com.swimvpn.app.runtime.Tun2SocksNativeBridge
@@ -46,6 +47,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.Locale
 
 class SwimVpnService : VpnService() {
@@ -76,6 +79,9 @@ class SwimVpnService : VpnService() {
 
     companion object {
         private const val DEFAULT_VPN_MTU = 1280
+        private const val XRAY_LOCAL_PROXY_READY_TIMEOUT_MS = 4_000L
+        private const val XRAY_LOCAL_PROXY_READY_INTERVAL_MS = 100L
+        private const val XRAY_LOCAL_PROXY_CONNECT_TIMEOUT_MS = 250
         const val ACTION_START = "com.swimvpn.app.START_VPN"
         const val ACTION_RESTART = "com.swimvpn.app.RESTART_VPN"
         const val ACTION_STOP = "com.swimvpn.app.STOP_VPN"
@@ -761,10 +767,13 @@ class SwimVpnService : VpnService() {
         )
 
         VpnManager.markStarted()
-        delay(600)
 
+        val ready = waitForXrayLocalProxyReadiness(
+            running = running,
+            socksPort = runtime.ports.socksPort,
+        )
         val snapshot = running.snapshot()
-        if (!snapshot.isAlive) {
+        if (!snapshot.isAlive || !ready) {
             val stderrTail = snapshot.stderrLogFile
                 .takeIf { it.exists() }
                 ?.readText()
@@ -773,6 +782,13 @@ class SwimVpnService : VpnService() {
             throw IllegalStateException(
                 buildString {
                     append(failurePrefix)
+                    if (!snapshot.isAlive) {
+                        append(": process exited")
+                        snapshot.exitCode?.let { append(" (exit=").append(it).append(")") }
+                    } else {
+                        append(": SOCKS listener did not become ready on 127.0.0.1:")
+                        append(runtime.ports.socksPort)
+                    }
                     if (!stderrTail.isNullOrBlank()) {
                         append(": ")
                         append(stderrTail)
@@ -780,6 +796,44 @@ class SwimVpnService : VpnService() {
                 }
             )
         }
+
+        logRuntimeEvent(
+            "xray_ready",
+            mapOf(
+                "sessionId" to running.sessionId(),
+                "socks" to "127.0.0.1:${runtime.ports.socksPort}",
+            ),
+        )
+    }
+
+    private suspend fun waitForXrayLocalProxyReadiness(
+        running: RunningXrayProcess,
+        socksPort: Int,
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + XRAY_LOCAL_PROXY_READY_TIMEOUT_MS
+        do {
+            if (!running.snapshot().isAlive) {
+                return false
+            }
+            if (canConnectToLocalTcpPort(socksPort)) {
+                return true
+            }
+            delay(XRAY_LOCAL_PROXY_READY_INTERVAL_MS)
+        } while (System.currentTimeMillis() < deadline)
+
+        return false
+    }
+
+    private fun canConnectToLocalTcpPort(port: Int): Boolean {
+        return runCatching {
+            Socket().use { socket ->
+                socket.connect(
+                    InetSocketAddress("127.0.0.1", port),
+                    XRAY_LOCAL_PROXY_CONNECT_TIMEOUT_MS,
+                )
+            }
+            true
+        }.getOrDefault(false)
     }
 
     private fun startTrafficStatsPolling() {

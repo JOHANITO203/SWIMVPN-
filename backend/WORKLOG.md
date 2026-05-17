@@ -32,3 +32,20 @@
 ### ⚠️ Issues Faced
 - Git sync issues due to missing remote configuration in the local environment. (Resolved by manual identification of file paths).
 - Dependency issues with `@types/telegraf` (Telegraf 4 includes native types).
+
+---
+
+## 2026-05-17 - Phase 3 Backend VPN Parser Parity
+
+**Task:** Extend `vpn-config-engine-service` parsing toward Android parser parity.
+
+### Changes Made:
+- Added backend parsing for VMess URLs, Trojan URLs, and JSON Xray/V2Ray outbounds for VLESS, VMess, Trojan, and Shadowsocks.
+- Extended the shared VPN profile contract with optional runtime metadata fields such as host headers, ALPN, allowInsecure, Reality spiderX, Shadowsocks method/password/plugin metadata, and raw JSON preservation.
+- Added targeted parser parity policy coverage for VLESS Reality, VMess WS/TLS, Trojan WS/TLS, Shadowsocks plugin metadata, and JSON Xray Reality.
+
+### Verification:
+- `npm run test:vpn-config-parser`
+- `npm run lint`
+- `npm run test:policy`
+- `npm run build:all`

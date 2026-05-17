@@ -52,7 +52,8 @@ data class SwimVpnProfile(
     val parseWarnings: List<String> = emptyList(),
     val parseErrors: List<String> = emptyList(),
     
-    // Runtime
+    // Runtime: reserved for complete imported Xray/V2Ray JSON documents.
+    // Generated protocol runtime documents are owned by TunnelRuntimeAdapter.
     val normalizedRuntimeConfig: String? = null,
     val advancedSettings: Map<String, String> = emptyMap(),
     

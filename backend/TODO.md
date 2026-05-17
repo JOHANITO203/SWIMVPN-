@@ -33,3 +33,8 @@
 - [x] Build robust VLESS/Shadowsocks parser.
 - [x] Configure Docker Compose for 6 services + DB.
 - [x] Sync Android app with device-id based trial logic.
+
+## 2026-05-17 Phase 3 Backend Parser Follow-ups
+- [ ] Add anonymized real-provider fixtures for VMess, Trojan, Shadowsocks plugin, and full JSON Xray/V2Ray configs.
+- [ ] Decide how much of the extended runtime metadata should be persisted in database records versus used only for validation/preview.
+- [ ] Align Android and backend parser warning/error codes so UI can display consistent import failures.
