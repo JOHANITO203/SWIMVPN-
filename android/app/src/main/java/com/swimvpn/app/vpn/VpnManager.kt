@@ -173,6 +173,17 @@ object VpnManager {
         )
     }
 
+    fun markHealthyRuntimeSession(
+        reconnectCount: Int = 0,
+        sessionStartedAt: Long? = null,
+    ) {
+        _metrics.value = _metrics.value.copy(
+            lastDisconnectCause = null,
+            reconnectCount = reconnectCount,
+            sessionStartedAt = sessionStartedAt,
+        )
+    }
+
     fun clearRuntimeDiagnostics() {
         _metrics.value = _metrics.value.copy(
             activeMode = null,

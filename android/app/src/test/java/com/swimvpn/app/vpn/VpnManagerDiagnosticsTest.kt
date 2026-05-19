@@ -78,4 +78,27 @@ class VpnManagerDiagnosticsTest {
         assertEquals("/runtime/xray-after-restart.log", metrics.xrayLogPath)
         assertEquals("/runtime/tun-after-restart.log", metrics.tun2SocksLogPath)
     }
+
+    @Test
+    fun `healthy runtime session clears previous failure cause and reconnect count`() {
+        VpnManager.setRuntimeDiagnostics(
+            xrayLogPath = "/runtime/current-xray.log",
+            tun2SocksLogPath = "/runtime/current-tun.log",
+            lastDisconnectCause = DisconnectCause.ENGINE_CRASH,
+            reconnectCount = 3,
+            sessionStartedAt = 1111L,
+        )
+
+        VpnManager.markHealthyRuntimeSession(
+            reconnectCount = 0,
+            sessionStartedAt = 2222L,
+        )
+
+        val metrics = VpnManager.metrics.value
+        assertNull(metrics.lastDisconnectCause)
+        assertEquals(0, metrics.reconnectCount)
+        assertEquals(2222L, metrics.sessionStartedAt)
+        assertEquals("/runtime/current-xray.log", metrics.xrayLogPath)
+        assertEquals("/runtime/current-tun.log", metrics.tun2SocksLogPath)
+    }
 }

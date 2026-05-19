@@ -37,6 +37,7 @@ import com.swimvpn.app.vpn.NetworkHandoffAction
 import com.swimvpn.app.vpn.NetworkHandoffPolicy
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeRecoveryPolicy
+import com.swimvpn.app.vpn.RuntimeReconnectPolicy
 import com.swimvpn.app.vpn.RuntimeServiceDestroyPolicy
 import com.swimvpn.app.vpn.RuntimeStartupFailurePolicy
 import com.swimvpn.app.vpn.RuntimeStartupHealthPolicy
@@ -66,6 +67,8 @@ class SwimVpnService : VpnService() {
     private var activeRuntimeMonitorJob: Job? = null
     private var activeStartupJob: Job? = null
     private var activeReconnectJob: Job? = null
+    private var activeReconnectCause: DisconnectCause? = null
+    private var activeReconnectStarted = false
     private var activeNetworkHandoffJob: Job? = null
     private var activeSession: ActiveSession? = null
     private var activeUnderlyingNetwork: Network? = null
@@ -279,6 +282,8 @@ class SwimVpnService : VpnService() {
         activeStartupJob?.cancel()
         activeReconnectJob?.cancel()
         activeReconnectJob = null
+        activeReconnectCause = null
+        activeReconnectStarted = false
         reconnectAttempt = 0
         stoppedByUser = false
 
@@ -494,6 +499,10 @@ class SwimVpnService : VpnService() {
         VpnManager.markHandshake()
         updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.FULL_TUNNEL)
         reconnectAttempt = 0
+        VpnManager.markHealthyRuntimeSession(
+            reconnectCount = reconnectAttempt,
+            sessionStartedAt = sessionStartedAt,
+        )
         VpnManager.setRuntimeDiagnostics(
             activeMode = RuntimeMode.FULL_TUNNEL.name,
             xraySessionId = activeXraySessionId,
@@ -549,6 +558,10 @@ class SwimVpnService : VpnService() {
         VpnManager.markHandshake()
         updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.LOCAL_PROXY)
         reconnectAttempt = 0
+        VpnManager.markHealthyRuntimeSession(
+            reconnectCount = reconnectAttempt,
+            sessionStartedAt = sessionStartedAt,
+        )
         VpnManager.setRuntimeDiagnostics(
             activeMode = RuntimeMode.LOCAL_PROXY.name,
             xraySessionId = activeXraySessionId,
@@ -614,6 +627,8 @@ class SwimVpnService : VpnService() {
             if (stopService) {
                 activeReconnectJob?.cancel()
                 activeReconnectJob = null
+                activeReconnectCause = null
+                activeReconnectStarted = false
             }
             activeTun2SocksContract?.let { contract ->
                 runCatching { Tun2SocksNativeBridge.stop(contract) }
@@ -651,6 +666,8 @@ class SwimVpnService : VpnService() {
                     activeSession = null
                     sessionStartedAt = null
                     reconnectAttempt = 0
+                    activeReconnectCause = null
+                    activeReconnectStarted = false
                 }
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -976,11 +993,7 @@ class SwimVpnService : VpnService() {
             status = status,
             mode = mode,
             error = VpnManager.errorMessage.value,
-            lastDisconnectCause = if (cause == DisconnectCause.UNKNOWN) {
-                VpnManager.metrics.value.lastDisconnectCause
-            } else {
-                cause
-            },
+            lastDisconnectCause = runtimeStatusCauseForStore(status, cause),
             reconnectCount = reconnectAttempt,
             sessionStartedAt = sessionStartedAt,
             xrayLogPath = VpnManager.metrics.value.xrayLogPath,
@@ -1136,18 +1149,26 @@ class SwimVpnService : VpnService() {
             mapOf("attempt" to (reconnectAttempt + 1).toString(), "delayMs" to delayMs.toString(), "cause" to cause.name),
         )
         updateRuntimeStatus(RuntimeStatus.RECONNECTING, reconnectSession.requestedMode, cause = cause)
+        activeReconnectCause = cause
+        activeReconnectStarted = false
         activeReconnectJob = serviceScope.launch {
-            delay(delayMs)
-            reconnectAttempt += 1
-            logRuntimeEvent("reconnect_started", mapOf("attempt" to reconnectAttempt.toString(), "cause" to cause.name))
-            stopVpn(clearRuntimeState = false, reason = reason, cause = cause, stopService = false)
-            startVpn(
-                host = reconnectSession.host,
-                port = reconnectSession.port,
-                requestedMode = reconnectSession.requestedMode,
-                rawConfig = reconnectSession.rawConfig,
-            )
-            activeReconnectJob = null
+            try {
+                delay(delayMs)
+                activeReconnectStarted = true
+                reconnectAttempt += 1
+                logRuntimeEvent("reconnect_started", mapOf("attempt" to reconnectAttempt.toString(), "cause" to cause.name))
+                stopVpn(clearRuntimeState = false, reason = reason, cause = cause, stopService = false)
+                startVpn(
+                    host = reconnectSession.host,
+                    port = reconnectSession.port,
+                    requestedMode = reconnectSession.requestedMode,
+                    rawConfig = reconnectSession.rawConfig,
+                )
+            } finally {
+                activeReconnectJob = null
+                activeReconnectCause = null
+                activeReconnectStarted = false
+            }
         }
     }
 
@@ -1173,17 +1194,45 @@ class SwimVpnService : VpnService() {
     }
 
     private fun cancelNetworkHandoffReconnect(reason: String) {
+        val cancelledPendingReconnect = if (RuntimeReconnectPolicy.shouldCancelPendingReconnectForRecoveredNetwork(
+                cause = activeReconnectCause,
+                started = activeReconnectStarted,
+            )
+        ) {
+            activeReconnectJob?.cancel()
+            activeReconnectJob = null
+            activeReconnectCause = null
+            activeReconnectStarted = false
+            logRuntimeEvent("network_reconnect_cancelled", mapOf("reason" to reason))
+            true
+        } else {
+            false
+        }
         val decision = NetworkHandoffPolicy.onAvailable(
             hasPendingHandoffReconnect = activeNetworkHandoffJob?.isActive == true,
         )
-        if (decision.action != NetworkHandoffAction.CANCEL_DEBOUNCE) return
+        if (decision.action != NetworkHandoffAction.CANCEL_DEBOUNCE && !cancelledPendingReconnect) return
 
         activeNetworkHandoffJob?.cancel()
         activeNetworkHandoffJob = null
         logRuntimeEvent("network_handoff_recovered", mapOf("reason" to reason))
-        if (VpnManager.runtimeStatus.value == RuntimeStatus.DEGRADED) {
+        if (VpnManager.runtimeStatus.value == RuntimeStatus.DEGRADED ||
+            VpnManager.runtimeStatus.value == RuntimeStatus.RECONNECTING
+        ) {
             updateRuntimeStatus(RuntimeStatus.RUNNING, VpnManager.runtimeMode.value)
             updateNotification()
+        }
+    }
+
+    private fun runtimeStatusCauseForStore(status: RuntimeStatus, cause: DisconnectCause): DisconnectCause? {
+        if (status == RuntimeStatus.RUNNING && cause == DisconnectCause.UNKNOWN) {
+            return DisconnectCause.UNKNOWN
+        }
+
+        return if (cause == DisconnectCause.UNKNOWN) {
+            VpnManager.metrics.value.lastDisconnectCause
+        } else {
+            cause
         }
     }
 

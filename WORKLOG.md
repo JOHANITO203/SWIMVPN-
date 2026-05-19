@@ -1,3 +1,11 @@
+# 2026-05-20 - Android VPN runtime review follow-up
+
+- Cleared stale failure cause and reconnect counters when a new runtime session reaches healthy `RUNNING`.
+- Preserved active Xray/tun2socks log paths while cleaning old failure state after successful startup.
+- Added `RuntimeReconnectPolicy` so a pending `NETWORK_LOST` reconnect can be cancelled if a usable network returns before reconnect startup begins.
+- Kept engine-crash reconnects non-cancellable by network recovery.
+- Verification: targeted diagnostics/reconnect policy tests passed, full targeted runtime policy suite passed, and `android\\gradlew.bat testDebugUnitTest assembleDebug` passed.
+
 # 2026-05-20 - Android VPN runtime recovery phases 1-2
 
 - Separated active killed-service recovery from the user-facing auto-connect toggle.
