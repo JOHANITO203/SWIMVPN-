@@ -1,5 +1,6 @@
 package com.swimvpn.app.vpn
 
+import com.swimvpn.app.data.local.PreferencesManager
 import java.util.Locale
 
 object VpnNotificationLanguage {
@@ -12,7 +13,7 @@ object VpnNotificationLanguage {
 
         return when (normalized) {
             "fr", "ru" -> normalized
-            else -> "en"
+            else -> PreferencesManager.DEFAULT_LANGUAGE
         }
     }
 }

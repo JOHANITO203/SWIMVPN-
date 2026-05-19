@@ -2070,7 +2070,7 @@ pm run build PASSED.
     - Split resale slot semantics from customer-facing device allowance: backend allocation uses one resale slot per order, while profile/subscription UI can display up to two devices.
     - Updated plan seed slot counts to `1` for Basic, Premium, and Platinum.
     - Added Prisma migration `20260430093000_resale_cap_two_orders` to set inventory default max resale slots to `2`, normalize plan/assignment slot counts to `1`, recalculate used resale slots, and refresh health status while preserving expired/disabled states.
-    - Updated Android subscription cards to show `Up to 2 devices` / `Jusqu�� 2 appareils` / `?? 2 ?????????`.
+    - Updated Android subscription cards to show `Up to 2 devices` / `Jusquà 2 appareils` / `?? 2 ?????????`.
 - **Verification**:
     - `cd backend && npm run prisma:validate` PASSED.
     - `cd backend && npm run lint` PASSED.
@@ -2101,7 +2101,7 @@ pm run build PASSED.
 - **Problem**: Docker/Dokploy stopped at `prisma-migrate` with exit 1, blocking all app tests.
 - **Root Cause**:
     - Root `docker-compose.yml` rebuilt `DATABASE_URL` from raw `POSTGRES_PASSWORD`; the current password contains URL-sensitive characters, so Prisma failed with `P1013 invalid port number in database URL`.
-    - The new migration `20260430093000_resale_cap_two_orders` also contained a UTF-8 BOM, causing PostgreSQL to fail at `syntax error at or near "﻿ALTER"`.
+    - The new migration `20260430093000_resale_cap_two_orders` also contained a UTF-8 BOM, causing PostgreSQL to fail at `syntax error at or near "ï»¿ALTER"`.
 - **Changes**:
     - Updated all root compose backend services to consume `${DATABASE_URL}` directly instead of reconstructing it from raw Postgres credentials.
     - Rewrote `backend/prisma/migrations/20260430093000_resale_cap_two_orders/migration.sql` without BOM while preserving its SQL logic.
@@ -2528,7 +2528,7 @@ pm run build PASSED.
 - **Change**:
   - Added customer cancellation contract, gateway endpoint, and customer-service handler.
   - Customer cancellation verifies `userNumber + deviceId`, finds the active assignment, then calls inventory `revoke_assignment` so `used_resale_slots` and inventory health are recalculated by the existing source-of-truth logic.
-  - Android profile screen now shows a guarded �Cancel access / R�silier l�acc�s� action for active paid subscriptions.
+  - Android profile screen now shows a guarded Cancel access / Résilier laccès action for active paid subscriptions.
   - Confirming cancellation calls the backend, clears selected backend premium config/auto-connect when relevant, stops the backend VPN session if it is active, and refreshes the profile. Imported configs remain available.
 - **Verification**:
   - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
@@ -2570,7 +2570,7 @@ pm run build PASSED.
 ## [2026-05-02] [Pending Fulfillment Cancellation Returns To Standard]
 - **Status**: IMPLEMENTED / NEEDS BACKEND REDEPLOY + RELEASE APK QA
 - **Problem**:
-  - A customer who had a paid/manual-card order with no assigned config could still see `Accès en préparation` after trying to cancel, because no active assignment existed to revoke and the paid order stayed open.
+  - A customer who had a paid/manual-card order with no assigned config could still see `AccÃ¨s en prÃ©paration` after trying to cancel, because no active assignment existed to revoke and the paid order stayed open.
   - The pending badge was rendered in red, and stale VPN runtime errors could still appear when no server was selected.
   - The freemium explanatory text was too heavy for the desired product UX.
 - **Change**:
@@ -2802,6 +2802,24 @@ pm run build PASSED.
 ## 2026-05-07 22:34:00 +03:00 - Android Xray runtime performance trim
 - Audited tunnel/proxy runtime path with ADB: foreground service is active, Xray runs as a separate process, and tun2socks JNI appears to run inside the app process.
 - Added tests for generated Xray runtime documents to keep proxy outbounds valid while avoiding unused Xray stats and inbound sniffing on empty-routing configs.
+
+
+## 2026-05-18 - Landing SEO metadata alignment
+- Audited the landing metadata surface before changing SEO copy.
+- Replaced generic/minimal landing metadata with SwimVPN-focused English and Russian metadata for the Android pre-release, private browsing positioning, restricted-content access, SwimPay in-app subscriptions, and friend invites.
+- Kept privacy wording aligned with current policy by promising no browsing/activity logs instead of claiming zero user metadata is ever stored.
+
+
+## 2026-05-18 - Android payment method UI prioritizes SwimPay and Crypto
+- Audited the Android subscription checkout flow and backend payment handlers before changing payment visibility.
+- Hid the manual card payment option from the Android subscription screen and defaulted checkout selection to SwimPay.
+- Kept backend CARD_MANUAL support untouched as an operational fallback until a separate backend deprecation decision is made.
+
+
+## 2026-05-18 - Android Russian default language
+- Audited Android locale startup and confirmed API bootstrap/trial defaults were already Russian while local UI preferences fell back to English.
+- Changed the app language fallback to Russian for fresh installs and empty language values without overwriting existing saved user language preferences.
+- Aligned VPN foreground notification language normalization with the same Russian default.
 - Trimmed generated app-owned runtime documents: no unused Xray stats policy and no inbound sniffing when routing rules are empty. Supplier full JSON documents keep their existing policy/stats behavior unless already missing inbounds.
 - Verification: targeted TunnelRuntimeAdapterPerformanceTest, full Android debug unit tests, and assembleDebug passed.
 

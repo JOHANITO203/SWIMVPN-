@@ -33,6 +33,7 @@ class PreferencesManager(private val context: Context) {
         // Technical Settings
         val ROUTING_MODE_KEY = stringPreferencesKey("routing_mode")
         val AUTO_CONNECT_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("auto_connect")
+        const val DEFAULT_LANGUAGE = "ru"
         val LANGUAGE_KEY = stringPreferencesKey("language") // "en", "fr", "ru"
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SELECTED_SERVER_ID_KEY = stringPreferencesKey("selected_server_id")
@@ -62,7 +63,7 @@ class PreferencesManager(private val context: Context) {
         .map { preferences -> preferences[AUTO_CONNECT_KEY] ?: false }
 
     val languageFlow: Flow<String> = context.dataStore.data
-        .map { preferences -> preferences[LANGUAGE_KEY] ?: "en" }
+        .map { preferences -> preferences[LANGUAGE_KEY] ?: DEFAULT_LANGUAGE }
 
     val themeModeFlow: Flow<ThemeMode> = context.dataStore.data
         .map { preferences -> ThemeMode.fromPersisted(preferences[THEME_MODE_KEY]) }

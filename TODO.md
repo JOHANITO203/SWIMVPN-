@@ -411,7 +411,7 @@ otification-bot-service event handoff.
   - add a focused device smoke test for en, r, and 
 u after each future language batch
 - Re-test the Android technical screen on device after the entry-action guard:
-  - opening Paramètres techniques should no longer jump into Android Settings
+  - opening ParamÃ¨tres techniques should no longer jump into Android Settings
   - verify VPN session stays active while the technical screen opens
   - verify the kill-switch shortcut still opens Android VPN settings after the short entry delay
 - Continue phase-status verification:
@@ -934,7 +934,7 @@ u after each future language batch
 - Redeploy backend services after adding `subscription/cancel-current`.
 - Build and install a new signed release APK after Android profile cancellation UI changes.
 - Test active paid backend config cancellation:
-  - Profile shows “Résilier l’accès”.
+  - Profile shows Â“RÃ©silier lÂ’accÃ¨sÂ”.
   - Dialog confirms the action.
   - Backend returns refreshed profile without premium runtime config.
   - If a backend premium config is selected and VPN is running, VPN stops and auto-connect is disabled.
@@ -1135,12 +1135,29 @@ u after each future language batch
 - [ ] Protect DB backups, secrets, and admin access because raw device identity is intentionally stored.
 
 ## 2026-05-07 22:02:00 +03:00 - Android sticky restore QA
+
+
+## Landing SEO follow-up
+- Add dedicated localized routes such as `/en/` and `/ru/` before using full multilingual `hreflang` targeting for Russian and English search results.
+- Add a production Open Graph image once the final brand/social preview asset is approved.
+- Confirm the production canonical domain and update landing metadata if it differs from `https://swimvpn.com/`.
+
+
+## Payment method follow-up
+- Decide whether CARD_MANUAL should remain backend-only as an operational fallback or be rejected on the public checkout API.
+- If CARD_MANUAL is fully deprecated, update backend DTOs, policy tests, Telegram manual-card flows, and localized Android strings in one dedicated payment cleanup batch.
+- Verify production SwimPay configuration before release because Android now defaults checkout to SwimPay.
+
+
+## Russian-default Android QA follow-up
+- Smoke test a fresh install with cleared app data and verify onboarding, trial setup, home, profile, subscription, servers, support, and technical settings open in Russian before any manual language change.
+- Verify existing users who previously selected English or French keep their saved language after update.
 - [ ] On a real device, connect VPN, keep auto-connect enabled, then simulate service process death and confirm `sticky_restore_started` appears and tunnel reconnects.
 - [ ] Repeat after waiting more than 15 seconds with a stale runtime snapshot and confirm sticky restore is skipped.
 - [ ] Keep the boot-completed flow bootstrap-gated; do not add direct premium restore after reboot without entitlement revalidation.
 
 ## 2026-05-07 22:34:00 +03:00 - Tunnel speed QA follow-up
-- [ ] Install matching signed build and compare CPU/débit for full tunnel before/after Xray stats/sniffing trim.
+- [ ] Install matching signed build and compare CPU/dÃ©bit for full tunnel before/after Xray stats/sniffing trim.
 - [ ] Benchmark full tunnel vs local proxy on the same server and same network.
 - [ ] Test Wi-Fi 2.4 GHz, stronger Wi-Fi/5 GHz if available, and mobile network separately before changing MTU.
 - [ ] Only tune MTU/tun2socks buffers after collecting baseline speed, CPU, reconnect, and packet-loss evidence.

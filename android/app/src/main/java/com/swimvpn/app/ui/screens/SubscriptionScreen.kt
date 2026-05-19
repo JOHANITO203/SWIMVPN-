@@ -61,7 +61,7 @@ fun SubscriptionScreen(
         }
     }
     var selectedPlanId by remember(visiblePlans) { mutableStateOf(visiblePlans.firstOrNull()?.id ?: "") }
-    var selectedPaymentMethod by remember { mutableStateOf("CARD_MANUAL") }
+    var selectedPaymentMethod by remember { mutableStateOf("SWIMPAY") }
     var showEmailConfirmation by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val normalizedPaymentEmail = paymentEmail?.trim().orEmpty()
@@ -161,12 +161,6 @@ fun SubscriptionScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            PaymentMethodCard(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.payment_method_card),
-                isSelected = selectedPaymentMethod == "CARD_MANUAL",
-                onClick = { selectedPaymentMethod = "CARD_MANUAL" }
-            )
             PaymentMethodCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.payment_method_swimpay),

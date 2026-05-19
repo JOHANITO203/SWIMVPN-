@@ -119,7 +119,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyLocale(langCode: String) {
-        val normalizedLanguage = langCode.trim().ifEmpty { "en" }
+        val normalizedLanguage = langCode.trim().ifEmpty { PreferencesManager.DEFAULT_LANGUAGE }
         val targetLocales: LocaleListCompat = LocaleListCompat.forLanguageTags(normalizedLanguage)
         val currentLocales = AppCompatDelegate.getApplicationLocales()
         val currentPrimaryLanguage = currentLocales[0]?.language?.lowercase(Locale.ROOT).orEmpty()
