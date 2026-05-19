@@ -1234,7 +1234,7 @@ u after each future language batch
 
 ## 2026-05-19 - Trial contract live QA follow-up
 - [ ] Live QA: attempt trial activation while a paid order is pending fulfillment and confirm it is refused cleanly.
-- [ ] Live QA: buy paid during active trial and confirm trial remains usable until paid fulfillment succeeds.
+- [ ] Live QA: buy paid during active trial and confirm the pending badge/refresh appears while trial remains usable until paid fulfillment succeeds.
 - [ ] Live QA: after paid fulfillment succeeds, confirm profile and `/servers` expose paid config/nodes, not trial.
 - [ ] Live QA: expired trial must enter freemium app shell and expose no backend premium config/nodes.
 

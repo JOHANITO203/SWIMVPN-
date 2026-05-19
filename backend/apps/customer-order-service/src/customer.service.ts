@@ -698,18 +698,6 @@ export class CustomerService {
     );
     const latestPaidActiveOrder = activeOrders.find((order) => !this.isTrialOrder(order));
     const latestLegacyActiveTrialOrder = activeOrders.find((order) => this.isTrialOrder(order));
-    const trialStoreProfile = await this.buildTrialStoreProfile(
-      customer,
-      trialEligible,
-      exposeRuntimeConfig,
-    );
-    if (!latestPaidActiveOrder && trialStoreProfile?.priority === 'ACTIVE') {
-      return trialStoreProfile.profile;
-    }
-
-    const latestActiveOrder =
-      latestPaidActiveOrder ||
-      latestLegacyActiveTrialOrder;
     const latestPendingOrder = relevantOrders.find((order) =>
       order.status === OrderStatus.PAID ||
       order.status === OrderStatus.PENDING_FULFILLMENT ||
@@ -723,6 +711,22 @@ export class CustomerService {
         order.assignments.some((item) => item.access_status === AssignmentAccessStatus.PENDING)
       ),
     );
+    const hasPaidFulfillmentInProgress = !!latestPaidPendingOrder;
+    const trialStoreProfile = await this.buildTrialStoreProfile(
+      customer,
+      trialEligible,
+      exposeRuntimeConfig,
+    );
+    if (!latestPaidActiveOrder && trialStoreProfile?.priority === 'ACTIVE') {
+      return this.finalizeTrialStoreProfile(
+        trialStoreProfile.profile,
+        hasPaidFulfillmentInProgress,
+      );
+    }
+
+    const latestActiveOrder =
+      latestPaidActiveOrder ||
+      latestLegacyActiveTrialOrder;
     const latestExpiredOrder = relevantOrders.find((order) =>
       order.assignments.some((item) => item.access_status === AssignmentAccessStatus.EXPIRED),
     );
@@ -731,7 +735,7 @@ export class CustomerService {
       order.assignments.some((item) => item.access_status === AssignmentAccessStatus.EXPIRED),
     );
     if (!latestActiveOrder && !latestPaidPendingOrder && !latestPaidExpiredOrder && trialStoreProfile) {
-      return trialStoreProfile.profile;
+      return this.finalizeTrialStoreProfile(trialStoreProfile.profile, false);
     }
 
     const latestRelevantOrder = latestActiveOrder ?? latestPendingOrder ?? latestExpiredOrder;
@@ -819,7 +823,11 @@ export class CustomerService {
         ? (inventoryItem?.raw_config || null)
         : null,
       devicesAllowed: latestOrder ? getPlanDeviceAllowance(latestOrder.plan.code) : 0,
-      fulfillmentStatus,
+      fulfillmentStatus:
+        hasPaidFulfillmentInProgress &&
+        entitlementState === 'ACTIVE_TRIAL'
+          ? 'PENDING_FULFILLMENT'
+          : fulfillmentStatus,
       dataLimitGB: isTrialOrder ? 0 : measuredDataLimitGb,
       dataUsedBytes: isTrialOrder ? '0' : measuredDataUsedBytes,
       supplierProviderName: inventoryItem?.supplier_provider_name || null,
@@ -1538,6 +1546,23 @@ export class CustomerService {
     }
 
     return normalized;
+  }
+
+  private finalizeTrialStoreProfile(profile: any, hasPaidFulfillmentInProgress: boolean) {
+    const nextProfile = hasPaidFulfillmentInProgress
+      ? { ...profile, fulfillmentStatus: 'PENDING_FULFILLMENT' }
+      : profile;
+
+    if (!nextProfile.profileCompletionRequired) {
+      return nextProfile;
+    }
+
+    return {
+      ...nextProfile,
+      status: 'PROFILE_INCOMPLETE',
+      entitlementState: 'PROFILE_INCOMPLETE',
+      subscriptionUrl: null,
+    };
   }
 
   private async buildTrialStoreProfile(

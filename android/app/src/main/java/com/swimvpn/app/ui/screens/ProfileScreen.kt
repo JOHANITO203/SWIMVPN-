@@ -745,6 +745,7 @@ fun TrialActivationProfileScreen(
     var phoneInput by remember { mutableStateOf(phone.orEmpty()) }
     val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(emailInput.trim()).matches()
     val isPhoneValid = phoneInput.filter { it.isDigit() }.length >= 8
+    val canCompleteProfile = isEmailValid && isPhoneValid
 
     Column(
         modifier = Modifier
@@ -852,6 +853,7 @@ fun TrialActivationProfileScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(26.dp),
+                    enabled = canCompleteProfile,
                 ) {
                     Text(
                         stringResource(R.string.profile_continue_without_trial),

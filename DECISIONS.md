@@ -1140,3 +1140,13 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: a fresh active runtime snapshot may be restored from the persisted runtime payload even when the user-facing auto-connect toggle is disabled.
 - Reason: auto-connect controls boot/relaunch behavior, while sticky recovery repairs a tunnel Android/OEM killed while it was already active.
 - Consequence: recovery still requires a payload and full-tunnel VPN permission, user stops remain non-restorable, and boot/package restore remains gated by app bootstrap and auto-connect.
+
+## 2026-05-20 - Paid pending is visible without cutting active trial
+- Decision: when paid fulfillment is pending during an active trial, backend keeps `ACTIVE_TRIAL` and trial runtime exposure, but marks fulfillment as `PENDING_FULFILLMENT`.
+- Reason: paid purchase state must be visible and auto-refreshed, while pending fulfillment must not prematurely disconnect an already valid trial.
+- Consequence: Android can show the pending badge and keep bounded refresh active without exposing a paid config before inventory fulfillment succeeds.
+
+## 2026-05-20 - Profile completion gates managed runtime exposure
+- Decision: `profileCompletionRequired` is authoritative across Android and backend Trial Store profiles.
+- Reason: onboarding/profile completion is the only allowed full-app gate; it must not be bypassed by an active grant record.
+- Consequence: incomplete profiles stay in setup and never receive managed paid/trial runtime configs until email and phone are completed.

@@ -1034,6 +1034,10 @@ async function main() {
     'active trial must remain usable while paid fulfillment is pending',
   );
   assert(
+    trialActiveWithPaidPendingProfile.fulfillmentStatus === 'PENDING_FULFILLMENT',
+    'paid pending fulfillment should remain visible while active trial runtime stays usable',
+  );
+  assert(
     trialActiveWithPaidPendingProfile.subscriptionUrl === 'vless://trial-active-paid-pending',
     'paid pending must not hide the active trial runtime config before paid fulfillment succeeds',
   );
@@ -1575,6 +1579,70 @@ async function main() {
   assert(
     trialStoreProfile.subscriptionUrl === 'vless://trial-store-active',
     'trial store active grant should expose its own runtime config',
+  );
+
+  const incompleteTrialStoreProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-store-incomplete',
+          public_id: 'SW-TRIAL-STORE-INCOMPLETE',
+          device_id: 'device-trial-store-incomplete',
+          email: null,
+          phone: '79000000021',
+          orders: [],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+      orderAssignment: {
+        findMany: async () => [],
+      },
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
+      },
+      trialGrant: {
+        findFirst: async () => ({
+          id: 'trial-grant-incomplete',
+          customer_id: 'customer-trial-store-incomplete',
+          campaign_id: trialFailureCampaign.id,
+          status: 'ACTIVE',
+          started_at: new Date(),
+          expires_at: futureTrialExpiry,
+          assignments: [
+            {
+              id: 'trial-assignment-incomplete',
+              status: 'ACTIVE',
+              revoked_at: null,
+              expires_at: futureTrialExpiry,
+              trial_config: {
+                id: 'trial-config-incomplete',
+                raw_config: 'vless://trial-store-incomplete',
+                status: 'ASSIGNED',
+                supplier_provider_name: 'trial-store',
+                supplier_expires_at: futureTrialExpiry,
+              },
+            },
+          ],
+        }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const incompleteTrialStoreProfile =
+    await incompleteTrialStoreProfileService.getProfile('SW-TRIAL-STORE-INCOMPLETE');
+  assert(
+    incompleteTrialStoreProfile.entitlementState === 'PROFILE_INCOMPLETE',
+    'profile completion must remain authoritative over an active trial store grant',
+  );
+  assert(
+    incompleteTrialStoreProfile.subscriptionUrl === null,
+    'profile incomplete trial store profile must not expose runtime config',
   );
 
   const disabledTrialConfigProfileService = new CustomerService(

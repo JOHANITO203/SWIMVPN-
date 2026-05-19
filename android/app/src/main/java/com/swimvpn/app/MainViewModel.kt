@@ -595,6 +595,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         phone = phone?.trim()?.takeIf { it.isNotBlank() },
                     )
                 )
+
+                if (profile.requiresProfileCompletion) {
+                    _state.value = currentState.copy(
+                        userNumber = profile.userNumber,
+                        email = profile.email ?: currentState.email,
+                        phone = profile.phone ?: currentState.phone,
+                        trialEligible = profile.trialEligible,
+                    )
+                    _effect.emit(AppSideEffect.ShowToast(s(R.string.err_profile_completion_required)))
+                    return@launch
+                }
+
                 val successState = buildSuccessState(
                     profile = profile,
                     isOnboardingDone = currentState.isOnboardingDone,

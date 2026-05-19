@@ -165,6 +165,7 @@
     <string name="err_network_timeout">Превышено время ожидания сети. Проверьте интернет.</string>
     <string name="err_generic">Ошибка: %1$s</string>
     <string name="err_trial_activation">Сейчас не удалось активировать пробный период.</string>
+    <string name="err_profile_completion_required">Для продолжения нужны email и номер телефона.</string>
     <string name="err_activation_failed">Ошибка активации: %1$s</string>
     <string name="err_import_sync_failed">Конфигурация импортирована локально, но синхронизация профиля не удалась</string>
     <string name="err_order_creation_failed">Ошибка создания заказа: %1$s</string>

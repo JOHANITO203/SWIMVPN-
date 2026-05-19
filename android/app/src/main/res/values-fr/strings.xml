@@ -165,6 +165,7 @@
     <string name="err_network_timeout">Délai réseau dépassé. Vérifiez votre connexion internet.</string>
     <string name="err_generic">Erreur : %1$s</string>
     <string name="err_trial_activation">Impossible d’activer l’essai pour le moment.</string>
+    <string name="err_profile_completion_required">Email et téléphone sont requis pour continuer.</string>
     <string name="err_activation_failed">Échec de l’activation : %1$s</string>
     <string name="err_import_sync_failed">Configuration importée localement, mais la synchronisation du profil a échoué</string>
     <string name="err_order_creation_failed">Échec de création de la commande : %1$s</string>

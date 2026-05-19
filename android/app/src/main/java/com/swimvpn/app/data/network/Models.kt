@@ -58,13 +58,14 @@ data class AccessProfileResponse(
         }
 
     val requiresProfileCompletion: Boolean
-        get() = normalizedEntitlementState == "PROFILE_INCOMPLETE"
+        get() = profileCompletionRequired || normalizedEntitlementState == "PROFILE_INCOMPLETE"
 
     val isTrialAvailable: Boolean
         get() = normalizedEntitlementState == "TRIAL_AVAILABLE"
 
     val isPendingFulfillment: Boolean
-        get() = normalizedEntitlementState == "PENDING_FULFILLMENT"
+        get() = normalizedEntitlementState == "PENDING_FULFILLMENT" ||
+            fulfillmentStatus == "PENDING_FULFILLMENT"
 
     val isActiveTrial: Boolean
         get() = normalizedEntitlementState == "ACTIVE_TRIAL"

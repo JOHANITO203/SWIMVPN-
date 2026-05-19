@@ -3092,3 +3092,10 @@ pm run build PASSED.
 - Updated `SwimVpnService` sticky restore to require a payload and VPN permission for full tunnel, while keeping boot/package auto-connect gated in `MainViewModel`.
 - Added regression coverage for active, stale, idle, missing-payload, missing-permission, and local-proxy recovery cases.
 - Verification: baseline Android debug unit tests, targeted `RuntimeRecoveryPolicyTest`, full Android debug unit tests, and `assembleDebug` passed.
+
+## 2026-05-20 - Onboarding profile contract fixes
+- Android now treats backend `profileCompletionRequired` as authoritative, even if an active entitlement state is also present.
+- The onboarding freemium continuation path now requires a completed profile and stays in setup if backend still returns `PROFILE_INCOMPLETE`.
+- Active trial users with paid fulfillment pending keep trial runtime access, while Android can still display/poll the pending paid fulfillment signal.
+- Trial Store runtime exposure now remains blocked by profile completion, so incomplete profiles cannot receive managed trial configs.
+- Verification: red/green Android `AccessProfileResponseTest`, backend customer security policy, backend typecheck, and targeted Android debug unit tests passed.

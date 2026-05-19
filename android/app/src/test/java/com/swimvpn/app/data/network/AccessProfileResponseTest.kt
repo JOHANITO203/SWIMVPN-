@@ -42,6 +42,30 @@ class AccessProfileResponseTest {
     }
 
     @Test
+    fun `explicit profile completion requirement is authoritative`() {
+        val activeButIncomplete = profile(
+            entitlementState = "ACTIVE_SUBSCRIPTION",
+            accessType = "PAID",
+            profileCompletionRequired = true,
+        )
+
+        assertTrue(activeButIncomplete.requiresProfileCompletion)
+    }
+
+    @Test
+    fun `paid pending fulfillment can be visible while trial stays active`() {
+        val activeTrialWithPaidPending = profile(
+            entitlementState = "ACTIVE_TRIAL",
+            accessType = "TRIAL",
+            fulfillmentStatus = "PENDING_FULFILLMENT",
+        )
+
+        assertTrue(activeTrialWithPaidPending.isActiveTrial)
+        assertTrue(activeTrialWithPaidPending.isPremiumAllowed)
+        assertTrue(activeTrialWithPaidPending.isPendingFulfillment)
+    }
+
+    @Test
     fun `active refresh without runtime url preserves previous runtime access`() {
         val previous = profile(subscriptionUrl = "https://provider.example/sub")
         val refreshedWithoutRuntime = profile(subscriptionUrl = null)
@@ -57,6 +81,8 @@ class AccessProfileResponseTest {
         accessType: String = "PAID",
         dataLimitGB: Double = 10.0,
         subscriptionUrl: String? = "https://example.com/sub",
+        fulfillmentStatus: String? = null,
+        profileCompletionRequired: Boolean = false,
     ) = AccessProfileResponse(
         userNumber = "SW-TEST",
         email = "user@example.com",
@@ -72,9 +98,10 @@ class AccessProfileResponseTest {
         subscriptionExpiresAt = "2026-05-09T00:00:00Z",
         subscriptionUrl = subscriptionUrl,
         devicesAllowed = 2,
+        fulfillmentStatus = fulfillmentStatus,
         dataLimitGB = dataLimitGB,
         dataUsedBytes = "0",
-        profileCompletionRequired = false,
+        profileCompletionRequired = profileCompletionRequired,
         trialEligible = false,
     )
 }

@@ -165,6 +165,7 @@
     <string name="err_network_timeout">Network timeout. Please check your internet.</string>
     <string name="err_generic">Error: %1$s</string>
     <string name="err_trial_activation">Unable to activate the trial right now.</string>
+    <string name="err_profile_completion_required">Email and phone are required to continue.</string>
     <string name="err_activation_failed">Activation failed: %1$s</string>
     <string name="err_import_sync_failed">Configuration imported locally, but profile sync failed</string>
     <string name="err_order_creation_failed">Order creation failed: %1$s</string>
