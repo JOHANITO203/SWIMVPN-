@@ -19,9 +19,9 @@ class VpnNotificationLanguageTest {
     }
 
     @Test
-    fun `falls back to english for missing or unsupported language`() {
-        assertEquals("en", VpnNotificationLanguage.normalize(null))
-        assertEquals("en", VpnNotificationLanguage.normalize(""))
-        assertEquals("en", VpnNotificationLanguage.normalize("de"))
+    fun `falls back to russian for missing or unsupported language`() {
+        assertEquals("ru", VpnNotificationLanguage.normalize(null))
+        assertEquals("ru", VpnNotificationLanguage.normalize(""))
+        assertEquals("ru", VpnNotificationLanguage.normalize("de"))
     }
 }

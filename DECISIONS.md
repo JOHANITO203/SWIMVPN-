@@ -1016,3 +1016,15 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: keep LOCAL_PROXY visible as an advanced/manual mode.
 - Reason: the proxy runtime is technically valid and useful for proxy-aware apps, explicit SOCKS/HTTP tests, and advanced users; the limitation is that Android apps do not automatically use local proxy listeners.
 - Consequence: FULL_TUNNEL remains the recommended/default mode for normal browsing, while LOCAL_PROXY must be labeled as manual and must show 127.0.0.1:10808/10809 ports. Mode switches must be handled as service-owned restarts, not as STOPPED_BY_USER disconnects.
+
+
+## 2026-05-18 - Landing privacy SEO copy must avoid absolute zero-data claims
+- Decision: public SEO metadata may claim no browsing/activity logs, but must not claim SwimVPN stores no user data at all.
+- Reason: the current product model keeps limited operational metadata for trial anti-abuse, account continuity, entitlement checks, orders, and payments.
+- Consequence: future landing and ad copy should sell privacy/anonymity around network activity and data minimization while staying aligned with the privacy policy and backend behavior.
+
+
+## 2026-05-18 - Android starts in Russian by default
+- Decision: Russian is the default Android app language for fresh installs and missing/empty language preferences.
+- Reason: the product launch market and onboarding expectation are Russian-first, while English and French remain manually selectable.
+- Consequence: do not overwrite existing saved language preferences; only fallback/default paths should use Russian.

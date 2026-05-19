@@ -61,7 +61,7 @@ class SwimVpnService : VpnService() {
     private var activeReconnectJob: Job? = null
     private var activeSession: ActiveSession? = null
     private var activeUnderlyingNetwork: Network? = null
-    private var notificationLanguage = "en"
+    private var notificationLanguage = PreferencesManager.DEFAULT_LANGUAGE
     private var reconnectAttempt = 0
     private var sessionStartedAt: Long? = null
     private var stoppedByUser = false
@@ -229,7 +229,7 @@ class SwimVpnService : VpnService() {
         serviceScope.launch {
             val language = runCatching {
                 PreferencesManager(applicationContext).languageFlow.first()
-            }.getOrDefault("en")
+            }.getOrDefault(PreferencesManager.DEFAULT_LANGUAGE)
             val normalized = VpnNotificationLanguage.normalize(language)
             if (notificationLanguage != normalized) {
                 notificationLanguage = normalized
