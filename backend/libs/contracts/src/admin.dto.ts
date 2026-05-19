@@ -1,4 +1,5 @@
 import { PlanCategory } from '@prisma/client';
+import { IsArray, IsDateString, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class AdminLoginDto {
   username: string;
@@ -24,6 +25,33 @@ export class TriggerImportDto {
   supplierExpiresAt?: string;
   supplierProviderName?: string;
   supplierDeviceLimit?: number;
+  adminId: string;
+}
+
+export class TriggerTrialImportDto {
+  @IsString()
+  @IsOptional()
+  campaignCode?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  configs: string[];
+
+  @IsString()
+  @IsOptional()
+  batchName?: string;
+
+  @IsOptional()
+  @IsDateString()
+  supplierExpiresAt?: string;
+
+  @IsOptional()
+  @IsString()
+  supplierProviderName?: string;
+
+  @IsString()
+  @IsNotEmpty()
   adminId: string;
 }
 

@@ -230,6 +230,61 @@ async function main() {
     'store must prioritize active paid servers over a newer active trial',
   );
 
+  const trialStoreServers = await new StoreService({
+    customer: {
+      findUnique: async () => ({
+        id: 'customer-trial-store-server',
+        public_id: 'SW-TRIAL-STORE-SERVER',
+        device_id: 'device-trial-store-server',
+        orders: [],
+      }),
+    },
+    orderAssignment: {
+      findMany: async () => [],
+    },
+    trialAssignment: {
+      findMany: async () => [
+        {
+          id: 'trial-assignment-server',
+          status: 'ACTIVE',
+          expires_at: new Date(Date.now() + 60_000),
+          revoked_at: null,
+          trial_config: {
+            id: 'trial-config-server',
+            raw_config: 'vless://uuid@trial-store-server.example:443?security=tls#Trial%20Store',
+            config_type: 'VLESS',
+            display_protocol: 'VLESS',
+            batch_name: 'Trial launch',
+            supplier_provider_name: 'TrialProvider',
+            supplier_expires_at: new Date(Date.now() + 60_000),
+            status: 'ASSIGNED',
+          },
+        },
+      ],
+    },
+  } as any, { send: () => of([]) } as any).getServers({
+    userNumber: 'SW-TRIAL-STORE-SERVER',
+    deviceId: 'device-trial-store-server',
+  });
+  assert(
+    trialStoreServers.length === 1 &&
+      trialStoreServers[0].host === 'trial-store-server.example',
+    'active Trial Store assignment must expose selectable backend servers',
+  );
+  assert(
+    trialStoreServers[0].id.startsWith('trial-assignment:trial-assignment-server:'),
+    'trial store server id should be tied to the trial assignment and node',
+  );
+  assert(
+    trialStoreServers[0].tags.includes('TRIAL') &&
+      trialStoreServers[0].planScope === 'TRIAL',
+    'trial store servers must be marked as trial-scoped backend nodes',
+  );
+  assert(
+    trialStoreServers[0].load === null,
+    'trial store servers should expose unknown load as null instead of a fake zero-load signal',
+  );
+
   rawConfig = 'https://wb.routerwb.ru/jtz5386jCHkztYRZ';
   const subscriptionUrlServers = await new StoreService({
     customer: {

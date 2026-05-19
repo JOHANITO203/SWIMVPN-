@@ -246,7 +246,7 @@ export class StoreService {
       activeAssignment.access_status !== 'ACTIVE' ||
       !inventoryItem
     ) {
-      return [];
+      return this.getTrialStoreServers(customer.id);
     }
 
     if (
@@ -305,6 +305,85 @@ export class StoreService {
           inventoryItem.source_used_bytes,
         ),
         expiresAt: (activeAssignment.expires_at || inventoryItem.supplier_expires_at)?.toISOString() || null,
+      };
+    });
+  }
+
+  private async getTrialStoreServers(customerId: string) {
+    const now = new Date();
+    const trialAssignments =
+      typeof (this.prisma as any).trialAssignment?.findMany === 'function'
+        ? await (this.prisma as any).trialAssignment.findMany({
+            where: {
+              customer_id: customerId,
+              status: 'ACTIVE',
+              revoked_at: null,
+              OR: [
+                { expires_at: null },
+                { expires_at: { gt: now } },
+              ],
+              trial_config: {
+                status: 'ASSIGNED',
+                OR: [
+                  { supplier_expires_at: null },
+                  { supplier_expires_at: { gt: now } },
+                ],
+              },
+            },
+            orderBy: { assigned_at: 'desc' },
+            take: 1,
+            include: { trial_config: true },
+          }).catch((error: any) => {
+            if (error?.code === 'P2021' || error?.code === 'P2022') {
+              return [];
+            }
+
+            throw error;
+          })
+        : [];
+
+    const assignment = trialAssignments[0];
+    const trialConfig = assignment?.trial_config;
+    if (!assignment || !trialConfig || trialConfig.status !== 'ASSIGNED') {
+      return [];
+    }
+
+    const expiresAt = this.pickEarlierDate(assignment.expires_at, trialConfig.supplier_expires_at);
+    if (expiresAt && expiresAt.getTime() < Date.now()) {
+      return [];
+    }
+
+    const managedNodes = await this.parseManagedNodes(trialConfig.raw_config);
+    if (managedNodes.length === 0) {
+      return [];
+    }
+
+    return managedNodes.map((node) => {
+      const displayName =
+        node.displayName ||
+        trialConfig.batch_name ||
+        trialConfig.supplier_provider_name ||
+        trialConfig.display_protocol ||
+        'Assigned trial config';
+
+      return {
+        id: `trial-assignment:${assignment.id}:${this.stableNodeHash(node.rawConfig)}`,
+        country: displayName,
+        city: displayName,
+        host: node.host,
+        port: node.port,
+        protocol: node.protocol || trialConfig.display_protocol || trialConfig.config_type || 'UNKNOWN',
+        tags: ['ASSIGNED', 'TRIAL'],
+        planScope: 'TRIAL',
+        countryCode: null,
+        load: null,
+        rawConfig: node.rawConfig,
+        source: 'backend',
+        providerName: trialConfig.supplier_provider_name,
+        trafficUsedBytes: null,
+        trafficTotalBytes: null,
+        availabilityStatus: 'AVAILABLE',
+        expiresAt: expiresAt?.toISOString() || null,
       };
     });
   }

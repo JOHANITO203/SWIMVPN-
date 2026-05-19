@@ -117,7 +117,8 @@ export class VpnConfigService {
   }
 
   processSupplierResource(raw: string): SupplierResourceParseResult {
-    const extractedRawConfig = this.extractPrimaryConfigCandidate(raw);
+    const runtimeCandidates = this.extractRuntimeConfigCandidates(this.ingest(raw || ''));
+    const extractedRawConfig = runtimeCandidates[0] || this.extractPrimaryConfigCandidate(raw);
     const parsedProfile = this.parse(extractedRawConfig);
     const metadata = this.extractSupplierMetadata(raw);
 

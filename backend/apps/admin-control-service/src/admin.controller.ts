@@ -9,6 +9,7 @@ import {
   RevokeAssignmentDto,
   RetryFulfillmentDto,
   TriggerImportDto,
+  TriggerTrialImportDto,
   UpdateInventoryHealthDto,
 } from '@app/contracts';
 
@@ -78,6 +79,11 @@ export class AdminController {
   @MessagePattern({ cmd: 'trigger_import' })
   async triggerImport(@Payload() data: TriggerImportDto) {
     return this.adminService.triggerImport(data);
+  }
+
+  @MessagePattern({ cmd: 'trigger_trial_import' })
+  async triggerTrialImport(@Payload() data: TriggerTrialImportDto) {
+    return this.adminService.triggerTrialImport(data);
   }
 
   @MessagePattern({ cmd: 'list_inventory_overview' })

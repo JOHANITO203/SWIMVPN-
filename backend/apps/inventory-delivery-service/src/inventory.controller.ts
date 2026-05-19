@@ -1,7 +1,12 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { InventoryService } from './inventory.service';
-import { ImportConfigsDto, FulfillOrderDto, RecordUsageDto } from '@app/contracts/inventory.dto';
+import {
+  ImportConfigsDto,
+  ImportTrialConfigsDto,
+  FulfillOrderDto,
+  RecordUsageDto,
+} from '@app/contracts/inventory.dto';
 
 @Controller()
 export class InventoryController {
@@ -10,6 +15,11 @@ export class InventoryController {
   @MessagePattern({ cmd: 'import_configs' })
   async importConfigs(@Payload() data: ImportConfigsDto) {
     return this.inventoryService.importConfigs(data);
+  }
+
+  @MessagePattern({ cmd: 'import_trial_configs' })
+  async importTrialConfigs(@Payload() data: ImportTrialConfigsDto) {
+    return this.inventoryService.importTrialConfigs(data);
   }
 
   @MessagePattern({ cmd: 'fulfill_order' })

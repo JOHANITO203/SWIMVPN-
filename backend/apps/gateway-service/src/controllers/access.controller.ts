@@ -162,7 +162,11 @@ export class AccessController {
       const message = this.extractErrorMessage(error);
       const normalized = message.toLowerCase();
 
-      if (normalized.includes('trial already used')) {
+      if (
+        normalized.includes('trial already used') ||
+        normalized.includes('active subscription already exists') ||
+        normalized.includes('paid subscription fulfillment is already in progress')
+      ) {
         throw new ConflictException(message);
       }
 

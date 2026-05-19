@@ -32,6 +32,18 @@ object CheckoutRefreshPolicy {
         refreshUntilMs > 0L && nowMs <= refreshUntilMs
 }
 
+object PendingFulfillmentRefreshPolicy {
+    private const val REFRESH_WINDOW_MS = 10 * 60 * 1000L
+
+    fun refreshUntil(pendingAtMs: Long): Long = pendingAtMs + REFRESH_WINDOW_MS
+
+    fun shouldRefresh(nowMs: Long, refreshUntilMs: Long): Boolean =
+        refreshUntilMs > 0L && nowMs <= refreshUntilMs
+
+    fun shouldRefreshAfterReturn(nowMs: Long, refreshUntilMs: Long): Boolean =
+        shouldRefresh(nowMs = nowMs, refreshUntilMs = refreshUntilMs)
+}
+
 data class CreateOrderRequest(
     @SerializedName("email") val email: String?,
     @SerializedName("phone") val phone: String?,

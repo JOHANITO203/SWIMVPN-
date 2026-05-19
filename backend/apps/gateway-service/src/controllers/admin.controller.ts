@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Inject, UseGuards, Req, Headers } from '@nestjs/common';
+import { BadRequestException, Controller, Post, Get, Body, Inject, UseGuards, Req, Headers } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import {
   AdminLoginDto,
@@ -8,6 +8,7 @@ import {
   RetryFulfillmentDto,
   RevokeAssignmentDto,
   TriggerImportDto,
+  TriggerTrialImportDto,
   UpdateInventoryHealthDto,
 } from '@app/contracts';
 import { AdminGuard } from '../admin.guard';
@@ -19,6 +20,7 @@ interface AdminRequest {
 }
 
 type TriggerImportBody = Omit<TriggerImportDto, 'adminId'>;
+type TriggerTrialImportBody = Omit<TriggerTrialImportDto, 'adminId'>;
 type UpdateInventoryHealthBody = Omit<UpdateInventoryHealthDto, 'adminId'>;
 type RevokeAssignmentBody = Omit<RevokeAssignmentDto, 'adminId'>;
 type MoveAssignmentBody = Omit<MoveAssignmentDto, 'adminId'>;
@@ -52,6 +54,13 @@ export class AdminController {
   @Post('import')
   importConfigs(@Body() data: TriggerImportBody, @Req() req: AdminRequest) {
     return this.adminClient.send({ cmd: 'trigger_import' }, { ...data, adminId: req.admin.id });
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('trial/import')
+  importTrialConfigs(@Body() data: TriggerTrialImportBody, @Req() req: AdminRequest) {
+    this.assertTrialImportBody(data);
+    return this.adminClient.send({ cmd: 'trigger_trial_import' }, { ...data, adminId: req.admin.id });
   }
 
   @UseGuards(AdminGuard)
@@ -95,5 +104,23 @@ export class AdminController {
   logout(@Headers('authorization') authorization: string) {
     const token = authorization?.startsWith('Bearer ') ? authorization.split(' ')[1] : '';
     return this.adminClient.send({ cmd: 'admin_logout' }, { token });
+  }
+
+  private assertTrialImportBody(data: TriggerTrialImportBody) {
+    const configs = Array.isArray(data?.configs) ? data.configs : [];
+    const hasInvalidConfig = configs.some((item) => typeof item !== 'string' || item.trim().length === 0);
+    if (configs.length === 0 || hasInvalidConfig) {
+      throw new BadRequestException('configs must be a non-empty array of raw VPN config strings');
+    }
+
+    if (
+      data.supplierExpiresAt !== undefined &&
+      (
+        typeof data.supplierExpiresAt !== 'string' ||
+        Number.isNaN(new Date(data.supplierExpiresAt).getTime())
+      )
+    ) {
+      throw new BadRequestException('supplierExpiresAt must be a valid ISO date');
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { RpcException } from '@nestjs/microservices';
-import { AssignmentAccessStatus, InventoryHealthStatus } from '@prisma/client';
+import { AssignmentAccessStatus, InventoryHealthStatus, Prisma } from '@prisma/client';
 import { of, throwError } from 'rxjs';
 import { CustomerService } from '../customer.service';
 
@@ -119,7 +119,7 @@ async function main() {
               assignments: [
                 {
                   id: 'assignment-old-active',
-                  access_status: 'ACTIVE',
+                  access_status: AssignmentAccessStatus.ACTIVE,
                   inventory_item_id: 'inventory-old-active',
                   measured_used_bytes: 0n,
                   inventory_item: {
@@ -321,7 +321,7 @@ async function main() {
               assignments: [
                 {
                   id: 'assignment-trial-new',
-                  access_status: 'ACTIVE',
+                  access_status: AssignmentAccessStatus.ACTIVE,
                   inventory_item_id: 'inventory-trial-new',
                   measured_used_bytes: 0n,
                   expires_at: null,
@@ -970,6 +970,74 @@ async function main() {
     'paid orders without assignment should remain pending fulfillment, not disappear into freemium',
   );
 
+  const trialActiveWithPaidPendingService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-active-paid-pending',
+          public_id: 'SW-TRIAL-ACTIVE-PAID-PENDING',
+          device_id: 'device-trial-active-paid-pending',
+          email: 'trial-active-paid-pending@example.com',
+          phone: '79000000018',
+          orders: [
+            {
+              id: 'order-trial-active',
+              order_ref: 'TRIAL-SW-TRIAL-ACTIVE-PAID-PENDING-1',
+              status: 'FULFILLED',
+              payment_ref: 'TRIAL:3D',
+              created_at: new Date(Date.now() - 60 * 60 * 1000),
+              fulfilled_at: new Date(Date.now() - 60 * 60 * 1000),
+              plan: { code: 'WEEK', quota_label: 'UNLIMITED' },
+              assignments: [
+                {
+                  id: 'assignment-trial-active-paid-pending',
+                  access_status: AssignmentAccessStatus.ACTIVE,
+                  inventory_item_id: 'inventory-trial-active-paid-pending',
+                  measured_used_bytes: 0n,
+                  expires_at: new Date(Date.now() + 60_000),
+                  inventory_item: {
+                    id: 'inventory-trial-active-paid-pending',
+                    raw_config: 'vless://trial-active-paid-pending',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                    source_quota_bytes: null,
+                    source_used_bytes: 0n,
+                    supplier_expires_at: new Date(Date.now() + 60_000),
+                  },
+                },
+              ],
+            },
+            {
+              id: 'order-paid-pending-while-trial-active',
+              order_ref: 'ORD-PAID-PENDING-WHILE-TRIAL-ACTIVE',
+              status: 'PENDING_FULFILLMENT',
+              payment_ref: 'SWIMPAY_CONFIRMED:session:event',
+              created_at: new Date('2026-05-02T00:00:00.000Z'),
+              fulfilled_at: null,
+              plan: { code: 'MONTH', quota_label: '150 GB' },
+              assignments: [],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => ({ id: 'existing-trial' }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const trialActiveWithPaidPendingProfile =
+    await trialActiveWithPaidPendingService.getProfile('SW-TRIAL-ACTIVE-PAID-PENDING');
+  assert(
+    trialActiveWithPaidPendingProfile.entitlementState === 'ACTIVE_TRIAL',
+    'active trial must remain usable while paid fulfillment is pending',
+  );
+  assert(
+    trialActiveWithPaidPendingProfile.subscriptionUrl === 'vless://trial-active-paid-pending',
+    'paid pending must not hide the active trial runtime config before paid fulfillment succeeds',
+  );
+
   let pendingCancellationFindCount = 0;
   const cancelledOrders: unknown[] = [];
   const pendingCancellationEvents: unknown[] = [];
@@ -1180,10 +1248,136 @@ async function main() {
     'trial activation must not create a parallel trial when paid access is active',
   );
 
-  const trialFailureOrderUpdates: unknown[] = [];
+  const pendingPaidTrialBlockService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-pending-paid-trial-block',
+          public_id: 'SW-PENDING-PAID-TRIAL-BLOCK',
+          device_id: 'device-pending-paid-trial-block',
+          email: 'pending-paid-block@example.com',
+          phone: '79000000005',
+        }),
+        update: async (args: unknown) => args,
+      },
+      order: {
+        findFirst: async ({ where }: any) => {
+          assert(
+            where?.customer_id === 'customer-pending-paid-trial-block' &&
+              where?.status?.in?.includes('PAID') &&
+              where?.status?.in?.includes('PENDING_FULFILLMENT'),
+            'trial activation must check for paid orders still waiting on fulfillment',
+          );
+          return {
+            id: 'order-paid-pending-trial-block',
+            order_ref: 'ORD-PAID-PENDING-TRIAL-BLOCK',
+            payment_ref: 'SWIMPAY_SESSION:session:order',
+            status: 'PENDING_FULFILLMENT',
+          };
+        },
+        create: async () => {
+          throw new Error('trial order must not be created while paid fulfillment is pending');
+        },
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  (pendingPaidTrialBlockService as any).getProfile = async () => ({
+    userNumber: 'SW-PENDING-PAID-TRIAL-BLOCK',
+    entitlementState: 'FREEMIUM',
+  });
+  await assertRejectsWithRpcException(
+    () =>
+      pendingPaidTrialBlockService.activateTrial({
+        userNumber: 'SW-PENDING-PAID-TRIAL-BLOCK',
+        deviceId: 'device-pending-paid-trial-block',
+        email: 'pending-paid-block@example.com',
+        phone: '79000000005',
+      }),
+    'trial activation must not create a parallel trial when paid fulfillment is pending',
+  );
+
+  const pendingPaidProfileUpdates: unknown[] = [];
+  const pendingPaidNoProfileMutationService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-pending-paid-no-profile-mutation',
+          public_id: 'SW-PENDING-PAID-NO-PROFILE-MUTATION',
+          device_id: 'device-pending-paid-no-profile-mutation',
+          email: 'original@example.com',
+          phone: '79000000006',
+        }),
+        update: async (args: unknown) => {
+          pendingPaidProfileUpdates.push(args);
+          return args;
+        },
+      },
+      order: {
+        findFirst: async () => ({
+          id: 'order-paid-pending-no-profile-mutation',
+          order_ref: 'ORD-PAID-PENDING-NO-PROFILE-MUTATION',
+          payment_ref: 'SWIMPAY_SESSION:session:order',
+          status: 'PAID',
+        }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  (pendingPaidNoProfileMutationService as any).getProfile = async () => ({
+    userNumber: 'SW-PENDING-PAID-NO-PROFILE-MUTATION',
+    entitlementState: 'FREEMIUM',
+  });
+  await assertRejectsWithRpcException(
+    () =>
+      pendingPaidNoProfileMutationService.activateTrial({
+        userNumber: 'SW-PENDING-PAID-NO-PROFILE-MUTATION',
+        deviceId: 'device-pending-paid-no-profile-mutation',
+        email: 'changed@example.com',
+        phone: '79000000007',
+      }),
+    'trial activation refusal on paid pending must not mutate profile contact fields',
+  );
+  assert(
+    pendingPaidProfileUpdates.length === 0,
+    'paid pending trial refusal must happen before customer email/phone update',
+  );
+
+  const trialFailureGrantCreates: unknown[] = [];
   const trialFailureEvents: unknown[] = [];
+  const trialFailureCampaign = {
+    id: 'trial-campaign-2026-05',
+    code: 'trial-2026-05',
+    duration_days: 3,
+  };
   const trialFulfillmentFailureService = new CustomerService(
     {
+      $transaction: async (callback: any) =>
+        callback({
+          trialCampaign: {
+            findFirst: async () => trialFailureCampaign,
+          },
+          trialGrant: {
+            findFirst: async () => null,
+            create: async (args: unknown) => {
+              trialFailureGrantCreates.push(args);
+              return { id: 'trial-grant-fail', ...((args as any).data || {}) };
+            },
+          },
+          trialConfig: {
+            findFirst: async () => null,
+          },
+          adminEvent: {
+            create: async (event: unknown) => {
+              trialFailureEvents.push(event);
+              return event;
+            },
+          },
+        }),
       customer: {
         findUnique: async () => ({
           id: 'customer-trial-fail',
@@ -1196,27 +1390,18 @@ async function main() {
       },
       order: {
         findFirst: async () => null,
-        create: async () => ({
-          id: 'order-trial-fail',
-          order_ref: 'TRIAL-SW-TRIAL-FAIL-1',
-        }),
-        update: async (args: unknown) => {
-          trialFailureOrderUpdates.push(args);
-          return args;
-        },
       },
-      plan: {
-        findFirst: async () => ({ id: 'plan-week' }),
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
       },
-      adminEvent: {
-        create: async (event: unknown) => {
-          trialFailureEvents.push(event);
-          return event;
-        },
+      trialGrant: {
+        findFirst: async () => null,
       },
     } as any,
     {
-      send: () => throwError(() => new Error('Inventory service unavailable')),
+      send: () => {
+        throw new Error('trial activation must not call paid inventory fulfillment');
+      },
     } as any,
     {} as any,
     {} as any,
@@ -1234,17 +1419,56 @@ async function main() {
   });
   assert(
     trialFailureProfile.entitlementState === 'PENDING_FULFILLMENT',
-    'trial fulfillment exception should return pending fulfillment profile',
+    'trial store without capacity should return pending fulfillment profile',
   );
   assert(
-    trialFailureOrderUpdates.some((args: any) => args.data?.status === 'PENDING_FULFILLMENT'),
-    'trial fulfillment exception should leave trial order pending fulfillment instead of silently burning it',
+    trialFailureGrantCreates.some((args: any) => args.data?.status === 'PENDING'),
+    'trial store without capacity should create a pending trial grant instead of a paid order',
   );
-  assert(trialFailureEvents.length === 1, 'trial fulfillment exception should be audited');
+  assert(
+    trialFailureGrantCreates.some((args: any) =>
+      args.data?.identity_email === 'trial-fail@example.com' &&
+        args.data?.identity_phone === '79000000006' &&
+        args.data?.identity_device_id === 'device-trial-fail',
+    ),
+    'trial grant must persist normalized identity snapshots for race-proof campaign uniqueness',
+  );
+  assert(
+    trialFailureEvents.some((event: any) => event.data?.event_type === 'TRIAL_PENDING_NO_CAPACITY'),
+    'trial store without capacity should be audited with a trial-specific event',
+  );
 
-  const structuredTrialFailureOrderUpdates: unknown[] = [];
+  const structuredTrialConfigUpdates: unknown[] = [];
   const structuredTrialFulfillmentFailureService = new CustomerService(
     {
+      $transaction: async (callback: any) =>
+        callback({
+          trialCampaign: {
+            findFirst: async () => trialFailureCampaign,
+          },
+          trialGrant: {
+            findFirst: async () => null,
+            create: async (args: unknown) => ({ id: 'trial-grant-structured', ...((args as any).data || {}) }),
+            update: async (args: unknown) => ({ id: 'trial-grant-structured', ...((args as any).data || {}) }),
+          },
+          trialConfig: {
+            findFirst: async () => ({
+              id: 'trial-config-structured',
+              raw_config: 'vless://trial-store',
+              supplier_expires_at: null,
+            }),
+            updateMany: async (args: unknown) => {
+              structuredTrialConfigUpdates.push(args);
+              return { count: 1 };
+            },
+          },
+          trialAssignment: {
+            create: async (args: unknown) => args,
+          },
+          adminEvent: {
+            create: async (event: unknown) => event,
+          },
+        }),
       customer: {
         findUnique: async () => ({
           id: 'customer-trial-structured-fail',
@@ -1257,24 +1481,18 @@ async function main() {
       },
       order: {
         findFirst: async () => null,
-        create: async () => ({
-          id: 'order-trial-structured-fail',
-          order_ref: 'TRIAL-SW-TRIAL-STRUCTURED-FAIL-1',
-        }),
-        update: async (args: unknown) => {
-          structuredTrialFailureOrderUpdates.push(args);
-          return args;
-        },
       },
-      plan: {
-        findFirst: async () => ({ id: 'plan-week' }),
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
       },
-      adminEvent: {
-        create: async (event: unknown) => event,
+      trialGrant: {
+        findFirst: async () => null,
       },
     } as any,
     {
-      send: () => of({ success: false, error: 'No inventory available' }),
+      send: () => {
+        throw new Error('trial activation must not call paid inventory fulfillment');
+      },
     } as any,
     {} as any,
     {} as any,
@@ -1291,8 +1509,545 @@ async function main() {
     phone: '79000000007',
   });
   assert(
-    structuredTrialFailureOrderUpdates.some((args: any) => args.data?.status === 'PENDING_FULFILLMENT'),
-    'trial fulfillment success:false should leave trial order pending fulfillment',
+    structuredTrialConfigUpdates.some((args: any) => args.data?.status === 'ASSIGNED'),
+    'trial store config assignment should reserve a trial config without using paid inventory',
+  );
+
+  const futureTrialExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const trialStoreProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-store-active',
+          public_id: 'SW-TRIAL-STORE-ACTIVE',
+          device_id: 'device-trial-store-active',
+          email: 'trial-store-active@example.com',
+          phone: '79000000009',
+          orders: [],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+      orderAssignment: {
+        findMany: async () => [],
+      },
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
+      },
+      trialGrant: {
+        findFirst: async () => ({
+          id: 'trial-grant-active',
+          customer_id: 'customer-trial-store-active',
+          campaign_id: trialFailureCampaign.id,
+          status: 'ACTIVE',
+          started_at: new Date(),
+          expires_at: futureTrialExpiry,
+          assignments: [
+            {
+              id: 'trial-assignment-active',
+              status: 'ACTIVE',
+              revoked_at: null,
+              expires_at: futureTrialExpiry,
+              trial_config: {
+                id: 'trial-config-active',
+                raw_config: 'vless://trial-store-active',
+                status: 'ASSIGNED',
+                supplier_provider_name: 'trial-store',
+                supplier_expires_at: futureTrialExpiry,
+              },
+            },
+          ],
+        }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const trialStoreProfile = await trialStoreProfileService.getProfile('SW-TRIAL-STORE-ACTIVE');
+  assert(
+    trialStoreProfile.entitlementState === 'ACTIVE_TRIAL',
+    'trial store active grant should resolve to ACTIVE_TRIAL',
+  );
+  assert(
+    trialStoreProfile.subscriptionUrl === 'vless://trial-store-active',
+    'trial store active grant should expose its own runtime config',
+  );
+
+  const disabledTrialConfigProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-store-disabled',
+          public_id: 'SW-TRIAL-STORE-DISABLED',
+          device_id: 'device-trial-store-disabled',
+          email: 'trial-store-disabled@example.com',
+          phone: '79000000019',
+          orders: [],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+      orderAssignment: {
+        findMany: async () => [],
+      },
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
+      },
+      trialGrant: {
+        findFirst: async () => ({
+          id: 'trial-grant-disabled',
+          customer_id: 'customer-trial-store-disabled',
+          campaign_id: trialFailureCampaign.id,
+          status: 'ACTIVE',
+          started_at: new Date(),
+          expires_at: futureTrialExpiry,
+          assignments: [
+            {
+              id: 'trial-assignment-disabled',
+              status: 'ACTIVE',
+              revoked_at: null,
+              expires_at: futureTrialExpiry,
+              trial_config: {
+                id: 'trial-config-disabled',
+                raw_config: 'vless://disabled-trial-store',
+                status: 'DISABLED',
+                supplier_provider_name: 'trial-store',
+                supplier_expires_at: futureTrialExpiry,
+              },
+            },
+          ],
+        }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const disabledTrialConfigProfile =
+    await disabledTrialConfigProfileService.getProfile('SW-TRIAL-STORE-DISABLED');
+  assert(
+    disabledTrialConfigProfile.entitlementState === 'EXPIRED_TRIAL',
+    'disabled trial config must not keep an active trial entitlement',
+  );
+  assert(
+    disabledTrialConfigProfile.subscriptionUrl === null,
+    'disabled trial config must not expose its raw runtime config',
+  );
+
+  const supplierExpiredTrialConfigProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-store-supplier-expired',
+          public_id: 'SW-TRIAL-STORE-SUPPLIER-EXPIRED',
+          device_id: 'device-trial-store-supplier-expired',
+          email: 'trial-store-supplier-expired@example.com',
+          phone: '79000000021',
+          orders: [],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+      orderAssignment: {
+        findMany: async () => [],
+      },
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
+      },
+      trialGrant: {
+        findFirst: async () => ({
+          id: 'trial-grant-supplier-expired',
+          customer_id: 'customer-trial-store-supplier-expired',
+          campaign_id: trialFailureCampaign.id,
+          status: 'ACTIVE',
+          started_at: new Date(Date.now() - 60_000),
+          assigned_at: new Date(Date.now() - 60_000),
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          assignments: [
+            {
+              id: 'trial-assignment-supplier-expired',
+              status: 'ACTIVE',
+              revoked_at: null,
+              assigned_at: new Date(Date.now() - 60_000),
+              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+              trial_config: {
+                id: 'trial-config-supplier-expired',
+                raw_config: 'vless://supplier-expired-trial-store',
+                status: 'ASSIGNED',
+                supplier_provider_name: 'trial-store',
+                supplier_expires_at: new Date(Date.now() - 30_000),
+              },
+            },
+          ],
+        }),
+        updateMany: async () => ({ count: 1 }),
+      },
+      trialAssignment: {
+        updateMany: async () => ({ count: 1 }),
+      },
+      adminEvent: {
+        create: async (args: unknown) => args,
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const supplierExpiredTrialConfigProfile =
+    await supplierExpiredTrialConfigProfileService.getProfile('SW-TRIAL-STORE-SUPPLIER-EXPIRED');
+  assert(
+    supplierExpiredTrialConfigProfile.entitlementState === 'EXPIRED_TRIAL',
+    'supplier-expired trial config must expire the trial profile even when grant expiry is later',
+  );
+  assert(
+    supplierExpiredTrialConfigProfile.subscriptionUrl === null,
+    'supplier-expired trial config must not expose its raw runtime config',
+  );
+
+  const paidOverTrialStoreProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-paid-over-trial-store',
+          public_id: 'SW-PAID-OVER-TRIAL-STORE',
+          device_id: 'device-paid-over-trial-store',
+          email: 'paid-over-trial-store@example.com',
+          phone: '79000000010',
+          orders: [
+            {
+              id: 'order-paid-over-trial-store',
+              order_ref: 'ORD-PAID-OVER-TRIAL-STORE',
+              payment_ref: 'SWIMPAY_CONFIRMED:test',
+              status: 'FULFILLED',
+              created_at: new Date(),
+              fulfilled_at: new Date(),
+              plan: {
+                code: 'MONTH',
+                quota_label: '100 GB',
+              },
+              assignments: [
+                {
+                  id: 'assignment-paid-over-trial-store',
+                  inventory_item_id: 'inventory-paid-over-trial-store',
+                  access_status: AssignmentAccessStatus.ACTIVE,
+                  measured_used_bytes: BigInt(0),
+                  expires_at: futureTrialExpiry,
+                  inventory_item: {
+                    id: 'inventory-paid-over-trial-store',
+                    raw_config: 'vless://paid-over-trial-store',
+                    health_status: 'HEALTHY',
+                    source_quota_bytes: null,
+                    source_used_bytes: BigInt(0),
+                    supplier_provider_name: 'paid-store',
+                    supplier_expires_at: futureTrialExpiry,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+      orderAssignment: {
+        findMany: async () => [],
+      },
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
+      },
+      trialGrant: {
+        findFirst: async () => ({
+          id: 'trial-grant-paid-over',
+          customer_id: 'customer-paid-over-trial-store',
+          campaign_id: trialFailureCampaign.id,
+          status: 'ACTIVE',
+          started_at: new Date(),
+          expires_at: futureTrialExpiry,
+          assignments: [
+            {
+              id: 'trial-assignment-paid-over',
+              status: 'ACTIVE',
+              revoked_at: null,
+              expires_at: futureTrialExpiry,
+              trial_config: {
+                id: 'trial-config-paid-over',
+                raw_config: 'vless://trial-should-not-win',
+                status: 'ASSIGNED',
+                supplier_expires_at: futureTrialExpiry,
+              },
+            },
+          ],
+        }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const paidOverTrialStoreProfile =
+    await paidOverTrialStoreProfileService.getProfile('SW-PAID-OVER-TRIAL-STORE');
+  assert(
+    paidOverTrialStoreProfile.entitlementState === 'ACTIVE_SUBSCRIPTION',
+    'active paid assignment must keep priority over active trial store grant',
+  );
+  assert(
+    paidOverTrialStoreProfile.subscriptionUrl === 'vless://paid-over-trial-store',
+    'active paid assignment must expose paid config instead of trial config',
+  );
+
+  const paidExpiredOverTrialExpiredService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-paid-expired-over-trial-expired',
+          public_id: 'SW-PAID-EXPIRED-OVER-TRIAL-EXPIRED',
+          device_id: 'device-paid-expired-over-trial-expired',
+          email: 'paid-expired-over-trial-expired@example.com',
+          phone: '79000000020',
+          orders: [
+            {
+              id: 'order-paid-expired-over-trial-expired',
+              order_ref: 'ORD-PAID-EXPIRED-OVER-TRIAL-EXPIRED',
+              payment_ref: 'SWIMPAY_CONFIRMED:test',
+              status: 'FULFILLED',
+              created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+              fulfilled_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+              plan: {
+                code: 'MONTH',
+                quota_label: '100 GB',
+              },
+              assignments: [
+                {
+                  id: 'assignment-paid-expired-over-trial-expired',
+                  inventory_item_id: 'inventory-paid-expired-over-trial-expired',
+                  access_status: AssignmentAccessStatus.EXPIRED,
+                  measured_used_bytes: BigInt(0),
+                  expires_at: new Date(Date.now() - 60_000),
+                  inventory_item: {
+                    id: 'inventory-paid-expired-over-trial-expired',
+                    raw_config: 'vless://paid-expired',
+                    health_status: 'HEALTHY',
+                    source_quota_bytes: null,
+                    source_used_bytes: BigInt(0),
+                    supplier_provider_name: 'paid-store',
+                    supplier_expires_at: new Date(Date.now() - 60_000),
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+      orderAssignment: {
+        findMany: async () => [],
+      },
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
+      },
+      trialGrant: {
+        findFirst: async () => ({
+          id: 'trial-grant-expired-under-paid',
+          customer_id: 'customer-paid-expired-over-trial-expired',
+          campaign_id: trialFailureCampaign.id,
+          status: 'EXPIRED',
+          started_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+          expires_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+          assignments: [
+            {
+              id: 'trial-assignment-expired-under-paid',
+              status: 'EXPIRED',
+              revoked_at: null,
+              expires_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+              trial_config: {
+                id: 'trial-config-expired-under-paid',
+                raw_config: 'vless://trial-expired-under-paid',
+                status: 'ASSIGNED',
+                supplier_expires_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+              },
+            },
+          ],
+        }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const paidExpiredOverTrialExpiredProfile =
+    await paidExpiredOverTrialExpiredService.getProfile('SW-PAID-EXPIRED-OVER-TRIAL-EXPIRED');
+  assert(
+    paidExpiredOverTrialExpiredProfile.entitlementState === 'EXPIRED_SUBSCRIPTION',
+    'expired paid history must keep priority over expired trial store state',
+  );
+
+  const trialUniqueRaceService = new CustomerService(
+    {
+      $transaction: async (callback: any) =>
+        callback({
+          trialCampaign: {
+            findFirst: async () => trialFailureCampaign,
+          },
+          trialGrant: {
+            findFirst: async () => null,
+            create: async () => {
+              throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed on TrialGrant', {
+                code: 'P2002',
+                clientVersion: 'test',
+                meta: { target: ['customer_id', 'campaign_id'] },
+              });
+            },
+          },
+        }),
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-race',
+          public_id: 'SW-TRIAL-RACE',
+          device_id: 'device-trial-race',
+          email: 'trial-race@example.com',
+          phone: '79000000011',
+        }),
+        update: async (args: unknown) => args,
+      },
+      order: {
+        findFirst: async () => null,
+      },
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
+      },
+      trialGrant: {
+        findFirst: async () => null,
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  (trialUniqueRaceService as any).getProfile = async () => ({
+    userNumber: 'SW-TRIAL-RACE',
+    entitlementState: 'FREEMIUM',
+  });
+  await assertRejectsWithRpcException(
+    () =>
+      trialUniqueRaceService.activateTrial({
+        userNumber: 'SW-TRIAL-RACE',
+        deviceId: 'device-trial-race',
+        email: 'trial-race@example.com',
+        phone: '79000000011',
+      }),
+    'trial activation must map unique customer/campaign races to a business refusal',
+  );
+
+  const expiredTrialGrantUpdates: unknown[] = [];
+  const expiredTrialAssignmentUpdates: unknown[] = [];
+  const expiredTrialEvents: unknown[] = [];
+  const expiredTrialStoreProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-trial-store-expired',
+          public_id: 'SW-TRIAL-STORE-EXPIRED',
+          device_id: 'device-trial-store-expired',
+          email: 'trial-store-expired@example.com',
+          phone: '79000000012',
+          orders: [],
+        }),
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+      orderAssignment: {
+        findMany: async () => [],
+      },
+      trialCampaign: {
+        findFirst: async () => trialFailureCampaign,
+      },
+      trialGrant: {
+        findFirst: async ({ where }: any) => {
+          if (where?.customer_id === 'customer-trial-store-expired' && where?.campaign_id) {
+            return { id: 'trial-grant-expired-existing' };
+          }
+
+          return {
+            id: 'trial-grant-expired',
+            customer_id: 'customer-trial-store-expired',
+            campaign_id: trialFailureCampaign.id,
+            status: 'ACTIVE',
+            started_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+            expires_at: new Date(Date.now() - 60_000),
+            assignments: [
+              {
+                id: 'trial-assignment-expired',
+                status: 'ACTIVE',
+                revoked_at: null,
+                expires_at: new Date(Date.now() - 60_000),
+                trial_config: {
+                  id: 'trial-config-expired',
+                  raw_config: 'vless://expired-trial-store',
+                  supplier_expires_at: new Date(Date.now() + 60_000),
+                },
+              },
+            ],
+          };
+        },
+        updateMany: async (args: unknown) => {
+          expiredTrialGrantUpdates.push(args);
+          return { count: 1 };
+        },
+      },
+      trialAssignment: {
+        updateMany: async (args: unknown) => {
+          expiredTrialAssignmentUpdates.push(args);
+          return { count: 1 };
+        },
+      },
+      adminEvent: {
+        create: async (args: unknown) => {
+          expiredTrialEvents.push(args);
+          return args;
+        },
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+
+  const expiredTrialStoreProfile =
+    await expiredTrialStoreProfileService.getProfile('SW-TRIAL-STORE-EXPIRED');
+  assert(
+    expiredTrialStoreProfile.entitlementState === 'EXPIRED_TRIAL',
+    'expired trial store grant should resolve to EXPIRED_TRIAL',
+  );
+  assert(
+    expiredTrialGrantUpdates.some((args: any) => args.data?.status === 'EXPIRED'),
+    'expired trial store grant should be persisted as EXPIRED',
+  );
+  assert(
+    expiredTrialAssignmentUpdates.some((args: any) => args.data?.status === 'EXPIRED'),
+    'expired trial store assignment should be persisted as EXPIRED',
+  );
+  assert(
+    expiredTrialEvents.some((args: any) => args.data?.event_type === 'TRIAL_EXPIRED'),
+    'expired trial store grant should emit TRIAL_EXPIRED audit event',
   );
 
   const usageWithoutActiveOrderService = new CustomerService(

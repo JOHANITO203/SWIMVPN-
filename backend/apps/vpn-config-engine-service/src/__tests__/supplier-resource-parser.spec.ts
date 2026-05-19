@@ -53,4 +53,26 @@ assert(
 );
 assert(parsed.metadata.expiresAt === '2026-05-21T00:00:00Z', 'expiry parsing failed');
 
+const vmessPayload = Buffer.from(JSON.stringify({
+  v: '2',
+  ps: 'Trial VMess',
+  add: 'vmess-trial.example',
+  port: '443',
+  id: '11111111-1111-1111-1111-111111111111',
+  net: 'tcp',
+  tls: 'tls',
+})).toString('base64');
+const embeddedRuntime = service.processSupplierResource(`
+Trial managed nodes:
+vmess://${vmessPayload}
+trojan://secret@trojan-trial.example:443?security=tls#Trojan
+`.trim());
+
+assert(
+  embeddedRuntime.rawConfig === `vmess://${vmessPayload}`,
+  'supplier resource should prefer embedded runtime configs before generic text fallback',
+);
+assert(embeddedRuntime.parsedProfile.validationState === 'VALID', 'embedded VMess should parse as valid');
+assert(embeddedRuntime.parsedProfile.address === 'vmess-trial.example', 'embedded VMess host parsing failed');
+
 console.log('supplier resource parser tests passed');

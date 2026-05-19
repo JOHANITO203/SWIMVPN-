@@ -1,5 +1,6 @@
 import { AssignmentAccessStatus, InventoryHealthStatus, InventoryStatus, OrderStatus, PlanCategory } from '@prisma/client';
 import { InventoryService } from '../inventory.service';
+import { of } from 'rxjs';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -33,6 +34,236 @@ async function assertRejects(fn: () => Promise<unknown>, expectedMessage: string
 const gb = 1024n * 1024n * 1024n;
 
 async function main() {
+  const trialConfigsCreated: unknown[] = [];
+  const recoveredTrialAssignments: unknown[] = [];
+  const recoveredTrialGrantUpdates: unknown[] = [];
+  const recoveredTrialEvents: unknown[] = [];
+  const recoveredTrialConfigLocks: unknown[] = [];
+  const trialImportService = new InventoryService(
+    {
+      $transaction: async (callback: any) =>
+        callback({
+          trialCampaign: {
+            findUnique: async () => ({
+              id: 'trial-campaign-2026-05',
+              code: 'trial-2026-05',
+              duration_days: 3,
+            }),
+          },
+          trialGrant: {
+            findMany: async () => [
+              {
+                id: 'trial-grant-pending',
+                customer_id: 'customer-trial-pending',
+                customer: {
+                  public_id: 'SW-TRIAL-PENDING',
+                },
+              },
+            ],
+            updateMany: async (args: unknown) => {
+              recoveredTrialGrantUpdates.push(args);
+              return { count: 1 };
+            },
+          },
+          trialConfig: {
+            findFirst: async () => ({
+              id: 'trial-config-imported',
+              supplier_expires_at: null,
+            }),
+            updateMany: async (args: unknown) => {
+              recoveredTrialConfigLocks.push(args);
+              return { count: 1 };
+            },
+          },
+          trialAssignment: {
+            create: async (args: unknown) => {
+              recoveredTrialAssignments.push(args);
+              return args;
+            },
+          },
+          adminEvent: {
+            create: async (args: unknown) => {
+              recoveredTrialEvents.push(args);
+              return args;
+            },
+          },
+        }),
+      trialCampaign: {
+        findFirst: async () => ({
+          id: 'trial-campaign-2026-05',
+          code: 'trial-2026-05',
+        }),
+      },
+      trialConfig: {
+        create: async (args: any) => {
+          trialConfigsCreated.push(args);
+          return {
+            id: 'trial-config-imported',
+            config_type: args.data.config_type,
+            display_protocol: args.data.display_protocol,
+            supplier_expires_at: args.data.supplier_expires_at,
+            supplier_provider_name: args.data.supplier_provider_name,
+          };
+        },
+      },
+    } as any,
+    {
+      send: () =>
+        of({
+          rawConfig: 'vless://trial-imported',
+          parsedProfile: {
+            validationState: 'VALID',
+            protocol: 'VLESS',
+          },
+          metadata: {
+            providerName: 'trial-provider',
+          },
+        }),
+    } as any,
+    { emit: () => undefined } as any,
+    { emit: () => undefined } as any,
+  );
+  const trialImportResult = await trialImportService.importTrialConfigs({
+    configs: ['vless://trial-imported'],
+    batchName: 'trial-batch',
+  });
+  assert(trialConfigsCreated.length === 1, 'trial import should create one TrialConfig');
+  assert(
+    (trialConfigsCreated[0] as any).data.raw_config === 'vless://trial-imported',
+    'trial import must preserve raw trial config',
+  );
+  assert(
+    trialImportResult.details[0].status === 'IMPORTED',
+    'valid trial config should be imported into Trial Store',
+  );
+  assert(
+    trialImportResult.recoveredPendingCount === 1,
+    'trial import should recover one pending trial grant when config capacity becomes available',
+  );
+  assert(
+    recoveredTrialAssignments.length === 1 &&
+      (recoveredTrialAssignments[0] as any).data.grant_id === 'trial-grant-pending',
+    'trial import recovery should create an active TrialAssignment for pending grant',
+  );
+  assert(
+    recoveredTrialGrantUpdates.some((args: any) =>
+      args.where?.id === 'trial-grant-pending' &&
+        args.where?.status === 'PENDING' &&
+        args.data?.status === 'ACTIVE',
+    ),
+    'trial import recovery should atomically lock and activate the pending grant',
+  );
+  assert(
+    recoveredTrialConfigLocks.some((args: any) =>
+      args.where?.id === 'trial-config-imported' &&
+        args.where?.status === 'AVAILABLE' &&
+        args.data?.status === 'ASSIGNED',
+    ),
+    'trial import recovery should lock the trial config before assignment',
+  );
+  assert(
+    recoveredTrialEvents.some((args: any) => args.data?.event_type === 'TRIAL_CONFIG_ASSIGNED'),
+    'trial import recovery should emit a trial-specific assignment event',
+  );
+
+  const raceLostAssignments: unknown[] = [];
+  const raceLostConfigLocks: unknown[] = [];
+  const raceLostConfigReleases: unknown[] = [];
+  const raceLostService = new InventoryService(
+    {
+      $transaction: async (callback: any) =>
+        callback({
+          trialCampaign: {
+            findUnique: async () => ({
+              id: 'trial-campaign-2026-05',
+              code: 'trial-2026-05',
+              duration_days: 3,
+            }),
+          },
+          trialGrant: {
+            findMany: async () => [
+              {
+                id: 'trial-grant-race-lost',
+                customer_id: 'customer-trial-race-lost',
+                customer: {
+                  public_id: 'SW-TRIAL-RACE-LOST',
+                },
+              },
+            ],
+            updateMany: async () => ({ count: 0 }),
+          },
+          trialConfig: {
+            findFirst: async () => ({
+              id: 'trial-config-race-lost',
+              supplier_expires_at: null,
+            }),
+            updateMany: async (args: any) => {
+              if (args.data?.status === 'ASSIGNED') {
+                raceLostConfigLocks.push(args);
+                return { count: 1 };
+              }
+              raceLostConfigReleases.push(args);
+              return { count: 1 };
+            },
+          },
+          trialAssignment: {
+            create: async (args: unknown) => {
+              raceLostAssignments.push(args);
+              return args;
+            },
+          },
+          adminEvent: {
+            create: async () => undefined,
+          },
+        }),
+      trialCampaign: {
+        findFirst: async () => ({
+          id: 'trial-campaign-2026-05',
+          code: 'trial-2026-05',
+        }),
+      },
+      trialConfig: {
+        create: async (args: any) => ({
+          id: 'trial-config-race-lost',
+          config_type: args.data.config_type,
+          display_protocol: args.data.display_protocol,
+          supplier_expires_at: args.data.supplier_expires_at,
+          supplier_provider_name: args.data.supplier_provider_name,
+        }),
+      },
+    } as any,
+    {
+      send: () =>
+        of({
+          rawConfig: 'vless://trial-race-lost',
+          parsedProfile: {
+            validationState: 'VALID',
+            protocol: 'VLESS',
+          },
+          metadata: {},
+        }),
+    } as any,
+    { emit: () => undefined } as any,
+    { emit: () => undefined } as any,
+  );
+  const raceLostResult = await raceLostService.importTrialConfigs({
+    configs: ['vless://trial-race-lost'],
+  });
+  assert(raceLostConfigLocks.length === 1, 'race-lost recovery should still attempt to lock one config');
+  assert(
+    raceLostAssignments.length === 0 &&
+      raceLostResult.recoveredPendingCount === 0,
+    'recovery must not create an assignment when the pending grant lock is lost',
+  );
+  assert(
+    raceLostConfigReleases.some((args: any) =>
+      args.where?.id === 'trial-config-race-lost' &&
+        args.where?.status === 'ASSIGNED' &&
+        args.data?.status === 'AVAILABLE',
+    ),
+    'recovery should release a config lock when the pending grant lock is lost',
+  );
+
   const healthService = createService({});
   const health = healthService.computeHealthStatus({
     currentHealth: InventoryHealthStatus.HEALTHY,

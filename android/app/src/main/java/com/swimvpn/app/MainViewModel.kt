@@ -25,6 +25,7 @@ import com.swimvpn.app.data.network.CancelCurrentSubscriptionRequest
 import com.swimvpn.app.data.network.CompleteProfileRequest
 import com.swimvpn.app.data.model.CheckoutRefreshPolicy
 import com.swimvpn.app.data.model.CheckoutRequest
+import com.swimvpn.app.data.model.PendingFulfillmentRefreshPolicy
 import com.swimvpn.app.data.network.ReportUsageRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerGroup
@@ -560,6 +561,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 _state.value = successState
                 refreshServerLatency()
+                startPendingFulfillmentRefreshIfNeeded(profile)
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Trial activation failed", e)
                 _state.value = currentState
@@ -609,6 +611,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 _state.value = successState
                 refreshServerLatency()
+                startPendingFulfillmentRefreshIfNeeded(profile)
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Unable to continue in freemium mode", e)
                 _state.value = currentState
@@ -675,6 +678,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 _state.value = successState
                 refreshServerLatency()
+                startPendingFulfillmentRefreshIfNeeded(profile)
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Profile trial activation failed", e)
                 _state.value = currentState
@@ -818,7 +822,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshAfterExternalCheckoutIfNeeded() {
         val now = System.currentTimeMillis()
-        if (!CheckoutRefreshPolicy.shouldRefreshAfterReturn(now, externalCheckoutRefreshUntilMs)) {
+        if (!PendingFulfillmentRefreshPolicy.shouldRefreshAfterReturn(now, externalCheckoutRefreshUntilMs)) {
             externalCheckoutRefreshRetryJob?.cancel()
             externalCheckoutRefreshRetryJob = null
             return
@@ -885,7 +889,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun schedulePostCheckoutRefreshRetry() {
         val now = System.currentTimeMillis()
-        if (!CheckoutRefreshPolicy.shouldRefreshAfterReturn(now, externalCheckoutRefreshUntilMs)) {
+        if (!PendingFulfillmentRefreshPolicy.shouldRefreshAfterReturn(now, externalCheckoutRefreshUntilMs)) {
             externalCheckoutRefreshRetryJob?.cancel()
             externalCheckoutRefreshRetryJob = null
             return
@@ -898,6 +902,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             externalCheckoutRefreshRetryJob = null
             refreshAfterExternalCheckoutIfNeeded()
         }
+    }
+
+    private fun startPendingFulfillmentRefreshIfNeeded(profile: AccessProfileResponse) {
+        if (!profile.isPendingFulfillment) {
+            return
+        }
+
+        externalCheckoutRefreshUntilMs =
+            PendingFulfillmentRefreshPolicy.refreshUntil(System.currentTimeMillis())
+        schedulePostCheckoutRefreshRetry()
     }
 
     fun selectServer(server: ServerNode) {

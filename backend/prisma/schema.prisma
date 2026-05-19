@@ -37,6 +37,28 @@ enum InventoryHealthStatus {
   DISABLED
 }
 
+enum TrialCampaignStatus {
+  ACTIVE
+  CLOSED
+  DISABLED
+}
+
+enum TrialConfigStatus {
+  AVAILABLE
+  ASSIGNED
+  DEAD
+  DISABLED
+}
+
+enum TrialGrantStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  SUPERSEDED_BY_PAID
+  REVOKED
+  FAILED
+}
+
 enum AssignmentAccessStatus {
   PENDING
   ACTIVE
@@ -71,6 +93,8 @@ model Customer {
   orders          Order[]
   inventory_items InventoryItem[]
   order_assignments OrderAssignment[]
+  trial_grants    TrialGrant[]
+  trial_assignments TrialAssignment[]
 }
 
 model Plan {
@@ -138,6 +162,88 @@ model InventoryItem {
 
   customer    Customer?        @relation(fields: [assigned_customer_id], references: [id])
   assignments OrderAssignment[]
+}
+
+model TrialCampaign {
+  id             String              @id @default(uuid())
+  code           String              @unique
+  title          String
+  status         TrialCampaignStatus @default(ACTIVE)
+  starts_at      DateTime            @default(now())
+  ends_at        DateTime
+  duration_days  Int                 @default(3)
+  quota_label    String              @default("UNLIMITED")
+  created_at     DateTime            @default(now())
+  updated_at     DateTime            @updatedAt
+
+  configs TrialConfig[]
+  grants  TrialGrant[]
+
+  @@index([status, starts_at, ends_at])
+}
+
+model TrialConfig {
+  id                     String            @id @default(uuid())
+  campaign_id            String
+  raw_config             String            @db.Text
+  config_type            String
+  display_protocol       String
+  batch_name             String?
+  status                 TrialConfigStatus @default(AVAILABLE)
+  supplier_provider_name String?
+  supplier_expires_at    DateTime?
+  imported_at            DateTime          @default(now())
+  assigned_at            DateTime?
+
+  campaign   TrialCampaign    @relation(fields: [campaign_id], references: [id])
+  assignment TrialAssignment?
+
+  @@index([campaign_id, status, imported_at])
+}
+
+model TrialGrant {
+  id            String           @id @default(uuid())
+  customer_id   String
+  campaign_id   String
+  identity_email String?
+  identity_phone String?
+  identity_device_id String?
+  status        TrialGrantStatus @default(PENDING)
+  started_at    DateTime         @default(now())
+  expires_at    DateTime?
+  assigned_at   DateTime?
+  superseded_at DateTime?
+  revoked_at    DateTime?
+  status_reason String?
+
+  customer    Customer          @relation(fields: [customer_id], references: [id])
+  campaign    TrialCampaign     @relation(fields: [campaign_id], references: [id])
+  assignments TrialAssignment[]
+
+  @@unique([customer_id, campaign_id])
+  @@unique([campaign_id, identity_email])
+  @@unique([campaign_id, identity_phone])
+  @@unique([campaign_id, identity_device_id])
+  @@index([customer_id, status, started_at])
+  @@index([campaign_id, status])
+}
+
+model TrialAssignment {
+  id              String           @id @default(uuid())
+  grant_id        String           @unique
+  trial_config_id String           @unique
+  customer_id     String
+  status          TrialGrantStatus @default(ACTIVE)
+  assigned_at     DateTime         @default(now())
+  expires_at      DateTime?
+  revoked_at      DateTime?
+  status_reason   String?
+
+  grant        TrialGrant  @relation(fields: [grant_id], references: [id])
+  trial_config TrialConfig @relation(fields: [trial_config_id], references: [id])
+  customer     Customer    @relation(fields: [customer_id], references: [id])
+
+  @@index([customer_id, status])
 }
 
 model OrderAssignment {

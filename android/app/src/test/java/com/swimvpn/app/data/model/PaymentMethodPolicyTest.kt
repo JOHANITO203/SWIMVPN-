@@ -29,4 +29,28 @@ class PaymentMethodPolicyTest {
         assertFalse(CheckoutRefreshPolicy.shouldRefreshAfterReturn(refreshUntil + 1L, refreshUntil))
         assertFalse(CheckoutRefreshPolicy.shouldRefreshAfterReturn(openedAt, 0L))
     }
+
+    @Test
+    fun `pending fulfillment refresh window is bounded`() {
+        val pendingAt = 2_000L
+        val refreshUntil = PendingFulfillmentRefreshPolicy.refreshUntil(pendingAt)
+
+        assertTrue(PendingFulfillmentRefreshPolicy.shouldRefresh(nowMs = pendingAt, refreshUntilMs = refreshUntil))
+        assertTrue(PendingFulfillmentRefreshPolicy.shouldRefresh(nowMs = refreshUntil, refreshUntilMs = refreshUntil))
+        assertFalse(PendingFulfillmentRefreshPolicy.shouldRefresh(nowMs = refreshUntil + 1L, refreshUntilMs = refreshUntil))
+        assertFalse(PendingFulfillmentRefreshPolicy.shouldRefresh(nowMs = pendingAt, refreshUntilMs = 0L))
+    }
+
+    @Test
+    fun `pending fulfillment refresh is not tied to checkout policy`() {
+        val pendingAt = 3_000L
+        val refreshUntil = PendingFulfillmentRefreshPolicy.refreshUntil(pendingAt)
+
+        assertTrue(
+            PendingFulfillmentRefreshPolicy.shouldRefreshAfterReturn(
+                nowMs = pendingAt,
+                refreshUntilMs = refreshUntil,
+            )
+        )
+    }
 }

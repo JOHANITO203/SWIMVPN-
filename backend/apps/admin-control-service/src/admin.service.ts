@@ -12,6 +12,7 @@ import {
   RevokeAssignmentDto,
   RetryFulfillmentDto,
   TriggerImportDto,
+  TriggerTrialImportDto,
   UpdateInventoryHealthDto,
 } from '@app/contracts';
 import * as bcrypt from 'bcryptjs';
@@ -178,6 +179,64 @@ export class AdminService {
     });
 
     return result;
+  }
+
+  async triggerTrialImport(data: TriggerTrialImportDto) {
+    const configs = this.normalizeTrialImportConfigs(data.configs);
+    if (
+      data.supplierExpiresAt !== undefined &&
+      (
+        typeof data.supplierExpiresAt !== 'string' ||
+        Number.isNaN(new Date(data.supplierExpiresAt).getTime())
+      )
+    ) {
+      throw new Error('supplierExpiresAt must be a valid ISO date');
+    }
+
+    const result = await firstValueFrom(
+      this.inventoryClient.send({ cmd: 'import_trial_configs' }, {
+        campaignCode: data.campaignCode,
+        configs,
+        batchName: data.batchName,
+        supplierExpiresAt: data.supplierExpiresAt,
+        supplierProviderName: data.supplierProviderName,
+      }),
+    );
+
+    await this.prisma.adminEvent.create({
+      data: {
+        admin_id: data.adminId,
+        event_type: 'TRIAL_CONFIG_IMPORTED',
+        entity_type: 'TRIAL_CONFIG',
+        entity_id: 'BATCH',
+        payload_json: {
+          campaignCode: data.campaignCode ?? 'trial-2026-05',
+          batchName: data.batchName ?? null,
+          supplierExpiresAt: data.supplierExpiresAt ?? null,
+          supplierProviderName: data.supplierProviderName ?? null,
+          count: configs.length,
+          result,
+        } as any,
+      },
+    });
+
+    return result;
+  }
+
+  private normalizeTrialImportConfigs(configs: unknown) {
+    if (!Array.isArray(configs)) {
+      throw new Error('configs must be a non-empty array of raw VPN config strings');
+    }
+
+    const normalized = configs
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter((item) => item.length > 0);
+
+    if (normalized.length !== configs.length || normalized.length === 0) {
+      throw new Error('configs must be a non-empty array of raw VPN config strings');
+    }
+
+    return normalized;
   }
 
   async listInventoryOverview() {

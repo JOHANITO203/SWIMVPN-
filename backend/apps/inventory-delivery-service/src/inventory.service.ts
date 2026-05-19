@@ -1,7 +1,7 @@
 import { Injectable, Inject, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
-import { ImportConfigsDto } from '@app/contracts/inventory.dto';
+import { ImportConfigsDto, ImportTrialConfigsDto } from '@app/contracts/inventory.dto';
 import {
   DEFAULT_RESALE_SLOT_CAP,
   DEFAULT_SUPPLIER_DEVICE_LIMIT,
@@ -16,6 +16,9 @@ import {
   OrderStatus,
   PlanCategory,
   Prisma,
+  TrialCampaignStatus,
+  TrialConfigStatus,
+  TrialGrantStatus,
 } from '@prisma/client';
 import { canAllocateSupplierConfig } from './supplier-capacity.policy';
 import { resolveInventoryHealthcheckIntervalMs } from './inventory-health-scheduler.policy';
@@ -665,6 +668,221 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async importTrialConfigs(data: ImportTrialConfigsDto) {
+    const campaignCode = data.campaignCode?.trim() || 'trial-2026-05';
+    const now = new Date();
+    const campaign = await this.prisma.trialCampaign.findFirst({
+      where: {
+        code: campaignCode,
+        status: TrialCampaignStatus.ACTIVE,
+        starts_at: { lte: now },
+        ends_at: { gte: now },
+      },
+    });
+
+    if (!campaign) {
+      throw new Error('Active trial campaign not found');
+    }
+
+    const results = [];
+    for (const raw of data.configs) {
+      const supplierResource: {
+        rawConfig: string;
+        parsedProfile: SwimVpnProfile;
+        metadata: {
+          providerName?: string;
+          expiresAt?: string;
+        };
+      } = await firstValueFrom(
+        this.vpnClient.send({ cmd: 'process_supplier_resource' }, { rawConfig: raw }),
+      );
+      const profile = supplierResource.parsedProfile;
+
+      if (profile.validationState !== 'VALID') {
+        results.push({
+          status: 'REJECTED',
+          reason: (profile as any).errorMessage || 'Invalid config',
+        });
+        continue;
+      }
+
+      const supplierExpiresAt = data.supplierExpiresAt
+        ? new Date(data.supplierExpiresAt)
+        : supplierResource.metadata.expiresAt
+          ? new Date(supplierResource.metadata.expiresAt)
+          : null;
+      const status =
+        supplierExpiresAt && supplierExpiresAt.getTime() <= Date.now()
+          ? TrialConfigStatus.DEAD
+          : TrialConfigStatus.AVAILABLE;
+
+      const item = await this.prisma.trialConfig.create({
+        data: {
+          campaign_id: campaign.id,
+          raw_config: supplierResource.rawConfig,
+          config_type: profile.protocol,
+          display_protocol: profile.protocol,
+          batch_name: data.batchName,
+          status,
+          supplier_expires_at: supplierExpiresAt,
+          supplier_provider_name:
+            data.supplierProviderName?.trim() ||
+            supplierResource.metadata.providerName?.trim() ||
+            null,
+        },
+      });
+
+      results.push({
+        id: item.id,
+        status: status === TrialConfigStatus.AVAILABLE ? 'IMPORTED' : 'IMPORTED_DEAD',
+        campaignCode,
+        configType: item.config_type,
+        displayProtocol: item.display_protocol,
+        supplierExpiresAt: item.supplier_expires_at?.toISOString() ?? null,
+        supplierProviderName: item.supplier_provider_name,
+      });
+    }
+
+    const recoveredAssignments = await this.assignPendingTrialGrants(campaign.id, campaign.code);
+
+    return {
+      importedCount: results.filter((result) => result.status === 'IMPORTED').length,
+      recoveredPendingCount: recoveredAssignments.length,
+      details: results,
+      recoveredAssignments,
+    };
+  }
+
+  private async assignPendingTrialGrants(campaignId: string, campaignCode: string) {
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const campaign = await tx.trialCampaign.findUnique({
+        where: { id: campaignId },
+      });
+
+      if (!campaign) {
+        return [];
+      }
+
+      const pendingGrants = await tx.trialGrant.findMany({
+        where: {
+          campaign_id: campaignId,
+          status: TrialGrantStatus.PENDING,
+          OR: [
+            { expires_at: null },
+            { expires_at: { gt: now } },
+          ],
+        },
+        orderBy: { started_at: 'asc' },
+        include: { customer: true },
+      });
+      const recoveredAssignments = [];
+
+      for (const grant of pendingGrants) {
+        const candidate = await tx.trialConfig.findFirst({
+          where: {
+            campaign_id: campaignId,
+            status: TrialConfigStatus.AVAILABLE,
+            OR: [
+              { supplier_expires_at: null },
+              { supplier_expires_at: { gt: now } },
+            ],
+          },
+          orderBy: { imported_at: 'asc' },
+        });
+
+        if (!candidate) {
+          break;
+        }
+
+        const lockedConfig = await tx.trialConfig.updateMany({
+          where: {
+            id: candidate.id,
+            status: TrialConfigStatus.AVAILABLE,
+          },
+          data: {
+            status: TrialConfigStatus.ASSIGNED,
+            assigned_at: now,
+          },
+        });
+
+        if (lockedConfig.count !== 1) {
+          continue;
+        }
+
+        const trialExpiresAt = new Date(
+          now.getTime() + Math.max(campaign.duration_days, 1) * 24 * 60 * 60 * 1000,
+        );
+        const expiresAt = this.pickEarlierDate(trialExpiresAt, candidate.supplier_expires_at);
+
+        const lockedGrant = await tx.trialGrant.updateMany({
+          where: {
+            id: grant.id,
+            status: TrialGrantStatus.PENDING,
+          },
+          data: {
+            status: TrialGrantStatus.ACTIVE,
+            assigned_at: now,
+            expires_at: expiresAt,
+            status_reason: null,
+          },
+        });
+
+        if (lockedGrant.count !== 1) {
+          await tx.trialConfig.updateMany({
+            where: {
+              id: candidate.id,
+              status: TrialConfigStatus.ASSIGNED,
+            },
+            data: {
+              status: TrialConfigStatus.AVAILABLE,
+              assigned_at: null,
+            },
+          });
+          continue;
+        }
+
+        await tx.trialAssignment.create({
+          data: {
+            grant_id: grant.id,
+            trial_config_id: candidate.id,
+            customer_id: grant.customer_id,
+            status: TrialGrantStatus.ACTIVE,
+            assigned_at: now,
+            expires_at: expiresAt,
+          },
+        });
+
+        await tx.adminEvent.create({
+          data: {
+            event_type: 'TRIAL_CONFIG_ASSIGNED',
+            entity_type: 'TRIAL_GRANT',
+            entity_id: grant.id,
+            payload_json: {
+              userNumber: grant.customer.public_id,
+              campaignCode,
+              grantId: grant.id,
+              trialConfigId: candidate.id,
+              recoveredFromPending: true,
+              expiresAt: expiresAt.toISOString(),
+              assignedAt: now.toISOString(),
+            } as any,
+          },
+        });
+
+        recoveredAssignments.push({
+          grantId: grant.id,
+          userNumber: grant.customer.public_id,
+          trialConfigId: candidate.id,
+          expiresAt: expiresAt.toISOString(),
+        });
+      }
+
+      return recoveredAssignments;
+    });
+  }
+
   async listInventoryOverview() {
     const items = await this.prisma.inventoryItem.findMany({
       orderBy: { imported_at: 'asc' },
@@ -1137,6 +1355,14 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
 
   private toBytesFromGb(valueGb: bigint) {
     return valueGb * 1024n * 1024n * 1024n;
+  }
+
+  private pickEarlierDate(first: Date, second?: Date | null) {
+    if (!second) {
+      return first;
+    }
+
+    return first.getTime() <= second.getTime() ? first : second;
   }
 
   private parseBytesInput(value: string) {

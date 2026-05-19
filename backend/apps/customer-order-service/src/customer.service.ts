@@ -2,7 +2,15 @@ import { Injectable, Inject } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom } from 'rxjs';
-import { AssignmentAccessStatus, InventoryHealthStatus, OrderStatus } from '@prisma/client';
+import {
+  AssignmentAccessStatus,
+  InventoryHealthStatus,
+  OrderStatus,
+  Prisma,
+  TrialCampaignStatus,
+  TrialConfigStatus,
+  TrialGrantStatus,
+} from '@prisma/client';
 import {
   StartTrialDto,
   CreateOrderDto,
@@ -27,6 +35,7 @@ import {
 export class CustomerService {
   private static readonly TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
   private static readonly TRIAL_QUOTA_LABEL = 'UNLIMITED';
+  private static readonly ACTIVE_TRIAL_CAMPAIGN_CODE = 'trial-2026-05';
 
   constructor(
     private readonly prisma: PrismaService,
@@ -186,6 +195,26 @@ export class CustomerService {
       this.fail('Device is not authorized for trial activation');
     }
 
+    const currentProfile = await this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
+    if (currentProfile.entitlementState === 'ACTIVE_SUBSCRIPTION') {
+      this.fail('Active subscription already exists');
+    }
+    if (await this.hasActivePaidAssignment(customer.id)) {
+      this.fail('Active subscription already exists');
+    }
+    if (await this.hasPaidFulfillmentInProgress(customer.id)) {
+      this.fail('Paid subscription fulfillment is already in progress');
+    }
+
+    if (!(await this.findActiveTrialCampaign())) {
+      this.fail('Trial campaign is closed');
+    }
+
+    const trialEligible = await this.isTrialEligible(customer, normalizedEmail, normalizedPhone);
+    if (!trialEligible) {
+      this.fail('Trial already used for this device or contact data');
+    }
+
     await this.prisma.customer.update({
       where: { id: customer.id },
       data: {
@@ -194,52 +223,170 @@ export class CustomerService {
       },
     });
 
-    const currentProfile = await this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
-    if (currentProfile.entitlementState === 'ACTIVE_SUBSCRIPTION') {
-      this.fail('Active subscription already exists');
-    }
-
-    const trialEligible = await this.isTrialEligible(customer, normalizedEmail, normalizedPhone);
-    if (!trialEligible) {
-      this.fail('Trial already used for this device or contact data');
-    }
-
-    const trialPlan = await this.prisma.plan.findFirst({
-      where: { code: 'WEEK' },
+    await this.activateTrialFromStore(customer.id, customer.public_id, {
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      deviceId: normalizedDeviceId,
     });
-
-    if (!trialPlan) {
-      this.fail('Trial plan not configured in database');
-    }
-
-    const order = await this.prisma.order.create({
-      data: {
-        order_ref: `TRIAL-${customer.public_id}-${Date.now()}`,
-        customer_id: customer.id,
-        plan_id: trialPlan.id,
-        amount_rub: 0,
-        status: OrderStatus.PENDING,
-        payment_ref: 'TRIAL:3D',
-      },
-    });
-
-    try {
-      const fulfillmentResult = await firstValueFrom(
-        this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
-      );
-      if (fulfillmentResult?.success === false) {
-        const errorMessage = fulfillmentResult.error || 'Inventory fulfillment failed';
-        await this.auditFulfillmentFailure(order, 'TRIAL:3D', errorMessage);
-        await this.markOrderPendingFulfillment(order.id);
-      }
-    } catch (e) {
-      const errorMessage = this.extractErrorMessage(e, 'Fulfillment failed during trial activation');
-      console.error('Fulfillment failed during trial activation:', e);
-      await this.auditFulfillmentFailure(order, 'TRIAL:3D', errorMessage);
-      await this.markOrderPendingFulfillment(order.id);
-    }
 
     return this.getProfile(customer.public_id);
+  }
+
+  private async activateTrialFromStore(
+    customerId: string,
+    userNumber: string,
+    identity: { email?: string | null; phone?: string | null; deviceId?: string | null },
+  ) {
+    const now = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const campaign = await tx.trialCampaign.findFirst({
+        where: {
+          code: CustomerService.ACTIVE_TRIAL_CAMPAIGN_CODE,
+          status: TrialCampaignStatus.ACTIVE,
+          starts_at: { lte: now },
+          ends_at: { gte: now },
+        },
+      });
+
+      if (!campaign) {
+        this.fail('Trial campaign is closed');
+      }
+
+      const existingGrant = await tx.trialGrant.findFirst({
+        where: {
+          customer_id: customerId,
+          campaign_id: campaign.id,
+        },
+      });
+
+      if (existingGrant) {
+        this.fail('Trial already used for this campaign');
+      }
+
+      const grant = await tx.trialGrant.create({
+        data: {
+          customer_id: customerId,
+          campaign_id: campaign.id,
+          identity_email: identity.email?.trim().toLowerCase() || null,
+          identity_phone: this.normalizePhone(identity.phone || undefined),
+          identity_device_id: identity.deviceId?.trim() || null,
+          status: TrialGrantStatus.PENDING,
+          expires_at: campaign.ends_at,
+          status_reason: 'AWAITING_TRIAL_CONFIG',
+        },
+      }).catch((error) => {
+        if (this.isPrismaUniqueConstraintError(error)) {
+          this.fail('Trial already used for this campaign');
+        }
+
+        throw error;
+      });
+
+      const candidate = await tx.trialConfig.findFirst({
+        where: {
+          campaign_id: campaign.id,
+          status: TrialConfigStatus.AVAILABLE,
+          OR: [
+            { supplier_expires_at: null },
+            { supplier_expires_at: { gt: now } },
+          ],
+        },
+        orderBy: { imported_at: 'asc' },
+      });
+
+      if (!candidate) {
+        await tx.adminEvent.create({
+          data: {
+            event_type: 'TRIAL_PENDING_NO_CAPACITY',
+            entity_type: 'TRIAL_GRANT',
+            entity_id: grant.id,
+            payload_json: {
+              userNumber,
+              campaignCode: campaign.code,
+              grantId: grant.id,
+              createdAt: now.toISOString(),
+            } as any,
+          },
+        });
+
+        return grant;
+      }
+
+      const lockedConfig = await tx.trialConfig.updateMany({
+        where: {
+          id: candidate.id,
+          status: TrialConfigStatus.AVAILABLE,
+        },
+        data: {
+          status: TrialConfigStatus.ASSIGNED,
+          assigned_at: now,
+        },
+      });
+
+      if (lockedConfig.count !== 1) {
+        await tx.adminEvent.create({
+          data: {
+            event_type: 'TRIAL_PENDING_NO_CAPACITY',
+            entity_type: 'TRIAL_GRANT',
+            entity_id: grant.id,
+            payload_json: {
+              userNumber,
+              campaignCode: campaign.code,
+              grantId: grant.id,
+              reason: 'TRIAL_CONFIG_RACE_LOST',
+              createdAt: now.toISOString(),
+            } as any,
+          },
+        });
+
+        return grant;
+      }
+
+      const campaignExpiresAt = new Date(
+        now.getTime() + Math.max(campaign.duration_days, 1) * 24 * 60 * 60 * 1000,
+      );
+      const expiresAt = this.pickEarlierDate(campaignExpiresAt, candidate.supplier_expires_at);
+
+      await tx.trialAssignment.create({
+        data: {
+          grant_id: grant.id,
+          trial_config_id: candidate.id,
+          customer_id: customerId,
+          status: TrialGrantStatus.ACTIVE,
+          assigned_at: now,
+          expires_at: expiresAt,
+        },
+      });
+
+      const activeGrant = await tx.trialGrant.update({
+        where: { id: grant.id },
+        data: {
+          status: TrialGrantStatus.ACTIVE,
+          assigned_at: now,
+          expires_at: expiresAt,
+          status_reason: null,
+        },
+      });
+
+      await tx.adminEvent.create({
+        data: {
+          event_type: 'TRIAL_CONFIG_ASSIGNED',
+          entity_type: 'TRIAL_GRANT',
+          entity_id: activeGrant.id,
+          payload_json: {
+            userNumber,
+            campaignCode: campaign.code,
+            grantId: activeGrant.id,
+            trialConfigId: candidate.id,
+            expiresAt: expiresAt?.toISOString() || null,
+            assignedAt: now.toISOString(),
+          } as any,
+        },
+      });
+
+      return activeGrant;
+    });
   }
 
   async completeProfile(data: CompleteProfileDto) {
@@ -549,17 +696,44 @@ export class CustomerService {
     const activeOrders = relevantOrders.filter((order) =>
       order.assignments.some((item) => item.access_status === AssignmentAccessStatus.ACTIVE),
     );
+    const latestPaidActiveOrder = activeOrders.find((order) => !this.isTrialOrder(order));
+    const latestLegacyActiveTrialOrder = activeOrders.find((order) => this.isTrialOrder(order));
+    const trialStoreProfile = await this.buildTrialStoreProfile(
+      customer,
+      trialEligible,
+      exposeRuntimeConfig,
+    );
+    if (!latestPaidActiveOrder && trialStoreProfile?.priority === 'ACTIVE') {
+      return trialStoreProfile.profile;
+    }
+
     const latestActiveOrder =
-      activeOrders.find((order) => !this.isTrialOrder(order)) ||
-      activeOrders.find((order) => this.isTrialOrder(order));
+      latestPaidActiveOrder ||
+      latestLegacyActiveTrialOrder;
     const latestPendingOrder = relevantOrders.find((order) =>
       order.status === OrderStatus.PAID ||
       order.status === OrderStatus.PENDING_FULFILLMENT ||
       order.assignments.some((item) => item.access_status === AssignmentAccessStatus.PENDING),
     );
+    const latestPaidPendingOrder = relevantOrders.find((order) =>
+      !this.isTrialOrder(order) &&
+      (
+        order.status === OrderStatus.PAID ||
+        order.status === OrderStatus.PENDING_FULFILLMENT ||
+        order.assignments.some((item) => item.access_status === AssignmentAccessStatus.PENDING)
+      ),
+    );
     const latestExpiredOrder = relevantOrders.find((order) =>
       order.assignments.some((item) => item.access_status === AssignmentAccessStatus.EXPIRED),
     );
+    const latestPaidExpiredOrder = relevantOrders.find((order) =>
+      !this.isTrialOrder(order) &&
+      order.assignments.some((item) => item.access_status === AssignmentAccessStatus.EXPIRED),
+    );
+    if (!latestActiveOrder && !latestPaidPendingOrder && !latestPaidExpiredOrder && trialStoreProfile) {
+      return trialStoreProfile.profile;
+    }
+
     const latestRelevantOrder = latestActiveOrder ?? latestPendingOrder ?? latestExpiredOrder;
     const activeAssignment = latestRelevantOrder?.assignments.find(
       (item) =>
@@ -1366,7 +1540,180 @@ export class CustomerService {
     return normalized;
   }
 
+  private async buildTrialStoreProfile(
+    customer: { id: string; public_id: string; email?: string | null; phone?: string | null },
+    trialEligible: boolean,
+    exposeRuntimeConfig: boolean,
+  ): Promise<{ priority: 'ACTIVE' | 'PENDING' | 'EXPIRED'; profile: any } | null> {
+    if (typeof (this.prisma as any).trialGrant?.findFirst !== 'function') {
+      return null;
+    }
+
+    const grant = await (this.prisma as any).trialGrant.findFirst({
+      where: {
+        customer_id: customer.id,
+        status: {
+          in: [
+            TrialGrantStatus.ACTIVE,
+            TrialGrantStatus.PENDING,
+            TrialGrantStatus.EXPIRED,
+          ],
+        },
+      },
+      orderBy: { started_at: 'desc' },
+      include: {
+        campaign: true,
+        assignments: {
+          orderBy: { assigned_at: 'desc' },
+          include: { trial_config: true },
+        },
+      },
+    }).catch((error) => {
+      if (this.isPrismaSchemaNotReadyError(error)) {
+        return null;
+      }
+
+      throw error;
+    });
+
+    if (!grant) {
+      return null;
+    }
+
+    const assignment = grant.assignments?.find(
+      (item) => item.status === TrialGrantStatus.ACTIVE && !item.revoked_at,
+    );
+    const trialConfig =
+      assignment?.trial_config?.status === TrialConfigStatus.ASSIGNED
+        ? assignment.trial_config
+        : null;
+    const now = Date.now();
+    let expiresAt = grant.expires_at?.toISOString?.() || null;
+    expiresAt = this.pickEarlierIsoDate(expiresAt, assignment?.expires_at?.toISOString?.() || null);
+    expiresAt = this.pickEarlierIsoDate(expiresAt, trialConfig?.supplier_expires_at?.toISOString?.() || null);
+    expiresAt = this.pickEarlierIsoDate(expiresAt, grant.campaign?.ends_at?.toISOString?.() || null);
+    const isExpired = !!expiresAt && new Date(expiresAt).getTime() < now;
+    if (isExpired && grant.status !== TrialGrantStatus.EXPIRED) {
+      await this.persistExpiredTrialGrant(grant, customer.public_id, expiresAt);
+    }
+
+    const isActive = grant.status === TrialGrantStatus.ACTIVE && !!trialConfig && !isExpired;
+    const isPending = !isExpired && grant.status === TrialGrantStatus.PENDING;
+    const entitlementState = isActive
+      ? 'ACTIVE_TRIAL'
+      : isPending
+        ? 'PENDING_FULFILLMENT'
+        : 'EXPIRED_TRIAL';
+    const priority = isActive ? 'ACTIVE' : isPending ? 'PENDING' : 'EXPIRED';
+
+    return {
+      priority,
+      profile: {
+        userNumber: customer.public_id,
+        email: customer.email,
+        phone: customer.phone,
+        accessType: 'TRIAL',
+        offerCode: null,
+        planDisplayName: null,
+        planType: 'TRIAL',
+        status: this.toLegacyProfileStatus(entitlementState),
+        entitlementState,
+        trialStartedAt:
+          grant.assigned_at?.toISOString?.() ||
+          assignment?.assigned_at?.toISOString?.() ||
+          grant.started_at?.toISOString?.() ||
+          null,
+        trialExpiresAt: expiresAt,
+        subscriptionExpiresAt: expiresAt,
+        subscriptionUrl: exposeRuntimeConfig && isActive ? trialConfig.raw_config : null,
+        devicesAllowed: 1,
+        fulfillmentStatus: isActive ? 'DELIVERED' : isPending ? 'PENDING_FULFILLMENT' : 'DELIVERED',
+        dataLimitGB: 0,
+        dataUsedBytes: '0',
+        supplierProviderName: trialConfig?.supplier_provider_name || null,
+        supplierExpiresAt: trialConfig?.supplier_expires_at?.toISOString?.() || null,
+        profileCompletionRequired: !customer.email || !customer.phone,
+        trialEligible: false,
+      },
+    };
+  }
+
+  private async persistExpiredTrialGrant(
+    grant: { id: string },
+    userNumber: string,
+    expiresAt: string | null,
+  ) {
+    try {
+      const expiredAt = new Date();
+      const updateResult = await (this.prisma as any).trialGrant.updateMany({
+        where: {
+          id: grant.id,
+          status: { in: [TrialGrantStatus.ACTIVE, TrialGrantStatus.PENDING] },
+        },
+        data: {
+          status: TrialGrantStatus.EXPIRED,
+          status_reason: 'TRIAL_EXPIRED',
+        },
+      });
+
+      await (this.prisma as any).trialAssignment.updateMany({
+        where: {
+          grant_id: grant.id,
+          status: { in: [TrialGrantStatus.ACTIVE, TrialGrantStatus.PENDING] },
+        },
+        data: {
+          status: TrialGrantStatus.EXPIRED,
+          status_reason: 'TRIAL_EXPIRED',
+        },
+      });
+
+      if (updateResult?.count > 0) {
+        await this.prisma.adminEvent.create({
+          data: {
+            event_type: 'TRIAL_EXPIRED',
+            entity_type: 'TRIAL_GRANT',
+            entity_id: grant.id,
+            payload_json: {
+              userNumber,
+              grantId: grant.id,
+              expiresAt,
+              markedExpiredAt: expiredAt.toISOString(),
+            } as any,
+          },
+        }).catch(() => undefined);
+      }
+    } catch (error) {
+      if (!this.isPrismaSchemaNotReadyError(error)) {
+        throw error;
+      }
+    }
+  }
+
   private async isTrialEligible(customer: { id: string; device_id: string | null }, email?: string | null, phone?: string | null) {
+    const campaign = await this.findActiveTrialCampaign();
+    if (!campaign) {
+      return false;
+    }
+
+    if (typeof (this.prisma as any).trialGrant?.findFirst === 'function') {
+      const existingCustomerGrant = await (this.prisma as any).trialGrant.findFirst({
+        where: {
+          customer_id: customer.id,
+          campaign_id: campaign.id,
+        },
+      }).catch((error) => {
+        if (this.isPrismaSchemaNotReadyError(error)) {
+          return null;
+        }
+
+        throw error;
+      });
+
+      if (existingCustomerGrant) {
+        return false;
+      }
+    }
+
     const existingCustomerTrial = await this.prisma.order.findFirst({
       where: {
         customer_id: customer.id,
@@ -1399,6 +1746,62 @@ export class CustomerService {
       return true;
     }
 
+    const identityGrantConditions: Array<Record<string, string>> = [];
+    if (normalizedEmail) {
+      identityGrantConditions.push({ identity_email: normalizedEmail });
+    }
+    if (normalizedPhone) {
+      identityGrantConditions.push({ identity_phone: normalizedPhone });
+    }
+    if (customer.device_id) {
+      identityGrantConditions.push({ identity_device_id: customer.device_id });
+    }
+
+    if (
+      identityGrantConditions.length > 0 &&
+      typeof (this.prisma as any).trialGrant?.findFirst === 'function'
+    ) {
+      const existingIdentityGrant = await (this.prisma as any).trialGrant.findFirst({
+        where: {
+          campaign_id: campaign.id,
+          customer_id: { not: customer.id },
+          OR: identityGrantConditions,
+        },
+      }).catch((error) => {
+        if (this.isPrismaSchemaNotReadyError(error)) {
+          return null;
+        }
+
+        throw error;
+      });
+
+      if (existingIdentityGrant) {
+        return false;
+      }
+    }
+
+    if (typeof (this.prisma as any).trialGrant?.findFirst === 'function') {
+      const existingGrant = await (this.prisma as any).trialGrant.findFirst({
+        where: {
+          campaign_id: campaign.id,
+          customer_id: { not: customer.id },
+          customer: {
+            OR: customerConditions,
+          },
+        },
+      }).catch((error) => {
+        if (this.isPrismaSchemaNotReadyError(error)) {
+          return null;
+        }
+
+        throw error;
+      });
+
+      if (existingGrant) {
+        return false;
+      }
+    }
+
     const existingTrial = await this.prisma.order.findFirst({
       where: {
         AND: [
@@ -1419,6 +1822,79 @@ export class CustomerService {
     });
 
     return !existingTrial;
+  }
+
+  private async findActiveTrialCampaign() {
+    if (typeof (this.prisma as any).trialCampaign?.findFirst !== 'function') {
+      return null;
+    }
+
+    const now = new Date();
+    return (this.prisma as any).trialCampaign.findFirst({
+      where: {
+        code: CustomerService.ACTIVE_TRIAL_CAMPAIGN_CODE,
+        status: TrialCampaignStatus.ACTIVE,
+        starts_at: { lte: now },
+        ends_at: { gte: now },
+      },
+    }).catch((error) => {
+      if (this.isPrismaSchemaNotReadyError(error)) {
+        return null;
+      }
+
+      throw error;
+    });
+  }
+
+  private isPrismaUniqueConstraintError(error: unknown) {
+    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+  }
+
+  private isPrismaSchemaNotReadyError(error: unknown) {
+    return error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === 'P2021' || error.code === 'P2022');
+  }
+
+  private async hasActivePaidAssignment(customerId: string) {
+    if (typeof (this.prisma as any).orderAssignment?.findFirst !== 'function') {
+      return false;
+    }
+
+    const activePaidAssignment = await this.prisma.orderAssignment.findFirst({
+      where: {
+        customer_id: customerId,
+        access_status: AssignmentAccessStatus.ACTIVE,
+        order: {
+          NOT: {
+            OR: [
+              { payment_ref: 'TRIAL:3D' },
+              { order_ref: { startsWith: 'TRIAL-' } },
+            ],
+          },
+        },
+      },
+    });
+
+    return !!activePaidAssignment;
+  }
+
+  private async hasPaidFulfillmentInProgress(customerId: string) {
+    const pendingPaidOrder = await this.prisma.order.findFirst({
+      where: {
+        customer_id: customerId,
+        status: {
+          in: [OrderStatus.PAID, OrderStatus.PENDING_FULFILLMENT],
+        },
+        NOT: {
+          OR: [
+            { payment_ref: 'TRIAL:3D' },
+            { order_ref: { startsWith: 'TRIAL-' } },
+          ],
+        },
+      },
+    });
+
+    return !!pendingPaidOrder;
   }
 
   private getDurationMsFromOrder(planCode: string, isTrialOrder: boolean) {
@@ -1568,6 +2044,14 @@ export class CustomerService {
     }
 
     return new Date(first).getTime() <= new Date(second).getTime() ? first : second;
+  }
+
+  private pickEarlierDate(first: Date, second?: Date | null) {
+    if (!second) {
+      return first;
+    }
+
+    return first.getTime() <= second.getTime() ? first : second;
   }
 
   private parseQuotaLabelToGb(quotaLabel: string) {

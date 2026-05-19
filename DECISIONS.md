@@ -1,3 +1,11 @@
+# 2026-05-19 - Trial is a campaign grant, not a paid order
+
+Decision: New trial activations and trial config imports use a dedicated Trial Store (`TrialCampaign`, `TrialConfig`, `TrialGrant`, `TrialAssignment`) instead of creating free paid-style `Order/TRIAL:3D` records or consuming paid inventory.
+
+Reason: The launch trial is a temporary campaign that must close after its window without remaining entangled with paid orders, paid inventory, paid fulfillment, or paid delivery semantics.
+
+Impact: Paid access remains authoritative and takes priority over trial access. Legacy `TRIAL:3D` orders are still read for existing users during migration, but new trial grants are stored independently and can emit trial-specific events such as `TRIAL_CONFIG_ASSIGNED`, `TRIAL_PENDING_NO_CAPACITY`, and `TRIAL_EXPIRED`. A customer can have only one grant per campaign, and importing new trial configs recovers pending grants before new activations consume more capacity.
+
 # 2026-05-17 - SwimPay webhooks must bind to stored checkout state
 
 Decision: A signed SwimPay public webhook is not enough to fulfill an order; the event must match the backend-stored `SWIMPAY_SESSION` payment session id and SwimPay order id. The webhook amount must be in RUB and must not be lower than the backend order amount, but it may be higher because SwimPay can apply merchant anti-collision micro-adjustments.
@@ -1051,3 +1059,39 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: when active paid access and active trial access coexist, backend profile and usage decisions must prefer paid access.
 - Reason: paid entitlement is the stronger business contract and should not be hidden or replaced by a newer trial record.
 - Consequence: trial activation is rejected while active paid access exists, trial fulfillment cannot revoke paid assignments, and paid assignment/config/server exposure remains authoritative.
+
+## 2026-05-19 - Final trial product contract
+- Decision: paid active always outranks trial active. Paid pending blocks creating a new trial, but it does not cut an already active trial while paid fulfillment is still pending.
+- Decision: trial remains a one-time bonus by customer/device/email/phone. A pending trial reserves that bonus and must be retried instead of creating a second trial order.
+- Decision: trial duration starts from fulfillment, not from order creation. Expiration is the earlier of fulfilled_at + 3 days, assignment expiry, or supplier expiry.
+- Consequence: users keep app/freemium access for expired or pending trial states, while backend premium config/server exposure remains limited to ACTIVE_TRIAL or ACTIVE_SUBSCRIPTION.
+
+## 2026-05-19 - Trial Store is a first-class fulfillment source
+- Decision: active Trial Store assignments are served by `store-engine-service` through the same `/servers` surface as paid managed nodes, after backend entitlement/device/status/expiry checks.
+- Reason: Android server selection is driven by `/servers`; exposing only `profile.subscriptionUrl` leaves active trial users without managed selectable nodes.
+- Consequence: paid assignments still outrank trial assignments, expired/disabled/dead trial configs expose no runtime payload, and Android does not invent backend nodes independently.
+
+## 2026-05-19 - Trial identity snapshots are part of the campaign contract
+- Decision: Trial grants persist normalized email, phone, and device identity snapshots with campaign-level uniqueness.
+- Reason: relation-only eligibility checks are not race-proof when multiple customer rows share the same contact/device identity.
+- Consequence: the one-time trial rule is enforced by PostgreSQL, while legacy order checks remain as compatibility guards for pre-Trial-Store trials.
+
+## 2026-05-19 - Pending trial recovery is bounded and retryable
+- Decision: pending Trial Store grants expire no later than the campaign window and are recovered by atomically locking the grant before assignment creation.
+- Reason: pending fulfillment should not live forever after a closed event, and concurrent admin imports must not create multiple assignments for one grant.
+- Consequence: Android performs bounded refresh for pending trial fulfillment, but backend remains authoritative for when premium nodes become available.
+
+## 2026-05-19 - Trial Store expiry uses the earliest authoritative boundary
+- Decision: Trial runtime exposure expires at the earliest valid date among grant expiry, assignment expiry, supplier expiry, and campaign end.
+- Reason: a supplier-expired config must not remain usable just because the local grant window is still active.
+- Consequence: active trial status can downgrade to expired/freemium without full app lockout, and backend premium config/server exposure remains denied when supplier capacity is no longer valid.
+
+## 2026-05-19 - Unknown Trial Store node load remains unknown
+- Decision: Trial Store nodes without measured capacity expose `load: null`, not `0`.
+- Reason: zero means known empty capacity and would bias Android recommendation/scoring incorrectly.
+- Consequence: Android can rank the node conservatively without pretending the backend has a fresh load signal.
+
+## 2026-05-19 - Pending fulfillment refresh has one policy
+- Decision: Android post-checkout and post-trial pending fulfillment refresh use `PendingFulfillmentRefreshPolicy`.
+- Reason: both flows wait for backend fulfillment state to move from pending to active without inventing entitlement locally.
+- Consequence: refresh remains bounded and deterministic after purchases and trial activation.

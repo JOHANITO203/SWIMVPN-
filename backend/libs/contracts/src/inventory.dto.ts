@@ -44,6 +44,29 @@ export class ImportConfigsDto {
   supplierDeviceLimit?: number;
 }
 
+export class ImportTrialConfigsDto {
+  @IsString()
+  @IsOptional()
+  campaignCode?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  configs: string[];
+
+  @IsString()
+  @IsOptional()
+  batchName?: string;
+
+  @IsOptional()
+  @IsDateString()
+  supplierExpiresAt?: string;
+
+  @IsOptional()
+  @IsString()
+  supplierProviderName?: string;
+}
+
 export class FulfillOrderDto {
   @IsString()
   @IsNotEmpty()
