@@ -213,6 +213,15 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           });
         }
 
+        if (!this.isTrialOrder(order)) {
+          await this.revokeReplacedActiveAssignments(tx, {
+            customerId: order.customer_id,
+            newAssignmentId: existingActiveAssignment.id,
+            newOrderRef: order.order_ref,
+            replacementOrderCreatedAt: order.created_at,
+          });
+        }
+
         return {
           success: true,
           orderId: order.id,
@@ -341,6 +350,15 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
+      if (!this.isTrialOrder(order)) {
+        await this.revokeReplacedActiveAssignments(tx, {
+          customerId: order.customer_id,
+          newAssignmentId: updatedAssignment.id,
+          newOrderRef: order.order_ref,
+          replacementOrderCreatedAt: order.created_at,
+        });
+      }
+
       await this.ensureDeliveryRecord(tx, order.id, null);
 
       await tx.adminEvent.create({
@@ -408,6 +426,78 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     });
 
     return result;
+  }
+
+  private async revokeReplacedActiveAssignments(
+    tx: Prisma.TransactionClient,
+    data: {
+      customerId: string;
+      newAssignmentId: string;
+      newOrderRef: string;
+      replacementOrderCreatedAt: Date;
+    },
+  ) {
+    const replacedAssignments = await tx.orderAssignment.findMany({
+      where: {
+        customer_id: data.customerId,
+        access_status: AssignmentAccessStatus.ACTIVE,
+        id: { not: data.newAssignmentId },
+        order: {
+          created_at: { lt: data.replacementOrderCreatedAt },
+        },
+      },
+      include: {
+        order: true,
+      },
+    });
+
+    if (replacedAssignments.length === 0) {
+      return;
+    }
+
+    const replacedAt = new Date();
+    const inventoryItemIds = Array.from(
+      new Set(
+        replacedAssignments
+          .map((assignment) => assignment.inventory_item_id)
+          .filter((id): id is string => !!id),
+      ),
+    );
+
+    for (const assignment of replacedAssignments) {
+      await tx.orderAssignment.update({
+        where: { id: assignment.id },
+        data: {
+          access_status: AssignmentAccessStatus.REVOKED,
+          revoked_at: replacedAt,
+          status_reason: 'REPLACED_BY_NEW_PURCHASE',
+        },
+      });
+    }
+
+    for (const inventoryItemId of inventoryItemIds) {
+      await this.recalculateInventoryState(tx, inventoryItemId);
+    }
+
+    await tx.adminEvent.create({
+      data: {
+        event_type: 'CUSTOMER_ACCESS_REPLACED',
+        entity_type: 'CUSTOMER',
+        entity_id: data.customerId,
+        payload_json: {
+          customerId: data.customerId,
+          newAssignmentId: data.newAssignmentId,
+          newOrderRef: data.newOrderRef,
+          replacedAssignments: replacedAssignments.map((assignment) => ({
+            assignmentId: assignment.id,
+            orderRef: assignment.order.order_ref,
+            inventoryItemId: assignment.inventory_item_id,
+          })),
+          replacedAt: replacedAt.toISOString(),
+          slotPolicy: 'new fulfillment succeeded before older active assignments were revoked',
+        } as any,
+      },
+    });
   }
 
   async recordAssignmentUsage(data: { orderRef: string; measuredUsedBytes: string }) {

@@ -2947,3 +2947,31 @@ pm run build PASSED.
 - Fixed managed node availability status normalization to use Locale.ROOT so backend status codes translate consistently across device locales.
 - Added a unit test covering Turkish locale behavior for lowercase availability status values.
 - Verification: targeted availability/metadata tests, Android debug unit tests, Android assembleDebug passed.
+
+## 2026-05-19 - Backend access contract replacement rules
+- Hardened customer cancellation so it revokes every active assignment for the customer, preventing older paid access from reappearing after cancel.
+- Fulfillment now treats upgrade/downgrade as a replacement: once the new order is successfully assigned, older active assignments for the same customer are revoked in the same transaction and audited.
+- Pending/no-capacity fulfillment keeps existing active access intact; no old assignment is revoked until the new fulfillment succeeds.
+- Verification: targeted customer policy, targeted inventory policy, store assigned-server policy, full backend test:policy, backend lint, backend build:all, Prisma validate/generate passed.
+
+## 2026-05-19 - Backend access contract review fixes
+- Customer cancellation now queries active assignments directly by customer, outside the recent-order profile window, and cancels every paid/pending fulfillment order in the no-active path.
+- Inventory replacement is limited to non-trial paid fulfillments, so activating a trial cannot revoke an existing paid access.
+- Strengthened inventory replacement tests to assert the Prisma filter targets only older active assignments for the same customer.
+- Verification: targeted customer/inventory/store policies, full backend test:policy, backend lint, backend build:all, Prisma validate/generate passed.
+
+## 2026-05-19 - Backend contract audit findings resolved
+- Profile, server exposure, cancellation, and usage reporting no longer depend on a recent-order `take: 10` window for active access decisions.
+- Customer profile now queries active/pending/expired assignments directly and prioritizes active paid access over trial access when both exist.
+- Trial activation now refuses to create a parallel trial when the customer already has active paid access.
+- Retry fulfillment on an already-active paid order now also revokes older active assignments for the customer through the existing replacement cleanup path.
+- Formalized backend customer response contract types and made usage reporting device-bound at DTO level.
+- Gateway access/admin controllers now use contract DTOs for request bodies where available, with adminId still injected server-side.
+- Verification: targeted customer/store/inventory policy tests, backend lint, full backend test:policy, Prisma validate/generate, and backend build:all passed.
+
+## 2026-05-19 - Backend access review findings closed
+- Fixed replacement cleanup so paid fulfillment/retry revokes only active assignments from orders older than the authoritative replacement order.
+- Aligned store server selection with profile entitlement priority: active paid access is selected before active trial access.
+- Fixed profile direct-assignment folding so multiple assignments for the same order are merged before entitlement resolution.
+- Added regression tests for older-only replacement cleanup, paid-over-trial server exposure, and same-order assignment merging.
+- Verification: targeted customer/store/inventory policy tests, backend lint, full backend test:policy, Prisma validate/generate, and backend build:all passed.

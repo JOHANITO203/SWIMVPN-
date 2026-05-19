@@ -103,6 +103,133 @@ async function main() {
   assert(servers[0].trafficTotalBytes === '1000', 'server should expose source quota bytes as a JSON-safe string');
   assert(servers[0].availabilityStatus === 'AVAILABLE', 'healthy assigned source should expose available status');
 
+  const deepAssignmentServers = await new StoreService({
+    customer: {
+      findUnique: async () => ({
+        id: 'customer-deep-server',
+        public_id: 'SW-DEEP-SERVER',
+        device_id: 'device-deep-server',
+        orders: [],
+      }),
+    },
+    orderAssignment: {
+      findFirst: async ({ where }: any) => {
+        assert(
+          where?.customer_id === 'customer-deep-server' &&
+            where?.access_status === 'ACTIVE',
+          'store must query the active assignment directly by customer instead of relying on recent orders',
+        );
+        return {
+          id: 'assignment-deep-server',
+          access_status: 'ACTIVE',
+          expires_at: new Date(Date.now() + 60_000),
+          measured_used_bytes: 1n,
+          order: {
+            id: 'order-deep-server',
+            order_ref: 'ORD-DEEP-SERVER',
+            payment_ref: 'CARD_MANUAL:APPROVED',
+            fulfilled_at: new Date('2026-05-01T00:00:00.000Z'),
+            plan: { code: 'MONTH', quota_label: '50 GB' },
+          },
+          inventory_item: {
+            id: 'inventory-deep-server',
+            raw_config: 'vless://uuid@deep-server.example:443?security=tls#Deep',
+            config_type: 'VLESS',
+            display_protocol: 'VLESS',
+            batch_name: 'Deep batch',
+            supplier_provider_name: 'Provider',
+            health_status: 'HEALTHY',
+            source_quota_bytes: 1000n,
+            source_used_bytes: 1n,
+            supplier_expires_at: new Date(Date.now() + 60_000),
+          },
+        };
+      },
+    },
+  } as any, { send: () => of([]) } as any).getServers({
+    userNumber: 'SW-DEEP-SERVER',
+    deviceId: 'device-deep-server',
+  });
+  assert(
+    deepAssignmentServers.length === 1 &&
+      deepAssignmentServers[0].host === 'deep-server.example',
+    'store must expose active paid assignment servers even when the order is outside the recent-order window',
+  );
+
+  const paidOverTrialServers = await new StoreService({
+    customer: {
+      findUnique: async () => ({
+        id: 'customer-paid-over-trial-server',
+        public_id: 'SW-PAID-OVER-TRIAL-SERVER',
+        device_id: 'device-paid-over-trial-server',
+        orders: [
+          {
+            id: 'order-trial-new',
+            order_ref: 'TRIAL-SW-PAID-OVER-TRIAL-SERVER-1',
+            payment_ref: 'TRIAL:3D',
+            fulfilled_at: new Date('2026-05-03T00:00:00.000Z'),
+            plan: { code: 'WEEK', quota_label: 'UNLIMITED' },
+            assignments: [
+              {
+                id: 'assignment-trial-new',
+                access_status: 'ACTIVE',
+                expires_at: new Date(Date.now() + 60_000),
+                measured_used_bytes: 0n,
+                inventory_item: {
+                  id: 'inventory-trial-new',
+                  raw_config: 'vless://uuid@trial-server.example:443?security=tls#Trial',
+                  config_type: 'VLESS',
+                  display_protocol: 'VLESS',
+                  batch_name: 'Trial batch',
+                  supplier_provider_name: 'Provider',
+                  health_status: 'HEALTHY',
+                  source_quota_bytes: 1000n,
+                  source_used_bytes: 1n,
+                  supplier_expires_at: new Date(Date.now() + 60_000),
+                },
+              },
+            ],
+          },
+          {
+            id: 'order-paid-old',
+            order_ref: 'ORD-PAID-OLD',
+            payment_ref: 'CARD_MANUAL:APPROVED',
+            fulfilled_at: new Date('2026-05-01T00:00:00.000Z'),
+            plan: { code: 'MONTH', quota_label: '50 GB' },
+            assignments: [
+              {
+                id: 'assignment-paid-old',
+                access_status: 'ACTIVE',
+                expires_at: null,
+                measured_used_bytes: 1n,
+                inventory_item: {
+                  id: 'inventory-paid-old',
+                  raw_config: 'vless://uuid@paid-server.example:443?security=tls#Paid',
+                  config_type: 'VLESS',
+                  display_protocol: 'VLESS',
+                  batch_name: 'Paid batch',
+                  supplier_provider_name: 'Provider',
+                  health_status: 'HEALTHY',
+                  source_quota_bytes: 1000n,
+                  source_used_bytes: 1n,
+                  supplier_expires_at: new Date(Date.now() + 60_000),
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    },
+  } as any, { send: () => of([]) } as any).getServers({
+    userNumber: 'SW-PAID-OVER-TRIAL-SERVER',
+    deviceId: 'device-paid-over-trial-server',
+  });
+  assert(
+    paidOverTrialServers.length === 1 &&
+      paidOverTrialServers[0].host === 'paid-server.example',
+    'store must prioritize active paid servers over a newer active trial',
+  );
+
   rawConfig = 'https://wb.routerwb.ru/jtz5386jCHkztYRZ';
   const subscriptionUrlServers = await new StoreService({
     customer: {

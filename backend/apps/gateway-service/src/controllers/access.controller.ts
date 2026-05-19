@@ -12,8 +12,32 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import {
+  ActivateTrialDto,
+  BootstrapAccessDto,
+  CancelCurrentSubscriptionDto,
+  CompleteProfileDto,
+  ReportUsageDto,
+  StartTrialDto,
+} from '@app/contracts';
 import * as net from 'net';
 import { firstValueFrom } from 'rxjs';
+
+interface ImportSubscriptionRequest {
+  userNumber: string;
+  subscriptionUrl: string;
+}
+
+interface ResolveCryptSubscriptionRequest {
+  userNumber: string;
+  deviceId: string;
+  encryptedLink: string;
+}
+
+interface ActivateCodeRequest {
+  userNumber: string;
+  code: string;
+}
 
 @Controller()
 export class AccessController {
@@ -52,27 +76,27 @@ export class AccessController {
   }
 
   @Post('access/bootstrap')
-  async bootstrapAccess(@Body() data: any) {
+  async bootstrapAccess(@Body() data: BootstrapAccessDto) {
     return this.sendCustomer({ cmd: 'bootstrap_access' }, data);
   }
 
   @Post('access/trial')
-  async startTrial(@Body() data: any) {
+  async startTrial(@Body() data: StartTrialDto) {
     return this.sendCustomer({ cmd: 'start_trial' }, data);
   }
 
   @Post('access/trial/activate')
-  async activateTrial(@Body() data: any) {
+  async activateTrial(@Body() data: ActivateTrialDto) {
     return this.sendCustomer({ cmd: 'activate_trial' }, data);
   }
 
   @Post('access/profile/complete')
-  async completeProfile(@Body() data: any) {
+  async completeProfile(@Body() data: CompleteProfileDto) {
     return this.sendCustomer({ cmd: 'complete_profile' }, data);
   }
 
   @Post('subscription/cancel-current')
-  async cancelCurrentSubscription(@Body() data: any) {
+  async cancelCurrentSubscription(@Body() data: CancelCurrentSubscriptionDto) {
     return this.sendCustomer({ cmd: 'cancel_current_subscription' }, data);
   }
 
@@ -85,22 +109,22 @@ export class AccessController {
   }
 
   @Post('subscription/import')
-  async importSubscription(@Body() data: any) {
+  async importSubscription(@Body() data: ImportSubscriptionRequest) {
     return this.sendCustomer({ cmd: 'import_subscription' }, data);
   }
 
   @Post('subscription/resolve-crypt')
-  async resolveCryptSubscription(@Body() data: any) {
+  async resolveCryptSubscription(@Body() data: ResolveCryptSubscriptionRequest) {
     return this.sendCustomer({ cmd: 'resolve_crypt_subscription' }, data);
   }
 
   @Post('subscription/activate-code')
-  async activateCode(@Body() data: any) {
+  async activateCode(@Body() data: ActivateCodeRequest) {
     return this.sendCustomer({ cmd: 'activate_code' }, data);
   }
 
   @Post('subscription/usage')
-  async reportUsage(@Body() data: any) {
+  async reportUsage(@Body() data: ReportUsageDto) {
     return this.sendCustomer({ cmd: 'report_usage' }, data);
   }
 
@@ -131,7 +155,7 @@ export class AccessController {
     });
   }
 
-  private async sendCustomer(pattern: Record<string, string>, data: any) {
+  private async sendCustomer(pattern: Record<string, string>, data: unknown) {
     try {
       return await firstValueFrom(this.customerClient.send(pattern, data));
     } catch (error: any) {

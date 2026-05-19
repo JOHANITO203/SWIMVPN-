@@ -1041,3 +1041,13 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: the Profile access card remains the plan/quota source, while the active config card shows selected managed-node details such as host, provider, availability, and load.
 - Reason: quota is business entitlement truth, while node hints describe routing quality for the currently selected fulfillment.
 - Consequence: users can see which managed node is active without confusing provider capacity hints with their paid plan quota.
+
+## 2026-05-19 - Upgrade and downgrade replace access only after fulfillment succeeds
+- Decision: a plan upgrade or downgrade is represented as a normal new paid order. When inventory fulfillment succeeds, the new assignment becomes authoritative and older active assignments for the same customer are revoked transactionally.
+- Reason: this avoids adding PSP-specific upgrade state while keeping PostgreSQL/OrderAssignment as the source of truth and preventing multiple active premium entitlements from drifting.
+- Consequence: if the new purchase is paid but inventory is pending or out of capacity, the old active access remains usable. Customer cancellation revokes all active assignments so old access cannot reappear.
+
+## 2026-05-19 - Paid access outranks trial access
+- Decision: when active paid access and active trial access coexist, backend profile and usage decisions must prefer paid access.
+- Reason: paid entitlement is the stronger business contract and should not be hidden or replaced by a newer trial record.
+- Consequence: trial activation is rejected while active paid access exists, trial fulfillment cannot revoke paid assignments, and paid assignment/config/server exposure remains authoritative.

@@ -194,6 +194,11 @@ export class CustomerService {
       },
     });
 
+    const currentProfile = await this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
+    if (currentProfile.entitlementState === 'ACTIVE_SUBSCRIPTION') {
+      this.fail('Active subscription already exists');
+    }
+
     const trialEligible = await this.isTrialEligible(customer, normalizedEmail, normalizedPhone);
     if (!trialEligible) {
       this.fail('Trial already used for this device or contact data');
@@ -291,7 +296,6 @@ export class CustomerService {
             },
           },
           orderBy: { created_at: 'desc' },
-          take: 10,
           include: {
             assignments: {
               orderBy: { assigned_at: 'desc' },
@@ -312,35 +316,67 @@ export class CustomerService {
       this.fail('Device is not authorized for cancellation');
     }
 
-    const activeOrder = customer.orders.find((order) =>
-      order.assignments.some((assignment) => assignment.access_status === AssignmentAccessStatus.ACTIVE),
-    );
-    const activeAssignment = activeOrder?.assignments.find(
-      (assignment) => assignment.access_status === AssignmentAccessStatus.ACTIVE,
-    );
+    const activeAssignmentRows =
+      typeof (this.prisma as any).orderAssignment?.findMany === 'function'
+        ? await this.prisma.orderAssignment.findMany({
+            where: {
+              customer_id: customer.id,
+              access_status: AssignmentAccessStatus.ACTIVE,
+            },
+            orderBy: { assigned_at: 'desc' },
+            include: {
+              order: true,
+              inventory_item: true,
+            },
+          })
+        : customer.orders
+            .flatMap((order) =>
+              order.assignments
+                .filter((assignment) => assignment.access_status === AssignmentAccessStatus.ACTIVE)
+                .map((assignment) => ({ ...assignment, order })),
+            );
+    const activeAssignments = activeAssignmentRows.map((assignment) => ({
+      order: assignment.order,
+      assignment,
+    }));
+    const pendingOrders =
+      typeof (this.prisma as any).order?.findMany === 'function'
+        ? await this.prisma.order.findMany({
+            where: {
+              customer_id: customer.id,
+              status: {
+                in: [OrderStatus.PAID, OrderStatus.PENDING_FULFILLMENT],
+              },
+            },
+            orderBy: { created_at: 'desc' },
+          })
+        : customer.orders.filter(
+            (order) =>
+              order.status === OrderStatus.PAID ||
+              order.status === OrderStatus.PENDING_FULFILLMENT,
+          );
 
-    if (!activeOrder || !activeAssignment) {
-      const pendingOrder = customer.orders.find(
-        (order) =>
-          order.status === OrderStatus.PAID ||
-          order.status === OrderStatus.PENDING_FULFILLMENT,
-      );
-
-      if (pendingOrder) {
-        await this.prisma.order.update({
-          where: { id: pendingOrder.id },
-          data: { status: OrderStatus.CANCELLED },
-        });
+    if (activeAssignments.length === 0) {
+      if (pendingOrders.length > 0) {
+        for (const pendingOrder of pendingOrders) {
+          await this.prisma.order.update({
+            where: { id: pendingOrder.id },
+            data: { status: OrderStatus.CANCELLED },
+          });
+        }
 
         await this.prisma.adminEvent.create({
           data: {
             event_type: 'CUSTOMER_PENDING_ORDER_CANCELLED',
-            entity_type: 'ORDER',
-            entity_id: pendingOrder.order_ref,
+            entity_type: pendingOrders.length === 1 ? 'ORDER' : 'CUSTOMER',
+            entity_id: pendingOrders.length === 1 ? pendingOrders[0].order_ref : customer.public_id,
             payload_json: {
               userNumber: customer.public_id,
-              orderRef: pendingOrder.order_ref,
-              previousStatus: pendingOrder.status,
+              orderRefs: pendingOrders.map((order) => order.order_ref),
+              previousStatuses: pendingOrders.map((order) => ({
+                orderRef: order.order_ref,
+                status: order.status,
+              })),
               requestedReason: reason,
               cancelledAt: new Date().toISOString(),
               slotPolicy: 'no active assignment existed; no resale slot was consumed',
@@ -367,29 +403,41 @@ export class CustomerService {
       return this.getProfile(customer.public_id, { exposeRuntimeConfig: false });
     }
 
-    await firstValueFrom(
-      this.inventoryClient.send(
-        { cmd: 'revoke_assignment' },
-        {
-          assignmentId: activeAssignment.id,
-          reason,
-          adminId: null,
-        },
-      ),
-    );
+    for (const item of activeAssignments) {
+      await firstValueFrom(
+        this.inventoryClient.send(
+          { cmd: 'revoke_assignment' },
+          {
+            assignmentId: item.assignment.id,
+            reason,
+            adminId: null,
+          },
+        ),
+      );
+    }
+    for (const pendingOrder of pendingOrders) {
+      await this.prisma.order.update({
+        where: { id: pendingOrder.id },
+        data: { status: OrderStatus.CANCELLED },
+      }).catch(() => undefined);
+    }
 
     await this.prisma.adminEvent.create({
       data: {
         event_type: 'CUSTOMER_SUBSCRIPTION_CANCELLED',
-        entity_type: 'ORDER_ASSIGNMENT',
-        entity_id: activeAssignment.id,
+        entity_type: activeAssignments.length === 1 ? 'ORDER_ASSIGNMENT' : 'CUSTOMER',
+        entity_id: activeAssignments.length === 1 ? activeAssignments[0].assignment.id : customer.public_id,
         payload_json: {
           userNumber: customer.public_id,
-          orderRef: activeOrder.order_ref,
-          inventoryItemId: activeAssignment.inventory_item_id,
+          revokedAssignments: activeAssignments.map((item) => ({
+            assignmentId: item.assignment.id,
+            orderRef: item.order.order_ref,
+            inventoryItemId: item.assignment.inventory_item_id,
+          })),
+          cancelledPendingOrderRefs: pendingOrders.map((order) => order.order_ref),
           reason,
           cancelledAt: new Date().toISOString(),
-          slotPolicy: 'assignment revoked through inventory service; resale capacity recalculated',
+          slotPolicy: 'all active assignments revoked through inventory service; resale capacity recalculated',
         } as any,
       },
     });
@@ -409,7 +457,6 @@ export class CustomerService {
             },
           },
           orderBy: { created_at: 'desc' },
-          take: 10,
           include: {
             plan: true,
             assignments: {
@@ -428,15 +475,89 @@ export class CustomerService {
     }
 
     const trialEligible = await this.isTrialEligible(customer, customer.email, customer.phone);
-    const latestActiveOrder = customer.orders.find((order) =>
+    const directAssignmentRows =
+      typeof (this.prisma as any).orderAssignment?.findMany === 'function'
+        ? await this.prisma.orderAssignment.findMany({
+            where: {
+              customer_id: customer.id,
+              access_status: {
+                in: [
+                  AssignmentAccessStatus.ACTIVE,
+                  AssignmentAccessStatus.PENDING,
+                  AssignmentAccessStatus.EXPIRED,
+                ],
+              },
+              order: {
+                status: {
+                  in: [OrderStatus.FULFILLED, OrderStatus.PAID, OrderStatus.PENDING_FULFILLMENT],
+                },
+              },
+            },
+            orderBy: { assigned_at: 'desc' },
+            include: {
+              order: {
+                include: { plan: true },
+              },
+              inventory_item: true,
+            },
+          })
+        : [];
+    const directAssignmentOrdersById = new Map<string, any>();
+    for (const assignment of directAssignmentRows as any[]) {
+      const { order, ...assignmentWithoutOrder } = assignment;
+      if (!order?.id) {
+        continue;
+      }
+
+      const existingOrder = directAssignmentOrdersById.get(order.id);
+      if (existingOrder) {
+        existingOrder.assignments.push(assignmentWithoutOrder);
+      } else {
+        directAssignmentOrdersById.set(order.id, {
+          ...order,
+          assignments: [assignmentWithoutOrder],
+        });
+      }
+    }
+    const directAssignmentOrders = Array.from(directAssignmentOrdersById.values());
+    const directPendingOrders =
+      typeof (this.prisma as any).order?.findMany === 'function'
+        ? await this.prisma.order.findMany({
+            where: {
+              customer_id: customer.id,
+              status: {
+                in: [OrderStatus.PAID, OrderStatus.PENDING_FULFILLMENT],
+              },
+            },
+            orderBy: { created_at: 'desc' },
+            include: {
+              plan: true,
+              assignments: {
+                orderBy: { assigned_at: 'desc' },
+                include: { inventory_item: true },
+              },
+            },
+          })
+        : [];
+    const ordersById = new Map<string, any>();
+    for (const order of [...directAssignmentOrders, ...directPendingOrders, ...customer.orders]) {
+      if (order?.id && !ordersById.has(order.id)) {
+        ordersById.set(order.id, order);
+      }
+    }
+    const relevantOrders = Array.from(ordersById.values());
+    const activeOrders = relevantOrders.filter((order) =>
       order.assignments.some((item) => item.access_status === AssignmentAccessStatus.ACTIVE),
     );
-    const latestPendingOrder = customer.orders.find((order) =>
+    const latestActiveOrder =
+      activeOrders.find((order) => !this.isTrialOrder(order)) ||
+      activeOrders.find((order) => this.isTrialOrder(order));
+    const latestPendingOrder = relevantOrders.find((order) =>
       order.status === OrderStatus.PAID ||
       order.status === OrderStatus.PENDING_FULFILLMENT ||
       order.assignments.some((item) => item.access_status === AssignmentAccessStatus.PENDING),
     );
-    const latestExpiredOrder = customer.orders.find((order) =>
+    const latestExpiredOrder = relevantOrders.find((order) =>
       order.assignments.some((item) => item.access_status === AssignmentAccessStatus.EXPIRED),
     );
     const latestRelevantOrder = latestActiveOrder ?? latestPendingOrder ?? latestExpiredOrder;
@@ -460,7 +581,7 @@ export class CustomerService {
     const latestOrder = latestRelevantOrder && (assignment || isPendingOrderWithoutAssignment)
       ? latestRelevantOrder
       : undefined;
-    const hasPaidOrderHistory = customer.orders.some((order) => !this.isTrialOrder(order));
+    const hasPaidOrderHistory = relevantOrders.some((order) => !this.isTrialOrder(order));
     const effectiveTrialEligible = latestOrder ? trialEligible : trialEligible && !hasPaidOrderHistory;
     const inventoryItem = assignment?.inventory_item;
     const isTrialOrder = this.isTrialOrder(latestOrder);
@@ -599,7 +720,6 @@ export class CustomerService {
         orders: {
           where: { status: OrderStatus.FULFILLED },
           orderBy: { created_at: 'desc' },
-          take: 10,
           include: {
             plan: true,
             assignments: {
@@ -623,8 +743,8 @@ export class CustomerService {
     }
 
     const now = Date.now();
-    const bestActiveOrder =
-      customer.orders.find((order) => {
+    const activeOrders =
+      customer.orders.filter((order) => {
         const activeAssignment = order.assignments.find(
           (item) => item.access_status === AssignmentAccessStatus.ACTIVE,
         );
@@ -656,7 +776,11 @@ export class CustomerService {
           : providerExpiresAt;
 
         return !subscriptionExpiresAt || new Date(subscriptionExpiresAt).getTime() >= now;
-      }) || null;
+      });
+    const bestActiveOrder =
+      activeOrders.find((order) => !this.isTrialOrder(order)) ||
+      activeOrders.find((order) => this.isTrialOrder(order)) ||
+      null;
     const latestOrder = bestActiveOrder;
     if (!latestOrder) {
       return this.getProfile(customer.public_id);

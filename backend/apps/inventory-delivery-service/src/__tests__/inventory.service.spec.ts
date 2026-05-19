@@ -207,6 +207,8 @@ async function main() {
   assert(result.planQuotaExceeded === true, 'plan quota must still expire from preserved usage');
 
   const retryDeliveryEvents: any[] = [];
+  const retryReplacementUpdates: Array<{ model: string; where?: any; data?: any }> = [];
+  const retryReplacementEvents: any[] = [];
   const retryDeliveryService = new InventoryService(
     {
       $transaction: async (fn: any) =>
@@ -219,6 +221,7 @@ async function main() {
               paid_at: new Date('2026-05-17T22:53:00.000Z'),
               payment_ref: 'SWIMPAY_CONFIRMED:session:event',
               customer_id: 'customer-delivery-retry',
+              created_at: new Date('2026-05-17T22:53:00.000Z'),
               plan: {
                 code: PlanCategory.WEEK,
                 name: 'Basic',
@@ -243,6 +246,54 @@ async function main() {
               ],
             }),
           },
+          orderAssignment: {
+            findMany: async ({ where }: any) => {
+              assert(
+                where?.customer_id === 'customer-delivery-retry' &&
+                  where?.access_status === AssignmentAccessStatus.ACTIVE &&
+                  where?.id?.not === 'assignment-delivery-retry' &&
+                  where?.order?.created_at?.lt?.toISOString() === '2026-05-17T22:53:00.000Z',
+                'retry fulfillment with an existing active paid assignment must query only older active assignments for replacement cleanup',
+              );
+              return [
+                {
+                  id: 'assignment-delivery-old',
+                  inventory_item_id: 'inventory-delivery-old',
+                  order: { order_ref: 'ORD-DELIVERY-OLD' },
+                },
+              ];
+            },
+            update: async ({ where, data }: any) => {
+              retryReplacementUpdates.push({ model: 'orderAssignment', where, data });
+              return { id: where.id, ...data };
+            },
+            aggregate: async () => ({
+              _sum: {
+                slot_count: 0,
+                measured_used_bytes: 0n,
+              },
+            }),
+          },
+          inventoryItem: {
+            findUniqueOrThrow: async ({ where }: any) => ({
+              id: where.id,
+              health_status: InventoryHealthStatus.HEALTHY,
+              source_quota_bytes: null,
+              source_used_bytes: 0n,
+              supplier_expires_at: null,
+              max_resale_slots: 2,
+            }),
+            update: async ({ where, data }: any) => {
+              retryReplacementUpdates.push({ model: 'inventoryItem', where, data });
+              return { id: where.id, ...data };
+            },
+          },
+          adminEvent: {
+            create: async ({ data }: any) => {
+              retryReplacementEvents.push(data);
+              return data;
+            },
+          },
         }),
     } as any,
     { send: () => ({}) } as any,
@@ -260,6 +311,325 @@ async function main() {
   assert(
     retryDeliveryEvents.some((entry) => entry.event === 'process_post_purchase_delivery'),
     'retry fulfillment with active assignment must re-emit post-purchase delivery',
+  );
+  assert(
+    retryReplacementUpdates.some(
+      (entry) =>
+        entry.model === 'orderAssignment' &&
+        entry.data?.access_status === AssignmentAccessStatus.REVOKED &&
+        entry.where?.id === 'assignment-delivery-old',
+    ),
+    'retry fulfillment with an existing active paid assignment must revoke older active assignments',
+  );
+  assert(
+    retryReplacementEvents.some((entry) => entry.event_type === 'CUSTOMER_ACCESS_REPLACED'),
+    'retry fulfillment replacement cleanup must be audited',
+  );
+
+  const replacementUpdates: Array<{ model: string; where?: any; data?: any }> = [];
+  const replacementEvents: any[] = [];
+  let replacementFindManyWhere: any = null;
+  const replacementService = createService({
+    inventoryItem: {
+      findMany: async () => [],
+    },
+    $transaction: async (fn: any) =>
+      fn({
+        order: {
+          findUnique: async () => ({
+            id: 'order-upgrade-new',
+            order_ref: 'ORD-UPGRADE-NEW',
+            status: OrderStatus.PAID,
+            paid_at: new Date('2026-05-19T10:00:00.000Z'),
+            payment_ref: 'SWIMPAY_CONFIRMED:session:event-new',
+            customer_id: 'customer-upgrade',
+            created_at: new Date('2026-05-19T10:00:00.000Z'),
+            plan: {
+              code: PlanCategory.QUARTER,
+              name: 'Platinum',
+              duration_label: '3 months',
+              quota_label: '150 GB',
+            },
+            customer: {
+              email: 'upgrade@example.com',
+              phone: '+79990002233',
+            },
+            assignments: [],
+          }),
+          update: async ({ where, data }: any) => {
+            replacementUpdates.push({ model: 'order', where, data });
+            return {
+              id: where.id,
+              order_ref: 'ORD-UPGRADE-NEW',
+              status: data.status,
+              amount_rub: 1500,
+            };
+          },
+        },
+        orderAssignment: {
+          create: async () => ({
+            id: 'assignment-upgrade-new-pending',
+            access_status: AssignmentAccessStatus.PENDING,
+          }),
+          update: async ({ where, data }: any) => {
+            replacementUpdates.push({ model: 'orderAssignment', where, data });
+            return {
+              id: where.id,
+              access_status: data.access_status,
+              inventory_item_id: data.inventory_item_id,
+              slot_count: data.slot_count,
+            };
+          },
+          findMany: async ({ where }: any) => {
+            replacementFindManyWhere = where;
+            return [
+              {
+                id: 'assignment-basic-old',
+                inventory_item_id: 'inventory-basic-old',
+                slot_count: 1,
+                order: { order_ref: 'ORD-BASIC-OLD' },
+              },
+              {
+                id: 'assignment-premium-old',
+                inventory_item_id: 'inventory-premium-old',
+                slot_count: 1,
+                order: { order_ref: 'ORD-PREMIUM-OLD' },
+              },
+            ];
+          },
+          aggregate: async ({ where }: any) => ({
+            _sum: {
+              slot_count: where?.inventory_item_id === 'inventory-platinum-new' ? 1 : 0,
+              measured_used_bytes: 0n,
+            },
+          }),
+        },
+        inventoryItem: {
+          findUniqueOrThrow: async ({ where }: any) => {
+            if (where.id === 'inventory-platinum-new') {
+              return {
+                id: 'inventory-platinum-new',
+                raw_config: 'vless://uuid@platinum.example:443#Platinum',
+                display_protocol: 'VLESS',
+                used_resale_slots: 0,
+                max_resale_slots: 2,
+                health_status: InventoryHealthStatus.HEALTHY,
+                source_quota_bytes: 1000n * gb,
+                source_used_bytes: 0n,
+                supplier_expires_at: new Date('2026-08-19T10:00:00.000Z'),
+              };
+            }
+
+            return {
+              id: where.id,
+              used_resale_slots: 1,
+              max_resale_slots: 2,
+              health_status: InventoryHealthStatus.HEALTHY,
+              source_quota_bytes: 1000n * gb,
+              source_used_bytes: 0n,
+              supplier_expires_at: null,
+            };
+          },
+          update: async ({ where, data }: any) => {
+            replacementUpdates.push({ model: 'inventoryItem', where, data });
+            return { id: where.id, ...data };
+          },
+        },
+        $queryRaw: async () => [{ id: 'inventory-platinum-new' }],
+        delivery: {
+          findFirst: async () => null,
+          create: async ({ data }: any) => {
+            replacementUpdates.push({ model: 'delivery', data });
+            return data;
+          },
+        },
+        adminEvent: {
+          create: async ({ data }: any) => {
+            replacementEvents.push(data);
+            return data;
+          },
+        },
+      }),
+  });
+
+  const replacementResult = await replacementService.fulfillOrder('order-upgrade-new');
+  assert(replacementResult.success === true, 'upgrade fulfillment should succeed');
+  const revokedReplacementAssignments = replacementUpdates.filter(
+    (entry) =>
+      entry.model === 'orderAssignment' &&
+      entry.data?.access_status === AssignmentAccessStatus.REVOKED,
+  );
+  assert(
+    revokedReplacementAssignments.length === 2,
+    'successful upgrade/downgrade fulfillment must revoke all older active assignments for the customer',
+  );
+  assert(
+    replacementEvents.some((event) => event.event_type === 'CUSTOMER_ACCESS_REPLACED'),
+    'upgrade/downgrade replacement must be audited',
+  );
+  assert(
+    replacementFindManyWhere?.customer_id === 'customer-upgrade' &&
+      replacementFindManyWhere?.access_status === AssignmentAccessStatus.ACTIVE &&
+      replacementFindManyWhere?.id?.not === 'assignment-upgrade-new-pending' &&
+      replacementFindManyWhere?.order?.created_at?.lt?.toISOString() === '2026-05-19T10:00:00.000Z',
+    'upgrade/downgrade replacement must query only older active assignments for the same customer',
+  );
+
+  const trialReplacementUpdates: Array<{ model: string; data?: any }> = [];
+  const trialReplacementService = createService({
+    inventoryItem: {
+      findMany: async () => [],
+    },
+    $transaction: async (fn: any) =>
+      fn({
+        order: {
+          findUnique: async () => ({
+            id: 'order-trial-with-paid-active',
+            order_ref: 'TRIAL-SW-TRIAL-WITH-PAID-1',
+            status: OrderStatus.PAID,
+            paid_at: null,
+            payment_ref: 'TRIAL:3D',
+            customer_id: 'customer-trial-with-paid',
+            plan: {
+              code: PlanCategory.WEEK,
+              name: 'Trial',
+              duration_label: '3 days',
+              quota_label: 'UNLIMITED',
+            },
+            customer: {
+              email: 'trial-with-paid@example.com',
+              phone: '+79990003344',
+            },
+            assignments: [],
+          }),
+          update: async ({ data }: any) => ({
+            id: 'order-trial-with-paid-active',
+            order_ref: 'TRIAL-SW-TRIAL-WITH-PAID-1',
+            status: data.status,
+            amount_rub: 0,
+          }),
+        },
+        orderAssignment: {
+          create: async () => ({
+            id: 'assignment-trial-new-pending',
+            access_status: AssignmentAccessStatus.PENDING,
+          }),
+          update: async ({ data }: any) => {
+            trialReplacementUpdates.push({ model: 'orderAssignment', data });
+            return {
+              id: 'assignment-trial-new-pending',
+              access_status: data.access_status,
+              inventory_item_id: data.inventory_item_id,
+              slot_count: data.slot_count,
+            };
+          },
+          findMany: async () => [
+            {
+              id: 'assignment-paid-old',
+              inventory_item_id: 'inventory-paid-old',
+              order: { order_ref: 'ORD-PAID-OLD' },
+            },
+          ],
+          aggregate: async () => ({
+            _sum: {
+              slot_count: 1,
+              measured_used_bytes: 0n,
+            },
+          }),
+        },
+        inventoryItem: {
+          findUniqueOrThrow: async ({ where }: any) => ({
+            id: where.id,
+            raw_config: 'vless://uuid@trial.example:443#Trial',
+            display_protocol: 'VLESS',
+            used_resale_slots: 0,
+            max_resale_slots: 2,
+            health_status: InventoryHealthStatus.HEALTHY,
+            source_quota_bytes: null,
+            source_used_bytes: 0n,
+            supplier_expires_at: new Date('2026-05-22T10:00:00.000Z'),
+          }),
+          update: async ({ data }: any) => {
+            trialReplacementUpdates.push({ model: 'inventoryItem', data });
+            return data;
+          },
+        },
+        $queryRaw: async () => [{ id: 'inventory-trial-new' }],
+        delivery: {
+          findFirst: async () => null,
+          create: async ({ data }: any) => data,
+        },
+        adminEvent: {
+          create: async ({ data }: any) => data,
+        },
+      }),
+  });
+
+  const trialReplacementResult = await trialReplacementService.fulfillOrder('order-trial-with-paid-active');
+  assert(trialReplacementResult.success === true, 'trial fulfillment should still succeed');
+  assert(
+    trialReplacementUpdates.every((entry) => entry.data?.access_status !== AssignmentAccessStatus.REVOKED),
+    'trial fulfillment must not revoke an existing paid access',
+  );
+
+  const pendingNoCapacityUpdates: Array<{ model: string; data?: any }> = [];
+  const pendingNoCapacityService = createService({
+    $transaction: async (fn: any) =>
+      fn({
+        order: {
+          findUnique: async () => ({
+            id: 'order-upgrade-pending',
+            order_ref: 'ORD-UPGRADE-PENDING',
+            status: OrderStatus.PAID,
+            paid_at: new Date('2026-05-19T10:00:00.000Z'),
+            payment_ref: 'SWIMPAY_CONFIRMED:session:event-pending',
+            customer_id: 'customer-upgrade',
+            plan: {
+              code: PlanCategory.QUARTER,
+              name: 'Platinum',
+              duration_label: '3 months',
+              quota_label: '150 GB',
+            },
+            customer: {
+              email: 'upgrade@example.com',
+              phone: '+79990002233',
+            },
+            assignments: [],
+          }),
+          update: async ({ data }: any) => {
+            pendingNoCapacityUpdates.push({ model: 'order', data });
+            return data;
+          },
+        },
+        orderAssignment: {
+          create: async () => ({
+            id: 'assignment-upgrade-pending',
+            access_status: AssignmentAccessStatus.PENDING,
+          }),
+          update: async ({ data }: any) => {
+            pendingNoCapacityUpdates.push({ model: 'orderAssignment', data });
+            return data;
+          },
+        },
+        $queryRaw: async () => [],
+        delivery: {
+          findFirst: async () => null,
+          create: async ({ data }: any) => {
+            pendingNoCapacityUpdates.push({ model: 'delivery', data });
+            return data;
+          },
+        },
+        adminEvent: {
+          create: async ({ data }: any) => data,
+        },
+      }),
+  });
+
+  const pendingNoCapacityResult = await pendingNoCapacityService.fulfillOrder('order-upgrade-pending');
+  assert(pendingNoCapacityResult.pendingFulfillment === true, 'no-capacity upgrade should remain pending');
+  assert(
+    pendingNoCapacityUpdates.every((entry) => entry.data?.access_status !== AssignmentAccessStatus.REVOKED),
+    'pending upgrade/downgrade fulfillment must not revoke existing active access before replacement succeeds',
   );
 
   console.log('inventory service policy tests passed');

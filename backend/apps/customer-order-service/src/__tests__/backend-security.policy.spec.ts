@@ -1,5 +1,5 @@
 import { RpcException } from '@nestjs/microservices';
-import { InventoryHealthStatus } from '@prisma/client';
+import { AssignmentAccessStatus, InventoryHealthStatus } from '@prisma/client';
 import { of, throwError } from 'rxjs';
 import { CustomerService } from '../customer.service';
 
@@ -152,6 +152,237 @@ async function main() {
     'profile must expose the active assignment runtime config, not the revoked one',
   );
 
+  const deepProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-deep-profile',
+          public_id: 'SW-DEEP-PROFILE',
+          device_id: 'device-deep-profile',
+          email: 'deep-profile@example.com',
+          phone: '79000000015',
+          orders: [],
+        }),
+      },
+      orderAssignment: {
+        findMany: async ({ where }: any) => {
+          assert(
+            where?.customer_id === 'customer-deep-profile',
+            'profile must query assignments directly by customer id',
+          );
+          return [
+            {
+              id: 'assignment-deep-profile',
+              access_status: AssignmentAccessStatus.ACTIVE,
+              inventory_item_id: 'inventory-deep-profile',
+              measured_used_bytes: 0n,
+              expires_at: null,
+              order: {
+                id: 'order-deep-profile',
+                order_ref: 'ORD-DEEP-PROFILE',
+                status: 'FULFILLED',
+                payment_ref: 'CARD_MANUAL:APPROVED',
+                created_at: new Date('2026-04-01T00:00:00.000Z'),
+                fulfilled_at: new Date('2026-04-01T00:00:00.000Z'),
+                plan: { code: 'MONTH', quota_label: '150 GB' },
+              },
+              inventory_item: {
+                id: 'inventory-deep-profile',
+                raw_config: 'vless://deep-active',
+                health_status: InventoryHealthStatus.HEALTHY,
+                source_quota_bytes: null,
+                source_used_bytes: 0n,
+                supplier_expires_at: null,
+              },
+            },
+          ];
+        },
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const deepProfile = await deepProfileService.getProfile('SW-DEEP-PROFILE');
+  assert(
+    deepProfile.entitlementState === 'ACTIVE_SUBSCRIPTION',
+    'profile must expose active paid assignments even when they are outside the recent-order window',
+  );
+  assert(
+    deepProfile.subscriptionUrl === 'vless://deep-active',
+    'profile must expose runtime config for the direct active paid assignment',
+  );
+
+  const mergedAssignmentProfileService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-merged-assignment',
+          public_id: 'SW-MERGED-ASSIGNMENT',
+          device_id: 'device-merged-assignment',
+          email: 'merged-assignment@example.com',
+          phone: '79000000017',
+          orders: [],
+        }),
+      },
+      orderAssignment: {
+        findMany: async () => [
+          {
+            id: 'assignment-same-order-expired',
+            access_status: AssignmentAccessStatus.EXPIRED,
+            inventory_item_id: 'inventory-expired',
+            measured_used_bytes: 0n,
+            expires_at: new Date('2026-05-01T00:00:00.000Z'),
+            order: {
+              id: 'order-same-id',
+              order_ref: 'ORD-SAME-ID',
+              status: 'FULFILLED',
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-04-01T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-04-01T00:00:00.000Z'),
+              plan: { code: 'MONTH', quota_label: '150 GB' },
+            },
+            inventory_item: {
+              id: 'inventory-expired',
+              raw_config: 'vless://expired-same-order',
+              health_status: InventoryHealthStatus.HEALTHY,
+              source_quota_bytes: null,
+              source_used_bytes: 0n,
+              supplier_expires_at: null,
+            },
+          },
+          {
+            id: 'assignment-same-order-active',
+            access_status: AssignmentAccessStatus.ACTIVE,
+            inventory_item_id: 'inventory-active',
+            measured_used_bytes: 0n,
+            expires_at: null,
+            order: {
+              id: 'order-same-id',
+              order_ref: 'ORD-SAME-ID',
+              status: 'FULFILLED',
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-04-01T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-04-01T00:00:00.000Z'),
+              plan: { code: 'MONTH', quota_label: '150 GB' },
+            },
+            inventory_item: {
+              id: 'inventory-active',
+              raw_config: 'vless://active-same-order',
+              health_status: InventoryHealthStatus.HEALTHY,
+              source_quota_bytes: null,
+              source_used_bytes: 0n,
+              supplier_expires_at: null,
+            },
+          },
+        ],
+      },
+      order: {
+        findFirst: async () => null,
+        findMany: async () => [],
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const mergedAssignmentProfile = await mergedAssignmentProfileService.getProfile('SW-MERGED-ASSIGNMENT');
+  assert(
+    mergedAssignmentProfile.entitlementState === 'ACTIVE_SUBSCRIPTION',
+    'profile must merge all direct assignments for the same order before resolving entitlement',
+  );
+  assert(
+    mergedAssignmentProfile.subscriptionUrl === 'vless://active-same-order',
+    'profile must not lose the active assignment when another assignment on the same order appears first',
+  );
+
+  const paidOverTrialService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-paid-over-trial',
+          public_id: 'SW-PAID-OVER-TRIAL',
+          device_id: 'device-paid-over-trial',
+          email: 'paid-over-trial@example.com',
+          phone: '79000000016',
+          orders: [
+            {
+              id: 'order-trial-new',
+              order_ref: 'TRIAL-SW-PAID-OVER-TRIAL-1',
+              status: 'FULFILLED',
+              payment_ref: 'TRIAL:3D',
+              created_at: new Date('2026-05-03T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-05-03T00:00:00.000Z'),
+              plan: { code: 'WEEK', quota_label: 'UNLIMITED' },
+              assignments: [
+                {
+                  id: 'assignment-trial-new',
+                  access_status: 'ACTIVE',
+                  inventory_item_id: 'inventory-trial-new',
+                  measured_used_bytes: 0n,
+                  expires_at: null,
+                  inventory_item: {
+                    id: 'inventory-trial-new',
+                    raw_config: 'vless://trial-active',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                    source_quota_bytes: null,
+                    source_used_bytes: 0n,
+                    supplier_expires_at: new Date('2026-05-06T00:00:00.000Z'),
+                  },
+                },
+              ],
+            },
+            {
+              id: 'order-paid-old',
+              order_ref: 'ORD-PAID-OLD',
+              status: 'FULFILLED',
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-05-01T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-05-01T00:00:00.000Z'),
+              plan: { code: 'MONTH', quota_label: '150 GB' },
+              assignments: [
+                {
+                  id: 'assignment-paid-old',
+                  access_status: 'ACTIVE',
+                  inventory_item_id: 'inventory-paid-old',
+                  measured_used_bytes: 0n,
+                  expires_at: null,
+                  inventory_item: {
+                    id: 'inventory-paid-old',
+                    raw_config: 'vless://paid-active',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                    source_quota_bytes: null,
+                    source_used_bytes: 0n,
+                    supplier_expires_at: null,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      order: {
+        findFirst: async () => ({ id: 'existing-trial' }),
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  const paidOverTrialProfile = await paidOverTrialService.getProfile('SW-PAID-OVER-TRIAL');
+  assert(
+    paidOverTrialProfile.entitlementState === 'ACTIVE_SUBSCRIPTION',
+    'profile must prioritize active paid access over an active trial',
+  );
+  assert(
+    paidOverTrialProfile.subscriptionUrl === 'vless://paid-active',
+    'profile must expose paid runtime config when paid and trial are both active',
+  );
+
   const activePlanQuotaService = new CustomerService(
     {
       customer: {
@@ -294,6 +525,233 @@ async function main() {
     'customer cancellation must revoke the active assignment',
   );
   assert(cancellationEvents.length === 1, 'customer cancellation must be audited');
+
+  const multiActiveRevocations: unknown[] = [];
+  const multiActiveCancellationService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-multi-active',
+          public_id: 'SW-MULTI-ACTIVE',
+          device_id: 'device-multi-active',
+          email: 'multi-active@example.com',
+          phone: '79000000012',
+          orders: [
+            {
+              id: 'order-current-active',
+              order_ref: 'ORD-CURRENT-ACTIVE',
+              status: 'FULFILLED',
+              plan: { code: 'MONTH' },
+              payment_ref: 'SWIMPAY_CONFIRMED:session:event',
+              created_at: new Date('2026-05-03T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-05-03T00:00:00.000Z'),
+              assignments: [
+                {
+                  id: 'assignment-current-active',
+                  access_status: 'ACTIVE',
+                  inventory_item_id: 'inventory-current-active',
+                  inventory_item: {
+                    id: 'inventory-current-active',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                  },
+                },
+              ],
+            },
+            {
+              id: 'order-older-active',
+              order_ref: 'ORD-OLDER-ACTIVE',
+              status: 'FULFILLED',
+              plan: { code: 'WEEK' },
+              payment_ref: 'CARD_MANUAL:APPROVED',
+              created_at: new Date('2026-05-01T00:00:00.000Z'),
+              fulfilled_at: new Date('2026-05-01T00:00:00.000Z'),
+              assignments: [
+                {
+                  id: 'assignment-older-active',
+                  access_status: 'ACTIVE',
+                  inventory_item_id: 'inventory-older-active',
+                  inventory_item: {
+                    id: 'inventory-older-active',
+                    health_status: InventoryHealthStatus.HEALTHY,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      },
+      adminEvent: {
+        create: async (event: unknown) => event,
+      },
+    } as any,
+    {
+      send: (pattern: unknown, payload: unknown) => {
+        multiActiveRevocations.push({ pattern, payload });
+        return of({ success: true });
+      },
+    } as any,
+    {} as any,
+    {} as any,
+  );
+  (multiActiveCancellationService as any).getProfile = async () => ({
+    userNumber: 'SW-MULTI-ACTIVE',
+    entitlementState: 'FREEMIUM',
+    subscriptionUrl: null,
+  });
+
+  await multiActiveCancellationService.cancelCurrentSubscription({
+    userNumber: 'SW-MULTI-ACTIVE',
+    deviceId: 'device-multi-active',
+    reason: 'CUSTOMER_CANCELLED_ALL',
+  });
+
+  assert(
+    multiActiveRevocations.length === 2,
+    'customer cancellation must revoke every active assignment so older access cannot reappear',
+  );
+  assert(
+    multiActiveRevocations.some((entry: any) => entry.payload?.assignmentId === 'assignment-current-active') &&
+      multiActiveRevocations.some((entry: any) => entry.payload?.assignmentId === 'assignment-older-active'),
+    'customer cancellation must include both current and older active assignments',
+  );
+
+  const deepActiveRevocations: unknown[] = [];
+  const deepActiveCancellationService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-deep-active',
+          public_id: 'SW-DEEP-ACTIVE',
+          device_id: 'device-deep-active',
+          email: 'deep-active@example.com',
+          phone: '79000000013',
+          orders: [],
+        }),
+      },
+      orderAssignment: {
+        findMany: async ({ where }: any) => {
+          assert(
+            where?.customer_id === 'customer-deep-active' &&
+              where?.access_status === AssignmentAccessStatus.ACTIVE,
+            'cancel must query all active assignments directly by customer without relying on recent orders',
+          );
+          return [
+            {
+              id: 'assignment-deep-active',
+              access_status: AssignmentAccessStatus.ACTIVE,
+              inventory_item_id: 'inventory-deep-active',
+              order: {
+                order_ref: 'ORD-DEEP-ACTIVE',
+              },
+            },
+          ];
+        },
+      },
+      order: {
+        findMany: async () => [],
+      },
+      adminEvent: {
+        create: async (event: unknown) => event,
+      },
+    } as any,
+    {
+      send: (pattern: unknown, payload: unknown) => {
+        deepActiveRevocations.push({ pattern, payload });
+        return of({ success: true });
+      },
+    } as any,
+    {} as any,
+    {} as any,
+  );
+  (deepActiveCancellationService as any).getProfile = async () => ({
+    userNumber: 'SW-DEEP-ACTIVE',
+    entitlementState: 'FREEMIUM',
+    subscriptionUrl: null,
+  });
+
+  await deepActiveCancellationService.cancelCurrentSubscription({
+    userNumber: 'SW-DEEP-ACTIVE',
+    deviceId: 'device-deep-active',
+    reason: 'CUSTOMER_CANCELLED_DEEP_ACTIVE',
+  });
+
+  assert(
+    deepActiveRevocations.length === 1 &&
+      (deepActiveRevocations[0] as any).payload?.assignmentId === 'assignment-deep-active',
+    'customer cancellation must revoke active assignments even when they are outside the recent-order window',
+  );
+
+  const multiPendingCancelledOrders: unknown[] = [];
+  const multiPendingCancellationService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-multi-pending',
+          public_id: 'SW-MULTI-PENDING',
+          device_id: 'device-multi-pending',
+          email: 'multi-pending@example.com',
+          phone: '79000000014',
+          orders: [
+            {
+              id: 'order-pending-one',
+              order_ref: 'ORD-PENDING-ONE',
+              status: 'PAID',
+              assignments: [],
+            },
+            {
+              id: 'order-pending-two',
+              order_ref: 'ORD-PENDING-TWO',
+              status: 'PENDING_FULFILLMENT',
+              assignments: [],
+            },
+          ],
+        }),
+      },
+      orderAssignment: {
+        findMany: async () => [],
+      },
+      order: {
+        findMany: async () => [
+          {
+            id: 'order-pending-one',
+            order_ref: 'ORD-PENDING-ONE',
+            status: 'PAID',
+          },
+          {
+            id: 'order-pending-two',
+            order_ref: 'ORD-PENDING-TWO',
+            status: 'PENDING_FULFILLMENT',
+          },
+        ],
+        update: async (args: unknown) => {
+          multiPendingCancelledOrders.push(args);
+          return args;
+        },
+      },
+      adminEvent: {
+        create: async (event: unknown) => event,
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  (multiPendingCancellationService as any).getProfile = async () => ({
+    userNumber: 'SW-MULTI-PENDING',
+    entitlementState: 'FREEMIUM',
+    subscriptionUrl: null,
+  });
+
+  await multiPendingCancellationService.cancelCurrentSubscription({
+    userNumber: 'SW-MULTI-PENDING',
+    deviceId: 'device-multi-pending',
+    reason: 'CUSTOMER_CANCELLED_PENDING_SET',
+  });
+
+  assert(
+    multiPendingCancelledOrders.length === 2,
+    'customer cancellation without active access must cancel every paid pending fulfillment order',
+  );
 
   const revokedProfileService = new CustomerService(
     {
@@ -683,6 +1141,43 @@ async function main() {
   assert(
     structuredFulfillmentFailureEvents.some((event: any) => event.data?.event_type === 'FULFILLMENT_FAILED'),
     'structured inventory fulfillment failures should be audited',
+  );
+
+  const activePaidTrialBlockService = new CustomerService(
+    {
+      customer: {
+        findUnique: async () => ({
+          id: 'customer-active-paid-trial-block',
+          public_id: 'SW-ACTIVE-PAID-TRIAL-BLOCK',
+          device_id: 'device-active-paid-trial-block',
+          email: 'paid-block@example.com',
+          phone: '79000000005',
+        }),
+        update: async (args: unknown) => args,
+      },
+      order: {
+        create: async () => {
+          throw new Error('trial order must not be created while paid access is active');
+        },
+      },
+    } as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  (activePaidTrialBlockService as any).getProfile = async () => ({
+    userNumber: 'SW-ACTIVE-PAID-TRIAL-BLOCK',
+    entitlementState: 'ACTIVE_SUBSCRIPTION',
+  });
+  await assertRejectsWithRpcException(
+    () =>
+      activePaidTrialBlockService.activateTrial({
+        userNumber: 'SW-ACTIVE-PAID-TRIAL-BLOCK',
+        deviceId: 'device-active-paid-trial-block',
+        email: 'paid-block@example.com',
+        phone: '79000000005',
+      }),
+    'trial activation must not create a parallel trial when paid access is active',
   );
 
   const trialFailureOrderUpdates: unknown[] = [];

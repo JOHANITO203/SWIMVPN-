@@ -1191,3 +1191,25 @@ u after each future language batch
 ## 2026-05-19 - Batch 4C follow-up
 - [ ] Live QA: open Profile after fulfilled purchase and confirm active managed config shows host, provider, availability, and load without text overlap.
 - [ ] Live QA: confirm imported configs still show their provider/traffic metadata and do not display backend-only availability hints.
+
+## 2026-05-19 - Access contract live QA follow-up
+- [ ] Live QA: buy an upgrade while Basic is active and confirm Basic remains active until the new fulfillment succeeds.
+- [ ] Live QA: after successful upgrade/downgrade, confirm only the new managed config/servers are exposed and older active assignments no longer appear.
+- [ ] Live QA: cancel after multiple historical purchases and confirm the app returns to freemium with no premium servers from older assignments.
+- [ ] Decide later whether product UX needs explicit prorata/refund messaging; backend currently treats upgrade/downgrade as replacement after successful new purchase.
+
+## 2026-05-19 - Access contract review QA follow-up
+- [ ] Live QA: activate trial on an account with active paid access should not revoke the paid assignment.
+- [ ] Live QA: cancel on an account with more than one active historical assignment should leave no premium servers exposed.
+- [ ] Live QA: cancel with multiple paid/pending fulfillment orders should cancel all pending orders.
+
+## 2026-05-19 - Backend contract final QA follow-up
+- [ ] Live QA: after deploy, replay/fulfill an older active paid assignment and confirm profile + `/servers` still expose it even if it is not among recent orders.
+- [ ] Live QA: report usage from the active device and confirm backend records usage on the active paid assignment when paid and trial records coexist.
+- [ ] Live QA: attempt trial activation on an already paid account and confirm the app receives a clean denial while paid access remains usable.
+- [ ] Contract follow-up: keep Android usage reporting aligned with required `deviceId` if any legacy client build is still in circulation.
+
+## 2026-05-19 - Backend access review QA follow-up
+- [ ] Live QA: retry fulfillment on an older order while a newer paid order is active and confirm the newer paid access is not revoked.
+- [ ] Live QA: if paid and trial coexist, confirm profile and `/servers` both expose the paid config/nodes.
+- [ ] Live QA: inspect a customer with multiple assignments on one order and confirm the active assignment remains authoritative.

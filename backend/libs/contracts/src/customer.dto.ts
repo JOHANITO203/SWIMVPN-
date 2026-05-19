@@ -1,5 +1,64 @@
 import { IsNotEmpty, IsString, IsOptional, IsEmail, IsNumber, Min } from 'class-validator';
 
+export const ENTITLEMENT_STATES = [
+  'PROFILE_INCOMPLETE',
+  'TRIAL_AVAILABLE',
+  'ACTIVE_TRIAL',
+  'ACTIVE_SUBSCRIPTION',
+  'PENDING_FULFILLMENT',
+  'EXPIRED_TRIAL',
+  'EXPIRED_SUBSCRIPTION',
+  'FREEMIUM',
+] as const;
+
+export type EntitlementState = (typeof ENTITLEMENT_STATES)[number];
+export type AccessType = 'TRIAL' | 'PAID' | 'NONE';
+export type FulfillmentStatus = 'NONE' | 'PENDING_FULFILLMENT' | 'DELIVERED';
+export type LegacyProfileStatus = 'ACTIVE' | 'EXPIRED' | EntitlementState;
+
+export interface AccessProfileResponse {
+  userNumber: string;
+  email: string | null;
+  phone: string | null;
+  accessType: AccessType;
+  offerCode: string | null;
+  planDisplayName: string | null;
+  planType: AccessType;
+  status: LegacyProfileStatus;
+  entitlementState: EntitlementState;
+  trialStartedAt: string | null;
+  trialExpiresAt: string | null;
+  subscriptionExpiresAt: string | null;
+  subscriptionUrl: string | null;
+  devicesAllowed: number;
+  fulfillmentStatus: FulfillmentStatus;
+  dataLimitGB: number;
+  dataUsedBytes: string;
+  supplierProviderName: string | null;
+  supplierExpiresAt: string | null;
+  profileCompletionRequired: boolean;
+  trialEligible: boolean;
+}
+
+export interface BootstrapAccessResponse {
+  userNumber: string;
+  email: string | null;
+  phone: string | null;
+  trialEligible: boolean;
+  profileCompletionRequired: boolean;
+  hasActiveAccess: boolean;
+  profile: AccessProfileResponse;
+}
+
+export interface CheckoutResponse {
+  orderRef: string;
+  status: string;
+  amountRub: string;
+  paymentMethod: 'CRYPTO' | 'CARD_MANUAL' | 'SWIMPAY';
+  redirectUrl: string | null;
+  message: string;
+}
+
 export class BootstrapAccessDto {
   @IsString()
   @IsNotEmpty()
@@ -145,6 +204,6 @@ export class ReportUsageDto {
   measuredUsedBytes: string;
 
   @IsString()
-  @IsOptional()
-  deviceId?: string;
+  @IsNotEmpty()
+  deviceId: string;
 }

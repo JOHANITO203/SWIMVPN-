@@ -160,7 +160,6 @@ export class StoreService {
             status: { in: ['FULFILLED', 'PAID', 'PENDING_FULFILLMENT'] },
           },
           orderBy: { created_at: 'desc' },
-          take: 10,
           include: {
             assignments: {
               where: { access_status: 'ACTIVE' },
@@ -184,8 +183,60 @@ export class StoreService {
       return [];
     }
 
-    const latestOrder = customer.orders.find((order) => order.assignments.length > 0);
-    const activeAssignment = latestOrder?.assignments[0];
+    const directActiveAssignments =
+      typeof (this.prisma as any).orderAssignment?.findMany === 'function'
+        ? await this.prisma.orderAssignment.findMany({
+            where: {
+              customer_id: customer.id,
+              access_status: 'ACTIVE',
+              order: {
+                status: { in: ['FULFILLED', 'PAID', 'PENDING_FULFILLMENT'] },
+              },
+            },
+            orderBy: { assigned_at: 'desc' },
+            include: {
+              inventory_item: true,
+              order: {
+                include: { plan: true },
+              },
+            },
+          })
+        : typeof (this.prisma as any).orderAssignment?.findFirst === 'function'
+          ? [
+              await this.prisma.orderAssignment.findFirst({
+                where: {
+                  customer_id: customer.id,
+                  access_status: 'ACTIVE',
+                  order: {
+                    status: { in: ['FULFILLED', 'PAID', 'PENDING_FULFILLMENT'] },
+                  },
+                },
+                orderBy: { assigned_at: 'desc' },
+                include: {
+                  inventory_item: true,
+                  order: {
+                    include: { plan: true },
+                  },
+                },
+              }),
+            ].filter(Boolean)
+          : [];
+    const directCandidates = directActiveAssignments.map((assignment: any) => ({
+      order: assignment.order,
+      assignment,
+    }));
+    const fallbackCandidates = customer.orders
+      .filter((order) => order.assignments.length > 0)
+      .map((order) => ({
+        order,
+        assignment: order.assignments[0],
+      }));
+    const activeCandidates = directCandidates.length > 0 ? directCandidates : fallbackCandidates;
+    const selectedCandidate =
+      activeCandidates.find((candidate) => !this.isTrialOrder(candidate.order)) ||
+      activeCandidates.find((candidate) => this.isTrialOrder(candidate.order));
+    const latestOrder = selectedCandidate?.order;
+    const activeAssignment = selectedCandidate?.assignment;
     const inventoryItem = activeAssignment?.inventory_item;
 
     // If there is no active assignment or the access is expired, block premium servers
@@ -208,7 +259,7 @@ export class StoreService {
     }
 
     // Paid access expiration is supplier-managed. Trials keep the local short window.
-    const isTrial = latestOrder.order_ref.startsWith('TRIAL-') || latestOrder.payment_ref === 'TRIAL:3D';
+    const isTrial = this.isTrialOrder(latestOrder);
     const providerExpiresAt = activeAssignment.expires_at || inventoryItem.supplier_expires_at;
     const trialExpiresAt =
       isTrial && latestOrder.fulfilled_at
@@ -367,5 +418,9 @@ export class StoreService {
     }
 
     return first.getTime() <= second.getTime() ? first : second;
+  }
+
+  private isTrialOrder(order?: { order_ref?: string | null; payment_ref?: string | null }) {
+    return !!order && (order.order_ref?.startsWith('TRIAL-') || order.payment_ref === 'TRIAL:3D');
   }
 }

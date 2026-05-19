@@ -1,6 +1,28 @@
 import { Controller, Post, Get, Body, Inject, UseGuards, Req, Headers } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import {
+  AdminLoginDto,
+  CreatePlanDto,
+  GenerateSwimCryptImportDto,
+  MoveAssignmentDto,
+  RetryFulfillmentDto,
+  RevokeAssignmentDto,
+  TriggerImportDto,
+  UpdateInventoryHealthDto,
+} from '@app/contracts';
 import { AdminGuard } from '../admin.guard';
+
+interface AdminRequest {
+  admin: {
+    id: string;
+  };
+}
+
+type TriggerImportBody = Omit<TriggerImportDto, 'adminId'>;
+type UpdateInventoryHealthBody = Omit<UpdateInventoryHealthDto, 'adminId'>;
+type RevokeAssignmentBody = Omit<RevokeAssignmentDto, 'adminId'>;
+type MoveAssignmentBody = Omit<MoveAssignmentDto, 'adminId'>;
+type RetryFulfillmentBody = Omit<RetryFulfillmentDto, 'adminId'>;
 
 @Controller('admin')
 export class AdminController {
@@ -10,13 +32,13 @@ export class AdminController {
   ) {}
 
   @Post('login')
-  login(@Body() data: any) {
+  login(@Body() data: AdminLoginDto) {
     return this.adminClient.send({ cmd: 'admin_login' }, data);
   }
 
   @UseGuards(AdminGuard)
   @Post('plans')
-  createPlan(@Body() data: any, @Req() req: any) {
+  createPlan(@Body() data: CreatePlanDto, @Req() req: AdminRequest) {
     return this.adminClient.send({ cmd: 'create_plan' }, { ...data, adminId: req.admin.id });
   }
 
@@ -28,7 +50,7 @@ export class AdminController {
 
   @UseGuards(AdminGuard)
   @Post('import')
-  importConfigs(@Body() data: any, @Req() req: any) {
+  importConfigs(@Body() data: TriggerImportBody, @Req() req: AdminRequest) {
     return this.adminClient.send({ cmd: 'trigger_import' }, { ...data, adminId: req.admin.id });
   }
 
@@ -40,31 +62,31 @@ export class AdminController {
 
   @UseGuards(AdminGuard)
   @Post('inventory/health')
-  updateInventoryHealth(@Body() data: any, @Req() req: any) {
+  updateInventoryHealth(@Body() data: UpdateInventoryHealthBody, @Req() req: AdminRequest) {
     return this.adminClient.send({ cmd: 'update_inventory_health' }, { ...data, adminId: req.admin.id });
   }
 
   @UseGuards(AdminGuard)
   @Post('assignments/revoke')
-  revokeAssignment(@Body() data: any, @Req() req: any) {
+  revokeAssignment(@Body() data: RevokeAssignmentBody, @Req() req: AdminRequest) {
     return this.adminClient.send({ cmd: 'revoke_assignment' }, { ...data, adminId: req.admin.id });
   }
 
   @UseGuards(AdminGuard)
   @Post('assignments/move')
-  moveAssignment(@Body() data: any, @Req() req: any) {
+  moveAssignment(@Body() data: MoveAssignmentBody, @Req() req: AdminRequest) {
     return this.adminClient.send({ cmd: 'move_assignment' }, { ...data, adminId: req.admin.id });
   }
 
   @UseGuards(AdminGuard)
   @Post('orders/retry-fulfillment')
-  retryFulfillment(@Body() data: any, @Req() req: any) {
+  retryFulfillment(@Body() data: RetryFulfillmentBody, @Req() req: AdminRequest) {
     return this.adminClient.send({ cmd: 'retry_fulfillment' }, { ...data, adminId: req.admin.id });
   }
 
   @UseGuards(AdminGuard)
   @Post('crypt-import')
-  generateCryptImport(@Body() data: any) {
+  generateCryptImport(@Body() data: GenerateSwimCryptImportDto) {
     return this.vpnConfigClient.send({ cmd: 'generate_swim_crypt_import' }, data);
   }
 
