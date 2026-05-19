@@ -512,10 +512,7 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 22.sp
                     )
-                    metadata.serverHost
-                        ?.takeIf { metadata.source != ActiveConfigSource.SWIMVPN_MANAGED }
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let { host ->
+                    metadata.serverHost?.takeIf { it.isNotBlank() }?.let { host ->
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = host,
@@ -549,13 +546,30 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
             }
 
             metadata.providerName
-                ?.takeIf { metadata.source != ActiveConfigSource.SWIMVPN_MANAGED }
                 ?.takeIf { it.isNotBlank() }
                 ?.let { providerName ->
                 Spacer(modifier = Modifier.height(20.dp))
                 MetadataRow(
                     label = stringResource(R.string.active_config_provider),
                     value = providerName
+                )
+            }
+
+            metadata.availabilityStatus
+                ?.takeIf { it.isNotBlank() }
+                ?.let { availabilityStatus ->
+                    Spacer(modifier = Modifier.height(16.dp))
+                    MetadataRow(
+                        label = stringResource(R.string.active_config_availability),
+                        value = localizedAvailabilityStatus(availabilityStatus)
+                    )
+                }
+
+            metadata.loadPercent?.let { loadPercent ->
+                Spacer(modifier = Modifier.height(16.dp))
+                MetadataRow(
+                    label = stringResource(R.string.active_config_load),
+                    value = stringResource(R.string.active_config_load_percent, loadPercent)
                 )
             }
 
@@ -568,6 +582,19 @@ private fun ActiveConfigCard(metadata: ActiveConfigMetadata) {
             }
         }
     }
+}
+
+@Composable
+private fun localizedAvailabilityStatus(status: String): String {
+    return when (normalizeAvailabilityStatus(status)) {
+        "CONGESTED" -> stringResource(R.string.active_config_availability_congested)
+        "AVAILABLE" -> stringResource(R.string.active_config_availability_available)
+        else -> status
+    }
+}
+
+internal fun normalizeAvailabilityStatus(status: String): String {
+    return status.trim().uppercase(Locale.ROOT)
 }
 
 @Composable
@@ -1006,13 +1033,16 @@ private fun formatMetadataExpiry(expiresAt: String): String {
         "yyyy-MM-dd'T'HH:mm:ss"
     )
     for (pattern in formats) {
-        runCatching {
+        val formatted = runCatching {
             val parser = SimpleDateFormat(pattern, Locale.US).apply {
                 timeZone = TimeZone.getTimeZone("UTC")
             }
             val parsedDate = parser.parse(expiresAt) ?: return@runCatching null
-            return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(parsedDate)
-        }.getOrNull()?.let { return it }
+            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(parsedDate)
+        }.getOrNull()
+        if (formatted != null) {
+            return formatted
+        }
     }
     return expiresAt
 }

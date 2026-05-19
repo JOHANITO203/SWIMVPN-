@@ -225,6 +225,89 @@ class AdaptiveDecisionAgentTest {
     }
 
     @Test
+    fun `backend load breaks close latency tie toward less congested node`() {
+        val now = 260_000L
+
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "high-load",
+                    ping = 40,
+                    latencyMeasuredAtMs = now - 2_000L,
+                    load = 95,
+                ),
+                candidate(
+                    id = "low-load",
+                    ping = 55,
+                    latencyMeasuredAtMs = now - 2_000L,
+                    load = 10,
+                ),
+            ),
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("low-load", selected?.serverId)
+    }
+
+    @Test
+    fun `congested backend node loses to available node when latency is close`() {
+        val now = 270_000L
+
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "congested",
+                    ping = 40,
+                    latencyMeasuredAtMs = now - 2_000L,
+                    load = 0,
+                    availabilityStatus = "CONGESTED",
+                ),
+                candidate(
+                    id = "available",
+                    ping = 60,
+                    latencyMeasuredAtMs = now - 2_000L,
+                    load = 10,
+                    availabilityStatus = "AVAILABLE",
+                ),
+            ),
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("available", selected?.serverId)
+    }
+
+    @Test
+    fun `unknown backend load is not treated as zero load`() {
+        val now = 280_000L
+
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "unknown-load",
+                    ping = 42,
+                    latencyMeasuredAtMs = now - 2_000L,
+                    load = null,
+                ),
+                candidate(
+                    id = "known-low-load",
+                    ping = 55,
+                    latencyMeasuredAtMs = now - 2_000L,
+                    load = 10,
+                ),
+            ),
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("known-low-load", selected?.serverId)
+    }
+
+    @Test
     fun `old failure history decays so recovered low latency server can be selected`() {
         val selected = AdaptiveDecisionAgent.selectBestServer(
             candidates = listOf(
@@ -285,6 +368,7 @@ class AdaptiveDecisionAgentTest {
         latencyMeasuredAtMs: Long = 0L,
         latencyProbeFailed: Boolean = false,
         load: Int? = null,
+        availabilityStatus: String? = null,
     ) = ServerDecisionCandidate(
         serverId = id,
         pingMs = ping,
@@ -294,5 +378,6 @@ class AdaptiveDecisionAgentTest {
         latencyMeasuredAtMs = latencyMeasuredAtMs,
         latencyProbeFailed = latencyProbeFailed,
         load = load,
+        availabilityStatus = availabilityStatus,
     )
 }

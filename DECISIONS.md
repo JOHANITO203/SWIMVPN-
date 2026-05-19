@@ -1031,3 +1031,13 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: the Android IA indicator is shown only for the deterministic recommended server when its latency probe is fresh and successful.
 - Reason: the recommendation should polish selection and ordering without becoming a hidden entitlement bypass or an unsafe auto-switch.
 - Consequence: backend entitlement remains authoritative, premium-blocked/configless candidates are ignored, fresh failed probes are excluded from recommendation/fallback, and stale/missing probe states do not receive the green IA badge.
+
+## 2026-05-19 - Backend node capacity is a bandit hint, not speed truth
+- Decision: store-engine may expose assigned source capacity hints (`load`, traffic totals, availability status) with entitled backend nodes, but must not invent throughput or geography precision.
+- Reason: PostgreSQL inventory has reliable quota/health data today, while true speed and user-distance signals still require live measurement.
+- Consequence: Android can penalize highly loaded or congested backend nodes conservatively, unknown load is not treated as zero load, and future speed/geography scoring remains blocked on measured signals.
+
+## 2026-05-19 - Profile separates plan quota from active node hints
+- Decision: the Profile access card remains the plan/quota source, while the active config card shows selected managed-node details such as host, provider, availability, and load.
+- Reason: quota is business entitlement truth, while node hints describe routing quality for the currently selected fulfillment.
+- Consequence: users can see which managed node is active without confusing provider capacity hints with their paid plan quota.

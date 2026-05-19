@@ -193,7 +193,7 @@ data class ServerNode(
     val tags: List<String>,
     val planScope: String,
     val countryCode: String? = null,
-    val load: Int = 0,
+    val load: Int? = null,
     val ping: Int = 0,
     val latencyMeasuredAtMs: Long = 0L,
     val latencyProbeFailed: Boolean = false,
@@ -203,8 +203,9 @@ data class ServerNode(
     val source: String? = null,
     val isPinned: Boolean = false,
     val providerName: String? = null,
-    val trafficUsedBytes: Long? = null,
-    val trafficTotalBytes: Long? = null,
+    val availabilityStatus: String? = null,
+    val trafficUsedBytes: String? = null,
+    val trafficTotalBytes: String? = null,
     val expiresAt: String? = null,
 )
 

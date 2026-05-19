@@ -1178,3 +1178,16 @@ u after each future language batch
 ## 2026-05-19 - Batch 4A review QA follow-up
 - [ ] Live QA: create a probe failure case and confirm no IA badge is displayed for that node.
 - [ ] Live QA: confirm the active server card shows IA only when the active server id matches the validated recommended server id.
+
+## 2026-05-19 - Batch 4B follow-up
+- [ ] Live QA after backend redeploy: confirm `/api/v1/servers` returns `load`, `trafficUsedBytes`, `trafficTotalBytes`, and `availabilityStatus` only for entitled active users.
+- [ ] Add real speed/throughput measurement before scoring speed; do not infer speed from protocol, country, or provider name.
+- [ ] Define user geography signal separately from supplier display names before using distance in the bandit.
+
+## 2026-05-19 - Batch 4B review follow-up
+- [ ] Live QA: verify `CONGESTED` backend nodes are not shown with the green IA badge when an available node has close latency.
+- [ ] Live QA: verify imported nodes show neutral/unknown load rather than a misleading zero-load signal.
+
+## 2026-05-19 - Batch 4C follow-up
+- [ ] Live QA: open Profile after fulfilled purchase and confirm active managed config shows host, provider, availability, and load without text overlap.
+- [ ] Live QA: confirm imported configs still show their provider/traffic metadata and do not display backend-only availability hints.

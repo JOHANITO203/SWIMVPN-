@@ -98,6 +98,10 @@ async function main() {
   );
   assert(servers[1].host === 'assigned-two.example', 'second server host should come from assigned raw config');
   assert(servers[0].source === 'backend', 'assigned premium server should be marked backend source');
+  assert(servers[0].load === 0, 'server load should reflect source quota usage percent');
+  assert(servers[0].trafficUsedBytes === '1', 'server should expose source used bytes as a JSON-safe string');
+  assert(servers[0].trafficTotalBytes === '1000', 'server should expose source quota bytes as a JSON-safe string');
+  assert(servers[0].availabilityStatus === 'AVAILABLE', 'healthy assigned source should expose available status');
 
   rawConfig = 'https://wb.routerwb.ru/jtz5386jCHkztYRZ';
   const subscriptionUrlServers = await new StoreService({
@@ -152,6 +156,7 @@ async function main() {
   healthStatus = 'FULL';
   const fullServers = await service.getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });
   assert(fullServers.length === 2, 'FULL inventory should still serve already assigned active customers');
+  assert(fullServers[0].availabilityStatus === 'CONGESTED', 'FULL assigned source should be exposed as congested but usable');
 
   healthStatus = 'EXPIRED';
   const expiredServers = await service.getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });

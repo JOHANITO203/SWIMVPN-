@@ -242,9 +242,17 @@ export class StoreService {
         tags: ['ASSIGNED', 'PREMIUM'],
         planScope: 'PREMIUM',
         countryCode: null,
+        load: this.sourceLoadPercent(inventoryItem.source_quota_bytes, inventoryItem.source_used_bytes),
         rawConfig: node.rawConfig,
         source: 'backend',
         providerName: inventoryItem.supplier_provider_name,
+        trafficUsedBytes: this.bigIntString(inventoryItem.source_used_bytes),
+        trafficTotalBytes: this.bigIntString(inventoryItem.source_quota_bytes),
+        availabilityStatus: this.availabilityStatus(
+          inventoryItem.health_status,
+          inventoryItem.source_quota_bytes,
+          inventoryItem.source_used_bytes,
+        ),
         expiresAt: (activeAssignment.expires_at || inventoryItem.supplier_expires_at)?.toISOString() || null,
       };
     });
@@ -293,6 +301,32 @@ export class StoreService {
     }
 
     return (sourceUsedBytes ?? 0n) >= sourceQuotaBytes;
+  }
+
+  private sourceLoadPercent(sourceQuotaBytes?: bigint | null, sourceUsedBytes?: bigint | null) {
+    if (!sourceQuotaBytes || sourceQuotaBytes <= 0n) {
+      return 0;
+    }
+
+    const used = sourceUsedBytes ?? 0n;
+    const percent = Number((used * 100n) / sourceQuotaBytes);
+    return Math.max(0, Math.min(100, percent));
+  }
+
+  private bigIntString(value?: bigint | null) {
+    return value === null || value === undefined ? null : value.toString();
+  }
+
+  private availabilityStatus(
+    healthStatus: string,
+    sourceQuotaBytes?: bigint | null,
+    sourceUsedBytes?: bigint | null,
+  ) {
+    if (healthStatus === 'FULL' || this.sourceLoadPercent(sourceQuotaBytes, sourceUsedBytes) >= 90) {
+      return 'CONGESTED';
+    }
+
+    return 'AVAILABLE';
   }
 
   private parseQuotaLabelToGb(quotaLabel: string) {

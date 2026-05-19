@@ -121,6 +121,11 @@
     <string name="active_config_expiration">Config expiration</string>
     <string name="active_config_quota">Config quota</string>
     <string name="active_config_usage">Config usage</string>
+    <string name="active_config_availability">Availability</string>
+    <string name="active_config_availability_available">Available</string>
+    <string name="active_config_availability_congested">Busy</string>
+    <string name="active_config_load">Node load</string>
+    <string name="active_config_load_percent">%1$d%%</string>
     <string name="profile_email_format">Email • %1$s</string>
     <string name="profile_phone_format">Phone • %1$s</string>
     <string name="profile_contact_missing">No contact details on file yet.</string>

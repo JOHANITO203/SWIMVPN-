@@ -1309,6 +1309,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             latencyMeasuredAtMs = latencyMeasuredAtMs,
             latencyProbeFailed = latencyProbeFailed,
             load = load,
+            availabilityStatus = availabilityStatus,
         )
     }
 
@@ -1611,7 +1612,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ),
             planScope = profile.offerCode ?: "PREMIUM",
             countryCode = null,
-            load = 0,
             ping = 0,
             groupId = "backend:${profile.userNumber}:${sourceBundleId ?: id}",
             groupName = groupName,
@@ -1619,8 +1619,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             source = "backend",
             isPinned = isPinned,
             providerName = subscriptionProviderName,
-            trafficUsedBytes = subscriptionTrafficUsedBytes,
-            trafficTotalBytes = subscriptionTrafficTotalBytes,
+            trafficUsedBytes = subscriptionTrafficUsedBytes?.toString(),
+            trafficTotalBytes = subscriptionTrafficTotalBytes?.toString(),
             expiresAt = subscriptionExpiresAt,
         )
     }
@@ -1643,7 +1643,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ),
             planScope = "imported",
             countryCode = null,
-            load = 0,
             ping = 0,
             groupId = sourceBundleId ?: id,
             groupName = groupName,

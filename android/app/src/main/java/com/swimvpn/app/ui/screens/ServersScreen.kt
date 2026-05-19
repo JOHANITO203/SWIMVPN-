@@ -234,7 +234,7 @@ fun ServerItem(
                     )
                 }
                 CircularProgressIndicator(
-                    progress = { server.load / 100f },
+                    progress = { (server.load ?: 0) / 100f },
                     modifier = Modifier.size(24.dp),
                     color = getLoadColor(server.load),
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -307,7 +307,8 @@ fun getPingColor(ping: Int): Color = when {
 }
 
 @Composable
-fun getLoadColor(load: Int): Color = when {
+fun getLoadColor(load: Int?): Color = when {
+    load == null -> MaterialTheme.colorScheme.outline
     load < 50 -> MaterialTheme.colorScheme.primary
     load < 80 -> MaterialTheme.colorScheme.secondary
     else -> MaterialTheme.colorScheme.error

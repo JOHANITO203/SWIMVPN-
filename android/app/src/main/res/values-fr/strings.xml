@@ -121,6 +121,11 @@
     <string name="active_config_expiration">Expiration de la configuration</string>
     <string name="active_config_quota">Quota de la configuration</string>
     <string name="active_config_usage">Utilisation de la configuration</string>
+    <string name="active_config_availability">Disponibilité</string>
+    <string name="active_config_availability_available">Disponible</string>
+    <string name="active_config_availability_congested">Chargé</string>
+    <string name="active_config_load">Charge du noeud</string>
+    <string name="active_config_load_percent">%1$d%%</string>
     <string name="profile_email_format">Email • %1$s</string>
     <string name="profile_phone_format">Téléphone • %1$s</string>
     <string name="profile_contact_missing">Aucun contact enregistré pour le moment.</string>

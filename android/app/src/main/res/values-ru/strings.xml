@@ -121,6 +121,11 @@
     <string name="active_config_expiration">Срок конфигурации</string>
     <string name="active_config_quota">Квота конфигурации</string>
     <string name="active_config_usage">Использование конфигурации</string>
+    <string name="active_config_availability">Доступность</string>
+    <string name="active_config_availability_available">Доступен</string>
+    <string name="active_config_availability_congested">Загружен</string>
+    <string name="active_config_load">Нагрузка узла</string>
+    <string name="active_config_load_percent">%1$d%%</string>
     <string name="profile_email_format">Email • %1$s</string>
     <string name="profile_phone_format">Телефон • %1$s</string>
     <string name="profile_contact_missing">Контактные данные пока не заполнены.</string>

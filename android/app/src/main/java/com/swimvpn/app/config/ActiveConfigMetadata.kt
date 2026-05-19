@@ -27,6 +27,8 @@ data class ActiveConfigMetadata(
     val serverHost: String? = null,
     val trafficUsedBytes: Long? = null,
     val trafficTotalBytes: Long? = null,
+    val availabilityStatus: String? = null,
+    val loadPercent: Int? = null,
     val expiresAt: String? = null,
     val warnings: List<String> = emptyList(),
 ) {
@@ -137,8 +139,10 @@ data class ActiveConfigMetadata(
                 protocol = server.protocol.takeIf { it.isNotBlank() },
                 serverHost = server.host.takeIf { it.isNotBlank() },
                 providerName = server.providerName,
-                trafficUsedBytes = server.trafficUsedBytes,
-                trafficTotalBytes = server.trafficTotalBytes,
+                trafficUsedBytes = parseTrafficByteString(server.trafficUsedBytes),
+                trafficTotalBytes = parseTrafficByteString(server.trafficTotalBytes),
+                availabilityStatus = server.availabilityStatus,
+                loadPercent = server.load?.coerceIn(0, 100),
                 expiresAt = server.expiresAt,
             )
         }
@@ -166,6 +170,10 @@ data class ActiveConfigMetadata(
                 trafficTotalBytes = totalBytes,
                 expiresAt = profile.effectiveExpiryAt,
             )
+        }
+
+        private fun parseTrafficByteString(value: String?): Long? {
+            return value?.trim()?.takeIf { it.isNotEmpty() }?.toLongOrNull()?.takeIf { it >= 0L }
         }
     }
 }

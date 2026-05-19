@@ -116,6 +116,55 @@ class ActiveConfigMetadataMappingTest {
     }
 
     @Test
+    fun `managed server metadata includes fulfillment node health hints`() {
+        val metadata = ActiveConfigMetadata.fromManagedServer(
+            server = ServerNode(
+                id = "backend-node-health",
+                country = "Premium Servers",
+                city = "NL Edge",
+                host = "nl.example.com",
+                port = 443,
+                protocol = "vless",
+                tags = listOf("managed"),
+                planScope = "month",
+                source = "backend",
+                providerName = "VlessWB",
+                availabilityStatus = "CONGESTED",
+                load = 92,
+            ),
+            isActive = true,
+        )
+
+        assertEquals("nl.example.com", metadata.serverHost)
+        assertEquals("VlessWB", metadata.providerName)
+        assertEquals("CONGESTED", metadata.availabilityStatus)
+        assertEquals(92, metadata.loadPercent)
+    }
+
+    @Test
+    fun `managed server metadata parses JSON-safe traffic byte strings defensively`() {
+        val metadata = ActiveConfigMetadata.fromManagedServer(
+            server = ServerNode(
+                id = "backend-node-traffic",
+                country = "Premium Servers",
+                city = "NL Edge",
+                host = "nl.example.com",
+                port = 443,
+                protocol = "vless",
+                tags = listOf("managed"),
+                planScope = "month",
+                source = "backend",
+                trafficUsedBytes = "7",
+                trafficTotalBytes = "9223372036854775808",
+            ),
+            isActive = true,
+        )
+
+        assertEquals(7L, metadata.trafficUsedBytes)
+        assertNull(metadata.trafficTotalBytes)
+    }
+
+    @Test
     fun `managed active config uses resolved premium node name but plan quota truth`() {
         val profile = com.swimvpn.app.data.network.AccessProfileResponse(
             userNumber = "SW-TEST",
@@ -154,8 +203,8 @@ class ActiveConfigMetadataMappingTest {
                 source = "backend",
                 rawConfig = "vless://11111111-1111-1111-1111-111111111111@nl.example.com:443?security=tls#VlessWB%20NL",
                 providerName = "VlessWB",
-                trafficUsedBytes = 7L,
-                trafficTotalBytes = 100L,
+                trafficUsedBytes = "7",
+                trafficTotalBytes = "100",
                 expiresAt = "2026-05-21T00:00:00Z",
             ),
         )

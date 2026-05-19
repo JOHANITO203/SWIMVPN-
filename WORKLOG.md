@@ -2924,3 +2924,26 @@ pm run build PASSED.
 - Replaced the IA UI string-state contract with a boolean `isRecommendedServerValidated` flag to avoid silent badge regressions from string typos.
 - Added adaptive regression tests for fresh failed probe exclusion and `recommendServer` fresh quality-state exposure.
 - Verification: targeted adaptive test, full Android debug unit tests, compileDebugKotlin, assembleDebug, and git diff --check passed.
+
+## 2026-05-19 - Batch 4B backend capacity hints for IA
+- Store-engine now exposes entitled backend node capacity hints: source load percent, JSON-safe traffic used/total bytes, and availability status.
+- Android accepts the availability status field and uses backend load as a conservative scoring penalty in the adaptive recommendation engine.
+- No fake throughput, user geolocation, migration, or entitlement bypass was introduced; hints are returned only after the existing premium server barriers pass.
+- Verification: targeted store policy test, backend lint, backend build:all, backend test:policy, targeted adaptive test, Android debug unit tests, Android assembleDebug, and git diff --check passed.
+
+## 2026-05-19 - Batch 4B review fixes
+- Adaptive recommendation now applies the backend `availabilityStatus` hint, so `CONGESTED` nodes are penalized even when quota load is numerically low.
+- Android now treats missing load as unknown instead of zero load; imported/local legacy nodes no longer get a fake zero-load advantage.
+- Backend traffic bytes remain JSON-safe strings, and Android parses managed server traffic strings defensively before exposing active config metadata.
+- Verification: targeted adaptive and metadata tests, store policy test, backend lint/build:all/test:policy, Android debug unit tests, Android assembleDebug passed.
+
+## 2026-05-19 - Batch 4C Plan/Quota fulfillment visibility
+- Active managed config metadata now carries backend fulfillment health hints: provider, host, availability status, and node load.
+- Profile active-config card now shows managed node host/provider plus availability/load instead of hiding those details for SWIMVPN-managed nodes.
+- Kept plan quota truth in the access card and node/provider hints in the active config card to avoid mixing business quota with routing quality.
+- Verification: targeted ActiveConfigMetadataMappingTest, Android debug unit tests, Android assembleDebug, and git diff --check passed.
+
+## 2026-05-19 - Batch 4C review fix
+- Fixed managed node availability status normalization to use Locale.ROOT so backend status codes translate consistently across device locales.
+- Added a unit test covering Turkish locale behavior for lowercase availability status values.
+- Verification: targeted availability/metadata tests, Android debug unit tests, Android assembleDebug passed.

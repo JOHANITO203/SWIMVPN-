@@ -11,6 +11,7 @@ data class ServerDecisionCandidate(
     val latencyMeasuredAtMs: Long = 0L,
     val latencyProbeFailed: Boolean = false,
     val load: Int? = null,
+    val availabilityStatus: String? = null,
 )
 
 data class ServerQualityScore(
@@ -62,6 +63,9 @@ object AdaptiveDecisionAgent {
     private const val MISSING_PING_PENALTY = 300
     private const val FRESH_PROBE_FAILED_PENALTY = 1_000
     private const val PINNED_REWARD = 5
+    private const val LOAD_PENALTY_DIVISOR = 2
+    private const val UNKNOWN_LOAD_PENALTY = 20
+    private const val CONGESTED_AVAILABILITY_PENALTY = 50
     private val BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
 
     fun recordFailure(
@@ -185,6 +189,8 @@ object AdaptiveDecisionAgent {
         val qualityState = qualityState(candidate, nowMs)
         val totalScore = normalizedPing(candidate.pingMs) +
             qualityPenalty(qualityState) +
+            loadPenalty(candidate.load) +
+            availabilityPenalty(candidate.availabilityStatus) +
             historyPenalty(score, nowMs) -
             if (candidate.isPinned) PINNED_REWARD else 0
 
@@ -227,6 +233,19 @@ object AdaptiveDecisionAgent {
             ServerRuntimeQualityState.STALE -> STALE_LATENCY_PENALTY
             ServerRuntimeQualityState.MISSING_PING -> MISSING_PING_PENALTY
             ServerRuntimeQualityState.FRESH_PROBE_FAILED -> FRESH_PROBE_FAILED_PENALTY
+        }
+    }
+
+    private fun loadPenalty(load: Int?): Int {
+        val normalizedLoad = load?.coerceIn(0, 100) ?: return UNKNOWN_LOAD_PENALTY
+        return normalizedLoad / LOAD_PENALTY_DIVISOR
+    }
+
+    private fun availabilityPenalty(availabilityStatus: String?): Int {
+        return if (availabilityStatus.equals("CONGESTED", ignoreCase = true)) {
+            CONGESTED_AVAILABILITY_PENALTY
+        } else {
+            0
         }
     }
 
