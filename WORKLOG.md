@@ -3015,4 +3015,4 @@ pm run build PASSED.
 - Trial Store server load remains `null` when the backend has no measured capacity signal instead of exposing a fake zero-load value.
 - Android pending fulfillment refresh now uses the shared pending policy and is wired directly after `activateTrial()` success.
 - Trial identity and one-assignment-per-grant guards were moved into a separate additive migration after the Trial Store foundation migration.
-- Verification: targeted customer/store policy tests, targeted Android pending-refresh test, Prisma validate/generate passed; broad verification was run after this note batch.
+- Verification: targeted customer/store policy tests, targeted Android pending-refresh test, Prisma validate/generate, backend lint/build/policy, Android debug tests/build, local Docker `prisma:migrate:deploy`, and local Docker `prisma:migrate:status` passed.
