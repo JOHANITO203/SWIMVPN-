@@ -63,6 +63,29 @@ class AdaptiveDecisionAgentTest {
     }
 
     @Test
+    fun `old failure history decays so recovered low latency server can be selected`() {
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate("recovered", ping = 30),
+                candidate("slow", ping = 220),
+            ),
+            scores = mapOf(
+                "recovered" to ServerQualityScore(
+                    serverId = "recovered",
+                    failureCount = 6,
+                    consecutiveFailures = 3,
+                    lastFailureAtMs = 10_000L,
+                    avoidUntilMs = 610_000L,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = 3_700_000L,
+        )
+
+        assertEquals("recovered", selected?.serverId)
+    }
+
+    @Test
     fun `max reconnect attempts stops adaptive loop`() {
         val action = AdaptiveDecisionAgent.planAfterFailure(
             currentServerId = "server-a",

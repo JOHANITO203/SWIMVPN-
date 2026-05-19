@@ -61,6 +61,8 @@
     <string name="runtime_diag_tun2socks_session">Сессия tun2socks: %1$s</string>
     <string name="runtime_diag_tun2socks_log">Лог tun2socks: %1$s</string>
     <string name="runtime_diag_last_error">Последняя ошибка: %1$s</string>
+    <string name="runtime_diag_disconnect_cause">Причина последнего отключения: %1$s</string>
+    <string name="runtime_diag_reconnect_count">Попытки переподключения: %1$d</string>
     <string name="scanner_opening">Открытие сканера...</string>
     <string name="scanner_empty">QR-код пуст</string>
     <string name="scanner_unavailable">Сканер недоступен на этом устройстве</string>

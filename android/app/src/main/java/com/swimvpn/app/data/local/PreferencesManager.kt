@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeModePreference
 import com.swimvpn.app.vpn.ThemeMode
+import com.swimvpn.app.vpn.VpnNotificationLanguage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -42,6 +43,7 @@ class PreferencesManager(private val context: Context) {
         val LAST_RUNTIME_PROTOCOL_KEY = stringPreferencesKey("last_runtime_protocol")
         val LAST_RUNTIME_CONFIG_KEY = stringPreferencesKey("last_runtime_config")
         val LAST_RUNTIME_MODE_KEY = stringPreferencesKey("last_runtime_mode")
+        const val DEFAULT_LANGUAGE = VpnNotificationLanguage.DEFAULT_LANGUAGE
     }
 
     val userNumberFlow: Flow<String?> = context.dataStore.data
@@ -62,7 +64,7 @@ class PreferencesManager(private val context: Context) {
         .map { preferences -> preferences[AUTO_CONNECT_KEY] ?: false }
 
     val languageFlow: Flow<String> = context.dataStore.data
-        .map { preferences -> preferences[LANGUAGE_KEY] ?: "en" }
+        .map { preferences -> preferences[LANGUAGE_KEY] ?: DEFAULT_LANGUAGE }
 
     val themeModeFlow: Flow<ThemeMode> = context.dataStore.data
         .map { preferences -> ThemeMode.fromPersisted(preferences[THEME_MODE_KEY]) }
@@ -95,7 +97,7 @@ class PreferencesManager(private val context: Context) {
     }
 
     suspend fun setLanguage(lang: String) {
-        context.dataStore.edit { preferences -> preferences[LANGUAGE_KEY] = lang }
+        context.dataStore.edit { preferences -> preferences[LANGUAGE_KEY] = VpnNotificationLanguage.normalize(lang) }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {

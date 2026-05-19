@@ -159,7 +159,8 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
   }
 
   async fulfillOrder(orderId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const postCommitEffects: Array<() => void> = [];
+    const result = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
         include: {
@@ -178,7 +179,8 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         !order ||
         (order.status !== OrderStatus.PENDING &&
           order.status !== OrderStatus.PAID &&
-          order.status !== OrderStatus.PENDING_FULFILLMENT)
+          order.status !== OrderStatus.PENDING_FULFILLMENT &&
+          order.status !== OrderStatus.FULFILLED)
       ) {
         throw new Error('Order not found or not in fulfillable state');
       }
@@ -190,6 +192,27 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       );
 
       if (existingActiveAssignment) {
+        if (
+          this.shouldSendPostPurchaseDelivery(order) &&
+          order.customer?.email &&
+          existingActiveAssignment.inventory_item?.raw_config
+        ) {
+          postCommitEffects.push(() => {
+            this.notificationClient.emit('process_post_purchase_delivery', {
+              orderRef: order.order_ref,
+              customerEmail: order.customer.email,
+              customerPhone: order.customer.phone || undefined,
+              planCode: order.plan.code,
+              planLabel: order.plan.name,
+              vpnLink: existingActiveAssignment.inventory_item.raw_config,
+              expiryLabel:
+                existingActiveAssignment.inventory_item.supplier_expires_at?.toISOString() ||
+                order.plan.duration_label,
+              customerLanguage: 'ru',
+            });
+          });
+        }
+
         return {
           success: true,
           orderId: order.id,
@@ -259,10 +282,12 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           },
         });
 
-        this.adminClient.emit('fulfillment_pending_alert', {
-          orderRef: order.order_ref,
-          planCode: order.plan.code,
-          requiredSlots,
+        postCommitEffects.push(() => {
+          this.adminClient.emit('fulfillment_pending_alert', {
+            orderRef: order.order_ref,
+            planCode: order.plan.code,
+            requiredSlots,
+          });
         });
 
         return {
@@ -334,30 +359,33 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      this.adminClient.emit('order_fulfilled', {
-        orderId: updatedOrder.id,
-        orderRef: updatedOrder.order_ref,
-        amount: updatedOrder.amount_rub,
-        planCode: order.plan.code,
+      postCommitEffects.push(() => {
+        this.adminClient.emit('order_fulfilled', {
+          orderId: updatedOrder.id,
+          orderRef: updatedOrder.order_ref,
+          amount: updatedOrder.amount_rub,
+          planCode: order.plan.code,
+        });
       });
 
-      this.checkStockAndNotify(tx, order.plan.code);
+      postCommitEffects.push(() => {
+        void this.checkStockAndNotify(order.plan.code).catch((error) => {
+          this.logger.error('Post-fulfillment stock check failed', error as Error);
+        });
+      });
 
-      const shouldSendPostPurchaseDelivery =
-        order.status === OrderStatus.PAID ||
-        order.status === OrderStatus.PENDING_FULFILLMENT ||
-        order.paid_at !== null ||
-        !!order.payment_ref;
-
-      if (shouldSendPostPurchaseDelivery && order.customer?.email) {
-        this.notificationClient.emit('process_post_purchase_delivery', {
-          orderRef: updatedOrder.order_ref,
-          customerEmail: order.customer.email,
-          customerPhone: order.customer.phone || undefined,
-          planCode: order.plan.code,
-          planLabel: order.plan.name,
-          vpnLink: inventoryItem.raw_config,
-          expiryLabel: inventoryItem.supplier_expires_at?.toISOString() || order.plan.duration_label,
+      if (this.shouldSendPostPurchaseDelivery(order) && order.customer?.email) {
+        postCommitEffects.push(() => {
+          this.notificationClient.emit('process_post_purchase_delivery', {
+            orderRef: updatedOrder.order_ref,
+            customerEmail: order.customer.email,
+            customerPhone: order.customer.phone || undefined,
+            planCode: order.plan.code,
+            planLabel: order.plan.name,
+            vpnLink: inventoryItem.raw_config,
+            expiryLabel: inventoryItem.supplier_expires_at?.toISOString() || order.plan.duration_label,
+            customerLanguage: 'ru',
+          });
         });
       }
 
@@ -370,6 +398,16 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         itemProtocol: inventoryItem.display_protocol,
       };
     });
+
+    postCommitEffects.forEach((effect) => {
+      try {
+        effect();
+      } catch (error) {
+        this.logger.error('Post-fulfillment side effect failed', error as Error);
+      }
+    });
+
+    return result;
   }
 
   async recordAssignmentUsage(data: { orderRef: string; measuredUsedBytes: string }) {
@@ -946,8 +984,22 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async checkStockAndNotify(tx: Prisma.TransactionClient, category: PlanCategory) {
-    const items = await tx.inventoryItem.findMany({
+  private shouldSendPostPurchaseDelivery(order: {
+    status: OrderStatus;
+    paid_at?: Date | null;
+    payment_ref?: string | null;
+  }) {
+    return (
+      order.status === OrderStatus.PAID ||
+      order.status === OrderStatus.PENDING_FULFILLMENT ||
+      order.status === OrderStatus.FULFILLED ||
+      order.paid_at !== null ||
+      !!order.payment_ref
+    );
+  }
+
+  private async checkStockAndNotify(category: PlanCategory) {
+    const items = await this.prisma.inventoryItem.findMany({
       where: {
         category,
         health_status: InventoryHealthStatus.HEALTHY,

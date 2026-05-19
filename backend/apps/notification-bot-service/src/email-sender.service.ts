@@ -9,9 +9,9 @@ export class EmailSenderService {
   private readonly fromName: string;
 
   constructor(private readonly configService: ConfigService) {
-    const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
-    this.fromEmail = this.configService.get<string>('MAILER_FROM_EMAIL', 'support@swimvpn.pro');
-    this.fromName = this.configService.get<string>('MAILER_FROM_NAME', 'SWIMVPN+ Support');
+    const resendApiKey = this.configService.get<string>('RESEND_API_KEY')?.trim();
+    this.fromEmail = this.configService.get<string>('MAILER_FROM_EMAIL', 'support@swimvpn.pro').trim();
+    this.fromName = this.configService.get<string>('MAILER_FROM_NAME', 'SWIMVPN+ Support').trim();
 
     if (!resendApiKey) {
       this.resend = null;
@@ -19,6 +19,22 @@ export class EmailSenderService {
     }
 
     this.resend = new Resend(resendApiKey);
+  }
+
+  getTransportStatus() {
+    const apiKeyConfigured = this.resend !== null;
+    const fromEmailPresent = this.fromEmail.length > 0;
+    const fromEmailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.fromEmail);
+
+    return {
+      provider: 'resend',
+      apiKeyConfigured,
+      fromEmailPresent,
+      fromEmailLooksValid,
+      ready: apiKeyConfigured && fromEmailPresent && fromEmailLooksValid,
+      fromEmail: this.fromEmail,
+      fromName: this.fromName,
+    };
   }
 
   async sendDeliveryEmail(to: string, subject: string, body: string): Promise<void> {

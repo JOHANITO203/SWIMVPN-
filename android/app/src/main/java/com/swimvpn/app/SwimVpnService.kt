@@ -61,7 +61,7 @@ class SwimVpnService : VpnService() {
     private var activeReconnectJob: Job? = null
     private var activeSession: ActiveSession? = null
     private var activeUnderlyingNetwork: Network? = null
-    private var notificationLanguage = "en"
+    private var notificationLanguage = VpnNotificationLanguage.DEFAULT_LANGUAGE
     private var reconnectAttempt = 0
     private var sessionStartedAt: Long? = null
     private var stoppedByUser = false
@@ -205,7 +205,7 @@ class SwimVpnService : VpnService() {
                 )
             }.onFailure { error ->
                 Log.e("SwimVpnService", "Unable to restore sticky VPN session", error)
-                setRuntimeError("VPN restore failed: ${error.localizedMessage}")
+                setRuntimeError("VPN restore failed: ${error.localizedMessage}", DisconnectCause.UNKNOWN)
                 stopVpn(clearRuntimeState = false, reason = "sticky_restore_failed", cause = DisconnectCause.UNKNOWN)
             }
         }
@@ -229,7 +229,7 @@ class SwimVpnService : VpnService() {
         serviceScope.launch {
             val language = runCatching {
                 PreferencesManager(applicationContext).languageFlow.first()
-            }.getOrDefault("en")
+            }.getOrDefault(VpnNotificationLanguage.DEFAULT_LANGUAGE)
             val normalized = VpnNotificationLanguage.normalize(language)
             if (notificationLanguage != normalized) {
                 notificationLanguage = normalized
@@ -341,7 +341,7 @@ class SwimVpnService : VpnService() {
                     ),
                 )
                 logRuntimeEvent("reconnect_failed", mapOf("error" to (e.localizedMessage ?: "unknown")))
-                setRuntimeError("Connection failed: ${e.localizedMessage}")
+                setRuntimeError("Connection failed: ${e.localizedMessage}", cause)
                 stopVpn(clearRuntimeState = false, reason = "startup_failure", cause = cause)
             } finally {
                 activeStartupJob = null
@@ -421,7 +421,7 @@ class SwimVpnService : VpnService() {
                         preparedRuntime.exitStateFile.writeText("FAILED")
                         Log.e("SwimVpnService", "tun2socks native bridge failed", error)
                         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
-                            setRuntimeError("tun2socks failed: ${error.localizedMessage}")
+                            setRuntimeError("tun2socks failed: ${error.localizedMessage}", DisconnectCause.ENGINE_CRASH)
                             scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_failure")
                         }
                         return@launch
@@ -430,7 +430,7 @@ class SwimVpnService : VpnService() {
                     preparedRuntime.exitStateFile.writeText(exitCode.toString())
                     if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
                         Log.w("SwimVpnService", "tun2socks exited unexpectedly with code $exitCode")
-                        setRuntimeError("tun2socks exited with code $exitCode")
+                        setRuntimeError("tun2socks exited with code $exitCode", DisconnectCause.ENGINE_CRASH)
                         scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_exit_$exitCode")
                     }
                 }
@@ -737,7 +737,7 @@ class SwimVpnService : VpnService() {
 
     override fun onRevoke() {
         Log.w("SwimVpnService", "VPN permission was revoked by Android")
-        setRuntimeError("VPN permission was revoked by the system")
+        setRuntimeError("VPN permission was revoked by the system", DisconnectCause.SERVICE_KILLED)
         stopVpn(clearRuntimeState = false, reason = "vpn_revoked", cause = DisconnectCause.SERVICE_KILLED)
         super.onRevoke()
     }
@@ -833,7 +833,7 @@ class SwimVpnService : VpnService() {
                     val exitCode = xraySnapshot?.exitCode?.toString() ?: "unknown"
                     Log.w("SwimVpnService", "Xray process is not alive for mode=$mode exitCode=$exitCode")
                     logRuntimeEvent("engine_crashed", mapOf("engine" to "xray", "exitCode" to exitCode))
-                    setRuntimeError("Xray runtime stopped unexpectedly (exit=$exitCode)")
+                    setRuntimeError("Xray runtime stopped unexpectedly (exit=$exitCode)", DisconnectCause.ENGINE_CRASH)
                     scheduleReconnect(DisconnectCause.ENGINE_CRASH, "xray_not_alive_$exitCode")
                     return@launch
                 }
@@ -844,7 +844,7 @@ class SwimVpnService : VpnService() {
                     if (tun2SocksJob == null || tun2SocksContract == null || !tun2SocksJob.isActive) {
                         Log.w("SwimVpnService", "tun2socks monitor detected inactive data plane")
                         logRuntimeEvent("engine_crashed", mapOf("engine" to "tun2socks"))
-                        setRuntimeError("tun2socks data plane stopped unexpectedly")
+                        setRuntimeError("tun2socks data plane stopped unexpectedly", DisconnectCause.ENGINE_CRASH)
                         scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_not_alive")
                         return@launch
                     }
@@ -878,13 +878,18 @@ class SwimVpnService : VpnService() {
         VpnManager.updateRuntimeStatus(status)
     }
 
-    private fun setRuntimeError(message: String) {
+    private fun setRuntimeError(message: String, cause: DisconnectCause = DisconnectCause.UNKNOWN) {
         RuntimeStateStore.write(
             context = applicationContext,
             status = RuntimeStatus.FAILED,
             mode = VpnManager.runtimeMode.value,
             error = message,
-            lastDisconnectCause = DisconnectCause.UNKNOWN,
+            lastDisconnectCause = cause,
+            reconnectCount = reconnectAttempt,
+            sessionStartedAt = sessionStartedAt,
+        )
+        VpnManager.setRuntimeDiagnostics(
+            lastDisconnectCause = cause,
             reconnectCount = reconnectAttempt,
             sessionStartedAt = sessionStartedAt,
         )

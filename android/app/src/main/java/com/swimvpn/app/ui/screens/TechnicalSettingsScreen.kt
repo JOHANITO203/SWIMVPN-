@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
 import com.swimvpn.app.ui.theme.AppThemePreference
 import com.swimvpn.app.ui.theme.ElectricBlue
+import com.swimvpn.app.vpn.VpnNotificationLanguage
 import kotlinx.coroutines.delay
 
 private const val LEGACY_PROXY_MODE = "PROXY"
@@ -145,7 +146,7 @@ fun TechnicalSettingsScreen(
                         onRoutingModeChange(FULL_TUNNEL_MODE)
                     }
                     onAutoConnectChange(false)
-                    onLanguageChange("en")
+                    onLanguageChange(VpnNotificationLanguage.DEFAULT_LANGUAGE)
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                 shape = RoundedCornerShape(20.dp),

@@ -62,6 +62,7 @@ import com.swimvpn.app.vpn.ThemeMode
 import com.swimvpn.app.vpn.RuntimeMetrics
 import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.VpnManager
+import com.swimvpn.app.vpn.VpnNotificationLanguage
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -118,8 +119,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshAfterExternalCheckoutIfNeeded()
+    }
+
     private fun applyLocale(langCode: String) {
-        val normalizedLanguage = langCode.trim().ifEmpty { "en" }
+        val normalizedLanguage = VpnNotificationLanguage.normalize(langCode)
         val targetLocales: LocaleListCompat = LocaleListCompat.forLanguageTags(normalizedLanguage)
         val currentLocales = AppCompatDelegate.getApplicationLocales()
         val currentPrimaryLanguage = currentLocales[0]?.language?.lowercase(Locale.ROOT).orEmpty()
@@ -836,6 +842,10 @@ private fun buildRuntimeDiagnostics(metrics: RuntimeMetrics): String {
     metrics.tun2SocksSessionId?.let { lines += stringResource(R.string.runtime_diag_tun2socks_session, it) }
     metrics.tun2SocksLogPath?.let { lines += stringResource(R.string.runtime_diag_tun2socks_log, it) }
     metrics.lastError?.let { lines += stringResource(R.string.runtime_diag_last_error, it) }
+    metrics.lastDisconnectCause?.let { lines += stringResource(R.string.runtime_diag_disconnect_cause, it.name) }
+    if (metrics.reconnectCount > 0) {
+        lines += stringResource(R.string.runtime_diag_reconnect_count, metrics.reconnectCount)
+    }
     return lines.joinToString("\n")
 }
 

@@ -40,6 +40,7 @@ object AdaptiveDecisionAgent {
     private const val SAME_SERVER_RETRY_LIMIT = 2
     private const val AVOID_AFTER_CONSECUTIVE_FAILURES = 2
     private const val AVOID_DURATION_MS = 10 * 60 * 1000L
+    private const val FAILURE_RECOVERY_DECAY_MS = 30 * 60 * 1000L
     private val BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
 
     fun recordFailure(
@@ -131,16 +132,21 @@ object AdaptiveDecisionAgent {
             .filter { it.serverId != currentServerId }
             .filter { it.hasRuntimeConfig && !it.premiumBlocked }
             .filter { candidate -> !scores[candidate.serverId].isAvoided(nowMs) }
-            .minWithOrNull(compareBy<ServerDecisionCandidate> { scorePenalty(it, scores[it.serverId]) }
+            .minWithOrNull(compareBy<ServerDecisionCandidate> { scorePenalty(it, scores[it.serverId], nowMs) }
                 .thenBy { normalizedPing(it.pingMs) }
                 .thenByDescending { it.isPinned })
     }
 
     private fun backoffFor(attempt: Int): Long = BACKOFF_MS[attempt.coerceIn(0, BACKOFF_MS.lastIndex)]
 
-    private fun scorePenalty(candidate: ServerDecisionCandidate, score: ServerQualityScore?): Int {
+    private fun scorePenalty(candidate: ServerDecisionCandidate, score: ServerQualityScore?, nowMs: Long): Int {
         if (score == null) return if (candidate.isPinned) -10 else 0
-        val failurePenalty = score.consecutiveFailures * 250 + score.failureCount * 25
+        val recovered = score.lastFailureAtMs > 0L &&
+            nowMs - score.lastFailureAtMs >= FAILURE_RECOVERY_DECAY_MS &&
+            !score.isAvoided(nowMs)
+        val consecutiveFailures = if (recovered) 0 else score.consecutiveFailures
+        val failureCount = if (recovered) 0 else score.failureCount
+        val failurePenalty = consecutiveFailures * 250 + failureCount * 25
         val successReward = score.successCount * 10
         val pinnedReward = if (candidate.isPinned) 20 else 0
         return failurePenalty - successReward - pinnedReward

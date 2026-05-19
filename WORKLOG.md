@@ -2828,3 +2828,59 @@ pm run build PASSED.
 ## 2026-05-07 23:58:00 +03:00 - Advanced local proxy verification
 - Verification passed: RuntimeModePreferenceTest, full Android debug unit tests, git diff --check, and assembleDebug.
 - Remaining validation is manual device QA for live switching FULL_TUNNEL <-> LOCAL_PROXY while connected.
+
+## 2026-05-19 08:50:23 +03:00 - Android default language and SwimPay priority
+- Audited the Android language bootstrap, VPN notification locale, settings reset, and subscription checkout method selection before changing code.
+- Changed the Android default language to Russian for new or unsupported language values while preserving English and French as explicit supported languages.
+- Normalized persisted language updates so UI state, bootstrap locale, and VPN notification language stay aligned.
+- Made SwimPay the default Android checkout method without removing manual card or crypto fallback options.
+- Verification: targeted language/payment unit tests, full Android debug unit tests, and assembleDebug passed.
+
+## 2026-05-19 09:02:35 +03:00 - Notification bot delivery email diagnostics
+- Audited the post-purchase delivery path from inventory assignment event to notification-bot email send and delivery status reporting.
+- Fixed the Russian delivery email template so default RU emails are readable Cyrillic instead of mojibake placeholders.
+- Added a Resend transport configuration diagnostic that exposes provider/from/configured status without exposing secrets.
+- Included mailer diagnostics in delivery status responses used by /order and /status, and made inventory delivery events explicitly send customerLanguage ru.
+- Added the email sender configuration policy test to backend test:policy.
+- Verification: notification template test, email sender config test, backend test:policy, backend lint/typecheck, and backend build:all passed.
+
+## 2026-05-19 09:08:17 +03:00 - Android VPN sticky restore diagnostics batch
+- Audited SwimVpnService sticky restart, RuntimeStateStore freshness, reconnect causes, and technical diagnostics before changing runtime behavior.
+- Extended the active sticky restore window from 15 seconds to 120 seconds so delayed Android service restarts can recover an active tunnel while still rejecting stale snapshots.
+- Preserved concrete disconnect causes when writing runtime errors for engine crashes and VPN permission revocation.
+- Added technical diagnostics for last disconnect cause and reconnect attempts in EN/FR/RU resources.
+- Verification: StickyReconnectPolicyTest RED/GREEN, full Android debug unit tests, and assembleDebug passed.
+
+## 2026-05-19 09:11:23 +03:00 - Adaptive decision score decay
+- Audited the adaptive server selection policy and confirmed historical failure penalties could outlive the actual network/node incident.
+- Added bounded failure-score decay after the recovery window so an old unstable node can become eligible again when it has the best current latency.
+- Kept immediate avoidUntil behavior, premium blocking, and runtime-config filtering unchanged.
+- Verification: AdaptiveDecisionAgentTest RED/GREEN and full Android debug unit tests passed.
+
+## 2026-05-19 09:14:29 +03:00 - Landing SEO metadata baseline
+- Audited the landing static metadata, legal hash routes, footer contact, and current SEO gaps before changing the landing.
+- Added cautious SEO metadata to index.html: description, canonical, robots, Open Graph, Twitter summary, app metadata, hreflang, and SoftwareApplication JSON-LD.
+- Updated metadata.json to remove unsupported ultimate-solution copy and describe the Android VPN/import surface more accurately.
+- Aligned the footer support email with backend delivery templates: support@swimvpn.pro.
+- Verification: npm run build passed. npm run lint failed on pre-existing root TypeScript scope issues involving backend aliases, server.ts, and a globe Three/SVG ref mismatch.
+
+## 2026-05-19 13:11:52 +03:00 - Self-review fixes for VPN freshness, mailer status, and SEO locale
+- Re-reviewed the previous implementation and fixed the P1 issue where the 120-second sticky restore window also made the Android UI treat stale RUNNING snapshots as fresh.
+- Restored RuntimeStateSnapshot UI freshness to 15 seconds and moved the 120-second grace window into StickyReconnectPolicy only.
+- Refined notification mailer diagnostics so /status distinguishes apiKeyConfigured/fromEmailPresent/fromEmailLooksValid/ready instead of a broad configured flag.
+- Corrected landing language metadata to match the currently English landing content and removed duplicate hreflang variants pointing to the same URL.
+- Verification: StickyReconnectPolicyTest RED/GREEN, email sender config RED/GREEN, full Android debug unit tests, assembleDebug, backend test:policy, backend lint, backend build:all, and landing build passed.
+
+## 2026-05-19 - Live Android QA on physical device
+- Device: SM-S916B / Android 16 API 36, serial R5CWA0FEPZW.
+- Installed app: com.swimvpn.app versionName=1.0 versionCode=1, installed 2026-05-18 01:37:37.
+- Observed active VPN: SwimVpnService foreground, tun0, WIFI|VPN network validated, process PID 14151 alive after backgrounding.
+- Observed issues on installed build: app bootstraps locale=en, subscription expansion fails with HTTP 502 on all fallback clients, visible UI still has English labels and floating + button overlaps server card text.
+- No app data cleared, no APK installed, no server/config changed, no VPN stop/start performed.
+
+## 2026-05-19 - SwimPay fulfillment and delivery stabilization
+- Analyzed VPS logs from gateway, customer-order, inventory-delivery, notification-bot, admin-control, store, vpn-config, and db containers.
+- Root cause found in inventory-delivery-service logs: Prisma P2028 Transaction already closed in InventoryService.checkStockAndNotify after a fulfillment transaction.
+- Moved fulfillment side effects to post-commit execution, changed stock check to use the normal Prisma service after commit, and guarded non-critical post-fulfillment stock checks.
+- Added retry-delivery behavior for already assigned paid/fulfilled orders so admin retry can re-emit process_post_purchase_delivery without consuming another inventory slot.
+- Added Android bounded external-checkout refresh window so returning from SwimPay refreshes profile/server state automatically for badge/config sync.

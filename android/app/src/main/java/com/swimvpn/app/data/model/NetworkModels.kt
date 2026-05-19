@@ -14,6 +14,24 @@ data class Plan(
     @SerializedName("slot_count") val slotCount: Int? = null
 )
 
+object PaymentMethodPolicy {
+    const val CARD_MANUAL = "CARD_MANUAL"
+    const val SWIMPAY = "SWIMPAY"
+    const val CRYPTO = "CRYPTO"
+    const val DEFAULT_METHOD = SWIMPAY
+
+    val VISIBLE_METHODS = listOf(CARD_MANUAL, SWIMPAY, CRYPTO)
+}
+
+object CheckoutRefreshPolicy {
+    private const val REFRESH_WINDOW_MS = 10 * 60 * 1000L
+
+    fun refreshUntil(openedAtMs: Long): Long = openedAtMs + REFRESH_WINDOW_MS
+
+    fun shouldRefreshAfterReturn(nowMs: Long, refreshUntilMs: Long): Boolean =
+        refreshUntilMs > 0L && nowMs <= refreshUntilMs
+}
+
 data class CreateOrderRequest(
     @SerializedName("email") val email: String?,
     @SerializedName("phone") val phone: String?,

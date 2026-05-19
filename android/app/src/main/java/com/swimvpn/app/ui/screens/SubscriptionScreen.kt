@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
+import com.swimvpn.app.data.model.PaymentMethodPolicy
 import com.swimvpn.app.data.model.Plan
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -61,7 +62,7 @@ fun SubscriptionScreen(
         }
     }
     var selectedPlanId by remember(visiblePlans) { mutableStateOf(visiblePlans.firstOrNull()?.id ?: "") }
-    var selectedPaymentMethod by remember { mutableStateOf("CARD_MANUAL") }
+    var selectedPaymentMethod by remember { mutableStateOf(PaymentMethodPolicy.DEFAULT_METHOD) }
     var showEmailConfirmation by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val normalizedPaymentEmail = paymentEmail?.trim().orEmpty()
@@ -164,20 +165,20 @@ fun SubscriptionScreen(
             PaymentMethodCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.payment_method_card),
-                isSelected = selectedPaymentMethod == "CARD_MANUAL",
-                onClick = { selectedPaymentMethod = "CARD_MANUAL" }
+                isSelected = selectedPaymentMethod == PaymentMethodPolicy.CARD_MANUAL,
+                onClick = { selectedPaymentMethod = PaymentMethodPolicy.CARD_MANUAL }
             )
             PaymentMethodCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.payment_method_swimpay),
-                isSelected = selectedPaymentMethod == "SWIMPAY",
-                onClick = { selectedPaymentMethod = "SWIMPAY" }
+                isSelected = selectedPaymentMethod == PaymentMethodPolicy.SWIMPAY,
+                onClick = { selectedPaymentMethod = PaymentMethodPolicy.SWIMPAY }
             )
             PaymentMethodCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.payment_method_crypto),
-                isSelected = selectedPaymentMethod == "CRYPTO",
-                onClick = { selectedPaymentMethod = "CRYPTO" }
+                isSelected = selectedPaymentMethod == PaymentMethodPolicy.CRYPTO,
+                onClick = { selectedPaymentMethod = PaymentMethodPolicy.CRYPTO }
             )
         }
 

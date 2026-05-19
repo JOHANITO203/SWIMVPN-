@@ -1,4 +1,4 @@
-import { AssignmentAccessStatus, InventoryHealthStatus, InventoryStatus, PlanCategory } from '@prisma/client';
+import { AssignmentAccessStatus, InventoryHealthStatus, InventoryStatus, OrderStatus, PlanCategory } from '@prisma/client';
 import { InventoryService } from '../inventory.service';
 
 function assert(condition: boolean, message: string) {
@@ -205,6 +205,62 @@ async function main() {
     'response must report monotone measured usage',
   );
   assert(result.planQuotaExceeded === true, 'plan quota must still expire from preserved usage');
+
+  const retryDeliveryEvents: any[] = [];
+  const retryDeliveryService = new InventoryService(
+    {
+      $transaction: async (fn: any) =>
+        fn({
+          order: {
+            findUnique: async () => ({
+              id: 'order-delivery-retry',
+              order_ref: 'ORD-DELIVERY-RETRY',
+              status: OrderStatus.FULFILLED,
+              paid_at: new Date('2026-05-17T22:53:00.000Z'),
+              payment_ref: 'SWIMPAY_CONFIRMED:session:event',
+              customer_id: 'customer-delivery-retry',
+              plan: {
+                code: PlanCategory.WEEK,
+                name: 'Basic',
+                duration_label: '1 week',
+                quota_label: '50 GB',
+              },
+              customer: {
+                email: 'buyer@example.com',
+                phone: '+79990001122',
+              },
+              assignments: [
+                {
+                  id: 'assignment-delivery-retry',
+                  access_status: AssignmentAccessStatus.ACTIVE,
+                  inventory_item_id: 'inventory-delivery-retry',
+                  inventory_item: {
+                    raw_config: 'vless://uuid@example.com:443?security=tls#Basic',
+                    supplier_expires_at: new Date('2026-06-17T22:53:00.000Z'),
+                    display_protocol: 'VLESS',
+                  },
+                },
+              ],
+            }),
+          },
+        }),
+    } as any,
+    { send: () => ({}) } as any,
+    { emit: () => undefined } as any,
+    {
+      emit: (event: string, payload: any) => {
+        retryDeliveryEvents.push({ event, payload });
+      },
+    } as any,
+  );
+
+  const retryResult = await retryDeliveryService.fulfillOrder('order-delivery-retry');
+
+  assert(retryResult.success === true, 'retry fulfillment with active assignment should succeed');
+  assert(
+    retryDeliveryEvents.some((entry) => entry.event === 'process_post_purchase_delivery'),
+    'retry fulfillment with active assignment must re-emit post-purchase delivery',
+  );
 
   console.log('inventory service policy tests passed');
 }

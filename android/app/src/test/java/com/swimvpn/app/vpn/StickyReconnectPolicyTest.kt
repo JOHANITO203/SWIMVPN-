@@ -31,7 +31,47 @@ class StickyReconnectPolicyTest {
         assertFalse(
             StickyReconnectPolicy.shouldRestoreStickySession(
                 snapshot = snapshot,
-                nowMs = 20_000L,
+                nowMs = 130_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun `allows delayed system restart inside bounded active window`() {
+        val snapshot = snapshot(
+            status = RuntimeStatus.RUNNING,
+            updatedAt = 10_000L,
+        )
+
+        assertTrue(
+            StickyReconnectPolicy.shouldRestoreStickySession(
+                snapshot = snapshot,
+                nowMs = 70_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun `ui freshness remains short even when sticky restore window is longer`() {
+        val snapshot = snapshot(
+            status = RuntimeStatus.RUNNING,
+            updatedAt = 10_000L,
+        )
+
+        assertFalse(snapshot.isFresh(now = 70_000L))
+    }
+
+    @Test
+    fun `rejects active runtime snapshot beyond bounded restore window`() {
+        val snapshot = snapshot(
+            status = RuntimeStatus.RUNNING,
+            updatedAt = 10_000L,
+        )
+
+        assertFalse(
+            StickyReconnectPolicy.shouldRestoreStickySession(
+                snapshot = snapshot,
+                nowMs = 190_000L,
             ),
         )
     }

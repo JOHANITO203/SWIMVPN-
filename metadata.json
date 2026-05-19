@@ -1,6 +1,6 @@
 {
   "name": "SWIMVPN+ PRO",
-  "description": "SWIMVPN+ PRO is the ultimate solution for seamless and secure internet connectivity.",
+  "description": "SWIMVPN+ is an Android VPN app with freemium access, premium plans, and import support for VLESS, VMess, Trojan, Shadowsocks, Xray, and V2Ray configs.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

@@ -1,11 +1,13 @@
 package com.swimvpn.app.vpn
 
 object StickyReconnectPolicy {
+    private const val STICKY_RESTORE_MAX_AGE_MS = 120_000L
+
     fun shouldRestoreStickySession(
         snapshot: RuntimeStateSnapshot,
         nowMs: Long = System.currentTimeMillis(),
     ): Boolean {
-        if (!snapshot.isFresh(now = nowMs)) {
+        if (!snapshot.isFresh(now = nowMs, maxAgeMs = STICKY_RESTORE_MAX_AGE_MS)) {
             return false
         }
 

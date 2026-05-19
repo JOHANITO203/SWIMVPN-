@@ -141,6 +141,7 @@ export class NotificationService {
       emailSent: latestDelivery?.email_sent ?? false,
       lastError: notes?.error || null,
       updatedAt: notes?.updatedAt || null,
+      mailer: this.emailSender.getTransportStatus(),
     };
   }
 

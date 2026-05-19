@@ -14,14 +14,15 @@ class VpnNotificationLanguageTest {
 
     @Test
     fun `normalizes regional and uppercase language tags`() {
+        assertEquals("en", VpnNotificationLanguage.normalize("EN-US"))
         assertEquals("fr", VpnNotificationLanguage.normalize("FR-FR"))
         assertEquals("ru", VpnNotificationLanguage.normalize("ru_RU"))
     }
 
     @Test
-    fun `falls back to english for missing or unsupported language`() {
-        assertEquals("en", VpnNotificationLanguage.normalize(null))
-        assertEquals("en", VpnNotificationLanguage.normalize(""))
-        assertEquals("en", VpnNotificationLanguage.normalize("de"))
+    fun `falls back to russian for missing or unsupported language`() {
+        assertEquals("ru", VpnNotificationLanguage.normalize(null))
+        assertEquals("ru", VpnNotificationLanguage.normalize(""))
+        assertEquals("ru", VpnNotificationLanguage.normalize("de"))
     }
 }

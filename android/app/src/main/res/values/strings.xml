@@ -61,6 +61,8 @@
     <string name="runtime_diag_tun2socks_session">tun2socks session: %1$s</string>
     <string name="runtime_diag_tun2socks_log">tun2socks log: %1$s</string>
     <string name="runtime_diag_last_error">Last error: %1$s</string>
+    <string name="runtime_diag_disconnect_cause">Last disconnect cause: %1$s</string>
+    <string name="runtime_diag_reconnect_count">Reconnect attempts: %1$d</string>
     <string name="scanner_opening">Opening scanner...</string>
     <string name="scanner_empty">QR code is empty</string>
     <string name="scanner_unavailable">Scanner unavailable on this device</string>

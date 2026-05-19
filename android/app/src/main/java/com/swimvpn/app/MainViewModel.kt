@@ -22,6 +22,7 @@ import com.swimvpn.app.data.network.ActivateTrialRequest
 import com.swimvpn.app.data.network.BootstrapAccessRequest
 import com.swimvpn.app.data.network.CancelCurrentSubscriptionRequest
 import com.swimvpn.app.data.network.CompleteProfileRequest
+import com.swimvpn.app.data.model.CheckoutRefreshPolicy
 import com.swimvpn.app.data.model.CheckoutRequest
 import com.swimvpn.app.data.network.ReportUsageRequest
 import com.swimvpn.app.data.network.RetrofitClient
@@ -39,6 +40,7 @@ import com.swimvpn.app.vpn.RuntimeModePreference
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.ThemeMode
 import com.swimvpn.app.vpn.VpnManager
+import com.swimvpn.app.vpn.VpnNotificationLanguage
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -108,6 +110,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var handlingAdaptiveFailure = false
     private var premiumUsageReportJob: Job? = null
     private var premiumUsageSessionBaselineBytes = 0L
+    private var externalCheckoutRefreshUntilMs = 0L
+    private var externalCheckoutRefreshInFlight = false
 
     private companion object {
         private const val PREMIUM_USAGE_REPORT_INTERVAL_MS = 30_000L
@@ -442,10 +446,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setLanguage(lang: String) {
         viewModelScope.launch {
-            prefs.setLanguage(lang)
+            val normalizedLanguage = VpnNotificationLanguage.normalize(lang)
+            prefs.setLanguage(normalizedLanguage)
             when (val currentState = _state.value) {
-                is AppState.Success -> _state.value = currentState.copy(language = lang)
-                is AppState.TrialSetup -> _state.value = currentState.copy(language = lang)
+                is AppState.Success -> _state.value = currentState.copy(language = normalizedLanguage)
+                is AppState.TrialSetup -> _state.value = currentState.copy(language = normalizedLanguage)
                 else -> {}
             }
         }
@@ -757,6 +762,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 val response = api.createCheckout(request)
                 response.redirectUrl?.let { redirectUrl ->
+                    externalCheckoutRefreshUntilMs =
+                        CheckoutRefreshPolicy.refreshUntil(System.currentTimeMillis())
                     _effect.emit(AppSideEffect.OpenUrl(redirectUrl))
                 }
                 _effect.emit(
@@ -771,6 +778,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         s(R.string.err_order_creation_failed, extractApiErrorMessage(e) ?: "unknown")
                     )
                 )
+            }
+        }
+    }
+
+    fun refreshAfterExternalCheckoutIfNeeded() {
+        val now = System.currentTimeMillis()
+        if (!CheckoutRefreshPolicy.shouldRefreshAfterReturn(now, externalCheckoutRefreshUntilMs)) {
+            return
+        }
+        if (externalCheckoutRefreshInFlight) {
+            return
+        }
+
+        viewModelScope.launch {
+            val currentState = _state.value as? AppState.Success ?: return@launch
+            externalCheckoutRefreshInFlight = true
+            try {
+                val refreshedProfile = refreshPremiumEntitlement(currentState.profile.userNumber)
+                    ?: return@launch
+                val profileForState = refreshedProfile.preserveRuntimeAccessFrom(currentState.profile)
+                _state.value = refreshSuccessState(currentState.copy(profile = profileForState))
+                refreshServerLatency()
+
+                if (refreshedProfile.isPremiumAllowed || refreshedProfile.isPendingFulfillment) {
+                    externalCheckoutRefreshUntilMs = 0L
+                }
+            } finally {
+                externalCheckoutRefreshInFlight = false
             }
         }
     }

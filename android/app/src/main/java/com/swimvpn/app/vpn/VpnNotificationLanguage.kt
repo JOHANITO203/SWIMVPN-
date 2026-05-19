@@ -3,6 +3,8 @@ package com.swimvpn.app.vpn
 import java.util.Locale
 
 object VpnNotificationLanguage {
+    const val DEFAULT_LANGUAGE = "ru"
+
     fun normalize(languageTag: String?): String {
         val normalized = languageTag
             ?.trim()
@@ -11,8 +13,8 @@ object VpnNotificationLanguage {
             ?.lowercase(Locale.ROOT)
 
         return when (normalized) {
-            "fr", "ru" -> normalized
-            else -> "en"
+            "en", "fr", "ru" -> normalized
+            else -> DEFAULT_LANGUAGE
         }
     }
 }
