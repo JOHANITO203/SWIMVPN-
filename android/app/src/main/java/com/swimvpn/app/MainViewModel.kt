@@ -89,6 +89,35 @@ sealed class AppSideEffect {
     data class ShowToast(val message: String) : AppSideEffect()
 }
 
+object PostCheckoutServerSelectionPolicy {
+    fun chooseActiveServerId(
+        previousActiveId: String?,
+        previousActiveSource: String?,
+        savedSelectedId: String?,
+        rebuiltActiveId: String?,
+        firstBackendId: String?,
+        previousImportedStillAvailable: Boolean,
+    ): String? {
+        if (previousActiveSource == "imported" && previousImportedStillAvailable) {
+            return previousActiveId
+        }
+
+        if (!savedSelectedId.isNullOrBlank() && rebuiltActiveId != null) {
+            return rebuiltActiveId
+        }
+
+        if (previousActiveSource == "backend" && rebuiltActiveId != null) {
+            return rebuiltActiveId
+        }
+
+        if (previousActiveId == null && savedSelectedId == null && firstBackendId != null) {
+            return firstBackendId
+        }
+
+        return rebuiltActiveId ?: firstBackendId ?: previousActiveId
+    }
+}
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val app = getApplication<Application>()
@@ -112,6 +141,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var premiumUsageSessionBaselineBytes = 0L
     private var externalCheckoutRefreshUntilMs = 0L
     private var externalCheckoutRefreshInFlight = false
+    private var externalCheckoutRefreshRetryJob: Job? = null
 
     private companion object {
         private const val PREMIUM_USAGE_REPORT_INTERVAL_MS = 30_000L
@@ -584,6 +614,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun importVless(url: String) {
         refreshImportedServers()
     }
@@ -785,6 +816,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshAfterExternalCheckoutIfNeeded() {
         val now = System.currentTimeMillis()
         if (!CheckoutRefreshPolicy.shouldRefreshAfterReturn(now, externalCheckoutRefreshUntilMs)) {
+            externalCheckoutRefreshRetryJob?.cancel()
+            externalCheckoutRefreshRetryJob = null
             return
         }
         if (externalCheckoutRefreshInFlight) {
@@ -795,18 +828,72 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val currentState = _state.value as? AppState.Success ?: return@launch
             externalCheckoutRefreshInFlight = true
             try {
-                val refreshedProfile = refreshPremiumEntitlement(currentState.profile.userNumber)
-                    ?: return@launch
-                val profileForState = refreshedProfile.preserveRuntimeAccessFrom(currentState.profile)
-                _state.value = refreshSuccessState(currentState.copy(profile = profileForState))
+                val deviceId = getDeviceId()
+                if (deviceId == null) {
+                    Log.e("MainViewModel", "Device identity unavailable during post-checkout refresh")
+                    schedulePostCheckoutRefreshRetry()
+                    return@launch
+                }
+
+                val bootstrap = api.bootstrapAccess(
+                    BootstrapAccessRequest(
+                        deviceId = deviceId,
+                        locale = currentState.language,
+                    )
+                )
+                prefs.saveUserNumber(bootstrap.userNumber)
+                val refreshedProfile = bootstrap.profile
+                if (refreshedProfile == null) {
+                    schedulePostCheckoutRefreshRetry()
+                    return@launch
+                }
+                val refreshedState = buildSuccessState(
+                    profile = refreshedProfile,
+                    isOnboardingDone = currentState.isOnboardingDone,
+                    routingMode = currentState.routingMode,
+                    autoConnect = currentState.autoConnect,
+                    language = currentState.language,
+                    themeMode = currentState.themeMode,
+                    plansFallback = currentState.plans,
+                )
+                if (refreshedState == null) {
+                    schedulePostCheckoutRefreshRetry()
+                    return@launch
+                }
+
+                _state.value = applyPostCheckoutServerSelection(currentState, refreshedState)
                 refreshServerLatency()
 
-                if (refreshedProfile.isPremiumAllowed || refreshedProfile.isPendingFulfillment) {
+                if (refreshedProfile.isPremiumAllowed) {
                     externalCheckoutRefreshUntilMs = 0L
+                    externalCheckoutRefreshRetryJob?.cancel()
+                    externalCheckoutRefreshRetryJob = null
+                } else if (refreshedProfile.isPendingFulfillment) {
+                    schedulePostCheckoutRefreshRetry()
                 }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Post-checkout access refresh failed", e)
+                schedulePostCheckoutRefreshRetry()
             } finally {
                 externalCheckoutRefreshInFlight = false
             }
+        }
+    }
+
+    private fun schedulePostCheckoutRefreshRetry() {
+        val now = System.currentTimeMillis()
+        if (!CheckoutRefreshPolicy.shouldRefreshAfterReturn(now, externalCheckoutRefreshUntilMs)) {
+            externalCheckoutRefreshRetryJob?.cancel()
+            externalCheckoutRefreshRetryJob = null
+            return
+        }
+        if (externalCheckoutRefreshRetryJob?.isActive == true) {
+            return
+        }
+        externalCheckoutRefreshRetryJob = viewModelScope.launch {
+            delay(5_000L)
+            externalCheckoutRefreshRetryJob = null
+            refreshAfterExternalCheckoutIfNeeded()
         }
     }
 
@@ -1227,6 +1314,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         autoConnect: Boolean,
         language: String,
         themeMode: ThemeMode,
+        plansFallback: List<com.swimvpn.app.data.model.Plan> = emptyList(),
     ): AppState.Success? {
         val pinnedIds = prefs.pinnedServerIdsFlow.first()
         val importedGroups = configRepository.getImportedProfileGroups()
@@ -1255,7 +1343,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             api.getPlans()
         } catch (e: Exception) {
             Log.e("MainViewModel", "API Error fetching plans; continuing app shell without store plans", e)
-            emptyList()
+            plansFallback
         }
 
         val resolvedBackendServers = resolveBackendServers(profile, backendServers, pinnedIds)
@@ -1277,6 +1365,47 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             language = language,
             themeMode = themeMode,
             activeServer = activeServer,
+        )
+    }
+
+    private suspend fun applyPostCheckoutServerSelection(
+        previousState: AppState.Success,
+        rebuiltState: AppState.Success,
+    ): AppState.Success {
+        val savedServerId = prefs.selectedServerIdFlow.first()
+        val firstBackend = rebuiltState.servers.firstOrNull { it.source == "backend" }
+        val previousActiveId = previousState.activeServer?.id
+        val previousImportedStillAvailable = previousState.activeServer?.source == "imported" &&
+            previousActiveId != null &&
+            rebuiltState.servers.any { it.id == previousActiveId && it.source == "imported" }
+
+        val selectedServerId = PostCheckoutServerSelectionPolicy.chooseActiveServerId(
+            previousActiveId = previousActiveId,
+            previousActiveSource = previousState.activeServer?.source,
+            savedSelectedId = savedServerId,
+            rebuiltActiveId = rebuiltState.activeServer?.id,
+            firstBackendId = firstBackend?.id,
+            previousImportedStillAvailable = previousImportedStillAvailable,
+        )
+
+        if (selectedServerId == firstBackend?.id &&
+            previousActiveId == null &&
+            savedServerId == null
+        ) {
+            prefs.setSelectedServerId(selectedServerId)
+        }
+
+        val activeServer = rebuiltState.servers.find { it.id == selectedServerId }
+            ?: rebuiltState.activeServer
+        if (activeServer?.source == "backend" &&
+            activeServer.id != savedServerId &&
+            previousState.activeServer?.source != "imported"
+        ) {
+            prefs.setSelectedServerId(activeServer.id)
+        }
+        return rebuiltState.copy(
+            activeServer = activeServer,
+            activeConfigMetadata = resolveActiveConfigMetadata(activeServer, rebuiltState.profile),
         )
     }
 

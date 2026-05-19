@@ -1016,3 +1016,13 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: keep LOCAL_PROXY visible as an advanced/manual mode.
 - Reason: the proxy runtime is technically valid and useful for proxy-aware apps, explicit SOCKS/HTTP tests, and advanced users; the limitation is that Android apps do not automatically use local proxy listeners.
 - Consequence: FULL_TUNNEL remains the recommended/default mode for normal browsing, while LOCAL_PROXY must be labeled as manual and must show 127.0.0.1:10808/10809 ports. Mode switches must be handled as service-owned restarts, not as STOPPED_BY_USER disconnects.
+
+## 2026-05-19 - Managed runtime node parsing is backend-centralized
+- Decision: `vpn-config-engine-service` is the backend source for managed runtime node parsing, and `store-engine-service` consumes it only after entitlement/device/assignment/quota/expiration barriers pass.
+- Reason: store-side ad hoc parsing exposed only one assigned endpoint and risked diverging from the VPN config pipeline; centralized parsing gives the app selectable managed nodes while preserving backend authority.
+- Consequence: raw VPN configs remain preserved intact per runtime node, HTTP/HTTPS supplier subscription URLs are not fetched or exposed as runtime nodes in this pass, and store keeps a local direct-config fallback for parser-service outages.
+
+## 2026-05-19 - Post-checkout sync remains bounded polling
+- Decision: Android keeps a short post-checkout refresh window active while backend profile state is pending fulfillment, and stops only when premium access appears or the window expires.
+- Reason: SwimPay can confirm payment before inventory assignment, managed node parsing, email delivery, and badge/server exposure finish; stopping on pending would make the user relaunch manually.
+- Consequence: the app refreshes profile and managed servers automatically after payment without inventing active access, bypassing entitlement checks, or replacing a user's active imported config.

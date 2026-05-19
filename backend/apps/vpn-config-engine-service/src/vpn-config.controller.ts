@@ -4,6 +4,7 @@ import {
   ConfigPipelineResult,
   ResolvedSwimCryptImportResult,
   SupplierResourceParseResult,
+  ManagedRuntimeNode,
   SwimCryptImportResult,
   VpnConfigService,
 } from './vpn-config.service';
@@ -26,6 +27,11 @@ export class VpnConfigController {
   @MessagePattern({ cmd: 'process_supplier_resource' })
   async processSupplierResource(@Payload() data: ParseConfigDto): Promise<SupplierResourceParseResult> {
     return this.vpnConfigService.processSupplierResource(data.rawConfig);
+  }
+
+  @MessagePattern({ cmd: 'parse_managed_nodes' })
+  async parseManagedNodes(@Payload() data: ParseConfigDto): Promise<ManagedRuntimeNode[]> {
+    return this.vpnConfigService.parseManagedRuntimeNodes(data.rawConfig);
   }
 
   @MessagePattern({ cmd: 'check_health' })

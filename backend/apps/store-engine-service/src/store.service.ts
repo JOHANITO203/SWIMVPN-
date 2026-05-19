@@ -1,18 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
+import { firstValueFrom, timeout } from 'rxjs';
 
 type RuntimeEndpoint = {
   host: string;
   port: number;
   protocol: string;
   displayName?: string | null;
+  rawConfig: string;
+  security?: string | null;
+  transport?: string | null;
 };
 
 export function parseRuntimeEndpoint(rawConfig?: string | null): RuntimeEndpoint | null {
-  const firstConfigLine = rawConfig
-    ?.split(/\r?\n/)
-    .map((line) => line.trim())
-    .find((line) => /^(vless|vmess|trojan|ss):\/\//i.test(line));
+  const firstConfigLine = extractRuntimeConfigLines(rawConfig)[0];
 
   if (!firstConfigLine) {
     return null;
@@ -34,7 +36,10 @@ export function parseRuntimeEndpoint(rawConfig?: string | null): RuntimeEndpoint
             host,
             port,
             protocol,
+            rawConfig: firstConfigLine,
             displayName: typeof parsed.ps === 'string' ? parsed.ps : null,
+            security: typeof parsed.tls === 'string' ? parsed.tls : null,
+            transport: typeof parsed.net === 'string' ? parsed.net : null,
           };
         }
       } catch {
@@ -55,11 +60,57 @@ export function parseRuntimeEndpoint(rawConfig?: string | null): RuntimeEndpoint
       host,
       port: toSafePort(url.port) || (url.protocol === 'http:' ? 80 : 443),
       protocol,
+      rawConfig: firstConfigLine,
       displayName: url.hash ? decodeURIComponent(url.hash.slice(1)) : null,
+      security: url.searchParams.get('security'),
+      transport: url.searchParams.get('type'),
     };
   } catch {
     return null;
   }
+}
+
+type ManagedRuntimeNode = RuntimeEndpoint & {
+  id?: string;
+  uuid?: string;
+};
+
+function extractRuntimeConfigLines(rawConfig?: string | null): string[] {
+  const raw = rawConfig?.trim();
+  if (!raw) {
+    return [];
+  }
+  if (/^https?:\/\//i.test(raw)) {
+    return [];
+  }
+
+  const direct = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .flatMap((line) =>
+      Array.from(line.matchAll(/\b(?:vless|vmess|trojan|ss):\/\/[^\s]+/gi)).map((match) => match[0]),
+    );
+  if (direct.length > 0) {
+    return direct;
+  }
+
+  const decoded = decodeBase64Url(raw.replace(/\s+/g, ''));
+  if (!decoded) {
+    return [];
+  }
+
+  return decoded
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .flatMap((line) =>
+      Array.from(line.matchAll(/\b(?:vless|vmess|trojan|ss):\/\/[^\s]+/gi)).map((match) => match[0]),
+    );
+}
+
+function parseRuntimeEndpoints(rawConfig?: string | null): ManagedRuntimeNode[] {
+  return extractRuntimeConfigLines(rawConfig)
+    .map((line) => parseRuntimeEndpoint(line))
+    .filter((endpoint): endpoint is RuntimeEndpoint => endpoint !== null);
 }
 
 function decodeBase64Url(value: string): string | null {
@@ -82,7 +133,10 @@ function toSafePort(value: unknown): number | null {
 
 @Injectable()
 export class StoreService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject('VPN_CONFIG_SERVICE') private readonly vpnConfigClient?: ClientProxy,
+  ) {}
 
   async getActivePlans() {
     return this.prisma.plan.findMany({
@@ -165,32 +219,72 @@ export class StoreService {
       return [];
     }
 
-    const endpoint = parseRuntimeEndpoint(inventoryItem.raw_config);
-    if (!endpoint) {
+    const managedNodes = await this.parseManagedNodes(inventoryItem.raw_config);
+    if (managedNodes.length === 0) {
       return [];
     }
 
-    const displayName =
-      endpoint.displayName ||
-      inventoryItem.batch_name ||
-      inventoryItem.supplier_provider_name ||
-      inventoryItem.display_protocol ||
-      'Assigned premium config';
+    return managedNodes.map((node) => {
+      const displayName =
+        node.displayName ||
+        inventoryItem.batch_name ||
+        inventoryItem.supplier_provider_name ||
+        inventoryItem.display_protocol ||
+        'Assigned premium config';
 
-    return [
-      {
-        id: `assignment:${activeAssignment.id}`,
+      return {
+        id: `assignment:${activeAssignment.id}:${this.stableNodeHash(node.rawConfig)}`,
         country: displayName,
         city: displayName,
-        host: endpoint.host,
-        port: endpoint.port,
-        protocol: endpoint.protocol || inventoryItem.display_protocol || inventoryItem.config_type || 'UNKNOWN',
+        host: node.host,
+        port: node.port,
+        protocol: node.protocol || inventoryItem.display_protocol || inventoryItem.config_type || 'UNKNOWN',
         tags: ['ASSIGNED', 'PREMIUM'],
         planScope: 'PREMIUM',
         countryCode: null,
+        rawConfig: node.rawConfig,
         source: 'backend',
-      },
-    ];
+        providerName: inventoryItem.supplier_provider_name,
+        expiresAt: (activeAssignment.expires_at || inventoryItem.supplier_expires_at)?.toISOString() || null,
+      };
+    });
+  }
+
+  private async parseManagedNodes(rawConfig: string): Promise<ManagedRuntimeNode[]> {
+    if (this.vpnConfigClient) {
+      try {
+        const nodes = await firstValueFrom(
+          this.vpnConfigClient
+            .send<ManagedRuntimeNode[]>({ cmd: 'parse_managed_nodes' }, { rawConfig })
+            .pipe(timeout(1500)),
+        );
+        if (Array.isArray(nodes) && nodes.length > 0) {
+          return nodes.filter((node) => this.isRuntimeNode(node));
+        }
+      } catch {
+        // Fall back to the local parser so store keeps serving direct assigned configs if the parser service is unavailable.
+      }
+    }
+
+    return parseRuntimeEndpoints(rawConfig);
+  }
+
+  private isRuntimeNode(node: ManagedRuntimeNode): boolean {
+    return Boolean(
+      node &&
+      node.rawConfig &&
+      /^(vless|vmess|trojan|ss):\/\//i.test(node.rawConfig) &&
+      node.host &&
+      toSafePort(node.port),
+    );
+  }
+
+  private stableNodeHash(rawConfig: string): string {
+    let hash = 0;
+    for (let index = 0; index < rawConfig.length; index += 1) {
+      hash = Math.imul(31, hash) + rawConfig.charCodeAt(index) | 0;
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
   }
 
   private isSourceQuotaExceeded(sourceQuotaBytes?: bigint | null, sourceUsedBytes?: bigint | null) {

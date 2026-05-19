@@ -1,3 +1,4 @@
+import { of } from 'rxjs';
 import { StoreService, parseRuntimeEndpoint } from '../store.service';
 
 function assert(condition: boolean, message: string) {
@@ -20,6 +21,34 @@ async function main() {
   let measuredUsedBytes = 1n;
   let assignmentExpiresAt: Date | null = new Date(Date.now() + 60_000);
   let supplierExpiresAt: Date | null = new Date(Date.now() + 60_000);
+  let rawConfig = [
+    'vless://uuid-one@assigned-one.example:443?security=tls#Assigned%20One',
+    'vless://uuid-two@assigned-two.example:8443?security=reality#Assigned%20Two',
+  ].join('\n');
+  const vpnConfigClient = {
+    send: () => of([
+      {
+        id: 'node-1',
+        rawConfig: 'vless://uuid-one@assigned-one.example:443?security=tls#Assigned%20One',
+        protocol: 'VLESS',
+        host: 'assigned-one.example',
+        port: 443,
+        security: 'tls',
+        transport: 'tcp',
+        displayName: 'Assigned One',
+      },
+      {
+        id: 'node-2',
+        rawConfig: 'vless://uuid-two@assigned-two.example:8443?security=reality#Assigned%20Two',
+        protocol: 'VLESS',
+        host: 'assigned-two.example',
+        port: 8443,
+        security: 'reality',
+        transport: 'tcp',
+        displayName: 'Assigned Two',
+      },
+    ]),
+  };
   const service = new StoreService({
     customer: {
       findUnique: async () => ({
@@ -41,7 +70,7 @@ async function main() {
                 measured_used_bytes: measuredUsedBytes,
                 inventory_item: {
                   id: 'inventory-1',
-                  raw_config: 'vless://uuid@assigned.example:443?security=tls#Assigned',
+                  raw_config: rawConfig,
                   config_type: 'VLESS',
                   display_protocol: 'VLESS',
                   batch_name: 'Assigned batch',
@@ -57,13 +86,63 @@ async function main() {
         ],
       }),
     },
-  } as any);
+  } as any, vpnConfigClient as any);
 
   const servers = await service.getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });
-  assert(servers.length === 1, 'active assignment should expose exactly one assigned premium server');
-  assert(servers[0].id === 'assignment:assignment-1', 'server id should be tied to the assignment');
-  assert(servers[0].host === 'assigned.example', 'server host should come from assigned raw config');
+  assert(servers.length === 2, 'active assignment should expose every managed runtime node');
+  assert(servers[0].id.startsWith('assignment:assignment-1:'), 'server id should be tied to assignment and node');
+  assert(servers[0].host === 'assigned-one.example', 'first server host should come from assigned raw config');
+  assert(
+    servers[0].rawConfig === 'vless://uuid-one@assigned-one.example:443?security=tls#Assigned%20One',
+    'first server must include its preserved raw runtime config',
+  );
+  assert(servers[1].host === 'assigned-two.example', 'second server host should come from assigned raw config');
   assert(servers[0].source === 'backend', 'assigned premium server should be marked backend source');
+
+  rawConfig = 'https://wb.routerwb.ru/jtz5386jCHkztYRZ';
+  const subscriptionUrlServers = await new StoreService({
+    customer: {
+      findUnique: async () => ({
+        id: 'customer-1',
+        public_id: 'SW-TEST',
+        device_id: 'device-1',
+        orders: [
+          {
+            id: 'order-1',
+            order_ref: 'ORD-1',
+            payment_ref: 'CARD_MANUAL:APPROVED',
+            fulfilled_at: new Date('2020-01-01T00:00:00.000Z'),
+            plan: { code: 'MONTH', quota_label: '50 GB' },
+            assignments: [
+              {
+                id: 'assignment-1',
+                access_status: 'ACTIVE',
+                expires_at: assignmentExpiresAt,
+                measured_used_bytes: measuredUsedBytes,
+                inventory_item: {
+                  id: 'inventory-1',
+                  raw_config: rawConfig,
+                  config_type: 'SUBSCRIPTION',
+                  display_protocol: 'SUBSCRIPTION',
+                  batch_name: 'Subscription batch',
+                  supplier_provider_name: 'Provider',
+                  health_status: healthStatus,
+                  source_quota_bytes: BigInt(1_000),
+                  source_used_bytes: BigInt(1),
+                  supplier_expires_at: supplierExpiresAt,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    },
+  } as any, { send: () => of([]) } as any).getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });
+  assert(subscriptionUrlServers.length === 0, 'https subscription URLs must not be exposed as runtime servers');
+  rawConfig = [
+    'vless://uuid-one@assigned-one.example:443?security=tls#Assigned%20One',
+    'vless://uuid-two@assigned-two.example:8443?security=reality#Assigned%20Two',
+  ].join('\n');
 
   measuredUsedBytes = 50n * 1024n * 1024n * 1024n;
   const planQuotaExceededServers = await service.getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });
@@ -72,7 +151,7 @@ async function main() {
 
   healthStatus = 'FULL';
   const fullServers = await service.getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });
-  assert(fullServers.length === 1, 'FULL inventory should still serve already assigned active customers');
+  assert(fullServers.length === 2, 'FULL inventory should still serve already assigned active customers');
 
   healthStatus = 'EXPIRED';
   const expiredServers = await service.getServers({ userNumber: 'SW-TEST', deviceId: 'device-1' });

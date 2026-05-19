@@ -62,6 +62,26 @@ export interface SupplierResourceParseResult {
   metadata: SupplierResourceMetadata;
 }
 
+export interface ManagedRuntimeNode {
+  id: string;
+  rawConfig: string;
+  protocol: VpnProtocol;
+  host: string;
+  port: number;
+  uuid: string;
+  security: string;
+  transport: string;
+  displayName: string;
+  sni?: string;
+  path?: string;
+  serviceName?: string;
+  headerType?: string;
+  flow?: string;
+  sid?: string;
+  pbk?: string;
+  fp?: string;
+}
+
 @Injectable()
 export class VpnConfigService {
   private static readonly CRYPT1_NONCE_BYTES = 12;
@@ -108,6 +128,50 @@ export class VpnConfigService {
     };
   }
 
+  parseManagedRuntimeNodes(rawConfig: string): ManagedRuntimeNode[] {
+    const candidates = this.extractRuntimeConfigCandidates(this.ingest(rawConfig || ''));
+    const seen = new Set<string>();
+    const nodes: ManagedRuntimeNode[] = [];
+
+    for (const candidate of candidates) {
+      if (seen.has(candidate)) {
+        continue;
+      }
+      seen.add(candidate);
+
+      const profile = this.parseRuntimeCandidate(candidate);
+      if (profile.validationState !== 'VALID') {
+        continue;
+      }
+
+      const normalized = this.normalize(profile);
+      if (!normalized.address || !this.safePort(normalized.port)) {
+        continue;
+      }
+      nodes.push({
+        id: this.runtimeNodeId(candidate),
+        rawConfig: candidate,
+        protocol: normalized.protocol,
+        host: normalized.address,
+        port: normalized.port,
+        uuid: normalized.uuid,
+        security: normalized.security,
+        transport: normalized.transport,
+        displayName: normalized.displayTitle,
+        sni: normalized.sni,
+        path: normalized.path,
+        serviceName: normalized.serviceName,
+        headerType: normalized.headerType,
+        flow: normalized.flow,
+        sid: normalized.sid,
+        pbk: normalized.pbk,
+        fp: normalized.fp,
+      });
+    }
+
+    return nodes;
+  }
+
   private ingest(raw: string): string {
     return raw.trim();
   }
@@ -116,6 +180,12 @@ export class VpnConfigService {
     try {
       if (trimmed.startsWith('vless://')) {
         return this.parseVless(trimmed);
+      }
+      if (trimmed.startsWith('vmess://')) {
+        return this.parseVmess(trimmed);
+      }
+      if (trimmed.startsWith('trojan://')) {
+        return this.parseTrojan(trimmed);
       }
       if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
         return this.parseSubscriptionLink(trimmed);
@@ -184,7 +254,7 @@ export class VpnConfigService {
     const protocol = VpnProtocol.VLESS;
     const uuid = url.username;
     const address = url.hostname;
-    const port = parseInt(url.port);
+    const port = this.safePort(url.port) || 443;
 
     const params = url.searchParams;
 
@@ -221,6 +291,63 @@ export class VpnConfigService {
       pbk,
       fp,
       displayTitle,
+      validationState: 'VALID',
+    };
+  }
+
+  private parseVmess(raw: string): SwimVpnProfile {
+    const payload = raw.slice('vmess://'.length).trim();
+    const decoded = this.decodeBase64Text(payload);
+    if (!decoded) {
+      return this.invalid(raw, 'Invalid VMess payload');
+    }
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(decoded);
+    } catch {
+      return this.invalid(raw, 'Invalid VMess JSON');
+    }
+
+    const address = this.stringValue(parsed.add) || this.stringValue(parsed.host);
+    const port = this.safePort(parsed.port) || 443;
+    const uuid = this.stringValue(parsed.id) || this.stringValue(parsed.uuid);
+    if (!address || !uuid) {
+      return this.invalid(raw, 'Missing VMess address or id');
+    }
+
+    return {
+      rawConfig: raw,
+      protocol: VpnProtocol.VMESS,
+      uuid,
+      address,
+      port,
+      security: this.stringValue(parsed.tls) || this.stringValue(parsed.security) || 'none',
+      transport: this.stringValue(parsed.net) || this.stringValue(parsed.type) || 'tcp',
+      sni: this.stringValue(parsed.sni) || this.stringValue(parsed.host),
+      path: this.stringValue(parsed.path),
+      headerType: this.stringValue(parsed.type),
+      displayTitle: this.stringValue(parsed.ps) || address,
+      validationState: 'VALID',
+    };
+  }
+
+  private parseTrojan(raw: string): SwimVpnProfile {
+    const url = new URL(raw);
+    const params = url.searchParams;
+
+    return {
+      rawConfig: raw,
+      protocol: VpnProtocol.TROJAN,
+      uuid: decodeURIComponent(url.username),
+      address: url.hostname,
+      port: this.safePort(url.port) || 443,
+      security: params.get('security') || 'tls',
+      transport: params.get('type') || 'tcp',
+      sni: params.get('sni') || undefined,
+      path: params.get('path') || undefined,
+      serviceName: params.get('serviceName') || undefined,
+      displayTitle: decodeURIComponent(url.hash.replace('#', '')) || 'Trojan Config',
       validationState: 'VALID',
     };
   }
@@ -479,6 +606,79 @@ export class VpnConfigService {
       validationState: 'INVALID',
       errorMessage: msg,
     };
+  }
+
+  private parseRuntimeCandidate(raw: string): SwimVpnProfile {
+    try {
+      if (raw.startsWith('vless://')) {
+        return this.parseVless(raw);
+      }
+      if (raw.startsWith('vmess://')) {
+        return this.parseVmess(raw);
+      }
+      if (raw.startsWith('trojan://')) {
+        return this.parseTrojan(raw);
+      }
+      if (raw.startsWith('ss://')) {
+        return this.parseShadowsocks(raw);
+      }
+
+      return this.invalid(raw, 'Unsupported runtime protocol');
+    } catch (error) {
+      return this.invalid(raw, error instanceof Error ? error.message : 'Failed to parse runtime config');
+    }
+  }
+
+  private extractRuntimeConfigCandidates(raw: string): string[] {
+    if (!raw) {
+      return [];
+    }
+
+    const directCandidates = this.extractRuntimeLines(raw);
+    if (directCandidates.length > 0) {
+      return directCandidates;
+    }
+
+    if (/^https?:\/\//i.test(raw)) {
+      return [];
+    }
+
+    const decoded = this.decodeBase64Text(raw.replace(/\s+/g, ''));
+    return decoded ? this.extractRuntimeLines(decoded) : [];
+  }
+
+  private extractRuntimeLines(raw: string): string[] {
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .flatMap((line) =>
+        Array.from(line.matchAll(/\b(?:vless|vmess|trojan|ss):\/\/[^\s]+/gi)).map((match) => match[0]),
+      )
+      .map((line) => line.trim())
+      .filter((line) => /^(vless|vmess|trojan|ss):\/\//i.test(line));
+  }
+
+  private runtimeNodeId(rawConfig: string): string {
+    return crypto.createHash('sha256').update(rawConfig).digest('hex').slice(0, 16);
+  }
+
+  private decodeBase64Text(value: string): string | null {
+    try {
+      const normalized = this.fromBase64Url(value);
+      const decoded = Buffer.from(normalized, 'base64').toString('utf8').trim();
+      return decoded ? decoded : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private stringValue(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  }
+
+  private safePort(value: unknown): number | undefined {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed >= 1 && parsed <= 65535 ? parsed : undefined;
   }
 
   private extractPrimaryConfigCandidate(raw: string): string {

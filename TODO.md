@@ -1161,3 +1161,11 @@ u after each future language batch
 - [ ] Start LOCAL_PROXY, switch to FULL_TUNNEL, and confirm VPN interface plus tun2socks are restored without a process kill.
 - [ ] Verify explicit HTTP proxy 127.0.0.1:10809 and SOCKS proxy 127.0.0.1:10808 with a proxy-aware client.
 - [ ] Keep using FULL_TUNNEL for normal browser/global Android routing tests.
+
+## 2026-05-19 - Fulfillment and managed node follow-up
+- [ ] Live QA after deploy: pay or replay a fulfilled Basic/Premium order and confirm badge, email, and managed backend nodes appear without app restart.
+- [ ] Confirm Android preserves an active imported config after purchase and only auto-selects backend fulfillment when no active server exists or backend selection is stale.
+- [ ] Add UI polish in Plan/Quota/Fulfillment so assigned managed nodes are visibly selectable and tied to the active plan.
+- [ ] Define cancel, expired access, and upgrade/downgrade rules before changing entitlement mutation logic.
+- [ ] Design the bandit/IA scope after managed nodes are stable: latency, speed, availability, geography, deterministic fallback, and visible green IA state.
+- [ ] Decide whether backend should safely fetch/expand supplier HTTP subscription URLs, with SSRF/capacity/rate limits, instead of relying only on direct or base64 configs.

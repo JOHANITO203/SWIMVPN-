@@ -136,9 +136,12 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}?schema=public
       DEFAULT_CURRENCY: RUB
+      VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
     depends_on:
       db:
         condition: service_healthy
+      vpn-config-engine-service:
+        condition: service_started
 
   notification-bot-service:
     build:

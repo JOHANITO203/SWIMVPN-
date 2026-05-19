@@ -2884,3 +2884,30 @@ pm run build PASSED.
 - Moved fulfillment side effects to post-commit execution, changed stock check to use the normal Prisma service after commit, and guarded non-critical post-fulfillment stock checks.
 - Added retry-delivery behavior for already assigned paid/fulfilled orders so admin retry can re-emit process_post_purchase_delivery without consuming another inventory slot.
 - Added Android bounded external-checkout refresh window so returning from SwimPay refreshes profile/server state automatically for badge/config sync.
+
+## 2026-05-19 - Android post-checkout strong refresh
+- Limited implementation to Android post-checkout sync.
+- Changed return-from-SwimPay refresh to use device-bound bootstrapAccess instead of the lightweight access profile endpoint.
+- Rebuilds success state through the normal server-loading path so managed backend servers are fetched after fulfillment.
+- Added a pure post-checkout server selection policy that preserves an active imported server and auto-selects the first backend fulfillment only when no server was active.
+- Verification: targeted PostCheckoutServerSelectionPolicyTest and PaymentMethodPolicyTest passed.
+
+## 2026-05-19 - Backend managed runtime node foundation
+- Added vpn-config-engine managed runtime node parsing for direct VLESS, VMess, Trojan, Shadowsocks, multi-line payloads, and base64-decoded multi-line payloads.
+- Kept supplier HTTP/HTTPS subscription URLs non-runtime in this backend pass; no remote subscription fetch is performed.
+- Store server exposure now asks vpn-config-engine for managed nodes after customer/device/assignment/quota/expiration barriers, with a local direct-config fallback.
+- Assigned backend servers now expose stable per-node ids and each node rawConfig only after entitlement barriers pass.
+- Verification: managed nodes parser test, assigned server policy test, backend TypeScript lint, and targeted builds for vpn-config-engine-service and store-engine-service passed.
+
+## 2026-05-19 - Fulfillment managed nodes integration verification
+- Kept Android post-checkout sync polling alive while fulfillment is pending, then stops it only once premium access is observed or the bounded checkout window expires.
+- Persisted the selected backend node after post-checkout rebuild when the app moves from no/stale backend selection to a newly delivered managed node, while preserving imported active servers.
+- Hardened VLESS and Trojan runtime parsing so direct configs without explicit ports default to 443 instead of being rejected as invalid.
+- Added the managed node parser spec to backend test:policy so CI covers the new parser surface.
+- Verification: backend lint, backend build:all, backend test:policy, Prisma validate/generate, Android debug unit tests, Android assembleDebug, and git diff --check all passed.
+
+## 2026-05-19 - Post-review fulfillment sync fixes
+- Fixed store-engine Docker wiring so the service resolves vpn-config-engine-service through VPN_CONFIG_SERVICE_HOST instead of falling back to container-local 127.0.0.1.
+- Added an explicit store-engine dependency on vpn-config-engine-service in docker-compose to reduce startup race risk.
+- Kept Android post-checkout polling alive when transient bootstrap/profile/server rebuild paths return null during the bounded checkout refresh window.
+- Verification: targeted Android post-checkout policy test, backend lint, backend build:all, backend test:policy, Android assembleDebug, and git diff --check passed.
