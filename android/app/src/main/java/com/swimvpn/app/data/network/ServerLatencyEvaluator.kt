@@ -18,7 +18,11 @@ object ServerLatencyEvaluator {
         servers.map { server ->
             async {
                 val measured = measureTcpLatency(server.host, server.port, connectTimeoutMs)
-                server.copy(ping = measured ?: server.ping)
+                server.copy(
+                    ping = measured ?: server.ping,
+                    latencyMeasuredAtMs = System.currentTimeMillis(),
+                    latencyProbeFailed = measured == null,
+                )
             }
         }.awaitAll()
     }

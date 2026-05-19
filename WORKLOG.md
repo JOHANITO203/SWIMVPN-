@@ -2911,3 +2911,16 @@ pm run build PASSED.
 - Added an explicit store-engine dependency on vpn-config-engine-service in docker-compose to reduce startup race risk.
 - Kept Android post-checkout polling alive when transient bootstrap/profile/server rebuild paths return null during the bounded checkout refresh window.
 - Verification: targeted Android post-checkout policy test, backend lint, backend build:all, backend test:policy, Android assembleDebug, and git diff --check passed.
+
+## 2026-05-19 - Batch 4A Android IA recommendation polish
+- Added a pure adaptive server recommendation result with runtime quality states for fresh, stale, missing ping, and fresh probe failure.
+- Propagated latency probe freshness/failure into Android server models and recomputed advisory recommendations after bootstrap and latency refresh.
+- Added gated IA chips in the server list and selected server card only when the recommended server has fresh validated latency evidence.
+- Kept backend entitlement boundaries intact: premium-blocked or configless candidates are ignored and no auto-connect/auto-switch is introduced.
+- Verification: targeted adaptive unit test, full Android debug unit tests, compileDebugKotlin, assembleDebug, and git diff --check passed.
+
+## 2026-05-19 - Batch 4A review fixes
+- Fixed adaptive recommendation fail-closed behavior so a fresh failed latency probe is excluded instead of merely penalized.
+- Replaced the IA UI string-state contract with a boolean `isRecommendedServerValidated` flag to avoid silent badge regressions from string typos.
+- Added adaptive regression tests for fresh failed probe exclusion and `recommendServer` fresh quality-state exposure.
+- Verification: targeted adaptive test, full Android debug unit tests, compileDebugKotlin, assembleDebug, and git diff --check passed.

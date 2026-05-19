@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.adaptive.AdaptiveDecisionAgent
 import com.swimvpn.app.adaptive.AdaptiveEventLogger
 import com.swimvpn.app.adaptive.DecisionActionType
+import com.swimvpn.app.adaptive.ServerRuntimeQualityState
 import com.swimvpn.app.adaptive.ServerDecisionCandidate
 import com.swimvpn.app.adaptive.ServerScoreStore
 import com.swimvpn.app.data.local.PreferencesManager
@@ -78,7 +79,9 @@ sealed class AppState {
         val autoConnect: Boolean,
         val language: String,
         val themeMode: ThemeMode,
-        val activeServer: ServerNode? = null
+        val activeServer: ServerNode? = null,
+        val recommendedServerId: String? = null,
+        val isRecommendedServerValidated: Boolean = false,
     ) : AppState()
 
     data class Error(val message: String) : AppState()
@@ -950,11 +953,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             val activeServer = current.activeServer?.id?.let(byId::get) ?: current.activeServer
-            _state.value = current.copy(
+            val updatedState = current.copy(
                 servers = measuredServers,
                 serverGroups = measuredGroups,
                 activeServer = activeServer,
             )
+            _state.value = applyAdaptiveRecommendation(updatedState)
         }
     }
 
@@ -1302,6 +1306,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isPinned = isPinned,
             hasRuntimeConfig = !runtimeConfig.isNullOrBlank(),
             premiumBlocked = source == "backend" && !profile.isPremiumAllowed,
+            latencyMeasuredAtMs = latencyMeasuredAtMs,
+            latencyProbeFailed = latencyProbeFailed,
+            load = load,
+        )
+    }
+
+    private fun applyAdaptiveRecommendation(state: AppState.Success): AppState.Success {
+        val now = System.currentTimeMillis()
+        val recommendation = AdaptiveDecisionAgent.recommendServer(
+            candidates = state.servers.map { it.toDecisionCandidate(state.profile) },
+            scores = serverScoreStore.loadScores(),
+            currentServerId = null,
+            nowMs = now,
+        )
+        val recommendedId = recommendation?.candidate?.serverId
+        val isRecommendedServerValidated = recommendation?.qualityState == ServerRuntimeQualityState.FRESH
+
+        return state.copy(
+            recommendedServerId = recommendedId,
+            isRecommendedServerValidated = isRecommendedServerValidated,
         )
     }
 
@@ -1365,7 +1389,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             language = language,
             themeMode = themeMode,
             activeServer = activeServer,
-        )
+        ).let(::applyAdaptiveRecommendation)
     }
 
     private suspend fun applyPostCheckoutServerSelection(
@@ -1462,7 +1486,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             serverGroups = serverGroups,
             activeServer = activeServer,
             activeConfigMetadata = activeConfigMetadata,
-        )
+        ).let(::applyAdaptiveRecommendation)
     }
 
     private fun buildServerGroups(

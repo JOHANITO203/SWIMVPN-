@@ -155,7 +155,7 @@ fun AppNavigation(
 
     LaunchedEffect(bootstrapDestination) {
         val destination = bootstrapDestination ?: return@LaunchedEffect
-        when (val currentState = state) {
+        when (state) {
             is AppState.Success -> {
                 viewModel.maybeRestoreAutoConnectFromBoot(context)
                 navController.navigate(destination) { popUpTo(0) }
@@ -190,6 +190,8 @@ fun AppNavigation(
             ServersScreen(
                 serverGroups = data.serverGroups,
                 activeServerId = data.activeServer?.id,
+                recommendedServerId = data.recommendedServerId,
+                isRecommendedServerValidated = data.isRecommendedServerValidated,
                 onBack = { navController.popBackStack() },
                 onSelectServer = { server ->
                     viewModel.selectServer(server)
@@ -245,9 +247,9 @@ fun AppNavigation(
             )
         }
         composable("import") {
-            val context = LocalContext.current
+            val importContext = LocalContext.current
             ConfigImportScreen(
-                configRepository = ConfigRepository(context),
+                configRepository = ConfigRepository(importContext),
                 onBack = { navController.popBackStack() },
                 onProfileSelected = { profile ->
                     viewModel.selectImportedProfile(profile)
@@ -786,6 +788,7 @@ fun HomeScreen(
 
             ServerSelectionCard(
                 server = activeServer,
+                showAiBadge = data.isRecommendedServerValidated && activeServer?.id == data.recommendedServerId,
                 onClick = onNavigateServers,
             )
 
@@ -863,7 +866,11 @@ private fun vpnStateForRuntimeStatus(status: RuntimeStatus): VpnState {
 }
 
 @Composable
-fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
+fun ServerSelectionCard(
+    server: ServerNode?,
+    showAiBadge: Boolean = false,
+    onClick: () -> Unit,
+) {
     Card(
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -932,11 +939,30 @@ fun ServerSelectionCard(server: ServerNode?, onClick: () -> Unit) {
                 )
             }
 
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.content_desc_open_server_list),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (showAiBadge) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.server_chip_ai),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 10.sp,
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = stringResource(R.string.content_desc_open_server_list),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }

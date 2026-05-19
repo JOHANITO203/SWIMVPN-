@@ -87,6 +87,8 @@
     <!-- Servers -->
     <string name="title_locations">LOCALISATIONS</string>
     <string name="search_hint">Rechercher un lieu</string>
+    <string name="server_chip_active">Actif</string>
+    <string name="server_chip_ai">IA</string>
     <string name="server_group_access">Serveurs Premium</string>
     <string name="server_group_backend_count">%1$d serveur(s) premium</string>
     <string name="server_group_imported_count">%1$d serveur(s) importé(s)</string>

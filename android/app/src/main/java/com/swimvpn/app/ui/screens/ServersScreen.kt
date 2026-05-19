@@ -40,13 +40,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.swimvpn.app.R
 import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerNode
-import com.swimvpn.app.ui.theme.ElectricBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +56,8 @@ fun ServersScreen(
     onBack: () -> Unit,
     onSelectServer: (ServerNode) -> Unit,
     onTogglePinServer: (ServerNode) -> Unit,
+    recommendedServerId: String? = null,
+    isRecommendedServerValidated: Boolean = false,
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
@@ -127,6 +129,7 @@ fun ServersScreen(
                     ServerItem(
                         server = server,
                         isSelected = server.id == activeServerId,
+                        isRecommended = isRecommendedServerValidated && server.id == recommendedServerId,
                         onClick = { onSelectServer(server) },
                         onTogglePin = { onTogglePinServer(server) },
                     )
@@ -140,6 +143,7 @@ fun ServersScreen(
 fun ServerItem(
     server: ServerNode,
     isSelected: Boolean,
+    isRecommended: Boolean,
     onClick: () -> Unit,
     onTogglePin: () -> Unit,
 ) {
@@ -171,22 +175,45 @@ fun ServerItem(
                     Text(
                         text = if (server.countryCode.isNullOrBlank()) server.country else "$flagEmoji ${server.country.uppercase()}",
                         fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+                    if (isSelected) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        ServerStatusChip(
+                            label = stringResource(R.string.server_chip_active),
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    if (isRecommended) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        ServerStatusChip(
+                            label = stringResource(R.string.server_chip_ai),
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                     if (server.isPinned) {
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         PinBadge()
                     }
                 }
                 Text(
-                    text = "${server.city} • ${server.protocol.uppercase()}",
+                    text = "${server.city} - ${server.protocol.uppercase()}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "${server.host}:${server.port}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -215,6 +242,29 @@ fun ServerItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ServerStatusChip(
+    label: String,
+    containerColor: Color,
+    contentColor: Color,
+) {
+    Row(
+        modifier = Modifier
+            .background(containerColor, CircleShape)
+            .padding(horizontal = 7.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            color = contentColor,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

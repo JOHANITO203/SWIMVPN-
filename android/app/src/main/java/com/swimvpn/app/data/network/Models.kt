@@ -195,6 +195,8 @@ data class ServerNode(
     val countryCode: String? = null,
     val load: Int = 0,
     val ping: Int = 0,
+    val latencyMeasuredAtMs: Long = 0L,
+    val latencyProbeFailed: Boolean = false,
     val groupId: String? = null,
     val groupName: String? = null,
     val rawConfig: String? = null,

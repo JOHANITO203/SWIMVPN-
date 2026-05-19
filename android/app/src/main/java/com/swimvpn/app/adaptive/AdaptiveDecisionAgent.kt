@@ -2,12 +2,15 @@ package com.swimvpn.app.adaptive
 
 import kotlin.math.max
 
- data class ServerDecisionCandidate(
+data class ServerDecisionCandidate(
     val serverId: String,
     val pingMs: Int,
     val isPinned: Boolean,
     val hasRuntimeConfig: Boolean,
     val premiumBlocked: Boolean,
+    val latencyMeasuredAtMs: Long = 0L,
+    val latencyProbeFailed: Boolean = false,
+    val load: Int? = null,
 )
 
 data class ServerQualityScore(
@@ -28,6 +31,19 @@ enum class DecisionActionType {
     GIVE_UP,
 }
 
+enum class ServerRuntimeQualityState {
+    FRESH,
+    STALE,
+    MISSING_PING,
+    FRESH_PROBE_FAILED,
+}
+
+data class ServerRecommendationResult(
+    val candidate: ServerDecisionCandidate,
+    val qualityState: ServerRuntimeQualityState,
+    val score: Int,
+)
+
 data class DecisionAction(
     val type: DecisionActionType,
     val targetServerId: String?,
@@ -41,6 +57,11 @@ object AdaptiveDecisionAgent {
     private const val AVOID_AFTER_CONSECUTIVE_FAILURES = 2
     private const val AVOID_DURATION_MS = 10 * 60 * 1000L
     private const val FAILURE_RECOVERY_DECAY_MS = 30 * 60 * 1000L
+    private const val FRESH_LATENCY_WINDOW_MS = 2 * 60 * 1000L
+    private const val STALE_LATENCY_PENALTY = 120
+    private const val MISSING_PING_PENALTY = 300
+    private const val FRESH_PROBE_FAILED_PENALTY = 1_000
+    private const val PINNED_REWARD = 5
     private val BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
 
     fun recordFailure(
@@ -126,21 +147,56 @@ object AdaptiveDecisionAgent {
         scores: Map<String, ServerQualityScore>,
         currentServerId: String?,
         nowMs: Long,
-    ): ServerDecisionCandidate? {
+    ): ServerDecisionCandidate? = recommendServer(
+        candidates = candidates,
+        scores = scores,
+        currentServerId = currentServerId,
+        nowMs = nowMs,
+    )?.candidate
+
+    fun recommendServer(
+        candidates: List<ServerDecisionCandidate>,
+        scores: Map<String, ServerQualityScore>,
+        currentServerId: String?,
+        nowMs: Long,
+    ): ServerRecommendationResult? {
         return candidates
             .asSequence()
             .filter { it.serverId != currentServerId }
             .filter { it.hasRuntimeConfig && !it.premiumBlocked }
             .filter { candidate -> !scores[candidate.serverId].isAvoided(nowMs) }
-            .minWithOrNull(compareBy<ServerDecisionCandidate> { scorePenalty(it, scores[it.serverId], nowMs) }
-                .thenBy { normalizedPing(it.pingMs) }
-                .thenByDescending { it.isPinned })
+            .map { candidate -> recommendationFor(candidate, scores[candidate.serverId], nowMs) }
+            .filter { it.qualityState != ServerRuntimeQualityState.FRESH_PROBE_FAILED }
+            .minWithOrNull(
+                compareBy<ServerRecommendationResult> { it.score }
+                    .thenBy { normalizedPing(it.candidate.pingMs) }
+                    .thenByDescending { it.candidate.isPinned }
+                    .thenBy { it.candidate.serverId },
+            )
     }
 
     private fun backoffFor(attempt: Int): Long = BACKOFF_MS[attempt.coerceIn(0, BACKOFF_MS.lastIndex)]
 
-    private fun scorePenalty(candidate: ServerDecisionCandidate, score: ServerQualityScore?, nowMs: Long): Int {
-        if (score == null) return if (candidate.isPinned) -10 else 0
+    private fun recommendationFor(
+        candidate: ServerDecisionCandidate,
+        score: ServerQualityScore?,
+        nowMs: Long,
+    ): ServerRecommendationResult {
+        val qualityState = qualityState(candidate, nowMs)
+        val totalScore = normalizedPing(candidate.pingMs) +
+            qualityPenalty(qualityState) +
+            historyPenalty(score, nowMs) -
+            if (candidate.isPinned) PINNED_REWARD else 0
+
+        return ServerRecommendationResult(
+            candidate = candidate,
+            qualityState = qualityState,
+            score = totalScore,
+        )
+    }
+
+    private fun historyPenalty(score: ServerQualityScore?, nowMs: Long): Int {
+        if (score == null) return 0
         val recovered = score.lastFailureAtMs > 0L &&
             nowMs - score.lastFailureAtMs >= FAILURE_RECOVERY_DECAY_MS &&
             !score.isAvoided(nowMs)
@@ -148,8 +204,30 @@ object AdaptiveDecisionAgent {
         val failureCount = if (recovered) 0 else score.failureCount
         val failurePenalty = consecutiveFailures * 250 + failureCount * 25
         val successReward = score.successCount * 10
-        val pinnedReward = if (candidate.isPinned) 20 else 0
-        return failurePenalty - successReward - pinnedReward
+        return failurePenalty - successReward
+    }
+
+    private fun qualityState(candidate: ServerDecisionCandidate, nowMs: Long): ServerRuntimeQualityState {
+        if (candidate.pingMs <= 0 || candidate.latencyMeasuredAtMs <= 0L) {
+            return ServerRuntimeQualityState.MISSING_PING
+        }
+
+        val ageMs = max(0L, nowMs - candidate.latencyMeasuredAtMs)
+        val isFresh = ageMs <= FRESH_LATENCY_WINDOW_MS
+        return when {
+            candidate.latencyProbeFailed && isFresh -> ServerRuntimeQualityState.FRESH_PROBE_FAILED
+            isFresh -> ServerRuntimeQualityState.FRESH
+            else -> ServerRuntimeQualityState.STALE
+        }
+    }
+
+    private fun qualityPenalty(state: ServerRuntimeQualityState): Int {
+        return when (state) {
+            ServerRuntimeQualityState.FRESH -> 0
+            ServerRuntimeQualityState.STALE -> STALE_LATENCY_PENALTY
+            ServerRuntimeQualityState.MISSING_PING -> MISSING_PING_PENALTY
+            ServerRuntimeQualityState.FRESH_PROBE_FAILED -> FRESH_PROBE_FAILED_PENALTY
+        }
     }
 
     private fun normalizedPing(pingMs: Int): Int = if (pingMs <= 0) 999 else max(1, pingMs)

@@ -1169,3 +1169,12 @@ u after each future language batch
 - [ ] Define cancel, expired access, and upgrade/downgrade rules before changing entitlement mutation logic.
 - [ ] Design the bandit/IA scope after managed nodes are stable: latency, speed, availability, geography, deterministic fallback, and visible green IA state.
 - [ ] Decide whether backend should safely fetch/expand supplier HTTP subscription URLs, with SSRF/capacity/rate limits, instead of relying only on direct or base64 configs.
+
+## 2026-05-19 - Batch 4A IA QA follow-up
+- [ ] Live QA on device: refresh managed nodes, wait for latency probes, and confirm the green IA chip appears only on the validated recommended server.
+- [ ] Validate degraded cases: failed probe, missing ping, stale ping, configless node, and premium-blocked node must not display the IA chip.
+- [ ] Define Batch 4B backend contract for speed, availability, and geography signals before expanding recommendation scoring beyond Android-local data.
+
+## 2026-05-19 - Batch 4A review QA follow-up
+- [ ] Live QA: create a probe failure case and confirm no IA badge is displayed for that node.
+- [ ] Live QA: confirm the active server card shows IA only when the active server id matches the validated recommended server id.

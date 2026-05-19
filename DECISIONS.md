@@ -1026,3 +1026,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: Android keeps a short post-checkout refresh window active while backend profile state is pending fulfillment, and stops only when premium access appears or the window expires.
 - Reason: SwimPay can confirm payment before inventory assignment, managed node parsing, email delivery, and badge/server exposure finish; stopping on pending would make the user relaunch manually.
 - Consequence: the app refreshes profile and managed servers automatically after payment without inventing active access, bypassing entitlement checks, or replacing a user's active imported config.
+
+## 2026-05-19 - Android IA recommendation is advisory and gated
+- Decision: the Android IA indicator is shown only for the deterministic recommended server when its latency probe is fresh and successful.
+- Reason: the recommendation should polish selection and ordering without becoming a hidden entitlement bypass or an unsafe auto-switch.
+- Consequence: backend entitlement remains authoritative, premium-blocked/configless candidates are ignored, fresh failed probes are excluded from recommendation/fallback, and stale/missing probe states do not receive the green IA badge.
