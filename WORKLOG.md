@@ -1,3 +1,60 @@
+# 2026-05-20 - Android VPN runtime recovery phases 1-2
+
+- Separated active killed-service recovery from the user-facing auto-connect toggle.
+- Added `RuntimeRecoveryPolicy` so fresh `STARTING`, `RUNNING`, `RECONNECTING`, and `DEGRADED` sessions can be restored when the runnable payload and VPN permission are still available.
+- Changed `SwimVpnService.restoreStickySessionIfAllowed()` to evaluate killed-session recovery directly instead of requiring `autoConnect=true`.
+- Added `RuntimeServiceDestroyPolicy` so `onDestroy()` caused by a non-user service kill persists a recoverable `RECONNECTING` snapshot with `SERVICE_KILLED`.
+- Kept manual/user stop cleanup terminal and non-restorable.
+- Verification: targeted runtime recovery tests passed, targeted service destroy policy tests passed, and `android\\gradlew.bat testDebugUnitTest assembleDebug` passed.
+
+# 2026-05-20 - Android VPN network handoff debounce
+
+- Added `NetworkHandoffPolicy` with a 4000ms grace window before reconnecting after an active underlying network loss.
+- Updated `SwimVpnService` so Wi-Fi/mobile handoff schedules a delayed reconnect instead of immediately restarting Xray/tun2socks.
+- Cancelled the delayed reconnect when a usable network becomes available or gains usable capabilities inside the grace window.
+- Preserved the existing reconnect path when no usable underlying network returns after the grace window.
+- Verification: targeted network handoff tests passed, runtime recovery/destroy/handoff tests passed together, and `android\\gradlew.bat testDebugUnitTest assembleDebug` passed.
+
+# 2026-05-20 - Android VPN last disconnect diagnostics
+
+- Extended persisted runtime snapshots with Xray and tun2socks log paths.
+- Changed `VpnManager.setRuntimeDiagnostics()` so partial updates preserve existing diagnostic evidence instead of clearing omitted fields.
+- Changed `VpnManager.clearRuntimeDiagnostics()` to clear active session identity while keeping last failure cause, reconnect count, session start, and log paths visible.
+- Rehydrated persisted diagnostics through `VpnManager.reconcileRuntimeSnapshot()`.
+- Updated `SwimVpnService` writes so heartbeat, status changes, errors, and service-kill snapshots carry current log paths into `RuntimeStateStore`.
+- Verification: targeted diagnostics tests passed, runtime recovery/destroy/handoff/diagnostics tests passed together, and `android\\gradlew.bat testDebugUnitTest assembleDebug` passed.
+
+# 2026-05-20 - Android VPN battery optimization action
+
+- Added `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` permission to the Android manifest.
+- Added a compact Technical Settings action that appears only when Android is still allowed to optimize SWIMVPN battery usage.
+- Wired the action to `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` with a fallback to the battery optimization settings screen.
+- Added English, French, and Russian strings for the battery optimization row.
+- Verification: `android\\gradlew.bat :app:processDebugResources :app:compileDebugKotlin` passed, and `android\\gradlew.bat testDebugUnitTest assembleDebug` passed.
+
+# 2026-05-20 - Android VPN startup health proof
+
+- Added `RuntimeStartupHealthPolicy` so `RUNNING` requires Xray alive and, for full tunnel, tun2socks alive.
+- Added a short local startup proof window before `SwimVpnService` publishes `RUNNING`.
+- Kept remote HTTP probing out of scope; the proof is limited to local process/data-plane health.
+- Classified early Xray/tun2socks/runtime startup exits as engine failures instead of generic unknown startup failures.
+- Verification: targeted startup health tests passed, all targeted runtime policy tests passed together, and `android\\gradlew.bat testDebugUnitTest assembleDebug` passed.
+
+# 2026-05-20 - Android VPN runtime stabilisation local verification
+
+- Ran final local Android verification for the full runtime stabilisation batch.
+- Verification: `android\\gradlew.bat testDebugUnitTest assembleDebug` passed.
+- Stopped the Gradle daemon after verification to release memory.
+- `git diff --check` passed with line-ending warnings only.
+- Real-device QA remains pending for screen-off, Wi-Fi/mobile handoff, service kill recovery, and repeated start/stop.
+
+# 2026-05-20 - Android VPN runtime review findings resolved
+
+- Fixed startup cancellation handling so `CancellationException` from service destroy/stop is not converted into `FAILED/UNKNOWN`.
+- Added `RuntimeStartupFailurePolicy` coverage for cancellation, invalid config, and early engine exits.
+- Restored `RuntimeStateStore.clear()` as a true persistent reset instead of preserving old diagnostic keys through the generic `write()` preservation path.
+- Verification: targeted startup failure policy tests passed, all targeted runtime policy tests passed together, and `android\\gradlew.bat testDebugUnitTest assembleDebug` passed.
+
 # 2026-05-19 - Trial Store reconciliation foundation
 
 - Reconciled the current trial flow toward the campaign-based product target: new trial activations now use a dedicated Trial Store model instead of creating paid-style `Order/TRIAL:3D` records.
@@ -3016,3 +3073,14 @@ pm run build PASSED.
 - Android pending fulfillment refresh now uses the shared pending policy and is wired directly after `activateTrial()` success.
 - Trial identity and one-assignment-per-grant guards were moved into a separate additive migration after the Trial Store foundation migration.
 - Verification: targeted customer/store policy tests, targeted Android pending-refresh test, Prisma validate/generate, backend lint/build/policy, Android debug tests/build, local Docker `prisma:migrate:deploy`, and local Docker `prisma:migrate:status` passed.
+
+## 2026-05-20 - VPN runtime stabilisation plan
+- Organized the VPN disconnect audit into a phased Android runtime plan covering killed-service recovery, network handoff debounce, diagnostics persistence, battery/OEM hardening, and connected-state verification.
+- No runtime behavior was changed in this batch.
+- Verification: documentation diff check passed.
+
+## 2026-05-20 - VPN runtime stabilisation Phase 1
+- Added `RuntimeRecoveryPolicy` so fresh active killed-service sessions can recover from persisted payload without depending on the user-facing auto-connect toggle.
+- Updated `SwimVpnService` sticky restore to require a payload and VPN permission for full tunnel, while keeping boot/package auto-connect gated in `MainViewModel`.
+- Added regression coverage for active, stale, idle, missing-payload, missing-permission, and local-proxy recovery cases.
+- Verification: baseline Android debug unit tests, targeted `RuntimeRecoveryPolicyTest`, full Android debug unit tests, and `assembleDebug` passed.

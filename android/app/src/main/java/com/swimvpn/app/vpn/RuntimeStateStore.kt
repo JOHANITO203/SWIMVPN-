@@ -10,6 +10,8 @@ data class RuntimeStateSnapshot(
     val lastDisconnectCause: DisconnectCause = DisconnectCause.UNKNOWN,
     val reconnectCount: Int = 0,
     val sessionStartedAt: Long? = null,
+    val xrayLogPath: String? = null,
+    val tun2SocksLogPath: String? = null,
 ) {
     fun isFresh(now: Long = System.currentTimeMillis(), maxAgeMs: Long = ACTIVE_STATE_MAX_AGE_MS): Boolean {
         return status == RuntimeStatus.IDLE ||
@@ -31,31 +33,55 @@ object RuntimeStateStore {
     private const val KEY_LAST_DISCONNECT_CAUSE = "last_disconnect_cause"
     private const val KEY_RECONNECT_COUNT = "reconnect_count"
     private const val KEY_SESSION_STARTED_AT = "session_started_at"
+    private const val KEY_XRAY_LOG_PATH = "xray_log_path"
+    private const val KEY_TUN2SOCKS_LOG_PATH = "tun2socks_log_path"
 
     fun write(
         context: Context,
         status: RuntimeStatus,
         mode: RuntimeMode,
         error: String? = null,
-        lastDisconnectCause: DisconnectCause = DisconnectCause.UNKNOWN,
-        reconnectCount: Int = 0,
+        lastDisconnectCause: DisconnectCause? = null,
+        reconnectCount: Int? = null,
         sessionStartedAt: Long? = null,
+        xrayLogPath: String? = null,
+        tun2SocksLogPath: String? = null,
         updatedAt: Long = System.currentTimeMillis(),
     ) {
-        val editor = context.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val effectiveCause = lastDisconnectCause
+            ?: DisconnectCause.fromPersisted(prefs.getString(KEY_LAST_DISCONNECT_CAUSE, null))
+        val effectiveReconnectCount = reconnectCount ?: prefs.getInt(KEY_RECONNECT_COUNT, 0)
+        val effectiveSessionStartedAt = sessionStartedAt
+            ?: prefs.getLong(KEY_SESSION_STARTED_AT, 0L).takeIf { it > 0L }
+        val effectiveXrayLogPath = xrayLogPath ?: prefs.getString(KEY_XRAY_LOG_PATH, null)
+        val effectiveTun2SocksLogPath = tun2SocksLogPath ?: prefs.getString(KEY_TUN2SOCKS_LOG_PATH, null)
+
+        val editor = prefs
             .edit()
             .putString(KEY_STATUS, status.name)
             .putString(KEY_MODE, mode.name)
             .putLong(KEY_UPDATED_AT, updatedAt)
             .putString(KEY_ERROR, error)
-            .putString(KEY_LAST_DISCONNECT_CAUSE, lastDisconnectCause.name)
-            .putInt(KEY_RECONNECT_COUNT, reconnectCount)
+            .putString(KEY_LAST_DISCONNECT_CAUSE, effectiveCause.name)
+            .putInt(KEY_RECONNECT_COUNT, effectiveReconnectCount)
 
-        if (sessionStartedAt != null) {
-            editor.putLong(KEY_SESSION_STARTED_AT, sessionStartedAt)
+        if (effectiveSessionStartedAt != null) {
+            editor.putLong(KEY_SESSION_STARTED_AT, effectiveSessionStartedAt)
         } else {
             editor.remove(KEY_SESSION_STARTED_AT)
+        }
+
+        if (!effectiveXrayLogPath.isNullOrBlank()) {
+            editor.putString(KEY_XRAY_LOG_PATH, effectiveXrayLogPath)
+        } else {
+            editor.remove(KEY_XRAY_LOG_PATH)
+        }
+
+        if (!effectiveTun2SocksLogPath.isNullOrBlank()) {
+            editor.putString(KEY_TUN2SOCKS_LOG_PATH, effectiveTun2SocksLogPath)
+        } else {
+            editor.remove(KEY_TUN2SOCKS_LOG_PATH)
         }
 
         editor.apply()
@@ -72,6 +98,8 @@ object RuntimeStateStore {
         val lastDisconnectCause = DisconnectCause.fromPersisted(prefs.getString(KEY_LAST_DISCONNECT_CAUSE, null))
         val reconnectCount = prefs.getInt(KEY_RECONNECT_COUNT, 0)
         val sessionStartedAt = prefs.getLong(KEY_SESSION_STARTED_AT, 0L).takeIf { it > 0L }
+        val xrayLogPath = prefs.getString(KEY_XRAY_LOG_PATH, null)
+        val tun2SocksLogPath = prefs.getString(KEY_TUN2SOCKS_LOG_PATH, null)
 
         return RuntimeStateSnapshot(
             status = status,
@@ -81,15 +109,19 @@ object RuntimeStateStore {
             lastDisconnectCause = lastDisconnectCause,
             reconnectCount = reconnectCount,
             sessionStartedAt = sessionStartedAt,
+            xrayLogPath = xrayLogPath,
+            tun2SocksLogPath = tun2SocksLogPath,
         )
     }
 
     fun clear(context: Context, mode: RuntimeMode = RuntimeMode.FULL_TUNNEL) {
-        write(
-            context = context,
-            status = RuntimeStatus.IDLE,
-            mode = mode,
-            error = null,
-        )
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .putString(KEY_STATUS, RuntimeStatus.IDLE.name)
+            .putString(KEY_MODE, mode.name)
+            .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
+            .apply()
     }
 }

@@ -76,9 +76,16 @@ object VpnManager {
         if (_runtimeStatus.value != effectiveStatus || _state.value != expectedState) {
             updateRuntimeStatus(effectiveStatus)
         }
+        _metrics.value = _metrics.value.copy(
+            lastError = snapshot.error ?: _metrics.value.lastError,
+            xrayLogPath = snapshot.xrayLogPath ?: _metrics.value.xrayLogPath,
+            tun2SocksLogPath = snapshot.tun2SocksLogPath ?: _metrics.value.tun2SocksLogPath,
+            lastDisconnectCause = snapshot.lastDisconnectCause,
+            reconnectCount = snapshot.reconnectCount,
+            sessionStartedAt = snapshot.sessionStartedAt ?: _metrics.value.sessionStartedAt,
+        )
         if (effectiveStatus == RuntimeStatus.FAILED && !snapshot.error.isNullOrBlank()) {
             _errorMessage.value = snapshot.error
-            _metrics.value = _metrics.value.copy(lastError = snapshot.error)
         }
     }
 
@@ -147,21 +154,22 @@ object VpnManager {
         activeMode: String? = null,
         xraySessionId: String? = null,
         xrayLogPath: String? = null,
-            tun2SocksSessionId: String? = null,
-            tun2SocksLogPath: String? = null,
-            lastDisconnectCause: DisconnectCause? = null,
-            reconnectCount: Int? = null,
-            sessionStartedAt: Long? = null,
+        tun2SocksSessionId: String? = null,
+        tun2SocksLogPath: String? = null,
+        lastDisconnectCause: DisconnectCause? = null,
+        reconnectCount: Int? = null,
+        sessionStartedAt: Long? = null,
     ) {
-        _metrics.value = _metrics.value.copy(
-            activeMode = activeMode,
-            xraySessionId = xraySessionId,
-            xrayLogPath = xrayLogPath,
-            tun2SocksSessionId = tun2SocksSessionId,
-            tun2SocksLogPath = tun2SocksLogPath,
-            lastDisconnectCause = lastDisconnectCause ?: _metrics.value.lastDisconnectCause,
-            reconnectCount = reconnectCount ?: _metrics.value.reconnectCount,
-            sessionStartedAt = sessionStartedAt ?: _metrics.value.sessionStartedAt,
+        val current = _metrics.value
+        _metrics.value = current.copy(
+            activeMode = activeMode ?: current.activeMode,
+            xraySessionId = xraySessionId ?: current.xraySessionId,
+            xrayLogPath = xrayLogPath ?: current.xrayLogPath,
+            tun2SocksSessionId = tun2SocksSessionId ?: current.tun2SocksSessionId,
+            tun2SocksLogPath = tun2SocksLogPath ?: current.tun2SocksLogPath,
+            lastDisconnectCause = lastDisconnectCause ?: current.lastDisconnectCause,
+            reconnectCount = reconnectCount ?: current.reconnectCount,
+            sessionStartedAt = sessionStartedAt ?: current.sessionStartedAt,
         )
     }
 
@@ -169,9 +177,7 @@ object VpnManager {
         _metrics.value = _metrics.value.copy(
             activeMode = null,
             xraySessionId = null,
-            xrayLogPath = null,
             tun2SocksSessionId = null,
-            tun2SocksLogPath = null,
         )
     }
 }

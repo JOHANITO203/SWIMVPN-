@@ -1,6 +1,9 @@
 package com.swimvpn.app.ui.screens
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -99,6 +102,7 @@ fun TechnicalSettingsScreen(
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
     var externalActionsArmed by rememberSaveable { mutableStateOf(false) }
     val killSwitchStatus = readKillSwitchStatus(context)
+    val batteryOptimizationRequired = isBatteryOptimizationRequired(context)
 
     LaunchedEffect(Unit) {
         externalActionsArmed = false
@@ -232,6 +236,20 @@ fun TechnicalSettingsScreen(
                         }
                     }
                 )
+                if (batteryOptimizationRequired) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    SettingsRowWithChip(
+                        icon = Icons.Outlined.PowerSettingsNew,
+                        title = stringResource(R.string.battery_optimization),
+                        chipText = stringResource(R.string.battery_optimization_chip),
+                        enabled = externalActionsArmed,
+                        onClick = {
+                            if (!openBatteryOptimizationSettings(context)) {
+                                Toast.makeText(context, R.string.err_open_settings_failed, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                }
             }
         }
 
@@ -648,6 +666,34 @@ private fun readKillSwitchStatus(context: android.content.Context): KillSwitchSt
             else -> KillSwitchStatus.SYSTEM
         }
     }.getOrDefault(KillSwitchStatus.SYSTEM)
+}
+
+private fun isBatteryOptimizationRequired(context: android.content.Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+    val powerManager = context.getSystemService(android.content.Context.POWER_SERVICE) as PowerManager
+    return !powerManager.isIgnoringBatteryOptimizations(context.packageName)
+}
+
+private fun openBatteryOptimizationSettings(context: android.content.Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
+    val packageUri = Uri.parse("package:${context.packageName}")
+    val requestOpened = runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        )
+    }.isSuccess
+
+    if (requestOpened) return true
+
+    return runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        )
+    }.isSuccess
 }
 
 @Composable

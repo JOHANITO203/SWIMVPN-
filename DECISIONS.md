@@ -1,3 +1,43 @@
+# 2026-05-20 - Android VPN service kill recovery is a runtime contract
+
+Decision: A VPN session that Android destroys while it is active is persisted as a recoverable runtime interruption, not as a clean user stop.
+
+Reason: `autoConnect` controls boot/package restore intent, but an already-running VPN tunnel killed by the OS must recover from the last runnable payload when permission and freshness still hold. Treating a system `onDestroy()` as a normal stop made spontaneous disconnects harder to recover from and erased useful state.
+
+Impact: Fresh active snapshots in `STARTING`, `RUNNING`, `RECONNECTING`, and `DEGRADED` may be restored without requiring `autoConnect=true`. User stops, terminal states, stale snapshots, missing payloads, and missing full-tunnel VPN permission remain non-restorable.
+
+# 2026-05-20 - Android network handoff reconnects are debounced
+
+Decision: Underlying network loss no longer triggers immediate runtime restart. The service waits 4000ms and cancels the reconnect if a usable Wi-Fi, cellular, or ethernet network returns during that grace window.
+
+Reason: Android can emit `onLost()` and `onAvailable()` close together during normal Wi-Fi/mobile handoff. Restarting Xray/tun2socks immediately makes a normal handoff look like a fragile VPN disconnect.
+
+Impact: Real network loss still reconnects through the existing `NETWORK_LOST` path after the grace window. Fast handoffs keep the active runtime and return from `DEGRADED` to `RUNNING` without burning a reconnect attempt.
+
+# 2026-05-20 - Last VPN failure evidence is preserved across cleanup
+
+Decision: Runtime cleanup clears volatile active session identifiers but keeps the last disconnect cause, reconnect counter, session start, and engine log paths.
+
+Reason: Spontaneous disconnect debugging depends on preserving the evidence after `stopVpn()`, service destroy, process restart, or UI reconciliation. Clearing every diagnostic field made real failures look like clean idle states.
+
+Impact: The UI/runtime state can still show the last Xray/tun2socks log paths and cause after a failure. New successful sessions may overwrite log paths with current runtime evidence, but cleanup alone no longer erases them.
+
+# 2026-05-20 - Battery optimization remains Android-owned
+
+Decision: SWIMVPN surfaces a Technical Settings action for Android battery optimization exemption, but does not claim to control OEM process killers directly.
+
+Reason: Battery restrictions are a likely cause of foreground VPN service termination, yet the authoritative control is the Android/OEM settings surface. The app should guide the user there instead of pretending to enforce the setting internally.
+
+Impact: When SWIMVPN is not exempt, the Technical screen shows a compact fix action. The action requests exemption through Android and falls back to the general battery optimization settings if the request intent fails.
+
+# 2026-05-20 - Connected state requires local startup health proof
+
+Decision: `RUNNING` is published only after Xray survives a short local proof window and, in full tunnel mode, tun2socks remains active too.
+
+Reason: Starting a process is weaker than proving the local runtime survived startup. Marking connected too early can hide immediate engine/data-plane exits behind a short false success state.
+
+Impact: Startup may spend roughly one additional second in `STARTING`, but invalid or unstable local runtime startup is classified before the app shows a stable connected state. No external HTTP probe is added.
+
 # 2026-05-19 - Trial is a campaign grant, not a paid order
 
 Decision: New trial activations and trial config imports use a dedicated Trial Store (`TrialCampaign`, `TrialConfig`, `TrialGrant`, `TrialAssignment`) instead of creating free paid-style `Order/TRIAL:3D` records or consuming paid inventory.
@@ -1095,3 +1135,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: Android post-checkout and post-trial pending fulfillment refresh use `PendingFulfillmentRefreshPolicy`.
 - Reason: both flows wait for backend fulfillment state to move from pending to active without inventing entitlement locally.
 - Consequence: refresh remains bounded and deterministic after purchases and trial activation.
+
+## 2026-05-20 - Killed VPN session recovery is separate from auto-connect
+- Decision: a fresh active runtime snapshot may be restored from the persisted runtime payload even when the user-facing auto-connect toggle is disabled.
+- Reason: auto-connect controls boot/relaunch behavior, while sticky recovery repairs a tunnel Android/OEM killed while it was already active.
+- Consequence: recovery still requires a payload and full-tunnel VPN permission, user stops remain non-restorable, and boot/package restore remains gated by app bootstrap and auto-connect.

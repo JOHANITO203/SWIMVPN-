@@ -1,5 +1,14 @@
 # TODO
 
+## [2026-05-20] VPN Runtime Stabilisation Follow-up
+- [x] Separate killed-service recovery from boot auto-connect intent.
+- [x] Prevent non-user `onDestroy()` from erasing recoverable active runtime state.
+- [x] Debounce Wi-Fi/mobile network handoff before reconnecting.
+- [x] Preserve last disconnect diagnostics after stop/failure.
+- [x] Add Android battery/OEM optimization UX for VPN runtime stability.
+- [x] Make connected UI state less optimistic until runtime health is proven.
+- [ ] Run real-device QA for service kill, screen-off, Wi-Fi/mobile handoff, and repeated start/stop.
+
 ## [2026-05-19] Trial Store Follow-up
 - [x] Add an authenticated admin import path for `TrialConfig` batches.
 - [x] Recover pending trial grants automatically after `TrialConfig` import.
@@ -1247,3 +1256,12 @@ u after each future language batch
 - [x] Simulated Trial Store node load staying unknown when no measured backend signal exists.
 - [ ] Live QA after redeploy: activate trial with imported Trial Store capacity and confirm badge, `/servers`, selectable nodes, and connect flow appear without app restart.
 - [ ] Live QA after redeploy: import Trial Store capacity after a pending trial and confirm Android refresh picks up `ACTIVE_TRIAL`.
+
+## 2026-05-20 - VPN runtime stabilisation plan
+- [x] Phase 1: restore killed active VPN sessions independently from auto-connect.
+- [ ] Phase 2: prevent `onDestroy()` from converting system kills into clean stops.
+- [ ] Phase 3: debounce Wi-Fi/mobile handoff reconnects.
+- [ ] Phase 4: persist last disconnect diagnostics and runtime log paths.
+- [ ] Phase 5: add battery/OEM optimization warning and settings action.
+- [ ] Phase 6: make connected state less optimistic after engine startup.
+- [ ] Phase 7: run long screen-off, network handoff, service-kill, and invalid-config live QA.

@@ -265,6 +265,8 @@
     <string name="kill_switch_chip_system">SYSTÈME</string>
     <string name="kill_switch_chip_always_on">TOUJOURS ACTIF</string>
     <string name="kill_switch_chip_lockdown">VERROUILLAGE</string>
+    <string name="battery_optimization">Optimisation batterie</string>
+    <string name="battery_optimization_chip">CORRIGER</string>
     <string name="btn_save">ENREGISTRER TOUTES LES PRÉFÉRENCES</string>
 
     <string name="payment_confirm_email_title">CONFIRM EMAIL</string>

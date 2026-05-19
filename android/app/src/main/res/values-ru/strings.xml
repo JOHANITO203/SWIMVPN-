@@ -265,6 +265,8 @@
     <string name="kill_switch_chip_system">СИСТЕМА</string>
     <string name="kill_switch_chip_always_on">ALWAYS-ON</string>
     <string name="kill_switch_chip_lockdown">LOCKDOWN</string>
+    <string name="battery_optimization">Оптимизация батареи</string>
+    <string name="battery_optimization_chip">ИСПРАВИТЬ</string>
     <string name="btn_save">СОХРАНИТЬ ВСЕ НАСТРОЙКИ</string>
 
     <string name="payment_confirm_email_title">CONFIRM EMAIL</string>

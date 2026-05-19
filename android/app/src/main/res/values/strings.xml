@@ -265,6 +265,8 @@
     <string name="kill_switch_chip_system">SYSTEM</string>
     <string name="kill_switch_chip_always_on">ALWAYS-ON</string>
     <string name="kill_switch_chip_lockdown">LOCKDOWN</string>
+    <string name="battery_optimization">Battery optimization</string>
+    <string name="battery_optimization_chip">FIX</string>
     <string name="btn_save">SAVE ALL PREFERENCES</string>
 
     <string name="payment_confirm_email_title">CONFIRM EMAIL</string>
