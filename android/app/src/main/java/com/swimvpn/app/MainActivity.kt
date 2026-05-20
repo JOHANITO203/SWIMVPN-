@@ -189,16 +189,17 @@ fun AppNavigation(
             ServersScreen(
                 serverGroups = data.serverGroups,
                 activeServerId = data.activeServer?.id,
+                activeConfigMetadata = data.activeConfigMetadata,
                 recommendedServerId = data.recommendedServerId,
                 isRecommendedServerValidated = data.isRecommendedServerValidated,
-                onBack = { navController.popBackStack() },
                 onSelectServer = { server ->
                     viewModel.selectServer(server)
-                    navController.popBackStack()
                 },
-                onTogglePinServer = { server ->
-                    viewModel.toggleServerPin(server)
-                }
+                onImportAccessClick = { navController.navigate("import") },
+                onSubscribeClick = { navController.navigate("subscription") },
+                onProfileClick = { navController.navigate("profile") },
+                onHomeClick = { navController.navigate("home") },
+                onSettingsClick = { navController.navigate("profile") },
             ) 
         }
         composable("profile") { 

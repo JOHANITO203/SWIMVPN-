@@ -93,6 +93,8 @@ object SwimDesignTokens {
         const val DockBreathingScale = 1.01f
         const val DockGlowIdleAlpha = 0.68f
         const val DockGlowPeakAlpha = 0.74f
+        const val ScreenEnterMs = 320
+        const val StaggerMs = 30
     }
 
     object Elevation {
@@ -170,5 +172,23 @@ object SwimDesignTokens {
         const val GlowRadius = 0.82f
         const val BowlRatio = 0.68f
         const val IconAlpha = 1f
+    }
+
+    object Servers {
+        val TopPadding = 42.dp
+        val HorizontalPadding = 28.dp
+        val CompactHorizontalPadding = 22.dp
+        val SegmentedHeight = 56.dp
+        val SegmentedMaxWidth = 320.dp
+        val AiCardRadius = 52.dp
+        val AiCardHeight = 208.dp
+        val AiBadgeSize = 76.dp
+        val QuotaPillHeight = 86.dp
+        val ActionPillHeight = 70.dp
+        val NodeRowHeight = 66.dp
+        val NodeFlagSize = 54.dp
+        val NodeSelectorSize = 34.dp
+        val DockBottomPadding = 28.dp
+        val DockReservedHeight = 128.dp
     }
 }

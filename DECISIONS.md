@@ -1160,3 +1160,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: the validated dock material is centralized in `SwimDesignTokens` and reused by the Home Start button and User button.
 - Reason: Start/User must derive from the same molded black hardware ADN as the dock instead of inventing separate gradients, shadows, bowls, or glow rules.
 - Consequence: future Home design refinements should tune `SwimDesignTokens.Material`, `Highlight`, `Shadow`, `Motion`, `StartButton`, `UserButton`, and `Dock` before editing per-component inline values.
+
+## 2026-05-20 - Servers screen is visual-only over existing server truth
+- Decision: the new Dark Luxury Servers screen maps existing `ServerGroup`, `ServerNode`, and `ActiveConfigMetadata` into UI models instead of introducing new server state.
+- Reason: server entitlement, imported config parsing, managed node exposure, and active selection are already owned by the Android ViewModel/backend contracts.
+- Consequence: visual rows stay compact and premium, while selection still calls the existing `viewModel.selectServer(server)` path and quota/expiration remain config-level metadata.

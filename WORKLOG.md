@@ -3177,6 +3177,13 @@ pm run build PASSED.
 - Backend, VPN runtime, parser, route logic, entitlement, and business contracts were not changed.
 - Verification: `:app:compileDebugKotlin`, `:app:assembleDebug`, and `git diff --check` passed. ADB live capture was not repeated in this batch because the device disconnected after the prior live QA; Gradle daemon was stopped after verification.
 
+## 2026-05-20 - Servers Dark Luxury implementation pass
+- Replaced the generic Material servers list with a SwimVPN Dark Luxury server screen using shared hardware tokens, compact pill rows, AI status card, embedded config quota pill, action pills, and the existing metaball dock active on Servers.
+- Added a clean UI contract for `ServerSourceTab`, `ImportedConfigSummaryUi`, `ServerNodeUi`, and `ServerScreenUiState`; quota and expiration remain attached to the config summary, not server rows.
+- Wired the screen to existing real `ServerGroup`/`ServerNode` data and `ActiveConfigMetadata` without changing VPN runtime, backend, parser, entitlement, trial, or subscription contracts.
+- Added `docs/SWIMVPN_SERVER_SCREEN_TOKENS_2026-05.md` for the screen design and motion contract.
+- Verification: `:app:compileDebugKotlin`, `:app:assembleDebug`, and `git diff --check` passed. Debug APK installed on the physical device; first capture exposed font-scale overflow, which was corrected with bounded visual text sizing. A second capture attempt was blocked by the phone lock/emergency-call surface, so final visual QA remains manual.
+
 ## 2026-05-20 - Onboarding profile contract fixes
 - Android now treats backend `profileCompletionRequired` as authoritative, even if an active entitlement state is also present.
 - The onboarding freemium continuation path now requires a completed profile and stays in setup if backend still returns `PROFILE_INCOMPLETE`.
