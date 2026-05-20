@@ -1155,3 +1155,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: the Dark Luxury Home implementation will be isolated into Android Compose UI components and a dedicated Home screen file, while `MainActivity` keeps navigation and existing callbacks.
 - Reason: the backend, access contracts, VPN runtime, and parser are frozen for this design pass; isolating visuals prevents a pixel-perfect effort from accidentally changing product behavior.
 - Consequence: orb, server pill, stats card, and metaball dock can be iterated visually while entitlement checks, VPN permission flow, and `viewModel.toggleVpn` remain authoritative.
+
+## 2026-05-20 - Dock material tokens are the Home hardware source of truth
+- Decision: the validated dock material is centralized in `SwimDesignTokens` and reused by the Home Start button and User button.
+- Reason: Start/User must derive from the same molded black hardware ADN as the dock instead of inventing separate gradients, shadows, bowls, or glow rules.
+- Consequence: future Home design refinements should tune `SwimDesignTokens.Material`, `Highlight`, `Shadow`, `Motion`, `StartButton`, `UserButton`, and `Dock` before editing per-component inline values.

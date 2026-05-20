@@ -117,14 +117,14 @@ fun MetaballNavDock(
         )
     }
     val selectedIndex = items.indexOfFirst { it.item == selectedItem }.coerceAtLeast(0)
-    val activeCenter = remember { Animatable(DockTokens.centers[selectedIndex]) }
+    val activeCenter = remember { Animatable(DockTokens.Centers[selectedIndex]) }
     var pressedItem by remember { mutableStateOf<NavDockItem?>(null) }
 
     LaunchedEffect(selectedItem) {
         activeCenter.animateTo(
-            targetValue = DockTokens.centers[selectedIndex],
+            targetValue = DockTokens.Centers[selectedIndex],
             animationSpec = tween(
-                durationMillis = 280,
+                durationMillis = SwimDesignTokens.Motion.DockTransitionMs,
                 easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f),
             ),
         )
@@ -135,16 +135,16 @@ fun MetaballNavDock(
         initialValue = 1.0f,
         targetValue = 1.01f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4200, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = SwimDesignTokens.Motion.DockBreathingMs, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "dock-active-scale",
     )
     val activeGlowAlpha by breathing.animateFloat(
-        initialValue = 0.68f,
-        targetValue = 0.74f,
+        initialValue = SwimDesignTokens.Motion.DockGlowIdleAlpha,
+        targetValue = SwimDesignTokens.Motion.DockGlowPeakAlpha,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4200, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = SwimDesignTokens.Motion.DockBreathingMs, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "dock-active-glow",
@@ -168,11 +168,11 @@ fun MetaballNavDock(
                 selected && pressed -> DockNodeVisualState.ActivePressed
                 selected -> DockNodeVisualState.ActiveRest
                 pressed -> DockNodeVisualState.PressedInactive
-                abs(activeCenter.value - DockTokens.centers[index]) < 2f -> DockNodeVisualState.TransitioningTo
+                abs(activeCenter.value - DockTokens.Centers[index]) < 2f -> DockNodeVisualState.TransitioningTo
                 else -> DockNodeVisualState.IdleInactive
             }
             val outerSize = if (selected) DockTokens.ActiveOuterDiameter else DockTokens.InactiveOuterDiameter
-            val pressScale = if (pressed) 0.96f else if (selected) activeBreathScale else 1f
+            val pressScale = if (pressed) SwimDesignTokens.Motion.PressScale else if (selected) activeBreathScale else 1f
             DockNodeButton(
                 item = item,
                 state = state,
@@ -182,7 +182,7 @@ fun MetaballNavDock(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .offset(
-                        x = DockTokens.centers[index].dp - outerSize / 2f,
+                        x = DockTokens.Centers[index].dp - outerSize / 2f,
                         y = DockTokens.CenterY.dp - outerSize / 2f,
                     )
                     .scale(pressScale)
@@ -219,7 +219,7 @@ fun MetaballNavDock(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .offset(
-                        x = DockTokens.centers[index].dp - outerSize / 2f,
+                        x = DockTokens.Centers[index].dp - outerSize / 2f,
                         y = DockTokens.CenterY.dp - outerSize / 2f,
                     )
                     .size(outerSize),
@@ -259,7 +259,7 @@ private fun DockBodyCanvas(
         val sx = size.width / DockTokens.Width.value
         val sy = size.height / DockTokens.Height.value
         val cy = DockTokens.CenterY * sy
-        val centers = DockTokens.centers.map { it * sx }
+        val centers = DockTokens.Centers.map { it * sx }
         val activeCenter = activeCenterDp * sx
         val radii = centers.map { center ->
             val distance = abs(center - activeCenter) / (DockTokens.CenterSpacing * sx)
@@ -291,8 +291,8 @@ private fun DockBodyCanvas(
             brush = Brush.verticalGradient(
                 colors = listOf(
                     Color.White.copy(alpha = 0.07f),
-                    Color(0xFF17171C),
-                    Color(0xFF07070B),
+                    SwimDesignTokens.Material.ShellMid,
+                    SwimDesignTokens.Material.ShellBottom,
                 ),
                 startY = 0f,
                 endY = size.height,
@@ -302,9 +302,9 @@ private fun DockBodyCanvas(
             path = body,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    Color.White.copy(alpha = 0.08f),
+                    SwimDesignTokens.Highlight.InnerTop,
                     Color.Transparent,
-                    Color.Black.copy(alpha = 0.45f),
+                    Color.Black.copy(alpha = SwimDesignTokens.Shadow.InnerBottomAlpha),
                 ),
                 startY = 0f,
                 endY = size.height,
@@ -312,7 +312,7 @@ private fun DockBodyCanvas(
         )
         drawPath(
             path = body,
-            color = Color.White.copy(alpha = 0.055f),
+            color = SwimDesignTokens.Highlight.BodyStroke,
             style = Stroke(width = 0.8.dp.toPx()),
         )
     }
@@ -341,9 +341,9 @@ private fun ActiveCoreLayer(
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color(0xFFB89AFF),
-                    Color(0xFF8A6AF1),
-                    Color(0xFF5D3BD8),
+                    SwimDesignTokens.Material.PurpleCoreTop,
+                    SwimDesignTokens.Material.PurpleCoreMid,
+                    SwimDesignTokens.Material.PurpleCoreBottom,
                 ),
                 center = Offset(center.x - radius * 0.22f, center.y - radius * 0.28f),
                 radius = radius * 1.18f,
@@ -360,7 +360,7 @@ private fun ActiveCoreLayer(
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    Color.White.copy(alpha = 0.18f),
+                    SwimDesignTokens.Highlight.SkinSheen,
                     Color.Transparent,
                 ),
                 center = Offset(center.x - radius * 0.28f, center.y - radius * 0.34f),
@@ -400,8 +400,8 @@ private fun DockNodeButton(
                 brush = Brush.radialGradient(
                     colors = listOf(
                         Color.White.copy(alpha = 0.035f - pressedDepth * 0.01f),
-                        Color(0xFF15151A),
-                        Color(0xFF05060A),
+                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Material.ShellBottom,
                     ),
                     center = Offset(center.x - outerRadius * 0.22f, center.y - outerRadius * 0.30f),
                     radius = outerRadius * 1.15f,
@@ -410,16 +410,16 @@ private fun DockNodeButton(
                 center = center,
             )
             drawCircle(
-                color = Color.Black.copy(alpha = 0.40f),
+                color = SwimDesignTokens.Material.OuterDarkVeil,
                 radius = outerRadius * 0.88f,
                 center = Offset(center.x, center.y + outerRadius * 0.10f),
             )
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color(0xFF101116),
-                        Color(0xFF05060A),
-                        Color.Black.copy(alpha = 0.96f),
+                        SwimDesignTokens.Material.BowlTop,
+                        SwimDesignTokens.Material.BowlMid,
+                        SwimDesignTokens.Material.BowlBottom,
                     ),
                     center = Offset(center.x, center.y + bowlRadius * 0.24f),
                     radius = bowlRadius * 1.08f,
@@ -428,13 +428,13 @@ private fun DockNodeButton(
                 center = center,
             )
             drawCircle(
-                color = Color.Black.copy(alpha = 0.60f),
+                color = SwimDesignTokens.Material.BowlInnerShadow,
                 radius = bowlRadius,
                 center = center,
                 style = Stroke(width = 3.dp.toPx()),
             )
             drawCircle(
-                color = Color.White.copy(alpha = 0.04f),
+                color = SwimDesignTokens.Highlight.BowlRim,
                 radius = bowlRadius,
                 center = center,
                 style = Stroke(width = 0.8.dp.toPx()),
@@ -527,22 +527,22 @@ private fun SwimDockDestination.toNavItem(): NavDockItem =
     }
 
 private object DockTokens {
-    val Width = 320.dp
-    val Height = 89.dp
-    const val CenterY = 45f
-    const val CenterSpacing = 77f
-    val InactiveOuterDiameter = 80.dp
-    val ActiveOuterDiameter = 89.dp
-    val InactiveBowlDiameter = 54.dp
-    val ActiveBowlDiameter = 58.dp
-    val ActiveCoreDiameter = 58.dp
-    val InactiveIconSize = 18.dp
-    val ActiveIconSize = 22.dp
-    const val InactiveOuterRadius = 40f
-    const val ActiveOuterRadius = 44.5f
-    const val ActiveGlowRadius = 70f
-    const val ValleyDepth = 14f
-    val centers = listOf(44.5f, 121.5f, 198.5f, 275.5f)
+    val Width = SwimDesignTokens.Dock.Width
+    val Height = SwimDesignTokens.Dock.Height
+    const val CenterY = SwimDesignTokens.Dock.CenterY
+    const val CenterSpacing = SwimDesignTokens.Dock.CenterSpacing
+    val InactiveOuterDiameter = SwimDesignTokens.Dock.InactiveOuterDiameter
+    val ActiveOuterDiameter = SwimDesignTokens.Dock.ActiveOuterDiameter
+    val InactiveBowlDiameter = SwimDesignTokens.Dock.InactiveBowlDiameter
+    val ActiveBowlDiameter = SwimDesignTokens.Dock.ActiveBowlDiameter
+    val ActiveCoreDiameter = SwimDesignTokens.Dock.ActiveCoreDiameter
+    val InactiveIconSize = SwimDesignTokens.Dock.InactiveIconSize
+    val ActiveIconSize = SwimDesignTokens.Dock.ActiveIconSize
+    const val InactiveOuterRadius = SwimDesignTokens.Dock.InactiveOuterRadius
+    const val ActiveOuterRadius = SwimDesignTokens.Dock.ActiveOuterRadius
+    const val ActiveGlowRadius = SwimDesignTokens.Dock.ActiveGlowRadius
+    const val ValleyDepth = SwimDesignTokens.Dock.ValleyDepth
+    val Centers = SwimDesignTokens.Dock.Centers
 }
 
 private data class DockItem(

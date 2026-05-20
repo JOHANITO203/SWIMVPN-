@@ -139,40 +139,133 @@ fun SwimPowerOrb(
         Box(
             modifier = Modifier
                 .size(powerButtonSize)
-                .shadow(28.dp, CircleShape, spotColor = SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.38f))
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            SwimDesignTokens.Color.SurfaceHighlight,
-                            SwimDesignTokens.Color.SurfaceElevated,
-                            Color.Black,
-                        )
-                    )
+                .shadow(
+                    SwimDesignTokens.StartButton.OuterShadow,
+                    CircleShape,
+                    spotColor = SwimDesignTokens.Color.PurplePrimary.copy(alpha = SwimDesignTokens.StartButton.OuterGlowAlpha)
                 )
+                .clip(CircleShape)
                 .border(2.dp, SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.18f), CircleShape)
                 .clickable(interactionSource = interactionSource, indication = null, enabled = enabled) { onClick() },
             contentAlignment = Alignment.Center,
         ) {
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val outerRadius = size.minDimension / 2f
+                val ringRadius = outerRadius * SwimDesignTokens.StartButton.RingRadiusRatio
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SwimDesignTokens.Color.PurplePrimary.copy(alpha = SwimDesignTokens.StartButton.OuterGlowAlpha),
+                            Color.Transparent,
+                        ),
+                        center = center,
+                        radius = outerRadius * SwimDesignTokens.StartButton.OuterGlowRadius,
+                    ),
+                    radius = outerRadius * SwimDesignTokens.StartButton.OuterGlowRadius,
+                    center = center,
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SwimDesignTokens.Material.ShellTop.copy(alpha = SwimDesignTokens.StartButton.ShellHighlightAlpha),
+                            SwimDesignTokens.Material.ShellMid,
+                            SwimDesignTokens.Material.ShellBottom,
+                        ),
+                        center = Offset(center.x - outerRadius * 0.22f, center.y - outerRadius * 0.30f),
+                        radius = outerRadius * 1.18f,
+                    ),
+                    radius = outerRadius,
+                    center = center,
+                )
+                drawCircle(
+                    color = SwimDesignTokens.Material.OuterDarkVeil,
+                    radius = outerRadius * 0.88f,
+                    center = Offset(center.x, center.y + outerRadius * 0.10f),
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SwimDesignTokens.Material.ShellMid,
+                            SwimDesignTokens.Material.ShellBottom,
+                        ),
+                        center = center,
+                        radius = ringRadius * 1.08f,
+                    ),
+                    radius = ringRadius,
+                    center = center,
+                )
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.62f),
+                    radius = ringRadius,
+                    center = center,
+                    style = Stroke(width = SwimDesignTokens.StartButton.RingStrokeDp.dp.toPx()),
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SwimDesignTokens.Highlight.SkinSheen.copy(alpha = 0.12f),
+                            Color.Transparent,
+                        ),
+                        center = Offset(center.x - outerRadius * 0.25f, center.y - outerRadius * 0.34f),
+                        radius = outerRadius * 0.64f,
+                    ),
+                    radius = outerRadius * 0.64f,
+                    center = Offset(center.x - outerRadius * 0.06f, center.y - outerRadius * 0.12f),
+                )
+            }
             Box(
                 modifier = Modifier
-                    .size(138.dp)
+                    .size(SwimDesignTokens.StartButton.BowlDiameter)
                     .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                SwimDesignTokens.Color.SurfaceElevated,
-                                SwimDesignTokens.Color.SurfaceBase,
-                                Color.Black.copy(alpha = 0.96f),
-                            )
-                        )
-                    )
-                    .border(1.dp, Color.White.copy(alpha = 0.08f), CircleShape),
+                    .background(Color.Transparent)
+                    .border(1.dp, SwimDesignTokens.Highlight.InnerTop, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val center = Offset(size.width / 2f, size.height / 2f)
+                    val bowlRadius = size.minDimension / 2f
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                SwimDesignTokens.Material.BowlTop,
+                                SwimDesignTokens.Material.BowlMid,
+                                SwimDesignTokens.Material.BowlBottom,
+                            ),
+                            center = Offset(center.x, center.y + bowlRadius * 0.22f),
+                            radius = bowlRadius * SwimDesignTokens.StartButton.BowlRadiusMultiplier,
+                        ),
+                        radius = bowlRadius,
+                        center = center,
+                    )
+                    drawCircle(
+                        color = SwimDesignTokens.Material.BowlInnerShadow,
+                        radius = bowlRadius,
+                        center = center,
+                        style = Stroke(width = 4.dp.toPx()),
+                    )
+                    drawCircle(
+                        color = SwimDesignTokens.Highlight.BowlRim,
+                        radius = bowlRadius,
+                        center = center,
+                        style = Stroke(width = 1.dp.toPx()),
+                    )
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                SwimDesignTokens.Highlight.SkinSheen,
+                                Color.Transparent,
+                            ),
+                            center = Offset(center.x - bowlRadius * 0.28f, center.y - bowlRadius * 0.36f),
+                            radius = bowlRadius * 0.74f,
+                        ),
+                        radius = bowlRadius * 0.74f,
+                        center = Offset(center.x - bowlRadius * 0.08f, center.y - bowlRadius * 0.16f),
+                    )
+                }
                 if (state == SwimOrbState.Transitioning) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(104.dp),
+                        modifier = Modifier.size(SwimDesignTokens.StartButton.ProgressDiameter),
                         color = SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.48f),
                         strokeWidth = 3.dp,
                         trackColor = Color.Transparent,
@@ -183,8 +276,12 @@ fun SwimPowerOrb(
                     contentDescription = null,
                     tint = accent,
                     modifier = Modifier
-                        .size(74.dp)
-                        .shadow(16.dp, CircleShape, spotColor = accent.copy(alpha = 0.42f)),
+                        .size(SwimDesignTokens.StartButton.IconSize)
+                        .shadow(
+                            SwimDesignTokens.StartButton.IconGlow,
+                            CircleShape,
+                            spotColor = accent.copy(alpha = SwimDesignTokens.StartButton.IconGlowAlpha)
+                        ),
                 )
             }
         }

@@ -321,12 +321,12 @@ dock.base.width: 320dp
 dock.base.height: 89dp
 dock.centerY: 45dp
 dock.lobeCenters.x: 44.5dp, 121.5dp, 198.5dp, 275.5dp
-dock.inactiveOuterDiameter: 68dp
-dock.activeOuterDiameter: 76dp
-dock.inactiveOuterRadius: 37dp
-dock.activeOuterRadius: 41dp
-dock.inactiveInnerRecess: 46dp
-dock.activePurpleCircle: 52dp
+dock.inactiveOuterDiameter: 80dp
+dock.activeOuterDiameter: 89dp
+dock.inactiveOuterRadius: 40dp
+dock.activeOuterRadius: 44.5dp
+dock.inactiveInnerRecess: 54dp
+dock.activePurpleCircle: 58dp
 dock.waistHeight: 40dp target
 dock.waistToRadiusRatio: 0.60
 dock.spacingToRadiusRatio: 2.0
@@ -372,6 +372,80 @@ dock.material:
 
 La dimension globale et la position de l'orb restent conservees. Cette passe
 ne modifie que la matiere du dock et son calage interne.
+
+## Tokens materiels centralises
+
+Ces tokens sont la source commune pour le dock, le bouton Start central et le
+bouton User top-right. Aucun de ces composants ne doit inventer une nouvelle
+matiere.
+
+```text
+SwimDesignTokens.Material
+  ShellTop: rgba(255,255,255,0.07)
+  ShellMid: #17171C
+  ShellBottom: #07070B
+  BowlTop: #101116
+  BowlMid: #05060A
+  BowlBottom: black alpha 0.96
+  PurpleCoreTop: #B89AFF
+  PurpleCoreMid: #8A6AF1
+  PurpleCoreBottom: #5D3BD8
+  OuterDarkVeil: black alpha 0.40
+  BowlInnerShadow: black alpha 0.60
+
+SwimDesignTokens.Highlight
+  InnerTop: white alpha 0.08
+  BowlRim: white alpha 0.04
+  BodyStroke: white alpha 0.055
+  SkinSheen: white alpha 0.18
+  PurpleEdge: purple primary alpha 0.11
+
+SwimDesignTokens.Shadow
+  Dock: 24dp
+  StartButton: 28dp
+  UserButton: 14dp
+  ActiveIconGlow: 16dp
+  InnerBottomAlpha: 0.45
+
+SwimDesignTokens.Motion
+  PressScale: 0.96
+  DockTransitionMs: 280
+  DockBreathingMs: 4200
+  DockBreathingScale: 1.01
+  DockGlowIdleAlpha: 0.68
+  DockGlowPeakAlpha: 0.74
+```
+
+## Architecture multicouche commune
+
+Le dock, le bouton Start et le bouton User partagent le meme modele:
+
+```text
+Layer 1 - Outer Shell:
+  corps noir mat, gradient shell top/mid/bottom.
+
+Layer 2 - Recessed Bowl:
+  cavite sombre, shadow interne, rim highlight discret.
+
+Layer 3 - Core:
+  actif seulement pour les surfaces violettes, gradient PurpleCoreTop/Mid/Bottom.
+
+Layer 4 - Icon Plane:
+  icone nette, jamais floutee.
+
+Layer 5 - Skin Overlay:
+  sheen/specular doux en haut-gauche, sans glassmorphism agressif.
+
+Layer 6 - Local Glow:
+  glow violet localise autour du noeud actif ou du Start button.
+```
+
+Le bouton User utilise une version miniature et sobre de cette architecture:
+shell noir, bowl interne, icone blanche, micro sheen, glow violet tres faible.
+
+Le bouton Start utilise la version pleine:
+shell externe, anneau intermediaire, bowl central, icone power, peau speculaire
+et glow violet localise integre a l'orb.
 
 ### Formule de jonction entre icones
 

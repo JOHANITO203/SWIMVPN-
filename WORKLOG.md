@@ -3169,6 +3169,14 @@ pm run build PASSED.
 - VPN runtime, backend, parser, route logic, entitlement, and screen business behavior were not changed.
 - Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; debug APK installed over ADB Wi-Fi; Home screenshot captured at `screenshots/swimvpn_home_metaball_nav_dock_rework_20260520.png`.
 
+## 2026-05-20 - Home hardware tokenization pass
+- Centralized the validated dock material in `SwimDesignTokens`: shell, bowl, purple core, highlights, shadows, layer identifiers, motion values, dock geometry, Start button tokens, and User button tokens.
+- Rewired `MetaballNavDock` to read the centralized tokens while preserving the validated 320dp safe-zone dock geometry.
+- Rebuilt the Home Start button and User button with the same layered hardware model as the dock: outer shell, recessed bowl, icon/core plane, skin overlay, and localized glow.
+- Updated the Home token document to correct stale dock diameter values and document the shared material/layer architecture.
+- Backend, VPN runtime, parser, route logic, entitlement, and business contracts were not changed.
+- Verification: `:app:compileDebugKotlin`, `:app:assembleDebug`, and `git diff --check` passed. ADB live capture was not repeated in this batch because the device disconnected after the prior live QA; Gradle daemon was stopped after verification.
+
 ## 2026-05-20 - Onboarding profile contract fixes
 - Android now treats backend `profileCompletionRequired` as authoritative, even if an active entitlement state is also present.
 - The onboarding freemium continuation path now requires a completed profile and stays in setup if backend still returns `PROFILE_INCOMPLETE`.

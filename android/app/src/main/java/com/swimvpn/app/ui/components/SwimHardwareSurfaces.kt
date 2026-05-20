@@ -104,28 +104,76 @@ fun SwimCircularIconButton(
         modifier = modifier
             .size(size)
             .drawBehind {
+                val outerRadius = this.size.minDimension / 2f
+                val bowlRadius = outerRadius * SwimDesignTokens.UserButton.BowlRatio
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            SwimDesignTokens.Color.HomePurplePrimary.copy(alpha = 0.22f),
+                            SwimDesignTokens.Color.HomePurplePrimary.copy(alpha = SwimDesignTokens.UserButton.GlowAlpha),
                             Color.Transparent
                         ),
                         center = center,
-                        radius = this.size.minDimension * 0.82f
+                        radius = this.size.minDimension * SwimDesignTokens.UserButton.GlowRadius
                     )
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SwimDesignTokens.Material.ShellTop,
+                            SwimDesignTokens.Material.ShellMid,
+                            SwimDesignTokens.Material.ShellBottom
+                        ),
+                        center = Offset(center.x - outerRadius * 0.18f, center.y - outerRadius * 0.30f),
+                        radius = outerRadius * 1.18f
+                    ),
+                    radius = outerRadius,
+                    center = center
+                )
+                drawCircle(
+                    color = SwimDesignTokens.Material.OuterDarkVeil,
+                    radius = outerRadius * 0.86f,
+                    center = Offset(center.x, center.y + outerRadius * 0.10f)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SwimDesignTokens.Material.BowlTop,
+                            SwimDesignTokens.Material.BowlMid,
+                            SwimDesignTokens.Material.BowlBottom
+                        ),
+                        center = Offset(center.x, center.y + bowlRadius * 0.22f),
+                        radius = bowlRadius * 1.08f
+                    ),
+                    radius = bowlRadius,
+                    center = center
+                )
+                drawCircle(
+                    color = SwimDesignTokens.Material.BowlInnerShadow,
+                    radius = bowlRadius,
+                    center = center,
+                    style = Stroke(width = 2.dp.toPx())
+                )
+                drawCircle(
+                    color = SwimDesignTokens.Highlight.BowlRim,
+                    radius = bowlRadius,
+                    center = center,
+                    style = Stroke(width = 0.8.dp.toPx())
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            SwimDesignTokens.Highlight.SkinSheen,
+                            Color.Transparent
+                        ),
+                        center = Offset(center.x - bowlRadius * 0.28f, center.y - bowlRadius * 0.38f),
+                        radius = bowlRadius * 0.72f
+                    ),
+                    radius = bowlRadius * 0.72f,
+                    center = Offset(center.x - bowlRadius * 0.10f, center.y - bowlRadius * 0.16f)
                 )
             }
-            .shadow(SwimDesignTokens.Elevation.HardwareButton, CircleShape, clip = false)
+            .shadow(SwimDesignTokens.Shadow.UserButton, CircleShape, clip = false)
             .clip(CircleShape)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        SwimDesignTokens.Color.HomeSurfaceHighlight,
-                        SwimDesignTokens.Color.HomeSurfaceBase,
-                        SwimDesignTokens.Color.HomeBackgroundDeep
-                    )
-                )
-            )
             .border(1.dp, SwimDesignTokens.Color.HomeStrokeSubtle, CircleShape)
             .clickable(
                 enabled = enabled,
@@ -138,7 +186,7 @@ fun SwimCircularIconButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (enabled) iconTint else SwimDesignTokens.Color.HomeTextMuted,
+            tint = if (enabled) iconTint.copy(alpha = SwimDesignTokens.UserButton.IconAlpha) else SwimDesignTokens.Color.HomeTextMuted,
             modifier = Modifier.size(iconSize)
         )
     }

@@ -1271,3 +1271,4 @@ u after each future language batch
 - [ ] Capture Home screenshot after implementation and compare against the two mocks.
 - [ ] Verify the design pass does not alter backend, entitlement, trial/subscription, parsing, or VPN runtime behavior.
 - [ ] Remove the old inactive inline Home implementation from `MainActivity.kt` after visual QA confirms the new screen is accepted.
+- [ ] After ADB reconnects, capture the tokenized Start/User buttons against the accepted dock to confirm material cohesion.
