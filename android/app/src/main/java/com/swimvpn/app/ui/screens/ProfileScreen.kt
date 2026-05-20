@@ -26,11 +26,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
@@ -38,6 +41,7 @@ import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.config.ActiveConfigSource
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.ui.formatBytes
+import com.swimvpn.app.ui.theme.SwimDesignTokens
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
@@ -62,186 +66,166 @@ fun ProfileScreen(
     val context = LocalContext.current
     val badgeText = profileBadgeText(profile, context)
     val badgeColor = profileBadgeColor(profile)
-    val badgeBackground = profileBadgeBackground(profile)
     val localizedPlanName = profileLocalizedPlanName(profile, context)
     var showCancelSubscriptionDialog by remember { mutableStateOf(false) }
+    var accountExpanded by remember { mutableStateOf(true) }
     val canCancelSubscription =
         (profile.isActiveSubscription || profile.isPendingFulfillment) && onCancelSubscription != null
+    val displayIdentity = profile.email?.takeIf { it.isNotBlank() }
+        ?: profile.phone?.takeIf { it.isNotBlank() }
+        ?: profile.userNumber
+    val planLabel = localizedPlanName?.takeIf { it.isNotBlank() } ?: badgeText
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState)
-            .padding(24.dp)
+            .background(profileBackground())
     ) {
-        // Top Bar
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                    .clickable { onBack?.invoke() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                stringResource(R.string.title_account),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // User Identification Card
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+            AccountHeader(onBack = onBack)
+
+            AccountSectionTitle("Compte")
+            AccountCanvas {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    AccountIconBowl {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = SwimDesignTokens.Color.TextPrimary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = displayIdentity,
+                            color = SwimDesignTokens.Color.TextPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = profile.userNumber,
+                            color = SwimDesignTokens.Color.TextSecondary,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    AccountStatusChip(text = badgeText, color = badgeColor)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                        contentAlignment = Alignment.Center
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(SwimDesignTokens.Material.BowlMid)
+                            .border(1.dp, SwimDesignTokens.Highlight.BodyStroke, CircleShape)
+                            .clickable { accountExpanded = !accountExpanded },
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
-                    }
-                    
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = badgeBackground
-                    ) {
-                        Text(
-                            text = badgeText,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            color = badgeColor,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
-                            letterSpacing = 1.sp
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = SwimDesignTokens.Color.TextSecondary,
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text(stringResource(R.string.label_user_id), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = 1.sp)
-                Text(profile.userNumber, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, fontSize = 28.sp)
-                val contactLines = buildList {
-                    profile.email?.takeIf { it.isNotBlank() }?.let {
-                        add(context.getString(R.string.profile_email_format, it))
-                    }
-                    profile.phone?.takeIf { it.isNotBlank() }?.let {
-                        add(context.getString(R.string.profile_phone_format, it))
-                    }
-                }
-                if (contactLines.isEmpty()) {
-                    Text(
-                        stringResource(R.string.profile_contact_missing),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
-                    )
-                } else {
-                    contactLines.forEach { line ->
-                        Text(line, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
-                    }
-                }
-                localizedPlanName?.takeIf { it.isNotBlank() && profile.accessType != "TRIAL" }?.let { planName ->
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.profile_offer_format, planName),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp,
-                        letterSpacing = 0.5.sp
-                    )
-                }
-            }
-        }
 
-        Spacer(modifier = Modifier.height(32.dp))
-        SectionLabel(title = stringResource(R.string.profile_section_swimvpn_access))
-        Spacer(modifier = Modifier.height(12.dp))
-        SwimVpnAccessCard(profile = profile, badgeColor = badgeColor)
-        if (profile.isTrialAvailable && profile.trialEligible && onActivateTrial != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = onActivateTrial,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text(
-                    text = stringResource(R.string.profile_activate_trial),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Black
+                if (accountExpanded) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    AccountInfoPill(
+                        label = stringResource(R.string.label_user_id),
+                        value = profile.userNumber,
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    AccountInfoPill(
+                        label = stringResource(R.string.profile_email_label),
+                        value = profile.email?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.profile_contact_missing),
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    AccountInfoPill(
+                        label = stringResource(R.string.profile_phone_label),
+                        value = profile.phone?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.profile_contact_missing),
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    AccountInfoPill(
+                        label = stringResource(R.string.profile_status_label),
+                        value = planLabel,
+                    )
+                    if (profile.isTrialAvailable && profile.trialEligible && onActivateTrial != null) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        AccountActionPill(
+                            icon = Icons.Outlined.LocalOffer,
+                            title = stringResource(R.string.profile_activate_trial),
+                            subtitle = stringResource(R.string.profile_status_trial_available),
+                            highlighted = true,
+                            onClick = onActivateTrial,
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+                AccountLogoutPill(onClick = onSignOut)
+            }
+
+            AccountSectionTitle(stringResource(R.string.label_management))
+            AccountCanvas {
+                AccountActionPill(
+                    icon = Icons.Outlined.CreditCard,
+                    title = stringResource(R.string.menu_subscription),
+                    subtitle = stringResource(R.string.profile_section_swimvpn_access),
+                    onClick = onNavigateToSubscription,
                 )
-            }
-        }
-
-        if (activeConfigMetadata != null) {
-            Spacer(modifier = Modifier.height(24.dp))
-            SectionLabel(title = stringResource(R.string.profile_section_active_config))
-            Spacer(modifier = Modifier.height(12.dp))
-            ActiveConfigCard(metadata = activeConfigMetadata)
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Text(stringResource(R.string.label_management), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, letterSpacing = 1.sp, modifier = Modifier.padding(horizontal = 8.dp))
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Management List
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
-        ) {
-            Column {
-                ManagementRow(icon = Icons.Outlined.CreditCard, title = stringResource(R.string.menu_subscription), onClick = onNavigateToSubscription)
                 if (canCancelSubscription) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
-                    ManagementRow(
+                    Spacer(modifier = Modifier.height(12.dp))
+                    AccountActionPill(
                         icon = Icons.Outlined.CreditCard,
                         title = stringResource(R.string.menu_cancel_subscription),
+                        subtitle = stringResource(R.string.subscription_cancel_dialog_title),
                         onClick = { showCancelSubscriptionDialog = true },
                     )
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
-                ManagementRow(icon = Icons.Outlined.LocalOffer, title = stringResource(R.string.menu_import_access), onClick = onNavigateToImport)
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
-                ManagementRow(icon = Icons.Outlined.Settings, title = stringResource(R.string.menu_technical), onClick = onNavigateToTechnical)
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
-                ManagementRow(icon = Icons.AutoMirrored.Outlined.HelpOutline, title = stringResource(R.string.menu_support), onClick = onNavigateToSupport)
+                Spacer(modifier = Modifier.height(12.dp))
+                AccountActionPill(
+                    icon = Icons.Outlined.LocalOffer,
+                    title = stringResource(R.string.menu_import_access),
+                    subtitle = "Importer une configuration",
+                    onClick = onNavigateToImport,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                AccountActionPill(
+                    icon = Icons.Outlined.Settings,
+                    title = stringResource(R.string.menu_technical),
+                    subtitle = "Application et connexion",
+                    onClick = onNavigateToTechnical,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                AccountActionPill(
+                    icon = Icons.AutoMirrored.Outlined.HelpOutline,
+                    title = stringResource(R.string.menu_support),
+                    subtitle = "Assistance et contact",
+                    onClick = onNavigateToSupport,
+                )
             }
-        }
 
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // Sign Out Button
-        OutlinedButton(
-            onClick = onSignOut,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onSurface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Text(stringResource(R.string.menu_signout), fontWeight = FontWeight.Black, fontSize = 14.sp, letterSpacing = 1.sp)
+            Spacer(modifier = Modifier.height(24.dp))
         }
-        
-        Spacer(modifier = Modifier.height(24.dp))
     }
 
     if (showCancelSubscriptionDialog) {
@@ -264,6 +248,291 @@ fun ProfileScreen(
                     Text(stringResource(R.string.subscription_cancel_keep))
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun profileBackground(): Brush =
+    Brush.radialGradient(
+        colors = listOf(
+            SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.30f),
+            SwimDesignTokens.Color.BackgroundBase,
+            SwimDesignTokens.Color.BackgroundDeep,
+        ),
+        radius = 920f,
+    )
+
+@Composable
+private fun AccountHeader(onBack: (() -> Unit)?) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (onBack != null) {
+            HardwareAccountButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = SwimDesignTokens.Color.TextPrimary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.title_account),
+                color = SwimDesignTokens.Color.TextPrimary,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
+            Text(
+                text = "Identite et acces",
+                color = SwimDesignTokens.Color.TextSecondary,
+                fontSize = 12.sp,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HardwareAccountButton(
+    onClick: () -> Unit,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .shadow(12.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.45f))
+            .clip(CircleShape)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Material.ShellTop,
+                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
+            .border(1.dp, SwimDesignTokens.Highlight.BodyStroke, CircleShape)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center,
+        content = content,
+    )
+}
+
+@Composable
+private fun AccountSectionTitle(title: String) {
+    Text(
+        text = title.uppercase(Locale.ROOT),
+        color = SwimDesignTokens.Color.PurpleActive,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Black,
+        letterSpacing = 1.3.sp,
+        modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+    )
+}
+
+@Composable
+private fun AccountCanvas(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = SwimDesignTokens.Elevation.HardwareSurface,
+                shape = SwimDesignTokens.Shape.LargeHardwareCard,
+                ambientColor = Color.Black.copy(alpha = 0.42f),
+                spotColor = Color.Black.copy(alpha = 0.55f),
+            )
+            .clip(SwimDesignTokens.Shape.LargeHardwareCard)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Color.SurfaceHighlight.copy(alpha = 0.88f),
+                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
+            .border(1.dp, SwimDesignTokens.Highlight.BodyStroke, SwimDesignTokens.Shape.LargeHardwareCard)
+            .padding(18.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun AccountIconBowl(content: @Composable BoxScope.() -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(54.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Material.BowlTop,
+                        SwimDesignTokens.Material.BowlMid,
+                        SwimDesignTokens.Material.BowlBottom,
+                    )
+                )
+            )
+            .border(1.dp, SwimDesignTokens.Highlight.BowlRim, CircleShape),
+        contentAlignment = Alignment.Center,
+        content = content,
+    )
+}
+
+@Composable
+private fun AccountStatusChip(text: String, color: Color) {
+    Box(
+        modifier = Modifier
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(color.copy(alpha = 0.14f))
+            .border(1.dp, color.copy(alpha = 0.28f), SwimDesignTokens.Shape.Pill)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun AccountInfoPill(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(SwimDesignTokens.Material.BowlMid.copy(alpha = 0.72f))
+            .border(1.dp, SwimDesignTokens.Highlight.BowlRim, SwimDesignTokens.Shape.Pill)
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            color = SwimDesignTokens.Color.TextMuted,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(96.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
+            color = SwimDesignTokens.Color.TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun AccountActionPill(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    highlighted: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(66.dp)
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(
+                Brush.verticalGradient(
+                    if (highlighted) {
+                        listOf(
+                            SwimDesignTokens.Material.PurpleCoreTop.copy(alpha = 0.80f),
+                            SwimDesignTokens.Material.PurpleCoreMid.copy(alpha = 0.82f),
+                            SwimDesignTokens.Material.PurpleCoreBottom.copy(alpha = 0.92f),
+                        )
+                    } else {
+                        listOf(
+                            SwimDesignTokens.Color.SurfaceHighlight.copy(alpha = 0.56f),
+                            SwimDesignTokens.Material.ShellMid,
+                            SwimDesignTokens.Material.ShellBottom,
+                        )
+                    }
+                )
+            )
+            .border(
+                1.dp,
+                if (highlighted) SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.38f)
+                else SwimDesignTokens.Highlight.BodyStroke,
+                SwimDesignTokens.Shape.Pill,
+            )
+            .clickable { onClick() }
+            .padding(start = 10.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AccountIconBowl {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (highlighted) Color.White else SwimDesignTokens.Color.PurpleActive,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = SwimDesignTokens.Color.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                color = if (highlighted) Color.White.copy(alpha = 0.72f) else SwimDesignTokens.Color.TextSecondary,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = if (highlighted) Color.White.copy(alpha = 0.82f) else SwimDesignTokens.Color.TextSecondary,
+            modifier = Modifier.size(19.dp),
+        )
+    }
+}
+
+@Composable
+private fun AccountLogoutPill(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(SwimDesignTokens.Material.BowlMid.copy(alpha = 0.84f))
+            .border(1.dp, SwimDesignTokens.Color.TextMuted.copy(alpha = 0.18f), SwimDesignTokens.Shape.Pill)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.menu_signout),
+            color = SwimDesignTokens.Color.TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 0.8.sp,
         )
     }
 }

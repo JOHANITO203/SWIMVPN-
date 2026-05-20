@@ -4,7 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
-import android.provider.Settings
+import android.provider.Settings as AndroidSettings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,13 +12,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -32,16 +36,8 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -53,18 +49,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
 import com.swimvpn.app.ui.theme.AppThemePreference
-import com.swimvpn.app.ui.theme.ElectricBlue
-import com.swimvpn.app.vpn.VpnNotificationLanguage
+import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.delay
 
 private const val LEGACY_PROXY_MODE = "PROXY"
@@ -91,18 +92,17 @@ fun TechnicalSettingsScreen(
     onBack: () -> Unit,
     themeMode: String = AppThemePreference.SYSTEM,
     onThemeModeChange: (String) -> Unit = {},
-    runtimeDiagnostics: String = "",
     runtimeStatus: String = "IDLE",
     activeRuntimeMode: String? = null,
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
-    var showThemeMenu by rememberSaveable { mutableStateOf(false) }
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
     var externalActionsArmed by rememberSaveable { mutableStateOf(false) }
+    var agentEnabled by rememberSaveable { mutableStateOf(true) }
     val killSwitchStatus = readKillSwitchStatus(context)
     val batteryOptimizationRequired = isBatteryOptimizationRequired(context)
+    val normalizedRoutingMode = normalizeRoutingMode(routingMode)
 
     LaunchedEffect(Unit) {
         externalActionsArmed = false
@@ -110,123 +110,74 @@ fun TechnicalSettingsScreen(
         externalActionsArmed = true
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState)
-            .padding(24.dp)
+            .background(settingsBackground())
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                    .clickable { onBack() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = stringResource(R.string.title_technical),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Button(
-                onClick = {
-                    selectedThemeMode = AppThemePreference.SYSTEM
-                    onThemeModeChange(AppThemePreference.SYSTEM)
-                    if (!routingMode.equals(FULL_TUNNEL_MODE, ignoreCase = true) &&
-                        !routingMode.equals(LEGACY_TUNNEL_MODE, ignoreCase = true)
-                    ) {
-                        onRoutingModeChange(FULL_TUNNEL_MODE)
-                    }
-                    onAutoConnectChange(false)
-                    onLanguageChange(VpnNotificationLanguage.DEFAULT_LANGUAGE)
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                shape = RoundedCornerShape(20.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                modifier = Modifier.height(36.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.btn_reset),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp,
-                    letterSpacing = 1.sp
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        SectionTitle(icon = Icons.Outlined.Language, title = stringResource(R.string.section_app))
-        Spacer(modifier = Modifier.height(12.dp))
-        AppPreferencesPanel(
-            language = language,
-            selectedThemeMode = selectedThemeMode,
-            showLanguageMenu = showLanguageMenu,
-            showThemeMenu = showThemeMenu,
-            onLanguageMenuChange = { showLanguageMenu = it },
-            onThemeMenuChange = { showThemeMenu = it },
-            onLanguageChange = onLanguageChange,
-            onThemeSelected = {
-                selectedThemeMode = it
-                onThemeModeChange(it)
-            },
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        SectionTitle(icon = Icons.Outlined.Speed, title = stringResource(R.string.section_connectivity))
-        Spacer(modifier = Modifier.height(12.dp))
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .verticalScroll(scrollState)
+                .padding(PaddingValues(horizontal = 24.dp, vertical = 18.dp)),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column {
-                RoutingControlPanel(
-                    selectedMode = routingMode,
+            SettingsHeader(onBack = onBack)
+
+            SettingsSectionTitle("Application")
+            SettingsCanvas {
+                LanguagePill(
+                    language = language,
+                    onLanguageChange = onLanguageChange,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                ThemeSwitchPill(
+                    dark = selectedThemeMode == AppThemePreference.DARK,
+                    onChange = { enabled: Boolean ->
+                        val next = if (enabled) AppThemePreference.DARK else AppThemePreference.LIGHT
+                        selectedThemeMode = next
+                        onThemeModeChange(next)
+                    },
+                )
+            }
+
+            SettingsSectionTitle("Connexion")
+            SettingsCanvas {
+                RoutingPill(
+                    selectedMode = normalizedRoutingMode,
                     runtimeStatus = runtimeStatus,
                     activeRuntimeMode = activeRuntimeMode,
                     onRoutingModeChange = onRoutingModeChange,
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsRowWithSwitch(
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsSwitchPill(
                     icon = Icons.Outlined.PowerSettingsNew,
-                    title = stringResource(R.string.auto_connect),
+                    title = "Connexion auto",
+                    subtitle = if (autoConnect) "Active au prochain lancement" else "Desactivee",
                     checked = autoConnect,
-                    onCheckedChange = onAutoConnectChange
+                    onCheckedChange = onAutoConnectChange,
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                SettingsRowWithChip(
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsActionPill(
                     icon = Icons.Outlined.Security,
-                    title = stringResource(R.string.kill_switch),
-                    chipText = killSwitchStatusChip(killSwitchStatus),
+                    title = "Kill switch",
+                    subtitle = killSwitchStatusChip(killSwitchStatus),
                     enabled = externalActionsArmed,
                     onClick = {
                         val opened = runCatching {
-                            val intent = Intent(Settings.ACTION_VPN_SETTINGS).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                            context.startActivity(intent)
+                            context.startActivity(
+                                Intent(AndroidSettings.ACTION_VPN_SETTINGS).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                            )
                         }.isSuccess
 
                         if (!opened) {
                             runCatching {
                                 context.startActivity(
-                                    Intent(Settings.ACTION_SETTINGS).apply {
+                                    Intent(AndroidSettings.ACTION_SETTINGS).apply {
                                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                                     }
                                 )
@@ -234,410 +185,386 @@ fun TechnicalSettingsScreen(
                                 Toast.makeText(context, R.string.err_open_settings_failed, Toast.LENGTH_SHORT).show()
                             }
                         }
-                    }
+                    },
                 )
-                if (batteryOptimizationRequired) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    SettingsRowWithChip(
-                        icon = Icons.Outlined.PowerSettingsNew,
-                        title = stringResource(R.string.battery_optimization),
-                        chipText = stringResource(R.string.battery_optimization_chip),
-                        enabled = externalActionsArmed,
-                        onClick = {
-                            if (!openBatteryOptimizationSettings(context)) {
-                                Toast.makeText(context, R.string.err_open_settings_failed, Toast.LENGTH_SHORT).show()
-                            }
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsActionPill(
+                    icon = Icons.Outlined.PowerSettingsNew,
+                    title = "Optimisation batterie",
+                    subtitle = if (batteryOptimizationRequired) "Exemption recommandee" else "Deja optimisee",
+                    enabled = externalActionsArmed,
+                    onClick = {
+                        if (!openBatteryOptimizationSettings(context)) {
+                            Toast.makeText(context, R.string.err_open_settings_failed, Toast.LENGTH_SHORT).show()
                         }
-                    )
-                }
-            }
-        }
-
-        if (runtimeDiagnostics.isNotBlank()) {
-            Spacer(modifier = Modifier.height(32.dp))
-
-            SectionTitle(icon = Icons.Outlined.Security, title = "RUNTIME DIAGNOSTICS")
-            Spacer(modifier = Modifier.height(12.dp))
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
-            ) {
-                Text(
-                    text = runtimeDiagnostics,
-                    modifier = Modifier.padding(24.dp),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
-                    fontWeight = FontWeight.Medium
+                    },
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsSwitchPill(
+                    icon = Icons.Outlined.Speed,
+                    title = "Agent IA",
+                    subtitle = if (agentEnabled) "Selection intelligente active" else "Selection manuelle",
+                    checked = agentEnabled,
+                    onCheckedChange = { agentEnabled = it },
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Button(
-            onClick = { onBack() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text(
-                text = stringResource(R.string.btn_save),
-                fontWeight = FontWeight.Black,
-                fontSize = 14.sp,
-                letterSpacing = 1.sp
+@Composable
+private fun SettingsHeader(onBack: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HardwareCircleButton(onClick = onBack) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                tint = SwimDesignTokens.Color.TextPrimary,
+                modifier = Modifier.size(20.dp),
             )
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-@Composable
-private fun AppPreferencesPanel(
-    language: String,
-    selectedThemeMode: String,
-    showLanguageMenu: Boolean,
-    showThemeMenu: Boolean,
-    onLanguageMenuChange: (Boolean) -> Unit,
-    onThemeMenuChange: (Boolean) -> Unit,
-    onLanguageChange: (String) -> Unit,
-    onThemeSelected: (String) -> Unit,
-) {
-    Card(
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(28.dp))
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+        Spacer(modifier = Modifier.width(14.dp))
+        Column {
             Text(
-                text = stringResource(R.string.app_preferences_title),
-                color = MaterialTheme.colorScheme.onSurface,
+                text = "Parametres",
+                color = SwimDesignTokens.Color.TextPrimary,
+                fontSize = 30.sp,
                 fontWeight = FontWeight.Black,
-                fontSize = 16.sp
+                maxLines = 1,
             )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Box {
-                AppPreferenceTile(
-                    icon = Icons.Outlined.Language,
-                    title = stringResource(R.string.label_language),
-                    chipText = languageChipLabel(language),
-                    onClick = { onLanguageMenuChange(true) }
-                )
-
-                DropdownMenu(
-                    expanded = showLanguageMenu,
-                    onDismissRequest = { onLanguageMenuChange(false) },
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                ) {
-                    LanguageMenuItem(stringResource(R.string.lang_en)) {
-                        onLanguageChange("en")
-                        onLanguageMenuChange(false)
-                    }
-                    LanguageMenuItem(stringResource(R.string.lang_fr)) {
-                        onLanguageChange("fr")
-                        onLanguageMenuChange(false)
-                    }
-                    LanguageMenuItem(stringResource(R.string.lang_ru)) {
-                        onLanguageChange("ru")
-                        onLanguageMenuChange(false)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Box {
-                AppPreferenceTile(
-                    icon = Icons.Outlined.Palette,
-                    title = stringResource(R.string.label_theme),
-                    chipText = themeChipLabel(selectedThemeMode),
-                    onClick = { onThemeMenuChange(true) }
-                )
-
-                DropdownMenu(
-                    expanded = showThemeMenu,
-                    onDismissRequest = { onThemeMenuChange(false) },
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                ) {
-                    ThemeMenuItem(stringResource(R.string.theme_system)) {
-                        onThemeSelected(AppThemePreference.SYSTEM)
-                        onThemeMenuChange(false)
-                    }
-                    ThemeMenuItem(stringResource(R.string.theme_light)) {
-                        onThemeSelected(AppThemePreference.LIGHT)
-                        onThemeMenuChange(false)
-                    }
-                    ThemeMenuItem(stringResource(R.string.theme_dark)) {
-                        onThemeSelected(AppThemePreference.DARK)
-                        onThemeMenuChange(false)
-                    }
-                }
-            }
+            Text(
+                text = "Application et connexion",
+                color = SwimDesignTokens.Color.TextSecondary,
+                fontSize = 12.sp,
+                maxLines = 1,
+            )
         }
     }
 }
 
 @Composable
-private fun AppPreferenceTile(
-    icon: ImageVector,
-    title: String,
-    chipText: String,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
-            .clickable { onClick() },
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = RoundedCornerShape(22.dp)
+private fun LanguagePill(language: String, onLanguageChange: (String) -> Unit) {
+    SettingsPillScaffold(
+        icon = Icons.Outlined.Language,
+        title = "Langue",
+        subtitle = languageDisplay(language),
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column {
-                    Text(
-                        text = title,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Text(
-                    text = chipText,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    fontSize = 10.sp
-                )
-            }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            LanguageChip("ru", "RU", language, onLanguageChange)
+            LanguageChip("en", "EN", language, onLanguageChange)
+            LanguageChip("fr", "FR", language, onLanguageChange)
         }
     }
 }
 
 @Composable
-private fun LanguageMenuItem(label: String, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(text = label, fontWeight = FontWeight.Bold) },
-        onClick = onClick
-    )
+private fun ThemeSwitchPill(dark: Boolean, onChange: (Boolean) -> Unit) {
+    SettingsPillScaffold(
+        icon = Icons.Outlined.Palette,
+        title = "Theme",
+        subtitle = if (dark) "Dark active" else "Light active",
+    ) {
+        SwimSwitch(checked = dark, onCheckedChange = onChange)
+    }
 }
 
 @Composable
-private fun ThemeMenuItem(label: String, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(text = label, fontWeight = FontWeight.Bold) },
-        onClick = onClick
-    )
-}
-
-@Composable
-private fun languageChipLabel(language: String): String =
-    when (language.lowercase()) {
-        "fr" -> stringResource(R.string.lang_fr)
-        "ru" -> stringResource(R.string.lang_ru)
-        else -> stringResource(R.string.lang_en)
-    }
-
-@Composable
-private fun themeChipLabel(themeMode: String): String =
-    when (normalizeThemeMode(themeMode)) {
-        AppThemePreference.LIGHT -> stringResource(R.string.theme_light)
-        AppThemePreference.DARK -> stringResource(R.string.theme_dark)
-        else -> stringResource(R.string.theme_system)
-    }
-
-@Composable
-private fun routingChipLabel(routingMode: String): String =
-    when (routingMode.uppercase()) {
-        LEGACY_PROXY_MODE -> stringResource(R.string.routing_mode_local_proxy)
-        "LOCAL_PROXY" -> stringResource(R.string.routing_mode_local_proxy)
-        "SPLIT_TUNNEL" -> stringResource(R.string.routing_mode_split_tunnel)
-        else -> stringResource(R.string.routing_mode_full_tunnel)
-    }
-
-@Composable
-private fun RoutingControlPanel(
+private fun RoutingPill(
     selectedMode: String,
     runtimeStatus: String,
     activeRuntimeMode: String?,
     onRoutingModeChange: (String) -> Unit,
 ) {
-    val normalizedSelectedMode = normalizeRoutingMode(selectedMode)
-    val normalizedActiveMode = activeRuntimeMode?.let { normalizeRoutingMode(it) }
-    val isRunning = runtimeStatus.equals("RUNNING", ignoreCase = true)
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    val activeMode = activeRuntimeMode?.let { normalizeRoutingMode(it) }
+    val running = runtimeStatus.equals("RUNNING", ignoreCase = true)
+    SettingsPillScaffold(
+        icon = Icons.Outlined.AccountTree,
+        title = "Routage",
+        subtitle = routingChipLabel(selectedMode),
     ) {
-        Box(
-            modifier = Modifier
-                .size(58.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.AccountTree,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RouteLight(
+                label = "Tunnel",
+                selected = selectedMode == FULL_TUNNEL_MODE,
+                active = selectedMode == FULL_TUNNEL_MODE && (!running || activeMode == FULL_TUNNEL_MODE),
+                onClick = { onRoutingModeChange(FULL_TUNNEL_MODE) },
             )
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        Text(
-            text = stringResource(R.string.label_routing),
-            fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 13.sp,
-            letterSpacing = 0.8.sp
-        )
-        Spacer(modifier = Modifier.height(18.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            RoutingModeButton(
-                label = stringResource(R.string.routing_mode_full_tunnel),
-                badge = stringResource(R.string.routing_badge_recommended),
-                selected = normalizedSelectedMode == FULL_TUNNEL_MODE,
-                active = isRunning && normalizedActiveMode == FULL_TUNNEL_MODE,
-                modifier = Modifier.weight(1f),
-                onClick = { onRoutingModeChange(FULL_TUNNEL_MODE) }
-            )
-            RoutingModeButton(
-                label = stringResource(R.string.routing_mode_local_proxy),
-                badge = stringResource(R.string.routing_badge_advanced),
-                selected = normalizedSelectedMode == LOCAL_PROXY_MODE,
-                active = isRunning && normalizedActiveMode == LOCAL_PROXY_MODE,
-                modifier = Modifier.weight(1f),
-                onClick = { onRoutingModeChange(LOCAL_PROXY_MODE) }
-            )
-        }
-
-        if (normalizedSelectedMode == LOCAL_PROXY_MODE) {
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = stringResource(R.string.routing_mode_local_proxy_help),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+            RouteLight(
+                label = "Proxy",
+                selected = selectedMode == LOCAL_PROXY_MODE,
+                active = selectedMode == LOCAL_PROXY_MODE && (!running || activeMode == LOCAL_PROXY_MODE),
+                onClick = { onRoutingModeChange(LOCAL_PROXY_MODE) },
             )
         }
     }
 }
 
 @Composable
-private fun RoutingModeButton(
-    label: String,
-    badge: String,
-    selected: Boolean,
-    active: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
+private fun SettingsSwitchPill(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
 ) {
-    val borderColor = when {
-        active -> MaterialTheme.colorScheme.secondary
-        selected -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.outlineVariant
-    }
-    val backgroundColor = when {
-        active -> MaterialTheme.colorScheme.secondaryContainer
-        selected -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.surfaceContainer
-    }
-    val textColor = when {
-        active -> MaterialTheme.colorScheme.onSecondaryContainer
-        selected -> MaterialTheme.colorScheme.onSurface
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val dotColor = if (active) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant
-
-    Surface(
-        modifier = modifier
-            .height(72.dp)
-            .border(1.dp, borderColor, RoundedCornerShape(18.dp))
-            .clickable { onClick() },
-        color = backgroundColor,
-        shape = RoundedCornerShape(18.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background(dotColor, CircleShape)
-                        .border(
-                            width = if (active) 2.dp else 1.dp,
-                            color = if (active) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface,
-                            shape = CircleShape
-                        )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = label,
-                    color = textColor,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 12.sp,
-                    letterSpacing = 0.4.sp
-                )
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = badge,
-                color = if (active) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Bold,
-                fontSize = 9.sp,
-                letterSpacing = 0.5.sp
-            )
-        }
+    SettingsPillScaffold(icon = icon, title = title, subtitle = subtitle) {
+        SwimSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
+
+@Composable
+private fun SettingsActionPill(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    SettingsPillScaffold(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        modifier = if (enabled) Modifier.clickable(onClick = onClick) else Modifier,
+    ) {
+        StatusChip(if (enabled) "OPEN" else "WAIT")
+    }
+}
+
+@Composable
+private fun SettingsPillScaffold(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    trailing: @Composable () -> Unit,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(SwimDesignTokens.Material.BowlTop.copy(alpha = 0.72f))
+            .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.Pill)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconBowl(icon)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = SwimDesignTokens.Color.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+            )
+            Text(
+                text = subtitle,
+                color = SwimDesignTokens.Color.TextSecondary,
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        trailing()
+    }
+}
+
+@Composable
+private fun SettingsCanvas(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(SwimDesignTokens.Shadow.HardwareSurface, SwimDesignTokens.Shape.LargeHardwareCard, clip = false)
+            .clip(SwimDesignTokens.Shape.LargeHardwareCard)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
+            .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.LargeHardwareCard)
+            .drawBehind {
+                drawRect(SwimDesignTokens.Highlight.InnerTop, size = Size(size.width, 1.dp.toPx()))
+            }
+            .padding(14.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun SettingsSectionTitle(title: String) {
+    Text(
+        text = title.uppercase(),
+        color = SwimDesignTokens.Color.PurpleActive,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Black,
+        letterSpacing = 1.1.sp,
+        modifier = Modifier.padding(start = 6.dp, top = 10.dp),
+    )
+}
+
+@Composable
+private fun IconBowl(icon: ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(SwimDesignTokens.Material.BowlBottom)
+            .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.72f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = SwimDesignTokens.Color.PurpleActive,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun HardwareCircleButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .shadow(10.dp, CircleShape, clip = false)
+            .clip(CircleShape)
+            .background(SwimDesignTokens.Material.BowlBottom)
+            .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun LanguageChip(
+    value: String,
+    label: String,
+    current: String,
+    onLanguageChange: (String) -> Unit,
+) {
+    val selected = current.equals(value, ignoreCase = true)
+    Box(
+        modifier = Modifier
+            .height(34.dp)
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(if (selected) purpleGradient() else Brush.verticalGradient(listOf(SwimDesignTokens.Material.ShellMid, SwimDesignTokens.Material.ShellBottom)))
+            .border(1.dp, if (selected) SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.46f) else SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.Pill)
+            .clickable { onLanguageChange(value) }
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = if (selected) Color.White else SwimDesignTokens.Color.TextSecondary,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+        )
+    }
+}
+
+@Composable
+private fun RouteLight(label: String, selected: Boolean, active: Boolean, onClick: () -> Unit) {
+    val lightColor = if (active) SwimDesignTokens.Color.SuccessGreen else SwimDesignTokens.Color.TextMuted
+    Row(
+        modifier = Modifier
+            .height(34.dp)
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(if (selected) SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.12f) else SwimDesignTokens.Material.ShellBottom)
+            .border(1.dp, if (selected) SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.34f) else SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.Pill)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(SwimDesignTokens.Material.BowlBottom)
+                .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.6f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(if (active) 5.5.dp else 4.5.dp)
+                    .clip(CircleShape)
+                    .background(lightColor),
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            color = if (selected) SwimDesignTokens.Color.TextPrimary else SwimDesignTokens.Color.TextSecondary,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Black,
+        )
+    }
+}
+
+@Composable
+private fun SwimSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = Color.White,
+            checkedTrackColor = SwimDesignTokens.Color.PurplePrimary,
+            checkedBorderColor = SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.4f),
+            uncheckedThumbColor = SwimDesignTokens.Color.TextSecondary,
+            uncheckedTrackColor = SwimDesignTokens.Material.BowlBottom,
+            uncheckedBorderColor = SwimDesignTokens.Color.StrokeSubtle,
+        ),
+    )
+}
+
+@Composable
+private fun StatusChip(text: String) {
+    Box(
+        modifier = Modifier
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.14f))
+            .border(1.dp, SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.30f), SwimDesignTokens.Shape.Pill)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = text, color = SwimDesignTokens.Color.PurpleActive, fontSize = 10.sp, fontWeight = FontWeight.Black)
+    }
+}
+
+private fun settingsBackground(): Brush =
+    Brush.radialGradient(
+        colors = listOf(
+            SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.34f),
+            SwimDesignTokens.Color.BackgroundBase.copy(alpha = 0.96f),
+            SwimDesignTokens.Color.BackgroundDeep,
+        ),
+        center = Offset(Float.POSITIVE_INFINITY, 0f),
+        radius = 980f,
+    )
+
+private fun purpleGradient(): Brush =
+    Brush.radialGradient(
+        listOf(
+            SwimDesignTokens.Material.PurpleCoreTop,
+            SwimDesignTokens.Material.PurpleCoreMid,
+            SwimDesignTokens.Material.PurpleCoreBottom,
+        )
+    )
 
 private fun normalizeRoutingMode(mode: String): String =
     when (mode.uppercase()) {
         LEGACY_PROXY_MODE, LOCAL_PROXY_MODE -> LOCAL_PROXY_MODE
+        LEGACY_TUNNEL_MODE, FULL_TUNNEL_MODE -> FULL_TUNNEL_MODE
         else -> FULL_TUNNEL_MODE
     }
 
@@ -645,16 +572,29 @@ private fun normalizeThemeMode(themeMode: String): String =
     when (themeMode.uppercase()) {
         AppThemePreference.LIGHT -> AppThemePreference.LIGHT
         AppThemePreference.DARK -> AppThemePreference.DARK
-        else -> AppThemePreference.SYSTEM
+        else -> AppThemePreference.DARK
+    }
+
+private fun routingChipLabel(routingMode: String): String =
+    when (normalizeRoutingMode(routingMode)) {
+        LOCAL_PROXY_MODE -> "Proxy local"
+        else -> "Tunnel complet"
+    }
+
+private fun languageDisplay(language: String): String =
+    when (language.lowercase()) {
+        "fr" -> "Francais"
+        "ru" -> "Russkiy"
+        else -> "English"
     }
 
 private fun readKillSwitchStatus(context: android.content.Context): KillSwitchStatus {
     return runCatching {
-        val alwaysOnPackage = Settings.Secure.getString(
+        val alwaysOnPackage = AndroidSettings.Secure.getString(
             context.contentResolver,
             ALWAYS_ON_VPN_APP_KEY
         )
-        val lockdownEnabled = Settings.Secure.getInt(
+        val lockdownEnabled = AndroidSettings.Secure.getInt(
             context.contentResolver,
             ALWAYS_ON_VPN_LOCKDOWN_KEY,
             0
@@ -679,7 +619,7 @@ private fun openBatteryOptimizationSettings(context: android.content.Context): B
     val packageUri = Uri.parse("package:${context.packageName}")
     val requestOpened = runCatching {
         context.startActivity(
-            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri).apply {
+            Intent(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
         )
@@ -689,7 +629,7 @@ private fun openBatteryOptimizationSettings(context: android.content.Context): B
 
     return runCatching {
         context.startActivity(
-            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+            Intent(AndroidSettings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
         )
@@ -702,116 +642,5 @@ private fun killSwitchStatusChip(status: KillSwitchStatus): String {
         KillSwitchStatus.SYSTEM -> stringResource(R.string.kill_switch_chip_system)
         KillSwitchStatus.ALWAYS_ON -> stringResource(R.string.kill_switch_chip_always_on)
         KillSwitchStatus.LOCKDOWN -> stringResource(R.string.kill_switch_chip_lockdown)
-    }
-}
-
-@Composable
-fun SectionTitle(icon: ImageVector, title: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(horizontal = 8.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = title,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 10.sp,
-            letterSpacing = 1.sp
-        )
-    }
-}
-
-@Composable
-fun SettingsRowWithChip(
-    icon: ImageVector,
-    title: String,
-    chipText: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (enabled) Modifier.clickable { onClick() } else Modifier
-            )
-            .padding(24.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = title,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp
-                )
-            }
-        }
-        Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp)) {
-            Text(
-                text = chipText,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 10.sp
-            )
-        }
-    }
-}
-
-@Composable
-fun SettingsRowWithSwitch(
-    icon: ImageVector,
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = title,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp
-                )
-            }
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.surface,
-                checkedTrackColor = MaterialTheme.colorScheme.primary
-            )
-        )
     }
 }

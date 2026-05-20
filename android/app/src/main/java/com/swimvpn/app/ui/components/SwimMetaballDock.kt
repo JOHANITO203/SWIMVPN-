@@ -61,6 +61,8 @@ enum class NavDockItem {
     SETTINGS,
 }
 
+private var lastDockItemForCrossScreenMotion: NavDockItem = NavDockItem.HOME
+
 private enum class DockNodeVisualState {
     IdleInactive,
     PressedInactive,
@@ -117,7 +119,8 @@ fun MetaballNavDock(
         )
     }
     val selectedIndex = items.indexOfFirst { it.item == selectedItem }.coerceAtLeast(0)
-    val activeCenter = remember { Animatable(DockTokens.Centers[selectedIndex]) }
+    val initialIndex = items.indexOfFirst { it.item == lastDockItemForCrossScreenMotion }.takeIf { it >= 0 } ?: selectedIndex
+    val activeCenter = remember { Animatable(DockTokens.Centers[initialIndex]) }
     var pressedItem by remember { mutableStateOf<NavDockItem?>(null) }
 
     LaunchedEffect(selectedItem) {
@@ -128,6 +131,7 @@ fun MetaballNavDock(
                 easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f),
             ),
         )
+        lastDockItemForCrossScreenMotion = selectedItem
     }
 
     val breathing = rememberInfiniteTransition(label = "dock-active-breathing")

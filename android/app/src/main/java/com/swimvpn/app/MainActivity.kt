@@ -59,7 +59,6 @@ import com.swimvpn.app.ui.theme.*
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.ThemeMode
-import com.swimvpn.app.vpn.RuntimeMetrics
 import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnNotificationLanguage
@@ -269,13 +268,18 @@ fun AppNavigation(
             SubscriptionScreen(
                 plans = data.plans,
                 paymentEmail = data.profile.email,
+                activeOfferCode = data.profile.offerCode,
                 onCheckoutClick = { planId, paymentMethod ->
                     viewModel.createCheckout(
                         planId = planId,
                         paymentMethod = paymentMethod,
                     )
                 },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onProfileClick = { navController.navigate("profile") },
+                onNavigateHome = { navController.navigate("home") },
+                onNavigateServers = { navController.navigate("servers") },
+                onNavigateSettings = { navController.navigate("profile") },
             )
         }
         composable("technical") {
@@ -317,10 +321,9 @@ fun AppNavigation(
                 },
                 themeMode = themeMode.name,
                 onThemeModeChange = { viewModel.setThemeMode(ThemeMode.fromPersisted(it)) },
-                runtimeDiagnostics = buildRuntimeDiagnostics(metrics),
                 runtimeStatus = runtimeStatus.name,
                 activeRuntimeMode = metrics.activeMode,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
             )
         }
     }
@@ -451,22 +454,6 @@ fun SplashScreen() {
             )
         }
     }
-}
-
-@Composable
-private fun buildRuntimeDiagnostics(metrics: RuntimeMetrics): String {
-    val lines = mutableListOf<String>()
-    metrics.activeMode?.let { lines += stringResource(R.string.runtime_diag_mode, it) }
-    metrics.xraySessionId?.let { lines += stringResource(R.string.runtime_diag_xray_session, it) }
-    metrics.xrayLogPath?.let { lines += stringResource(R.string.runtime_diag_xray_log, it) }
-    metrics.tun2SocksSessionId?.let { lines += stringResource(R.string.runtime_diag_tun2socks_session, it) }
-    metrics.tun2SocksLogPath?.let { lines += stringResource(R.string.runtime_diag_tun2socks_log, it) }
-    metrics.lastError?.let { lines += stringResource(R.string.runtime_diag_last_error, it) }
-    metrics.lastDisconnectCause?.let { lines += stringResource(R.string.runtime_diag_disconnect_cause, it.name) }
-    if (metrics.reconnectCount > 0) {
-        lines += stringResource(R.string.runtime_diag_reconnect_count, metrics.reconnectCount)
-    }
-    return lines.joinToString("\n")
 }
 
 @Composable

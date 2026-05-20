@@ -1,5 +1,12 @@
 # TODO
 
+## [2026-05-20] Android Subscription UI Follow-up
+- [ ] Valider le rendu écran `subscription` avec APK debug (basic, premium, platinum) sur petit et grand format.
+- [ ] Vérifier que la navigation dock (Home/Servers/Subscription) ne crée pas de pile infinie.
+- [ ] Vérifier que le bouton Profile retourne bien vers `profile` depuis `subscription`.
+- [ ] Valider la création de checkout réelle en cliquant Basic/Premium/Platinum (order pending + message de statut).
+- [ ] Contrôler le contraste de la ligne de CTA en mode Premium et la cohérence du glow localisé.
+
 ## [2026-05-20] VPN Runtime Stabilisation Follow-up
 - [x] Separate killed-service recovery from boot auto-connect intent.
 - [x] Prevent non-user `onDestroy()` from erasing recoverable active runtime state.
@@ -1272,3 +1279,18 @@ u after each future language batch
 - [ ] Verify the design pass does not alter backend, entitlement, trial/subscription, parsing, or VPN runtime behavior.
 - [ ] Remove the old inactive inline Home implementation from `MainActivity.kt` after visual QA confirms the new screen is accepted.
 - [ ] After ADB reconnects, capture the tokenized Start/User buttons against the accepted dock to confirm material cohesion.
+
+## 2026-05-20 - Subscription design QA follow-up
+- [x] Reduce Subscription header scale and top vertical footprint so the first viewport matches the compact mock hierarchy.
+- [x] Rework plan cards from the current wide two-column layout into a compact stacked premium layout with less text truncation.
+- [x] Reduce card heights and icon diameter so Basic/Premium visibility improves around the fixed dock.
+- [x] Increase bottom content padding or shorten visible content so the metaball dock never covers CTA/features.
+- [x] Re-capture `com.swimvpn.app` Subscription on the phone after correction and compare bounds against the mock again.
+- [ ] Continue fine polish on Subscription so Premium/Platinum card density feels closer to the visual mock on several screen classes.
+
+## 2026-05-20 - Servers design QA follow-up
+- [x] Remove repeated `AI active` wording and use `Agent active` with a compact `AI` badge.
+- [x] Add location and node detail context to each server row using existing `city`, provider/group, protocol, load, and availability data.
+- [x] Present measured ping as a compact live badge based on existing probe fields.
+- [ ] Add a dedicated runtime/bandit phase for continuous ping refresh if product wants probes to run periodically while the screen is open.
+- [ ] Polish action pill copy widths so `Import Access` and subtitles avoid truncation on narrow/high-font-scale devices.

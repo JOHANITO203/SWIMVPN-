@@ -1,3 +1,21 @@
+# 2026-05-20 - Android Subscription screen rebuild + navigation hook (restart)
+
+- Reworked `SubscriptionScreen.kt` to remove placeholder/accessibility artifacts and complete the reusable button architecture (`PressablePill`, payment method strip, dock callback wiring).
+- Added required Compose imports for semantic accessibility; for SP sizing, used a local `fixedSp` helper backed by Compose `sp` constants.
+- Hooked `MainActivity` subscription route with:
+  - `activeOfferCode = data.profile.offerCode` for current plan highlight
+  - `onProfileClick`, `onNavigateHome`, `onNavigateServers`, `onNavigateSettings` for dock/profile actions
+  - preserved backend checkout call (`onCheckoutClick` still calls `viewModel.createCheckout(...)` with user-selected method).
+- Kept VPN, backend parser, entitlement rules, and payment confirmation flow untouched.
+- No fabricated success states introduced; order creation remains real flow.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` pass after resolving a temporary `toSp` API mismatch.
+
+# 2026-05-20 - Android Subscription implementation rollback
+
+- Cancelled the first Subscription dark luxury implementation pass before restarting the target design work.
+- Restored `SubscriptionScreen.kt`, `MainActivity.kt`, `SwimDesignTokens.kt`, `DECISIONS.md`, and `TODO.md` to the pre-Subscription-pass state.
+- Kept VPN, backend, parser, Home, Servers, and dock behavior untouched.
+
 # 2026-05-20 - Android VPN runtime review follow-up
 
 - Cleared stale failure cause and reconnect counters when a new runtime session reaches healthy `RUNNING`.
@@ -3183,6 +3201,63 @@ pm run build PASSED.
 - Wired the screen to existing real `ServerGroup`/`ServerNode` data and `ActiveConfigMetadata` without changing VPN runtime, backend, parser, entitlement, trial, or subscription contracts.
 - Added `docs/SWIMVPN_SERVER_SCREEN_TOKENS_2026-05.md` for the screen design and motion contract.
 - Verification: `:app:compileDebugKotlin`, `:app:assembleDebug`, and `git diff --check` passed. Debug APK installed on the physical device; first capture exposed font-scale overflow, which was corrected with bounded visual text sizing. A second capture attempt was blocked by the phone lock/emergency-call surface, so final visual QA remains manual.
+
+## 2026-05-20 - Subscription live design QA
+- Forced `com.swimvpn.app/.MainActivity` into the foreground over ADB Wi-Fi and disabled device animation scales to make the UI hierarchy dump stable.
+- Captured the live Subscription screen at `screenshots/swimvpn_subscription_live_pull_20260520_122118.png` and verified the hierarchy belongs to `com.swimvpn.app`.
+- Cross-check found a major layout mismatch against the mock: oversized title/subtitle, oversized plan cards, two-column card content causing truncation, Premium card hidden behind the dock, and Platinum/guarantee not visible in the first viewport.
+- No production logic, VPN runtime, backend, parser, entitlement, or payment behavior was changed in this QA batch.
+
+## 2026-05-20 - Subscription and Servers responsive dock layout pass
+- Removed the top-right user button from Subscription and Servers, keeping the existing callback signatures for navigation compatibility.
+- Reworked Subscription and Servers as edge-to-edge screens whose scrollable content reserves a real bottom zone for the metaball dock instead of drawing underneath it.
+- Reduced Subscription and Servers token sizes for card heights, title scale, row height, action pills, badges, and dock-reserved content space so the design is not tied to one phone resolution.
+- Verified on device with ADB screenshots:
+  - `screenshots/swimvpn_subscription_final_layout_20260520_123456.png`
+  - `screenshots/swimvpn_servers_final_layout_20260520_123456.png`
+  - `screenshots/swimvpn_servers_density_20260520_123905.png`
+
+## 2026-05-20 - Servers Agent and ping information pass
+- Replaced repeated AI wording with one clear card title: `Agent active`, subtitle `Showing the best servers for your connection`, and a smaller `AI` badge.
+- Enriched server rows with location context from existing backend/client data: country, city/location, provider/group/protocol/load/availability details.
+- Replaced the plain latency line with a compact live ping badge using existing measured `ping`, `latencyMeasuredAtMs`, and `latencyProbeFailed` fields; no new probe loop or backend contract was introduced.
+- Refined the green Agent status into a small recessed pilot light integrated into the card surface instead of a dominant floating dot.
+- Verified on device with screenshot `screenshots/swimvpn_servers_agent_ping_20260520_124540.png`.
+
+## 2026-05-20 - Import configuration visual reconciliation
+- Rebuilt `ConfigImportScreen` with the same SwimVPN dark hardware grammar as the Servers screen: edge-to-edge atmospheric background, monolithic cards, pill method buttons, recessed icon bowls, and compact imported profile rows.
+- Limited visible import methods to `Manual Input` and `QR Code`; clipboard/paste import UI is no longer exposed from this screen.
+- Preserved the existing manual import dialog, QR scanner, repository import calls, profile selection, and deletion behavior without changing parser, VPN runtime, backend, entitlement, or config contracts.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Debug APK installed successfully on the ADB Wi-Fi device.
+
+## 2026-05-20 - Manual input dialog visual reconciliation
+- Rebuilt the `ImportConfigDialog` manual input modal as a SwimVPN dark hardware panel with shared tokens, high-radius shell, recessed input field, purple active action, and compact preview surface.
+- Preserved the existing `onTextChange`, `canImport`, `onImport`, preview validation, and repository import flow; no parser, VPN runtime, backend, entitlement, or source-type behavior was changed.
+- Verification: `:app:compileDebugKotlin` passed.
+
+## 2026-05-20 - Settings screen visual reconciliation
+- Rebuilt `TechnicalSettingsScreen` as an edge-to-edge SwimVPN dark hardware settings surface with Account, Application, and Connection sections.
+- Added account canvas with expandable local identity details and a non-destructive logout pill placeholder because no real logout/account callback is currently wired into this screen.
+- Reworked application controls into language chips for RU/EN/FR and a dark/light theme switch using the existing theme callback.
+- Reworked connection controls into routing pilot lights for Tunnel/Proxy, auto-connect switch, kill-switch action, battery-optimization action, and local Agent IA switch.
+- Preserved existing routing, auto-connect, language, theme, Android VPN settings, and battery optimization callbacks; backend, parser, VPN runtime, entitlement, and contracts were not changed.
+- Verification: `:app:compileDebugKotlin` passed.
+
+## 2026-05-20 - Settings support and dock continuity pass
+- Wired real profile identity into `TechnicalSettingsScreen` from `MainActivity` using existing email/phone state and connected the settings logout pill to the existing `viewModel.signOut()` flow.
+- Added an `Aide et support` section in settings that navigates to the existing support route.
+- Rebuilt `SupportScreen` with the same dark hardware grammar as Servers/Settings while preserving email, Telegram, FAQ, and subscription navigation behavior.
+- Fixed cross-screen dock continuity by preserving the last selected dock item so Home <-> Servers starts from the previous node and glides to the new active node instead of appearing instantly at the target.
+- Backend, parser, VPN runtime, entitlement, payment, and support contact contracts were not changed.
+- Verification: `:app:compileDebugKotlin` passed.
+
+## 2026-05-20 - Account screen correction after settings misread
+- Moved the requested account simplification back to `ProfileScreen`: dark hardware account canvas, expandable identity stack, access/status chip, action pills, and integrated sign-out pill.
+- Removed the Account and Help/Support blocks from `TechnicalSettingsScreen`, leaving it focused on Application and Connection controls.
+- Removed the visible runtime diagnostics surface from settings so the simplified user-facing design no longer exposes technical runtime language.
+- Kept `SupportScreen` as a dedicated dark hardware route and preserved profile navigation to Subscription, Import Access, Settings, Support, trial activation, cancellation, and sign-out callbacks.
+- Backend, parser, VPN runtime, entitlement, payment, and access contracts were not changed.
+- Verification: `:app:compileDebugKotlin` passed.
 
 ## 2026-05-20 - Onboarding profile contract fixes
 - Android now treats backend `profileCompletionRequired` as authoritative, even if an active entitlement state is also present.

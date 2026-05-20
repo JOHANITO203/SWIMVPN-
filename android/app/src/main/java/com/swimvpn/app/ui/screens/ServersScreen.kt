@@ -38,7 +38,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -70,7 +69,6 @@ import androidx.compose.ui.unit.TextUnit
 import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerNode
-import com.swimvpn.app.ui.components.SwimCircularIconButton
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.SwimDockDestination
 import com.swimvpn.app.ui.components.SwimMetaballDock
@@ -96,8 +94,13 @@ data class ImportedConfigSummaryUi(
 data class ServerNodeUi(
     val id: String,
     val countryName: String,
+    val cityLabel: String,
+    val detailLabel: String,
     val flagEmoji: String,
-    val latencyLabel: String,
+    val pingLabel: String,
+    val pingFresh: Boolean,
+    val pingFailed: Boolean,
+    val loadLabel: String?,
     val isSelected: Boolean,
 )
 
@@ -180,6 +183,7 @@ fun ServersScreen(
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun ServerScreen(
     uiState: ServerScreenUiState,
     onTabSelected: (ServerSourceTab) -> Unit,
@@ -203,29 +207,18 @@ fun ServerScreen(
             }
             val dockBottomPadding = SwimDesignTokens.Servers.DockBottomPadding
 
-            SwimCircularIconButton(
-                icon = Icons.Default.Person,
-                contentDescription = "Profile",
-                onClick = onProfileClick,
-                size = if (compact) 56.dp else 62.dp,
-                iconSize = if (compact) 23.dp else 26.dp,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(top = if (compact) 26.dp else 32.dp, end = horizontalPadding),
-            )
-
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
                     .navigationBarsPadding()
+                    .padding(bottom = SwimDesignTokens.Servers.DockReservedHeight)
                     .padding(horizontal = horizontalPadding),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    top = SwimDesignTokens.Servers.TopPadding + if (compact) 20.dp else 42.dp,
-                    bottom = SwimDesignTokens.Servers.DockReservedHeight + dockBottomPadding,
+                    top = SwimDesignTokens.Servers.TopPadding + if (compact) 18.dp else 26.dp,
+                    bottom = 24.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 18.dp),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 11.dp else 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 item(key = "selector") {
@@ -388,7 +381,7 @@ private fun ServerSourceSegmentedControl(
 @Composable
 private fun SegmentLabel(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val scale by animateFloatAsState(targetValue = if (selected) 1f else 0.98f, label = "segment-scale")
-    val fontSize = fixedSp(15)
+    val fontSize = fixedSp(12)
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -415,8 +408,8 @@ private fun AiStatusCard(
     compact: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val titleSize = fixedSp(if (compact) 21 else 23)
-    val bodySize = fixedSp(if (compact) 14 else 15)
+    val titleSize = fixedSp(if (compact) 17 else 19)
+    val bodySize = fixedSp(if (compact) 11 else 12)
     Box(
         modifier = modifier
             .height(if (compact) 196.dp else SwimDesignTokens.Servers.AiCardHeight)
@@ -438,25 +431,25 @@ private fun AiStatusCard(
     ) {
         Row(verticalAlignment = Alignment.Top) {
             AiOrbBadge()
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (aiActive) "AI active" else "AI ready",
+                    text = if (aiActive) "Agent active" else "Agent ready",
                     color = SwimDesignTokens.Color.TextPrimary,
                     fontSize = titleSize,
                     fontWeight = FontWeight.Black,
                     maxLines = 1,
                 )
                 Text(
-                    text = "Finding the best servers\nfor your connection",
+                    text = "Showing the best servers\nfor your connection",
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = bodySize,
-                    lineHeight = fixedSp(if (compact) 17 else 18),
+                    lineHeight = fixedSp(if (compact) 14 else 15),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            ActivityDot(active = aiActive)
+            ActivityPilotLight(active = aiActive)
         }
 
         QuotaPill(
@@ -475,7 +468,7 @@ private fun AiStatusCard(
 private fun AiOrbBadge(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .size(SwimDesignTokens.Servers.AiBadgeSize)
+            .size(SwimDesignTokens.Servers.AiBadgeSize * 0.78f)
             .clip(CircleShape)
             .background(
                 Brush.radialGradient(
@@ -501,23 +494,34 @@ private fun AiOrbBadge(modifier: Modifier = Modifier) {
                 )
             }
         }
-        Text("AI", color = Color.White, fontSize = fixedSp(22), fontWeight = FontWeight.Black)
+        Text("AI", color = Color.White, fontSize = fixedSp(14), fontWeight = FontWeight.Black)
     }
 }
 
 @Composable
-private fun ActivityDot(active: Boolean) {
+private fun ActivityPilotLight(active: Boolean) {
     val color = if (active) SwimDesignTokens.Color.SuccessGreen else SwimDesignTokens.Color.TextMuted
     Box(
         modifier = Modifier
-            .padding(top = 12.dp)
-            .size(18.dp)
+            .padding(top = 8.dp)
+            .size(15.dp)
             .drawBehind {
-                drawCircle(color.copy(alpha = 0.30f), radius = size.minDimension * 1.4f)
+                if (active) {
+                    drawCircle(color.copy(alpha = 0.16f), radius = size.minDimension * 0.82f)
+                }
             }
             .clip(CircleShape)
-            .background(color)
-    )
+            .background(SwimDesignTokens.Material.BowlBottom)
+            .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.62f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(if (active) 5.5.dp else 4.5.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+    }
 }
 
 @Composable
@@ -553,9 +557,9 @@ private fun QuotaPill(config: ImportedConfigSummaryUi, modifier: Modifier = Modi
 @Composable
 private fun QuotaColumn(label: String, value: String, caption: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = SwimDesignTokens.Color.TextSecondary, fontSize = fixedSp(13), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(value, color = SwimDesignTokens.Color.TextPrimary, fontSize = fixedSp(19), fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(caption, color = SwimDesignTokens.Color.TextSecondary, fontSize = fixedSp(13), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, color = SwimDesignTokens.Color.TextSecondary, fontSize = fixedSp(10), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, color = SwimDesignTokens.Color.TextPrimary, fontSize = fixedSp(15), fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(caption, color = SwimDesignTokens.Color.TextSecondary, fontSize = fixedSp(10), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -595,8 +599,8 @@ private fun ServerActionPill(
         Icon(icon, contentDescription = null, tint = SwimDesignTokens.Color.PurpleActive, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.width(10.dp))
         Column {
-            Text(title, color = SwimDesignTokens.Color.TextPrimary, fontSize = fixedSp(15), fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(subtitle, color = SwimDesignTokens.Color.TextSecondary, fontSize = fixedSp(12), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, color = SwimDesignTokens.Color.TextPrimary, fontSize = fixedSp(12), fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, color = SwimDesignTokens.Color.TextSecondary, fontSize = fixedSp(10), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -638,14 +642,70 @@ private fun ServerNodeRow(node: ServerNodeUi, onClick: () -> Unit, modifier: Mod
                 .background(Color.White.copy(alpha = 0.08f)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(node.flagEmoji, fontSize = fixedSp(26))
+            Text(node.flagEmoji, fontSize = fixedSp(20))
         }
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(node.countryName, color = SwimDesignTokens.Color.TextPrimary, fontSize = fixedSp(18), fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(node.latencyLabel, color = SwimDesignTokens.Color.PurpleActive, fontSize = fixedSp(12), maxLines = 1)
+            Text(
+                node.countryName,
+                color = SwimDesignTokens.Color.TextPrimary,
+                fontSize = fixedSp(14),
+                fontWeight = FontWeight.Black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                node.cityLabel,
+                color = SwimDesignTokens.Color.TextSecondary,
+                fontSize = fixedSp(10),
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                node.detailLabel,
+                color = SwimDesignTokens.Color.TextMuted,
+                fontSize = fixedSp(9),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
+        PingBadge(node = node)
+        Spacer(modifier = Modifier.width(10.dp))
         SelectionCircle(selected = node.isSelected)
+    }
+}
+
+@Composable
+private fun PingBadge(node: ServerNodeUi) {
+    val color = when {
+        node.pingFailed -> Color(0xFFFF7A7A)
+        !node.pingFresh -> SwimDesignTokens.Color.TextMuted
+        node.pingLabel.filter(Char::isDigit).toIntOrNull()?.let { it <= 80 } == true -> SwimDesignTokens.Color.SuccessGreen
+        node.pingLabel.filter(Char::isDigit).toIntOrNull()?.let { it <= 160 } == true -> SwimDesignTokens.Color.PurpleActive
+        else -> Color(0xFFFFC266)
+    }
+    Column(
+        modifier = Modifier
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(color.copy(alpha = 0.12f))
+            .border(1.dp, color.copy(alpha = 0.38f), SwimDesignTokens.Shape.Pill)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = node.pingLabel,
+            color = color,
+            fontSize = fixedSp(10),
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+        )
+        Text(
+            text = if (node.pingFresh) "live" else "probe",
+            color = SwimDesignTokens.Color.TextMuted,
+            fontSize = fixedSp(8),
+            maxLines = 1,
+        )
     }
 }
 
@@ -691,7 +751,7 @@ private fun EmptyServerSourcePill(tab: ServerSourceTab) {
         Text(
             text = if (tab == ServerSourceTab.IMPORTED) "No imported servers yet" else "No premium servers available",
             color = SwimDesignTokens.Color.TextSecondary,
-            fontSize = fixedSp(14),
+            fontSize = fixedSp(12),
             fontWeight = FontWeight.Medium,
         )
     }
@@ -718,11 +778,38 @@ private fun List<ServerNode>.toNodeUi(activeServerId: String?): List<ServerNodeU
         ServerNodeUi(
             id = server.id,
             countryName = server.country.ifBlank { server.city.ifBlank { "Unknown" } },
+            cityLabel = server.city.ifBlank { server.providerName ?: server.groupName ?: "Location unavailable" },
+            detailLabel = server.buildServerDetailLabel(),
             flagEmoji = getFlagEmoji(server.countryCode.orEmpty()),
-            latencyLabel = if (server.ping > 0) "${server.ping} latency" else "Latency pending",
+            pingLabel = server.buildPingLabel(),
+            pingFresh = server.ping > 0 && server.latencyMeasuredAtMs > 0L && !server.latencyProbeFailed,
+            pingFailed = server.latencyProbeFailed,
+            loadLabel = server.load?.let { "$it% load" },
             isSelected = server.id == activeServerId,
         )
     }
+
+private fun ServerNode.buildPingLabel(): String =
+    when {
+        latencyProbeFailed -> "Fail"
+        ping > 0 -> "${ping}ms"
+        else -> "--"
+    }
+
+private fun ServerNode.buildServerDetailLabel(): String {
+    val parts = buildList {
+        providerName?.takeIf { it.isNotBlank() }?.let { add(it) }
+        if (providerName.isNullOrBlank()) {
+            groupName?.takeIf { it.isNotBlank() }?.let { add(it) }
+        }
+        protocol.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)?.let { add(it) }
+        load?.let { add("$it% load") }
+        availabilityStatus?.takeIf { it.isNotBlank() }?.lowercase(Locale.ROOT)?.replaceFirstChar { char -> char.titlecase(Locale.ROOT) }?.let { add(it) }
+    }
+    return parts.distinct().take(3).joinToString(" · ").ifBlank {
+        host.takeIf { it.isNotBlank() } ?: "Server details pending"
+    }
+}
 
 private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(): ImportedConfigSummaryUi? {
     if (this == null) return null

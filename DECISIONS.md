@@ -61,6 +61,18 @@ Decision: SwimVPN keeps `/api/v1/payments/swimpay/webhook` as the canonical sign
 Reason: SwimPay staging was configured with `/webhooks/swimpay`; accepting the alias removes a production-staging 404 without changing the customer-order webhook trust boundary or fulfillment rules.
 # DECISIONS
 
+## [2026-05-20] [Subscription UI must stay checkout-authoritative]
+
+Decision: `SubscriptionScreen` UI actions must remain coupled to backend checkout creation and existing `profile.offerCode`, with no mock plan logic or fake payment completion state.
+
+Reason: The app already has a real order flow and entitlement source-of-truth in backend + state model. Re-creating fake success in UI would desynchronize Android behavior and hide real payment failures.
+
+Impact:
+- Plan CTA opens a confirmation dialog then calls `onCheckoutClick(planId, paymentMethod)` unchanged.
+- Payment method selection uses existing `PaymentMethodPolicy.VISIBLE_METHODS`.
+- Active/current plan highlighting now uses `data.profile.offerCode` from the existing `AccessProfileResponse`.
+- Navigation from the screen reuses existing routes (profile/servers/home/subscription active dock) without introducing new payment/UI state.
+
 ## [2026-05-09] [SwimPay Is Manual-Confirmation Payment Signal Only]
 - **Decision**: Integrate SwimPay as a backend-created checkout plus signed webhook provider, not as an Android-side payment authority.
 - **Why**: SwimPay V1 is a manual-confirmation Payment Signal Engine. Checkout return, notification signals, matching scores, or Android state are not payment confirmation.

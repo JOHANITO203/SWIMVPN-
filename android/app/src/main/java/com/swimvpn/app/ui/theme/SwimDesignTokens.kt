@@ -175,20 +175,41 @@ object SwimDesignTokens {
     }
 
     object Servers {
-        val TopPadding = 42.dp
-        val HorizontalPadding = 28.dp
-        val CompactHorizontalPadding = 22.dp
-        val SegmentedHeight = 56.dp
-        val SegmentedMaxWidth = 320.dp
+        val TopPadding = 16.dp
+        val HorizontalPadding = 24.dp
+        val CompactHorizontalPadding = 18.dp
+        val SegmentedHeight = 50.dp
+        val SegmentedMaxWidth = 312.dp
         val AiCardRadius = 52.dp
-        val AiCardHeight = 208.dp
-        val AiBadgeSize = 76.dp
-        val QuotaPillHeight = 86.dp
-        val ActionPillHeight = 70.dp
-        val NodeRowHeight = 66.dp
-        val NodeFlagSize = 54.dp
+        val AiCardHeight = 190.dp
+        val AiBadgeSize = 64.dp
+        val QuotaPillHeight = 76.dp
+        val ActionPillHeight = 62.dp
+        val NodeRowHeight = 60.dp
+        val NodeFlagSize = 46.dp
         val NodeSelectorSize = 34.dp
         val DockBottomPadding = 28.dp
-        val DockReservedHeight = 128.dp
+        val DockReservedHeight = 184.dp
+    }
+
+    object Subscription {
+        val TopPadding = 18.dp
+        val HorizontalPadding = 24.dp
+        val CompactHorizontalPadding = 18.dp
+        val TitleBottomGap = 18.dp
+        val CardGap = 16.dp
+        val BasicCardHeight = 184.dp
+        val PremiumCardHeight = 236.dp
+        val PlatinumCardHeight = 236.dp
+        val CompactBasicCardHeight = 172.dp
+        val CompactPremiumCardHeight = 222.dp
+        val CompactPlatinumCardHeight = 222.dp
+        val PlanIconSize = 62.dp
+        val CompactPlanIconSize = 54.dp
+        val CtaHeight = 48.dp
+        val PaymentMethodHeight = 42.dp
+        val GuaranteeIconSize = 42.dp
+        val DockBottomPadding = 28.dp
+        val DockReservedHeight = 192.dp
     }
 }

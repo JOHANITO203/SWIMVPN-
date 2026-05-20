@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -13,11 +14,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.swimvpn.app.config.ConfigPreview
 import com.swimvpn.app.config.ValidationStatus
+import com.swimvpn.app.ui.theme.SwimDesignTokens
 
 @Composable
 fun ConfigPreviewCard(
@@ -238,63 +245,234 @@ fun ImportConfigDialog(
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(SwimDesignTokens.Shadow.HardwareSurface, SwimDesignTokens.Shape.LargeHardwareCard, clip = false)
+                .clip(SwimDesignTokens.Shape.LargeHardwareCard)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            SwimDesignTokens.Material.ShellMid,
+                            SwimDesignTokens.Material.ShellBottom,
+                        )
+                    )
+                )
+                .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.LargeHardwareCard)
+                .drawBehind {
+                    drawRect(SwimDesignTokens.Highlight.InnerTop, size = Size(size.width, 1.dp.toPx()))
+                }
+                .padding(22.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(
+                                    SwimDesignTokens.Material.PurpleCoreTop,
+                                    SwimDesignTokens.Material.PurpleCoreMid,
+                                    SwimDesignTokens.Material.PurpleCoreBottom,
+                                    SwimDesignTokens.Material.BowlBottom,
+                                )
+                            )
+                        )
+                        .border(1.dp, SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.36f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Manual input",
+                        color = SwimDesignTokens.Color.TextPrimary,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "Enter one VPN access payload",
+                        color = SwimDesignTokens.Color.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            OutlinedTextField(
+                value = initialText,
+                onValueChange = onTextChange,
+                placeholder = {
+                    Text(
+                        text = "vless://... or vmess://... or trojan://...",
+                        color = SwimDesignTokens.Color.TextMuted
+                    )
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Title
-                Text(
-                    text = "Import VPN Configuration",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                )
-                
-                // Input field
-                OutlinedTextField(
-                    value = initialText,
-                    onValueChange = onTextChange,
-                    placeholder = { Text("vless://... or vmess://... or trojan://...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Configuration URL or Code") },
-                    singleLine = false,
-                    maxLines = 3
-                )
-                
-                // Preview if available
-                preview?.let {
+                    .height(132.dp),
+                label = {
                     Text(
-                        text = "Preview",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                        text = "Configuration URL or code",
+                        color = SwimDesignTokens.Color.PurpleActive
                     )
-                    ConfigPreviewCard(preview = it)
-                }
-                
-                // Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = { onImport(initialText) },
-                        enabled = initialText.isNotBlank() && canImport
-                    ) {
-                        Text("Import")
-                    }
-                }
+                },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = SwimDesignTokens.Color.TextPrimary,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                singleLine = false,
+                maxLines = 4,
+                shape = RoundedCornerShape(34.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = SwimDesignTokens.Color.TextPrimary,
+                    unfocusedTextColor = SwimDesignTokens.Color.TextPrimary,
+                    focusedContainerColor = SwimDesignTokens.Material.BowlMid,
+                    unfocusedContainerColor = SwimDesignTokens.Material.BowlMid,
+                    focusedBorderColor = SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.62f),
+                    unfocusedBorderColor = SwimDesignTokens.Color.StrokeSubtle,
+                    cursorColor = SwimDesignTokens.Color.PurpleActive
+                )
+            )
+
+            preview?.let {
+                CompactImportPreview(preview = it)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                DialogPillButton(
+                    text = "Cancel",
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f),
+                    active = false,
+                    enabled = true
+                )
+                DialogPillButton(
+                    text = "Import",
+                    onClick = { onImport(initialText) },
+                    modifier = Modifier.weight(1f),
+                    active = true,
+                    enabled = initialText.isNotBlank() && canImport
+                )
             }
         }
     }
 }
+
+@Composable
+private fun CompactImportPreview(preview: ConfigPreview) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(32.dp))
+            .background(SwimDesignTokens.Material.BowlTop.copy(alpha = 0.78f))
+            .border(1.dp, preview.validationStatus.toSwimPreviewColor().copy(alpha = 0.42f), RoundedCornerShape(32.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(preview.validationStatus.toSwimPreviewColor().copy(alpha = 0.16f))
+                .border(1.dp, preview.validationStatus.toSwimPreviewColor().copy(alpha = 0.44f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (preview.validationStatus == ValidationStatus.ERROR) Icons.Default.Warning else getProtocolIcon(preview.protocol),
+                contentDescription = null,
+                tint = preview.validationStatus.toSwimPreviewColor(),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = preview.displayName.ifBlank { preview.protocol },
+                color = SwimDesignTokens.Color.TextPrimary,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Black),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = preview.summary,
+                color = SwimDesignTokens.Color.TextSecondary,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun DialogPillButton(
+    text: String,
+    onClick: () -> Unit,
+    active: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val background = if (active && enabled) {
+        Brush.verticalGradient(
+            listOf(
+                SwimDesignTokens.Material.PurpleCoreTop,
+                SwimDesignTokens.Material.PurpleCoreMid,
+                SwimDesignTokens.Material.PurpleCoreBottom
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                SwimDesignTokens.Material.ShellMid,
+                SwimDesignTokens.Material.ShellBottom
+            )
+        )
+    }
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(background)
+            .border(
+                1.dp,
+                if (active && enabled) SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.52f) else SwimDesignTokens.Color.StrokeSubtle,
+                SwimDesignTokens.Shape.Pill
+            )
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = if (enabled) SwimDesignTokens.Color.TextPrimary else SwimDesignTokens.Color.TextMuted,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Black)
+        )
+    }
+}
+
+private fun ValidationStatus.toSwimPreviewColor(): Color =
+    when (this) {
+        ValidationStatus.VALID -> SwimDesignTokens.Color.SuccessGreen
+        ValidationStatus.WARNING -> Color(0xFFFFC266)
+        ValidationStatus.ERROR -> Color(0xFFFF7A7A)
+        ValidationStatus.UNKNOWN -> SwimDesignTokens.Color.TextMuted
+    }
 
 @Composable
 fun ClipboardImportSheet(
