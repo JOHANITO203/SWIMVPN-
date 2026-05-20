@@ -1265,3 +1265,9 @@ u after each future language batch
 - [ ] Phase 5: add battery/OEM optimization warning and settings action.
 - [ ] Phase 6: make connected state less optimistic after engine startup.
 - [ ] Phase 7: run long screen-off, network handoff, service-kill, and invalid-config live QA.
+
+## 2026-05-20 - Home Dark Luxury design pass
+- [x] Execute first implementation pass from `docs/superpowers/plans/2026-05-20-home-screen-dark-luxury.md` with subagent-driven component split.
+- [ ] Capture Home screenshot after implementation and compare against the two mocks.
+- [ ] Verify the design pass does not alter backend, entitlement, trial/subscription, parsing, or VPN runtime behavior.
+- [ ] Remove the old inactive inline Home implementation from `MainActivity.kt` after visual QA confirms the new screen is accepted.

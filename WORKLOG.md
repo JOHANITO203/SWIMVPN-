@@ -3093,6 +3093,82 @@ pm run build PASSED.
 - Added regression coverage for active, stale, idle, missing-payload, missing-permission, and local-proxy recovery cases.
 - Verification: baseline Android debug unit tests, targeted `RuntimeRecoveryPolicyTest`, full Android debug unit tests, and `assembleDebug` passed.
 
+## 2026-05-20 - SWIMVPN Dark Luxury design tokens
+- Added `docs/SWIMVPN_DESIGN_DNA_2026-05.md` as the design source of truth for future Android UI implementation.
+- Captured the global dark monolithic visual DNA, color/material/radius/typography/spacing tokens, reusable metaball dock rules, and screen contracts for Home, Servers, Subscription, and Settings.
+- No Android or backend runtime code was changed in this batch.
+
+## 2026-05-20 - Home screen design token extraction
+- Added `docs/SWIMVPN_HOME_SCREEN_TOKENS_2026-05.md` as the dedicated token document for the first Home / Connected screen and its reusable components.
+- Extracted component-level rules for the OLED background, profile button, living power orb, connection status, server pill, stats card, and metaball dock.
+- Explicitly kept this batch documentation-only: no Android, backend, VPN runtime, trial, or subscription behavior was changed.
+
+## 2026-05-20 - Home screen Dark Luxury implementation plan
+- Added `docs/superpowers/plans/2026-05-20-home-screen-dark-luxury.md` for the first Android Home screen design pass.
+- Used design and Android architecture subagents to audit the mocks, current Compose surface, iconography, dock feasibility, and implementation risk.
+- Locked the scope as Android UI-only: backend, entitlement, trial/subscription, parsing, and VPN runtime contracts remain frozen.
+
+## 2026-05-20 - Home screen Dark Luxury first implementation pass
+- Added Android Compose Dark Luxury tokens, hardware surfaces, living power orb, Home screen composition, and a four-node metaball dock.
+- Wired the Home route to the new `ui.screens.HomeScreen` while preserving the existing VPN permission flow, `viewModel.toggleVpn`, active server data, runtime state reconciliation, and premium guard before backend-server connect.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. ADB reported no connected device, so live screenshot comparison remains pending.
+- Memory hygiene: stopped the Gradle daemon after verification; no broad app/process killing was performed to avoid terminating the IDE, Codex session, ADB, or VPN.
+
+## 2026-05-20 - Home dock metaball geometry pass
+- Reworked the Home bottom dock from a regular rounded capsule into a Canvas-drawn metaball body with four lobes, concave valleys, a top hardware highlight, and a subtle lower purple edge.
+- Preserved the existing Home/Servers/Subscription/Settings callbacks and did not touch backend, entitlement, VPN runtime, parsing, trial, or subscription contracts.
+- Added the applied dock geometry extraction and divergence matrix to `docs/SWIMVPN_HOME_SCREEN_TOKENS_2026-05.md`.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; debug APK was installed over ADB Wi-Fi and screenshot captured at `screenshots/swimvpn_home_dock_metaball_v2_20260520.png`.
+
+## 2026-05-20 - Home dock cleanup and disk recovery
+- Cleaned generated Gradle/temp/build artifacts after Gradle failed with an insufficient disk space error on `D:\Gradle`.
+- Removed only disposable installer/APK/ZIP files from `Downloads`; kept PNG design mocks and project screenshots/log references.
+- Refined the dock rendering to reduce visible construction strokes, soften highlights, and improve icon breathing radius against the mock.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed after cleanup. ADB capture could not validate the Home because the physical device foreground was ChatGPT instead of SWIMVPN at capture time.
+
+## 2026-05-20 - Home dock mock comparison pass
+- Compared the current Home dock against the standalone metaball mock and updated the token matrix with the exact 340dp x 89dp geometry, node centers, active/inactive diameters, and material differences.
+- Kept the validated 340dp x 89dp dock geometry and refined only the material: darker body fill, softer strokes, lower purple edge alpha, smaller icons, and reduced active-node glow.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; debug APK installed over ADB Wi-Fi; fresh Home screenshot captured at `screenshots/swimvpn_home_dock_mock_compare_v2_20260520.png`.
+
+## 2026-05-20 - Home dock waist formula pass
+- Replaced the hand-tuned dock body path with a parametric Bezier metaball approximation for the shapes between icons.
+- Applied the mock ratios: `waist/r = 0.60`, circle control `r * 0.55`, and waist control `d * 0.15` for each adjacent node pair.
+- Documented the exact waist formula in `docs/SWIMVPN_HOME_SCREEN_TOKENS_2026-05.md`.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; debug APK installed over ADB Wi-Fi; fresh Home screenshot captured at `screenshots/swimvpn_home_dock_waist_formula_20260520.png`.
+
+## 2026-05-20 - Home dock active-radius metaball pass
+- Compared the standalone dock mock against the current Home dock screenshot and found that the body path still used a uniform inactive radius even when the selected node is visually larger.
+- Updated the metaball body formula to use per-lobe radii: `44.5dp` for the active lobe and `40dp` for inactive lobes, while keeping `waist/r = 0.60`.
+- Softened the active lobe shadow/glow and moved the purple bloom to the actual active node instead of assuming Home is always active.
+- Temporarily added a debug-only dock preview surface to capture the dock alone on device, then removed it immediately after capture so the working APK returns to the normal app surface.
+- Updated the Home dock token matrix and Bezier formula so future passes keep the active node fused into the body instead of sitting above a smaller silhouette.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; debug APK was installed after removing the temporary preview surface and SWIMVPN relaunched on `MainActivity`.
+
+## 2026-05-20 - Home dock mock reconciliation pass
+- Reconciled the existing dock component against the standalone mock without changing iconography.
+- Raised the Home dock bottom padding from `24dp` to `34dp` so it reads as floating instead of pinned to the gesture area.
+- Refined dock material only: clearer inactive recesses, stronger but thin top highlight, softer active glow, darker active outer ring, and deeper purple active gradient.
+- Backend, VPN runtime, access contracts, and navigation callbacks were not changed.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; debug APK installed over ADB Wi-Fi; Home screenshot captured at `screenshots/swimvpn_home_dock_reconciled_20260520.png`.
+
+## 2026-05-20 - Home dock circle diameter refinement
+- Reduced dock icon circle diameters without changing the icon set: inactive outer `80dp -> 74dp`, active outer `89dp -> 82dp`, inactive recess `54dp -> 50dp`, active purple circle `58dp -> 54dp`.
+- Recalculated the metaball body radii to stay aligned with the smaller visual nodes: inactive `37dp`, active `41dp`.
+- Added a clipped procedural rubber-grain overlay and inter-lobe shadow/highlight modelling so the dock material reads more like polished grey joystick rubber.
+- Further reduced the visible button rings to avoid a cheap oversized-button feel: inactive outer `68dp`, active outer `76dp`, inactive recess `46dp`, active purple circle `52dp`; the larger metaball body remains responsible for the fused silhouette.
+- Updated the Home dock token document to keep the new geometry as the current design contract.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; debug APK installed over ADB Wi-Fi; Home screenshot captured at `screenshots/swimvpn_home_dock_rubber_contrast_20260520.png`.
+
+## 2026-05-20 - Metaball nav dock premium rework
+- Reworked the dock component into `MetaballNavDock` while keeping `SwimMetaballDock` as a compatibility wrapper for the current Home screen call site.
+- Removed the previous procedural grain/noise direction and returned the dock material to a smooth molded black hardware surface.
+- Added animated active-center motion with `Animatable`, localized glow transfer, subtle active breathing, press compression, and active-radius influence on the metaball body.
+- Rebuilt the visual layering into a cleaner model: fused Canvas body, sculpted node shell/bowl, animated purple core layer, then crisp icon/label plane.
+- Reduced the dock safe-zone footprint from `340dp` to `320dp` and recalculated node centers to keep active edge nodes inside the component bounds.
+- VPN runtime, backend, parser, route logic, entitlement, and screen business behavior were not changed.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed; debug APK installed over ADB Wi-Fi; Home screenshot captured at `screenshots/swimvpn_home_metaball_nav_dock_rework_20260520.png`.
+
 ## 2026-05-20 - Onboarding profile contract fixes
 - Android now treats backend `profileCompletionRequired` as authoritative, even if an active entitlement state is also present.
 - The onboarding freemium continuation path now requires a completed profile and stays in setup if backend still returns `PROFILE_INCOMPLETE`.

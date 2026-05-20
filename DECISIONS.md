@@ -1150,3 +1150,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: `profileCompletionRequired` is authoritative across Android and backend Trial Store profiles.
 - Reason: onboarding/profile completion is the only allowed full-app gate; it must not be bypassed by an active grant record.
 - Consequence: incomplete profiles stay in setup and never receive managed paid/trial runtime configs until email and phone are completed.
+
+## 2026-05-20 - Home redesign is UI-only and componentized
+- Decision: the Dark Luxury Home implementation will be isolated into Android Compose UI components and a dedicated Home screen file, while `MainActivity` keeps navigation and existing callbacks.
+- Reason: the backend, access contracts, VPN runtime, and parser are frozen for this design pass; isolating visuals prevents a pixel-perfect effort from accidentally changing product behavior.
+- Consequence: orb, server pill, stats card, and metaball dock can be iterated visually while entitlement checks, VPN permission flow, and `viewModel.toggleVpn` remain authoritative.
