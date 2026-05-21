@@ -35,7 +35,7 @@ export const HeroSection = () => {
             <div className="relative flex h-full flex-col justify-between gap-12">
               <div>
                 <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#8A6AF1]/30 bg-[#8A6AF1]/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#C8B6FF]">
-                  <span className="h-2 w-2 rounded-full bg-[#35D978] shadow-[0_0_18px_rgba(53,217,120,0.65)]" />
+                  <img src="/brand/swimvpn-shark-mark.svg" alt="" className="h-4 w-4 object-contain" />
                   Pré-release APK disponible
                 </div>
                 <h1 className="max-w-4xl text-5xl font-black leading-[0.88] tracking-tighter text-white sm:text-7xl md:text-8xl lg:text-9xl">
@@ -76,13 +76,10 @@ export const HeroSection = () => {
             className={`${cardBase} min-h-[260px] p-6 lg:col-span-5 lg:row-span-2`}
           >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_35%,rgba(138,106,241,0.22),transparent_42%)]" />
-            <div className="relative hidden h-full min-h-[360px] md:block">
+            <div className="relative h-full min-h-[300px] md:min-h-[360px]">
               <Suspense fallback={<GlobeFallback />}>
                 <InteractivePixelGlobe interactive={false} performanceMode={shouldReduceMotion ? 'static' : 'live'} />
               </Suspense>
-            </div>
-            <div className="relative flex min-h-[300px] items-center justify-center md:hidden">
-              <GlobeFallback />
             </div>
           </motion.div>
 

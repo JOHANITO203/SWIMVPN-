@@ -115,6 +115,7 @@ fun MetaballNavDock(
     width: Dp = DockTokens.Width,
     showActiveLabel: Boolean = true,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     val homeLabel = stringResource(R.string.dock_home)
     val serversLabel = stringResource(R.string.dock_servers)
     val subscriptionLabel = stringResource(R.string.dock_subscription)
@@ -253,7 +254,7 @@ fun MetaballNavDock(
                 Icon(
                     imageVector = item.icon,
                     contentDescription = item.label,
-                    tint = if (selected) Color.White else Color.White.copy(alpha = 0.78f),
+                    tint = if (selected) Color.White else tokens.color.homeTextMuted,
                     modifier = Modifier.size(iconSize),
                 )
                 if (selected && showActiveLabel) {
@@ -283,6 +284,7 @@ private fun DockBodyCanvas(
     modifier: Modifier = Modifier,
 ) {
     val tokens = LocalSwimVisualTokens.current
+    val lightTheme = tokens == SwimDesignTokens.Light
     Canvas(modifier = modifier) {
         val sx = size.width / DockTokens.Width.value
         val sy = size.height / DockTokens.Height.value
@@ -304,8 +306,8 @@ private fun DockBodyCanvas(
 
         drawPath(
             path = body,
-            color = Color.Black.copy(alpha = 0.55f),
-            style = Stroke(width = 18.dp.toPx()),
+            color = if (lightTheme) tokens.material.shadowSoft else tokens.material.shadowRaised,
+            style = Stroke(width = if (lightTheme) 12.dp.toPx() else 18.dp.toPx()),
         )
         drawCircle(
             brush = Brush.radialGradient(
@@ -324,7 +326,7 @@ private fun DockBodyCanvas(
             path = body,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    Color.White.copy(alpha = 0.07f),
+                    tokens.color.homeTopHighlight.copy(alpha = if (lightTheme) 0.66f else 0.88f),
                     tokens.material.shellMid,
                     tokens.material.shellBottom,
                 ),
@@ -336,9 +338,9 @@ private fun DockBodyCanvas(
             path = body,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    tokens.highlight.innerTop,
+                    tokens.highlight.innerTop.copy(alpha = if (lightTheme) 0.46f else tokens.highlight.innerTop.alpha),
                     Color.Transparent,
-                    Color.Black.copy(alpha = SwimDesignTokens.Shadow.InnerBottomAlpha),
+                    tokens.material.bowlInnerShadow.copy(alpha = if (lightTheme) 0.22f else SwimDesignTokens.Shadow.InnerBottomAlpha),
                 ),
                 startY = 0f,
                 endY = size.height,
@@ -397,7 +399,7 @@ private fun ActiveCoreLayer(
             center = activeCenter,
         )
         drawCircle(
-            color = Color.White.copy(alpha = 0.12f),
+            color = tokens.color.homeStrokeActive.copy(alpha = 0.56f),
             radius = fillRadius,
             center = activeCenter,
             style = Stroke(width = 0.8.dp.toPx()),
@@ -427,6 +429,7 @@ private fun DockNodeButton(
     modifier: Modifier = Modifier,
 ) {
     val tokens = LocalSwimVisualTokens.current
+    val lightTheme = tokens == SwimDesignTokens.Light
     val outerSize = if (selected) DockTokens.ActiveOuterDiameter else DockTokens.InactiveOuterDiameter
     val bowlSize = if (selected) DockTokens.ActiveBowlDiameter else DockTokens.InactiveBowlDiameter
     val iconSize = if (selected) DockTokens.ActiveIconSize else DockTokens.InactiveIconSize
@@ -445,7 +448,7 @@ private fun DockNodeButton(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.035f - pressedDepth * 0.01f),
+                        tokens.color.homeTopHighlight.copy(alpha = if (lightTheme) 0.40f - pressedDepth * 0.08f else 0.54f - pressedDepth * 0.10f),
                         tokens.material.shellMid,
                         tokens.material.shellBottom,
                     ),
@@ -477,7 +480,7 @@ private fun DockNodeButton(
                 color = tokens.material.bowlInnerShadow,
                 radius = bowlRadius,
                 center = center,
-                style = Stroke(width = 3.dp.toPx()),
+                style = Stroke(width = if (lightTheme) 1.6.dp.toPx() else 3.dp.toPx()),
             )
             drawCircle(
                 color = tokens.highlight.bowlRim,
@@ -488,7 +491,7 @@ private fun DockNodeButton(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.06f),
+                        tokens.highlight.skinSheen.copy(alpha = if (lightTheme) 0.22f else 0.32f),
                         Color.Transparent,
                     ),
                     center = Offset(center.x - bowlRadius * 0.30f, center.y - bowlRadius * 0.44f),
@@ -502,7 +505,7 @@ private fun DockNodeButton(
             Icon(
                 imageVector = item.icon,
                 contentDescription = item.label,
-                tint = if (selected) Color.White else Color.White.copy(alpha = 0.78f),
+                tint = if (selected) Color.White else tokens.color.homeTextMuted,
                 modifier = Modifier.size(iconSize),
             )
             if (selected && showActiveLabel) {

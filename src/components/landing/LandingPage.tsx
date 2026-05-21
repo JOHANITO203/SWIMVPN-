@@ -24,8 +24,8 @@ const LandingPage = () => {
           <div className="flex items-center gap-3">
              <div className="relative group">
                <div className="absolute inset-0 bg-[#8A6AF1] blur-lg opacity-25 group-hover:opacity-45 transition-opacity" />
-               <div className="relative w-8 h-8 md:w-9 md:h-9 bg-gradient-to-br from-[#B89AFF] via-[#8A6AF1] to-[#5D3BD8] rounded-full flex items-center justify-center shadow-lg">
-                  <span className="text-white font-black italic text-base">S</span>
+               <div className="relative flex h-8 w-8 items-center justify-center rounded-full border border-[#B89AFF]/20 bg-[#07070B] shadow-lg shadow-[#8A6AF1]/20 md:h-9 md:w-9">
+                  <img src="/brand/swimvpn-shark-mark.svg" alt="SwimVPN" className="h-6 w-6 object-contain md:h-7 md:w-7" />
                </div>
              </div>
              <span className="text-white font-black tracking-tighter text-lg md:text-xl hidden xs:block">SWIMVPN+</span>

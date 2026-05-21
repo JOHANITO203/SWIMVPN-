@@ -53,6 +53,8 @@ fun HomeVpnCoreStage(
     isReducedMotionEnabled: Boolean = false,
 ) {
     val core = state.coreVisuals()
+    val tokens = LocalSwimVisualTokens.current
+    val lightTheme = tokens == SwimDesignTokens.Light
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
@@ -98,10 +100,20 @@ fun HomeVpnCoreStage(
             quality = if (isReducedMotionEnabled) OrbRenderQuality.Low else OrbRenderQuality.Auto,
             interactionEnabled = false,
             renderBehindCompose = false,
+            lightSurfaceMode = lightTheme,
             modifier = Modifier
                 .matchParentSize()
                 .scale(stageBreath),
         )
+
+        if (lightTheme) {
+            LightOrbContrastVeil(
+                accent = accent,
+                modifier = Modifier
+                    .matchParentSize()
+                    .scale(stageBreath),
+            )
+        }
 
         VpnHardwarePowerCore(
             accent = accent,
@@ -115,6 +127,42 @@ fun HomeVpnCoreStage(
             interactionSource = interactionSource,
             modifier = Modifier.size(buttonSize),
             bowlSize = bowlSize,
+        )
+    }
+}
+
+@Composable
+private fun LightOrbContrastVeil(
+    accent: Color,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier = modifier) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val radius = size.minDimension * 0.43f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    accent.copy(alpha = 0.16f),
+                    accent.copy(alpha = 0.055f),
+                    Color.Transparent,
+                ),
+                center = center,
+                radius = radius * 1.58f,
+            ),
+            radius = radius * 1.58f,
+            center = center,
+        )
+        drawCircle(
+            color = accent.copy(alpha = 0.18f),
+            radius = radius * 1.02f,
+            center = center,
+            style = Stroke(width = 1.0.dp.toPx()),
+        )
+        drawCircle(
+            color = SwimDesignTokens.Color.StrokeActive.copy(alpha = 0.12f),
+            radius = radius * 0.86f,
+            center = center,
+            style = Stroke(width = 0.8.dp.toPx()),
         )
     }
 }
@@ -142,7 +190,7 @@ private fun VpnHardwarePowerCore(
                 shape = CircleShape,
                 clip = false,
                 spotColor = accent.copy(alpha = glowAlpha * 0.62f),
-                ambientColor = Color.Black.copy(alpha = 0.72f),
+                ambientColor = tokens.material.shadowRaised,
             )
             .clip(CircleShape)
             .border(1.dp, accent.copy(alpha = 0.22f + glowAlpha * 0.18f), CircleShape)
@@ -201,7 +249,7 @@ private fun VpnHardwarePowerCore(
             )
 
             drawCircle(
-                color = Color.Black.copy(alpha = 0.58f),
+                color = tokens.material.outerDarkVeil,
                 radius = radius * 0.82f,
                 center = Offset(center.x, center.y + radius * 0.09f),
             )
@@ -219,7 +267,7 @@ private fun VpnHardwarePowerCore(
                 .size(bowlSize)
                 .clip(CircleShape)
                 .background(Color.Transparent)
-                .border(1.dp, tokens.highlight.innerTop.copy(alpha = 0.14f), CircleShape),
+                .border(1.dp, tokens.color.homeStrokeMedium, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Canvas(modifier = Modifier.matchParentSize()) {
@@ -299,7 +347,7 @@ private data class HomeVpnCoreVisuals(
 
 private fun VpnOrbState.coreVisuals(): HomeVpnCoreVisuals = when (this) {
     VpnOrbState.DISCONNECTED -> HomeVpnCoreVisuals(
-        accent = Color(0xFF8F7BCB),
+        accent = SwimDesignTokens.Color.TextMuted,
         breathingMs = 5600,
         stageBreathRange = 0.010f,
         buttonBreathRange = 0.006f,
@@ -326,7 +374,7 @@ private fun VpnOrbState.coreVisuals(): HomeVpnCoreVisuals = when (this) {
         buttonSizeRatio = 0.50f,
     )
     VpnOrbState.UNSTABLE -> HomeVpnCoreVisuals(
-        accent = Color(0xFFFF7AF6),
+        accent = SwimDesignTokens.Color.Warning,
         breathingMs = 3400,
         stageBreathRange = 0.018f,
         buttonBreathRange = 0.012f,

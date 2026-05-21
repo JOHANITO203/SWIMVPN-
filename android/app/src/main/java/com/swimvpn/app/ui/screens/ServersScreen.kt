@@ -509,7 +509,7 @@ private fun AiOrbBadge(modifier: Modifier = Modifier) {
             val c = Offset(size.width / 2f, size.height / 2f)
             repeat(5) { index ->
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.08f + index * 0.015f),
+                    color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = 0.18f + index * 0.035f),
                     radius = size.minDimension * (0.20f + index * 0.06f),
                     center = c,
                     style = Stroke(width = 0.8.dp.toPx()),
@@ -853,7 +853,7 @@ private fun ServerNodeRow(node: ServerNodeUi, onClick: () -> Unit, modifier: Mod
             modifier = Modifier
                 .size(SwimDesignTokens.Servers.NodeFlagSize)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.08f)),
+                .background(SwimDesignTokens.Material.BowlTop.copy(alpha = 0.82f)),
             contentAlignment = Alignment.Center,
         ) {
             Text(node.flagEmoji, fontSize = fixedSp(20))
@@ -893,11 +893,11 @@ private fun ServerNodeRow(node: ServerNodeUi, onClick: () -> Unit, modifier: Mod
 @Composable
 private fun PingBadge(node: ServerNodeUi) {
     val color = when {
-        node.pingFailed -> Color(0xFFFF7A7A)
+        node.pingFailed -> SwimDesignTokens.Color.Danger
         !node.pingFresh -> SwimDesignTokens.Color.TextMuted
         node.pingLabel.filter(Char::isDigit).toIntOrNull()?.let { it <= 80 } == true -> SwimDesignTokens.Color.SuccessGreen
         node.pingLabel.filter(Char::isDigit).toIntOrNull()?.let { it <= 160 } == true -> SwimDesignTokens.Color.PurpleActive
-        else -> Color(0xFFFFC266)
+        else -> SwimDesignTokens.Color.Warning
     }
     Column(
         modifier = Modifier
@@ -939,14 +939,19 @@ private fun SelectionCircle(selected: Boolean) {
                         )
                     )
                 } else {
-                    Brush.radialGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.42f)))
+                    Brush.radialGradient(
+                        listOf(
+                            SwimDesignTokens.Material.BowlTop.copy(alpha = 0.72f),
+                            SwimDesignTokens.Material.BowlBottom,
+                        )
+                    )
                 }
             )
             .border(1.dp, if (selected) Color.Transparent else SwimDesignTokens.Color.StrokeSubtle, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         if (selected) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black.copy(alpha = 0.86f), modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
         }
     }
 }

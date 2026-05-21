@@ -150,7 +150,7 @@ fun SwimPowerOrb(
                     center = center,
                 )
                 drawCircle(
-                    color = Color.Black.copy(alpha = 0.62f),
+                    color = SwimDesignTokens.Color.StrokeMedium,
                     radius = ringRadius,
                     center = center,
                     style = Stroke(width = SwimDesignTokens.StartButton.RingStrokeDp.dp.toPx()),

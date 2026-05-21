@@ -19,6 +19,7 @@ fun SwimHolographicOrb3D(
     quality: OrbRenderQuality = OrbRenderQuality.Auto,
     interactionEnabled: Boolean = true,
     renderBehindCompose: Boolean = false,
+    lightSurfaceMode: Boolean = false,
     onClick: () -> Unit = {},
 ) {
     val currentOnClick = rememberUpdatedState(onClick)
@@ -29,12 +30,12 @@ fun SwimHolographicOrb3D(
             OrbGLSurfaceView(context).apply {
                 contentDescription = context.getString(R.string.content_desc_swim_orb)
                 setRenderBehindCompose(renderBehindCompose)
-                update(state, isReducedMotionEnabled, quality)
+                update(state, isReducedMotionEnabled, quality, lightSurfaceMode)
             }
         },
         update = { view ->
             view.setRenderBehindCompose(renderBehindCompose)
-            view.update(state, isReducedMotionEnabled, quality)
+            view.update(state, isReducedMotionEnabled, quality, lightSurfaceMode)
             view.isClickable = interactionEnabled
             view.isInteractionEnabled = interactionEnabled
             view.setOnClickListener(
@@ -86,8 +87,9 @@ private class OrbGLSurfaceView(context: Context) : GLSurfaceView(context) {
         state: SwimParticleOrbState,
         reducedMotion: Boolean,
         quality: OrbRenderQuality,
+        lightSurfaceMode: Boolean,
     ) {
-        orbRenderer.update(state, reducedMotion, quality)
+        orbRenderer.update(state, reducedMotion, quality, lightSurfaceMode)
         startRenderLoop()
         requestRender()
     }

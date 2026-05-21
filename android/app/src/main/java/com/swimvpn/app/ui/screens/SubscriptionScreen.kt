@@ -310,22 +310,28 @@ private fun SubscriptionPlanCard(
             .fillMaxWidth()
             .height(cardHeight)
             .scale(pressScale)
-            .shadow(if (plan.isHighlighted) 24.dp else 18.dp, shape, clip = false)
+            .shadow(
+                if (plan.isHighlighted) 22.dp else 14.dp,
+                shape,
+                clip = false,
+                ambientColor = if (plan.isHighlighted) SwimDesignTokens.Material.ShadowActive else SwimDesignTokens.Material.ShadowSoft,
+                spotColor = if (plan.isHighlighted) SwimDesignTokens.Material.ShadowActive else SwimDesignTokens.Material.ShadowRaised,
+            )
             .clip(shape)
             .background(planSurfaceBrush(plan.isHighlighted))
             .border(
                 width = if (plan.isHighlighted) 1.4.dp else 1.dp,
                 color = if (plan.isHighlighted) {
-                    SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.82f)
+                    SwimDesignTokens.Color.StrokeActive
                 } else {
-                    SwimDesignTokens.Color.DividerSubtle
+                    SwimDesignTokens.Color.StrokeSubtle
                 },
                 shape = shape,
             )
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .drawBehind {
                 drawRect(
-                    color = Color.White.copy(alpha = if (plan.isHighlighted) 0.09f else 0.065f),
+                    color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = if (plan.isHighlighted) 0.88f else 0.72f),
                     size = Size(size.width, 1.15.dp.toPx()),
                 )
                 if (plan.isHighlighted) {
@@ -344,7 +350,7 @@ private fun SubscriptionPlanCard(
                     brush = Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = SwimDesignTokens.Shadow.InnerBottomAlpha),
+                            SwimDesignTokens.Material.BowlInnerShadow.copy(alpha = SwimDesignTokens.Shadow.InnerBottomAlpha),
                         ),
                         startY = size.height * 0.58f,
                         endY = size.height,
@@ -516,7 +522,7 @@ private fun PlanBadge(text: String) {
                     ),
                 ),
             )
-            .border(1.dp, Color.White.copy(alpha = 0.12f), SwimDesignTokens.Shape.Pill)
+            .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.Pill)
             .padding(horizontal = 13.dp, vertical = 7.dp),
     ) {
         Text(
@@ -604,10 +610,10 @@ private fun PaymentMethodPill(
         modifier = modifier
             .height(SwimDesignTokens.Subscription.PaymentMethodHeight)
             .clip(shape)
-            .background(if (selected) purpleCtaBrush(soft = true) else darkCtaBrush())
+            .background(if (selected) purpleCtaBrush(soft = true) else secondaryCtaBrush())
             .border(
                 1.dp,
-                if (selected) SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.56f) else SwimDesignTokens.Color.DividerSubtle,
+                if (selected) SwimDesignTokens.Color.StrokeActive else SwimDesignTokens.Color.StrokeSubtle,
                 shape,
             )
             .clickable(
@@ -636,7 +642,7 @@ private fun PaymentMethodPill(
             }
             Text(
                 text = method.paymentLabel,
-                color = if (selected) Color.White else SwimDesignTokens.Color.TextSecondary,
+                color = if (selected) Color.White else SwimDesignTokens.Color.TextPrimary,
                 fontSize = fixedSp(12),
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -708,14 +714,20 @@ private fun PressablePill(
         modifier = modifier
             .height(SwimDesignTokens.Subscription.CtaHeight)
             .scale(scale)
-            .shadow(if (highlighted) 16.dp else 9.dp, shape, clip = false)
+            .shadow(
+                if (highlighted) 16.dp else 8.dp,
+                shape,
+                clip = false,
+                ambientColor = if (highlighted) SwimDesignTokens.Material.ShadowActive else SwimDesignTokens.Material.ShadowSoft,
+                spotColor = if (highlighted) SwimDesignTokens.Material.ShadowActive else SwimDesignTokens.Material.ShadowSoft,
+            )
             .clip(shape)
-            .background(if (highlighted) purpleCtaBrush() else darkCtaBrush())
-            .border(1.dp, if (highlighted) Color.White.copy(alpha = 0.16f) else SwimDesignTokens.Color.DividerSubtle, shape)
+            .background(if (highlighted) purpleCtaBrush() else secondaryCtaBrush())
+            .border(1.dp, if (highlighted) SwimDesignTokens.Color.StrokeActive else SwimDesignTokens.Color.StrokeSubtle, shape)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .drawBehind {
                 drawRect(
-                    color = Color.White.copy(alpha = if (highlighted) 0.16f else 0.055f),
+                    color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = if (highlighted) 0.40f else 0.72f),
                     size = Size(size.width, 1.dp.toPx()),
                 )
             }
@@ -726,7 +738,7 @@ private fun PressablePill(
     ) {
         Text(
             text = text,
-            color = Color.White,
+            color = if (highlighted) Color.White else SwimDesignTokens.Color.TextPrimary,
             fontSize = fixedSp(12),
             fontWeight = FontWeight.Black,
             maxLines = 1,
@@ -768,7 +780,7 @@ private fun HardwareBox(
             .background(planSurfaceBrush(highlighted = false))
             .border(1.dp, SwimDesignTokens.Color.DividerSubtle, shape)
             .drawBehind {
-                drawRect(color = Color.White.copy(alpha = 0.065f), size = Size(size.width, 1.dp.toPx()))
+                drawRect(color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = 0.72f), size = Size(size.width, 1.dp.toPx()))
             },
         content = content,
     )
@@ -1030,6 +1042,15 @@ private fun darkCtaBrush(): Brush =
             SwimDesignTokens.Color.SurfaceHighlight.copy(alpha = 0.72f),
             SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.92f),
             SwimDesignTokens.Color.SurfaceBase.copy(alpha = 0.96f),
+        ),
+    )
+
+private fun secondaryCtaBrush(): Brush =
+    Brush.verticalGradient(
+        colors = listOf(
+            SwimDesignTokens.Material.ShellTop,
+            SwimDesignTokens.Color.SurfaceElevated,
+            SwimDesignTokens.Material.ShellBottom,
         ),
     )
 

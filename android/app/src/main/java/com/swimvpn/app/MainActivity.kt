@@ -15,8 +15,6 @@ import com.swimvpn.app.ui.screens.ConfigImportScreen
 import androidx.core.os.LocaleListCompat
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,12 +31,10 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -170,7 +166,7 @@ fun AppNavigation(
     }
 
     NavHost(navController = navController, startDestination = "loading") {
-        composable("loading") { SplashScreen() }
+        composable("loading") { BootstrapSurface() }
         composable("onboarding") { 
             OnboardingScreen(onFinish = { 
                 viewModel.completeOnboarding()
@@ -364,27 +360,7 @@ private fun NavHostController.navigateOnce(route: String) {
 }
 
 @Composable
-fun SplashScreen() {
-    val infiniteTransition = rememberInfiniteTransition(label = "splash")
-    val logoScale by infiniteTransition.animateFloat(
-        initialValue = 0.985f,
-        targetValue = 1.025f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "splashLogoScale",
-    )
-    val glowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.22f,
-        targetValue = 0.34f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "splashGlowAlpha",
-    )
-
+fun BootstrapSurface() {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -400,34 +376,7 @@ fun SplashScreen() {
                     radius = 920f,
                 )
             ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(190.dp)
-                .shadow(24.dp, CircleShape, clip = false)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            SwimDesignTokens.Color.PurplePrimary.copy(alpha = glowAlpha),
-                            SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.88f),
-                            SwimDesignTokens.Color.BackgroundDeep.copy(alpha = 0.98f),
-                        )
-                    )
-                )
-                .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = stringResource(R.string.content_desc_logo),
-                modifier = Modifier
-                    .size(154.dp)
-                    .scale(logoScale),
-            )
-        }
-    }
+    )
 }
 
 @Composable

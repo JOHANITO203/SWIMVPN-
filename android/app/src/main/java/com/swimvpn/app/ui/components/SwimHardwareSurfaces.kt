@@ -60,8 +60,9 @@ fun Modifier.swimDarkLuxuryBackground(): Modifier {
     return drawWithCache {
     val baseWash = Brush.verticalGradient(
         colors = listOf(
-            if (isLight) Color.White.copy(alpha = 0.94f) else Color.Black.copy(alpha = 0.94f),
-            tokens.color.homeBackgroundBase.copy(alpha = 0.82f),
+            if (isLight) Color(0xFFFEFCFF) else Color.Black.copy(alpha = 0.94f),
+            tokens.color.homeBackgroundDeep.copy(alpha = if (isLight) 0.96f else 0.98f),
+            tokens.color.homeBackgroundBase.copy(alpha = if (isLight) 0.98f else 0.82f),
             tokens.color.homeBackgroundDeep.copy(alpha = 0.98f),
         ),
         startY = 0f,
@@ -79,12 +80,21 @@ fun Modifier.swimDarkLuxuryBackground(): Modifier {
     )
     val sideGlow = Brush.radialGradient(
         colors = listOf(
-            tokens.color.homePurplePrimary.copy(alpha = 0.28f),
-            tokens.color.homePurpleDeep.copy(alpha = 0.13f),
+            tokens.color.homePurplePrimary.copy(alpha = if (isLight) 0.18f else 0.28f),
+            tokens.color.homePurpleDeep.copy(alpha = if (isLight) 0.28f else 0.13f),
             Color.Transparent,
         ),
         center = Offset(size.width * 0.98f, size.height * 0.34f),
         radius = size.width * 0.82f,
+    )
+    val lavenderDepth = Brush.radialGradient(
+        colors = listOf(
+            tokens.color.homeStrokeActive.copy(alpha = if (isLight) 0.10f else 0f),
+            tokens.color.homePurpleDeep.copy(alpha = if (isLight) 0.20f else 0f),
+            Color.Transparent,
+        ),
+        center = Offset(size.width * 0.50f, size.height * 0.68f),
+        radius = size.width * 0.96f,
     )
     val leftSheen = Brush.radialGradient(
         colors = listOf(
@@ -117,6 +127,7 @@ fun Modifier.swimDarkLuxuryBackground(): Modifier {
         drawRect(brush = baseWash)
         drawRect(brush = orbHalo)
         drawRect(brush = sideGlow)
+        drawRect(brush = lavenderDepth)
         drawRect(brush = leftSheen)
         drawRect(brush = lowerVignette)
         drawRect(brush = verticalVignette)
@@ -149,6 +160,7 @@ fun SwimCircularIconButton(
     iconTint: Color = SwimDesignTokens.Color.HomeTextPrimary
 ) {
     val tokens = LocalSwimVisualTokens.current
+    val isLight = tokens == SwimDesignTokens.Light
     Box(
         modifier = modifier
             .size(size)
@@ -211,7 +223,7 @@ fun SwimCircularIconButton(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            tokens.highlight.skinSheen,
+                            tokens.highlight.skinSheen.copy(alpha = if (isLight) 0.30f else tokens.highlight.skinSheen.alpha),
                             Color.Transparent
                         ),
                         center = Offset(center.x - bowlRadius * 0.28f, center.y - bowlRadius * 0.38f),
@@ -221,9 +233,15 @@ fun SwimCircularIconButton(
                     center = Offset(center.x - bowlRadius * 0.10f, center.y - bowlRadius * 0.16f)
                 )
             }
-            .shadow(SwimDesignTokens.Shadow.UserButton, CircleShape, clip = false)
+            .shadow(
+                elevation = if (isLight) 9.dp else SwimDesignTokens.Shadow.UserButton,
+                shape = CircleShape,
+                clip = false,
+                ambientColor = tokens.material.shadowSoft,
+                spotColor = tokens.material.shadowRaised,
+            )
             .clip(CircleShape)
-            .border(1.dp, tokens.color.homeStrokeSubtle, CircleShape)
+            .border(1.dp, if (isLight) tokens.color.homeStrokeMedium else tokens.color.homeStrokeSubtle, CircleShape)
             .clickable(
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
@@ -268,8 +286,9 @@ fun SwimPillSurface(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        tokens.color.homeSurfaceHighlight.copy(alpha = 0.82f),
-                        Color(0xFF0E0E12).copy(alpha = 0.96f)
+                        tokens.material.shellTop.copy(alpha = if (tokens == SwimDesignTokens.Light) 0.92f else 0.82f),
+                        tokens.material.shellMid.copy(alpha = 0.98f),
+                        tokens.material.shellBottom,
                     )
                 )
             )
@@ -277,7 +296,7 @@ fun SwimPillSurface(
             .then(clickableModifier)
             .drawBehind {
                 drawRect(
-                    color = tokens.color.homeTopHighlight,
+                    color = tokens.highlight.innerTop.copy(alpha = if (tokens == SwimDesignTokens.Light) 0.50f else tokens.highlight.innerTop.alpha),
                     size = Size(size.width, 1.5.dp.toPx())
                 )
             },
@@ -310,7 +329,7 @@ fun SwimHardwareCard(
             .border(1.dp, tokens.color.homeDividerSubtle, shape)
             .drawBehind {
                 drawRect(
-                    color = Color.White.copy(alpha = 0.07f),
+                    color = tokens.highlight.innerTop.copy(alpha = if (tokens == SwimDesignTokens.Light) 0.42f else 0.07f),
                     size = Size(size.width, 1.dp.toPx())
                 )
             },

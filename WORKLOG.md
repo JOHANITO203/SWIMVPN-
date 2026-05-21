@@ -1,4 +1,26 @@
-﻿# 2026-05-21 - Home VPN core orb/button reconciliation
+﻿# 2026-05-21 - Android light theme token correction
+
+- Reworked the SwimVPN light visual tokens around a cleaner lavender premium scale: clearer backgrounds, raised surfaces, semantic strokes, readable text levels, stronger violet accents, and status colors.
+- Aligned the Material light color scheme with `SwimDesignTokens.Light` instead of scattered pastel hardcodes.
+- Updated light-sensitive UI surfaces in the dock, Home power core, Subscription CTAs/payment pills, Servers rows/ping badges/selectors, Profile canvases, and config validation colors to consume semantic tokens.
+- Preserved dark theme values, VPN runtime, parser, backend, payment, subscription logic, and navigation behavior.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+# 2026-05-21 - Landing mobile globe and app icon reconciliation
+
+- Restored the real `InteractivePixelGlobe` render on mobile instead of forcing the static fallback, while keeping it non-interactive to preserve vertical scrolling.
+- Added the approved SwimVPN shark mark as a web brand asset and used it in the landing navbar and hero pre-release badge.
+- Verified the touched landing files are UTF-8 clean and do not contain mojibake markers.
+- Verification: `npm run build` passed. `npm run lint` still fails on existing backend alias/dependency issues outside this landing scope.
+
+# 2026-05-21 - Android startup splash simplification
+
+- Replaced the animated Compose `loading` route splash with a neutral SwimVPN bootstrap surface so startup no longer reads as Android splash plus second in-app splash.
+- Kept the `loading` route intact for existing bootstrap, sign-out, and session routing paths.
+- Preserved Android starting-window theme, app navigation, VPN runtime, backend, parser, entitlement, and all product screens.
+- Verification: `:app:assembleDebug` passed.
+
+# 2026-05-21 - Home VPN core orb/button reconciliation
 
 - Imported the isolated 3D holographic orb renderer into the Android app under `ui/orb3d` without touching VPN runtime, parser, backend, entitlement, dock, or navigation logic.
 - Added `HomeVpnCoreStage` as a single Home visual object combining the holographic orb layer and the central hardware power button.
@@ -3481,3 +3503,11 @@ pm run build PASSED.
 - Reworded trial copy to say the trial is activated and its exact duration is shown inside the app instead of implying an unverified duration on the landing page.
 - Fixed the existing R3F globe line ref typing issue so landing typecheck no longer reports that file.
 - Verification: `npm run build` passed. `npm run lint` still fails only on existing backend alias/dependency issues outside the landing scope.
+
+## 2026-05-21 - Android light material polish pass
+- Strengthened the shared light background with a layered lavender gradient field so Home, Servers, Subscription, Account, onboarding, and sub-screens no longer sit on a flat pale wash.
+- Reduced light-mode material heaviness by softening raised shadows, inner bowl shadows, skin sheen, and dock shadow strokes while keeping the dark token family unchanged.
+- Removed a hardcoded dark fill from the shared pill surface so server cards and related pills use the active material tokens in light mode.
+- Added a light-surface contrast mode for the procedural Home orb, boosting mesh/rim/glow readability only when the light token family is active.
+- Reworked the Home server pill badge and chevron bowl with tokenized gradients/strokes and removed the stray white specular point.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.

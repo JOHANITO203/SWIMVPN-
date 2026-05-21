@@ -1,4 +1,4 @@
-package com.swimvpn.app.ui.screens
+﻿package com.swimvpn.app.ui.screens
 
 import android.Manifest
 import android.os.Build
@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -316,7 +317,7 @@ private fun ProtectedIndicator(active: Boolean, compact: Boolean, modifier: Modi
         }
         Spacer(modifier = Modifier.width(if (compact) 8.dp else 9.dp))
         Text(
-            text = if (active) "Protégé" else "En veille",
+            text = if (active) "Prot\u00E9g\u00E9" else "En veille",
             color = color,
             fontSize = if (compact) 15.sp else 16.sp,
             fontWeight = FontWeight.SemiBold,
@@ -332,6 +333,7 @@ private fun SwimServerPill(
     height: Dp,
     compact: Boolean,
 ) {
+    val lightTheme = SwimDesignTokens.Current == SwimDesignTokens.Light
     SwimPillSurface(
         modifier = Modifier.fillMaxWidth().height(height),
         minHeight = height,
@@ -345,8 +347,16 @@ private fun SwimServerPill(
                 modifier = Modifier
                     .size(58.dp)
                     .clip(CircleShape)
-                    .background(SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.58f))
-                    .border(1.dp, SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.26f), CircleShape),
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                SwimDesignTokens.Material.PurpleCoreTop.copy(alpha = if (lightTheme) 0.28f else 0.34f),
+                                SwimDesignTokens.Color.PurpleDeep.copy(alpha = if (lightTheme) 0.72f else 0.58f),
+                                SwimDesignTokens.Material.ShellBottom,
+                            ),
+                        ),
+                    )
+                    .border(1.dp, SwimDesignTokens.Color.StrokeActive.copy(alpha = if (lightTheme) 0.34f else 0.26f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -367,7 +377,7 @@ private fun SwimServerPill(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = server?.let { "${it.city} · ${stringResource(R.string.selected_server_auto_select)}" } ?: stringResource(R.string.selected_server_hint),
+                    text = server?.let { "${it.city} \u00B7 ${stringResource(R.string.selected_server_auto_select)}" } ?: stringResource(R.string.selected_server_hint),
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = if (compact) 13.sp else 15.sp,
                     maxLines = 1,
@@ -387,8 +397,16 @@ private fun SwimServerPill(
                 modifier = Modifier
                     .size(58.dp)
                     .clip(CircleShape)
-                    .background(SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.74f))
-                    .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape),
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                SwimDesignTokens.Material.BowlTop.copy(alpha = if (lightTheme) 0.86f else 0.74f),
+                                SwimDesignTokens.Material.BowlMid,
+                                SwimDesignTokens.Material.BowlBottom,
+                            ),
+                        ),
+                    )
+                    .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

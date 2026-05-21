@@ -50,26 +50,26 @@ val TextSecondaryDark = SwimDesignTokens.Dark.color.homeTextSecondary
 
 private val LightColorScheme = lightColorScheme(
     primary = SwimDesignTokens.Light.color.homePurplePrimary,
-    primaryContainer = Color(0xFFE7DDFF),
+    primaryContainer = SwimDesignTokens.Light.color.homePurpleDeep,
     background = BgLight,
     surface = CardLight,
-    surfaceContainer = Color(0xFFFCFAFF),
-    surfaceContainerHigh = Color(0xFFF0E9FF),
+    surfaceContainer = SwimDesignTokens.Light.color.homeSurfaceElevated,
+    surfaceContainerHigh = SwimDesignTokens.Light.color.homeSurfaceHighlight,
     onPrimary = Color.White,
-    onPrimaryContainer = Color(0xFF21123F),
+    onPrimaryContainer = SwimDesignTokens.Light.color.homeTextPrimary,
     onBackground = TextLight,
     onSurface = TextLight,
-    surfaceVariant = Color(0xFFEDE6F8),
+    surfaceVariant = SwimDesignTokens.Light.material.bowlMid,
     onSurfaceVariant = TextSecondaryLight,
-    outline = Color(0xFFD7CCE7),
-    outlineVariant = Color(0xFFE8DFF2),
+    outline = SwimDesignTokens.Light.color.homeStrokeMedium,
+    outlineVariant = SwimDesignTokens.Light.color.homeStrokeSubtle,
     secondary = SwimDesignTokens.Light.color.homePurpleActive,
-    secondaryContainer = Color(0xFFEDE6FF),
+    secondaryContainer = SwimDesignTokens.Light.color.homePurpleDeep,
     onSecondary = Color.White,
-    onSecondaryContainer = Color(0xFF24164A),
+    onSecondaryContainer = SwimDesignTokens.Light.color.homeTextPrimary,
     error = RedAlert,
-    errorContainer = Color(0xFFFFE2E2),
-    onErrorContainer = Color(0xFF6F1111)
+    errorContainer = SwimDesignTokens.Light.color.homeDanger.copy(alpha = 0.14f),
+    onErrorContainer = SwimDesignTokens.Light.color.homeDanger
 )
 
 private val DarkColorScheme = darkColorScheme(

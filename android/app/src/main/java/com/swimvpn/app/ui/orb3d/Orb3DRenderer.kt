@@ -26,6 +26,7 @@ internal class Orb3DRenderer : GLSurfaceView.Renderer {
     @Volatile private var state: SwimParticleOrbState = SwimParticleOrbState.CONNECTED
     @Volatile private var reducedMotion: Boolean = false
     @Volatile private var quality: OrbRenderQuality = OrbRenderQuality.Auto
+    @Volatile private var lightSurfaceMode: Boolean = false
 
     private val projection = FloatArray(16)
     private val view = FloatArray(16)
@@ -70,8 +71,14 @@ internal class Orb3DRenderer : GLSurfaceView.Renderer {
         state: SwimParticleOrbState,
         reducedMotion: Boolean,
         quality: OrbRenderQuality,
+        lightSurfaceMode: Boolean,
     ) {
-        if (this.state != state || this.reducedMotion != reducedMotion || this.quality != quality) {
+        if (
+            this.state != state ||
+            this.reducedMotion != reducedMotion ||
+            this.quality != quality ||
+            this.lightSurfaceMode != lightSurfaceMode
+        ) {
             lineBufferDirty = true
         }
         if (this.state != state) {
@@ -82,6 +89,7 @@ internal class Orb3DRenderer : GLSurfaceView.Renderer {
         this.state = state
         this.reducedMotion = reducedMotion
         this.quality = quality
+        this.lightSurfaceMode = lightSurfaceMode
     }
 
     fun updateTouch(x: Float, y: Float, isDown: Boolean) {
@@ -126,7 +134,9 @@ internal class Orb3DRenderer : GLSurfaceView.Renderer {
 
     override fun onDrawFrame(gl: GL10?) {
         val activeReducedMotion = reducedMotion
-        val config = state.config(activeReducedMotion)
+        val config = state.config(activeReducedMotion).let { base ->
+            if (lightSurfaceMode) base.forLightSurface() else base
+        }
         val counts = quality.resolve(activeReducedMotion)
         val nowNanos = System.nanoTime()
         val time = (nowNanos - startNanos) / 1_000_000_000f
@@ -1521,6 +1531,33 @@ private data class Orb3DStateConfig(
     val holographicPolish: OrbHolographicPolishProfile,
 ) {
     val linePointSize: Float = 1f
+
+    fun forLightSurface(): Orb3DStateConfig = copy(
+        lineAlpha = (lineAlpha * 1.22f).coerceAtMost(0.92f),
+        particleAlpha = (particleAlpha * 1.16f).coerceAtMost(0.90f),
+        shimmerAlpha = (shimmerAlpha * 1.18f).coerceAtMost(0.42f),
+        coreGlowAlpha = (coreGlowAlpha * 1.34f).coerceAtMost(0.34f),
+        lineWidth = lineWidth * 1.05f,
+        particleSize = particleSize * 1.06f,
+        haloParticleSize = haloParticleSize * 1.08f,
+        visualIntensity = visualIntensity.copy(
+            lineAlphaMultiplier = (visualIntensity.lineAlphaMultiplier * 1.18f).coerceAtMost(1.62f),
+            particleAlphaMultiplier = (visualIntensity.particleAlphaMultiplier * 1.12f).coerceAtMost(1.18f),
+            coreGlowMultiplier = (visualIntensity.coreGlowMultiplier * 1.24f).coerceAtMost(1.70f),
+            rimBloomMultiplier = (visualIntensity.rimBloomMultiplier * 1.26f).coerceAtMost(1.62f),
+            saturationBoost = (visualIntensity.saturationBoost * 1.08f).coerceAtMost(1.55f),
+        ),
+        holographicPolish = holographicPolish.copy(
+            volumeFogAlpha = (holographicPolish.volumeFogAlpha * 1.12f).coerceAtMost(0.32f),
+            fiberHighlight = (holographicPolish.fiberHighlight * 1.18f).coerceAtMost(0.52f),
+            rimPrism = (holographicPolish.rimPrism * 1.18f).coerceAtMost(0.72f),
+            runnerIntensity = (holographicPolish.runnerIntensity * 1.12f).coerceAtMost(0.56f),
+            membraneAlpha = (holographicPolish.membraneAlpha * 1.08f).coerceAtMost(0.36f),
+            glassShellAlpha = (holographicPolish.glassShellAlpha * 1.10f).coerceAtMost(0.34f),
+            backlineOpacityReduction = (holographicPolish.backlineOpacityReduction * 1.10f).coerceAtMost(0.72f),
+            thinFresnelRim = (holographicPolish.thinFresnelRim * 1.18f).coerceAtMost(0.82f),
+        ),
+    )
 
     fun radiusScale(time: Float): Float {
         val harmonic = sin(time * breathing.baseSpeed)

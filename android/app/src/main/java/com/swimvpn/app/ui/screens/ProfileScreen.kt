@@ -243,7 +243,7 @@ private fun HardwareAccountButton(
     Box(
         modifier = Modifier
             .size(52.dp)
-            .shadow(12.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.45f))
+            .shadow(12.dp, CircleShape, ambientColor = SwimDesignTokens.Material.ShadowSoft)
             .clip(CircleShape)
             .background(
                 Brush.verticalGradient(
@@ -281,8 +281,8 @@ private fun AccountCanvas(content: @Composable ColumnScope.() -> Unit) {
             .shadow(
                 elevation = SwimDesignTokens.Elevation.HardwareSurface,
                 shape = SwimDesignTokens.Shape.LargeHardwareCard,
-                ambientColor = Color.Black.copy(alpha = 0.42f),
-                spotColor = Color.Black.copy(alpha = 0.55f),
+                ambientColor = SwimDesignTokens.Material.ShadowSoft,
+                spotColor = SwimDesignTokens.Material.ShadowRaised,
             )
             .clip(SwimDesignTokens.Shape.LargeHardwareCard)
             .background(

@@ -471,8 +471,8 @@ private fun DialogPillButton(
 private fun ValidationStatus.toSwimPreviewColor(): Color =
     when (this) {
         ValidationStatus.VALID -> SwimDesignTokens.Color.SuccessGreen
-        ValidationStatus.WARNING -> Color(0xFFFFC266)
-        ValidationStatus.ERROR -> Color(0xFFFF7A7A)
+        ValidationStatus.WARNING -> SwimDesignTokens.Color.Warning
+        ValidationStatus.ERROR -> SwimDesignTokens.Color.Danger
         ValidationStatus.UNKNOWN -> SwimDesignTokens.Color.TextMuted
     }
 

@@ -18,9 +18,14 @@ data class SwimColorTokens(
     val homeTextPrimary: ComposeColor,
     val homeTextSecondary: ComposeColor,
     val homeTextMuted: ComposeColor,
+    val homeTextDisabled: ComposeColor,
     val homeDividerSubtle: ComposeColor,
     val homeStrokeSubtle: ComposeColor,
+    val homeStrokeMedium: ComposeColor,
+    val homeStrokeActive: ComposeColor,
     val homeTopHighlight: ComposeColor,
+    val homeWarning: ComposeColor,
+    val homeDanger: ComposeColor,
 )
 
 data class SwimMaterialTokens(
@@ -35,6 +40,9 @@ data class SwimMaterialTokens(
     val purpleCoreBottom: ComposeColor,
     val outerDarkVeil: ComposeColor,
     val bowlInnerShadow: ComposeColor,
+    val shadowSoft: ComposeColor,
+    val shadowRaised: ComposeColor,
+    val shadowActive: ComposeColor,
 )
 
 data class SwimHighlightTokens(
@@ -66,9 +74,14 @@ object SwimDesignTokens {
             homeTextPrimary = ComposeColor(0xFFF3F1F6),
             homeTextSecondary = ComposeColor(0xFFA6A1B3),
             homeTextMuted = ComposeColor(0xFF6E6978),
+            homeTextDisabled = ComposeColor.White.copy(alpha = 0.36f),
             homeDividerSubtle = ComposeColor.White.copy(alpha = 0.08f),
             homeStrokeSubtle = ComposeColor.White.copy(alpha = 0.10f),
+            homeStrokeMedium = ComposeColor.White.copy(alpha = 0.18f),
+            homeStrokeActive = ComposeColor(0xFF8A6AF1).copy(alpha = 0.55f),
             homeTopHighlight = ComposeColor.White.copy(alpha = 0.08f),
+            homeWarning = ComposeColor(0xFFD89B17),
+            homeDanger = ComposeColor(0xFFD84A4A),
         ),
         material = SwimMaterialTokens(
             shellTop = ComposeColor.White.copy(alpha = 0.07f),
@@ -82,6 +95,9 @@ object SwimDesignTokens {
             purpleCoreBottom = ComposeColor(0xFF5D3BD8),
             outerDarkVeil = ComposeColor.Black.copy(alpha = 0.40f),
             bowlInnerShadow = ComposeColor.Black.copy(alpha = 0.60f),
+            shadowSoft = ComposeColor.Black.copy(alpha = 0.35f),
+            shadowRaised = ComposeColor.Black.copy(alpha = 0.55f),
+            shadowActive = ComposeColor(0xFF8A6AF1).copy(alpha = 0.38f),
         ),
         highlight = SwimHighlightTokens(
             innerTop = ComposeColor.White.copy(alpha = 0.08f),
@@ -94,41 +110,49 @@ object SwimDesignTokens {
 
     val Light = SwimVisualTokens(
         color = SwimColorTokens(
-            homeBackgroundDeep = ComposeColor(0xFFF8F4FF),
-            homeBackgroundBase = ComposeColor(0xFFF1EBFC),
-            homeSurfaceBase = ComposeColor(0xFFFFFFFF),
-            homeSurfaceElevated = ComposeColor(0xFFFAF7FF),
-            homeSurfaceHighlight = ComposeColor(0xFFEFE7FF),
-            homePurplePrimary = ComposeColor(0xFF7C5BE8),
-            homePurpleActive = ComposeColor(0xFF6D4FD8),
-            homePurpleDeep = ComposeColor(0xFFD8CCFF),
-            homeSuccessGreen = ComposeColor(0xFF168A4B),
-            homeTextPrimary = ComposeColor(0xFF17121F),
-            homeTextSecondary = ComposeColor(0xFF625A72),
-            homeTextMuted = ComposeColor(0xFF8A8296),
-            homeDividerSubtle = ComposeColor(0xFF24164A).copy(alpha = 0.10f),
-            homeStrokeSubtle = ComposeColor(0xFF24164A).copy(alpha = 0.12f),
-            homeTopHighlight = ComposeColor.White.copy(alpha = 0.74f),
+            homeBackgroundDeep = ComposeColor(0xFFF8F6FF),
+            homeBackgroundBase = ComposeColor(0xFFF1EAFF),
+            homeSurfaceBase = ComposeColor.White.copy(alpha = 0.72f),
+            homeSurfaceElevated = ComposeColor(0xFFF4EEFE),
+            homeSurfaceHighlight = ComposeColor(0xFFECE3FA),
+            homePurplePrimary = ComposeColor(0xFF7B57E8),
+            homePurpleActive = ComposeColor(0xFF6844DD),
+            homePurpleDeep = ComposeColor(0xFFE4D8FF),
+            homeSuccessGreen = ComposeColor(0xFF18A86B),
+            homeTextPrimary = ComposeColor(0xFF282433),
+            homeTextSecondary = ComposeColor(0xFF625B70),
+            homeTextMuted = ComposeColor(0xFF8D849B),
+            homeTextDisabled = ComposeColor(0xFF282433).copy(alpha = 0.36f),
+            homeDividerSubtle = ComposeColor(0xFF3D305C).copy(alpha = 0.10f),
+            homeStrokeSubtle = ComposeColor(0xFF3D305C).copy(alpha = 0.10f),
+            homeStrokeMedium = ComposeColor(0xFF3D305C).copy(alpha = 0.18f),
+            homeStrokeActive = ComposeColor(0xFF7657E8).copy(alpha = 0.55f),
+            homeTopHighlight = ComposeColor.White.copy(alpha = 0.80f),
+            homeWarning = ComposeColor(0xFFD89B17),
+            homeDanger = ComposeColor(0xFFD84A4A),
         ),
         material = SwimMaterialTokens(
-            shellTop = ComposeColor.White.copy(alpha = 0.84f),
-            shellMid = ComposeColor(0xFFF6F0FF),
-            shellBottom = ComposeColor(0xFFE5DCF5),
+            shellTop = ComposeColor.White.copy(alpha = 0.86f),
+            shellMid = ComposeColor(0xFFF4EEFE),
+            shellBottom = ComposeColor(0xFFEEE6FA),
             bowlTop = ComposeColor(0xFFFFFFFF),
-            bowlMid = ComposeColor(0xFFF2ECFB),
-            bowlBottom = ComposeColor(0xFFE4DBF0),
-            purpleCoreTop = ComposeColor(0xFFB89AFF),
-            purpleCoreMid = ComposeColor(0xFF8A6AF1),
-            purpleCoreBottom = ComposeColor(0xFF5D3BD8),
-            outerDarkVeil = ComposeColor(0xFF24164A).copy(alpha = 0.10f),
-            bowlInnerShadow = ComposeColor(0xFF24164A).copy(alpha = 0.18f),
+            bowlMid = ComposeColor(0xFFECE3FA),
+            bowlBottom = ComposeColor(0xFFE2D6F4),
+            purpleCoreTop = ComposeColor(0xFFB395FF),
+            purpleCoreMid = ComposeColor(0xFF7B57E8),
+            purpleCoreBottom = ComposeColor(0xFF6844DD),
+            outerDarkVeil = ComposeColor(0xFF3D305C).copy(alpha = 0.055f),
+            bowlInnerShadow = ComposeColor(0xFF3D305C).copy(alpha = 0.115f),
+            shadowSoft = ComposeColor(0xFF2D224C).copy(alpha = 0.075f),
+            shadowRaised = ComposeColor(0xFF2D224C).copy(alpha = 0.10f),
+            shadowActive = ComposeColor(0xFF7657E8).copy(alpha = 0.24f),
         ),
         highlight = SwimHighlightTokens(
-            innerTop = ComposeColor.White.copy(alpha = 0.78f),
-            bowlRim = ComposeColor.White.copy(alpha = 0.56f),
-            bodyStroke = ComposeColor(0xFF24164A).copy(alpha = 0.075f),
-            skinSheen = ComposeColor.White.copy(alpha = 0.64f),
-            purpleEdge = ComposeColor(0xFF7C5BE8).copy(alpha = 0.16f),
+            innerTop = ComposeColor.White.copy(alpha = 0.80f),
+            bowlRim = ComposeColor(0xFF3D305C).copy(alpha = 0.085f),
+            bodyStroke = ComposeColor(0xFF3D305C).copy(alpha = 0.085f),
+            skinSheen = ComposeColor.White.copy(alpha = 0.42f),
+            purpleEdge = ComposeColor(0xFF7657E8).copy(alpha = 0.16f),
         ),
     )
 
@@ -154,9 +178,14 @@ object SwimDesignTokens {
         val HomeTextPrimary get() = Current.color.homeTextPrimary
         val HomeTextSecondary get() = Current.color.homeTextSecondary
         val HomeTextMuted get() = Current.color.homeTextMuted
+        val HomeTextDisabled get() = Current.color.homeTextDisabled
         val HomeDividerSubtle get() = Current.color.homeDividerSubtle
         val HomeStrokeSubtle get() = Current.color.homeStrokeSubtle
+        val HomeStrokeMedium get() = Current.color.homeStrokeMedium
+        val HomeStrokeActive get() = Current.color.homeStrokeActive
         val HomeTopHighlight get() = Current.color.homeTopHighlight
+        val HomeWarning get() = Current.color.homeWarning
+        val HomeDanger get() = Current.color.homeDanger
 
         val BackgroundDeep get() = HomeBackgroundDeep
         val BackgroundBase get() = HomeBackgroundBase
@@ -170,8 +199,13 @@ object SwimDesignTokens {
         val TextPrimary get() = HomeTextPrimary
         val TextSecondary get() = HomeTextSecondary
         val TextMuted get() = HomeTextMuted
+        val TextDisabled get() = HomeTextDisabled
         val DividerSubtle get() = HomeDividerSubtle
         val StrokeSubtle get() = HomeStrokeSubtle
+        val StrokeMedium get() = HomeStrokeMedium
+        val StrokeActive get() = HomeStrokeActive
+        val Warning get() = HomeWarning
+        val Danger get() = HomeDanger
     }
 
     object Shape {
@@ -193,6 +227,9 @@ object SwimDesignTokens {
         val PurpleCoreBottom get() = Current.material.purpleCoreBottom
         val OuterDarkVeil get() = Current.material.outerDarkVeil
         val BowlInnerShadow get() = Current.material.bowlInnerShadow
+        val ShadowSoft get() = Current.material.shadowSoft
+        val ShadowRaised get() = Current.material.shadowRaised
+        val ShadowActive get() = Current.material.shadowActive
     }
 
     object Highlight {
@@ -235,8 +272,10 @@ object SwimDesignTokens {
 
     object Elevation {
         val HardwareButton = 14.dp
-        val HardwareSurface = 18.dp
-        val Dock = 24.dp
+        val HardwareSurface: androidx.compose.ui.unit.Dp
+            get() = if (Current == Light) 12.dp else 18.dp
+        val Dock: androidx.compose.ui.unit.Dp
+            get() = if (Current == Light) 18.dp else 24.dp
     }
 
     object Spacing {
