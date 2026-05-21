@@ -46,6 +46,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -178,9 +179,9 @@ fun AppNavigation(
             HomeScreen(
                 viewModel = viewModel, 
                 data = data,
-                onNavigateProfile = { navController.navigate("profile") },
-                onNavigateServers = { navController.navigate("servers") },
-                onNavigateSubscription = { navController.navigate("subscription") }
+                onNavigateProfile = { navController.navigateProductRoot("profile") },
+                onNavigateServers = { navController.navigateProductRoot("servers") },
+                onNavigateSubscription = { navController.navigateProductRoot("subscription") }
             ) 
         }
         composable("servers") { 
@@ -195,11 +196,11 @@ fun AppNavigation(
                 onSelectServer = { server ->
                     viewModel.selectServer(server)
                 },
-                onImportAccessClick = { navController.navigate("import") },
-                onSubscribeClick = { navController.navigate("subscription") },
-                onProfileClick = { navController.navigate("profile") },
-                onHomeClick = { navController.navigate("home") },
-                onSettingsClick = { navController.navigate("profile") },
+                onImportAccessClick = { navController.navigateOnce("import") },
+                onSubscribeClick = { navController.navigateProductRoot("subscription") },
+                onProfileClick = { navController.navigateProductRoot("profile") },
+                onHomeClick = { navController.navigateProductRoot("home") },
+                onSettingsClick = { navController.navigateProductRoot("profile") },
             ) 
         }
         composable("profile") { 
@@ -213,10 +214,10 @@ fun AppNavigation(
                         activeConfigMetadata = currentState.activeConfigMetadata,
                         bytesIn = bytesIn,
                         bytesOut = bytesOut,
-                        onNavigateToSubscription = { navController.navigate("subscription") },
-                        onNavigateToTechnical = { navController.navigate("technical") },
-                        onNavigateToImport = { navController.navigate("import") },
-                        onNavigateToSupport = { navController.navigate("support") },
+                        onNavigateToSubscription = { navController.navigateProductRoot("subscription") },
+                        onNavigateToTechnical = { navController.navigateOnce("technical") },
+                        onNavigateToImport = { navController.navigateOnce("import") },
+                        onNavigateToSupport = { navController.navigateOnce("support") },
                         onActivateTrial = { viewModel.activateTrialFromProfile() },
                         onCancelSubscription = { viewModel.cancelCurrentSubscription(context) },
                         onSignOut = {
@@ -242,7 +243,7 @@ fun AppNavigation(
         }
         composable("support") {
             SupportScreen(
-                onNavigateToSubscription = { navController.navigate("subscription") },
+                onNavigateToSubscription = { navController.navigateProductRoot("subscription") },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -277,10 +278,10 @@ fun AppNavigation(
                     )
                 },
                 onBack = { navController.popBackStack() },
-                onProfileClick = { navController.navigate("profile") },
-                onNavigateHome = { navController.navigate("home") },
-                onNavigateServers = { navController.navigate("servers") },
-                onNavigateSettings = { navController.navigate("profile") },
+                onProfileClick = { navController.navigateProductRoot("profile") },
+                onNavigateHome = { navController.navigateProductRoot("home") },
+                onNavigateServers = { navController.navigateProductRoot("servers") },
+                onNavigateSettings = { navController.navigateProductRoot("profile") },
             )
         }
         composable("technical") {
@@ -340,6 +341,23 @@ fun AppNavigation(
                 onRetry = { viewModel.retry() }
             )
         }
+    }
+}
+
+private fun NavHostController.navigateProductRoot(route: String) {
+    navigate(route) {
+        launchSingleTop = true
+        restoreState = true
+        popUpTo("home") {
+            saveState = true
+            inclusive = false
+        }
+    }
+}
+
+private fun NavHostController.navigateOnce(route: String) {
+    navigate(route) {
+        launchSingleTop = true
     }
 }
 

@@ -59,6 +59,7 @@ import com.swimvpn.app.config.ConfigRepository
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.ui.components.ImportConfigDialog
+import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.launch
 
@@ -90,21 +91,7 @@ fun ConfigImportScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.34f),
-                        SwimDesignTokens.Color.BackgroundBase.copy(alpha = 0.96f),
-                        SwimDesignTokens.Color.BackgroundDeep,
-                    ),
-                    center = Offset(Float.POSITIVE_INFINITY, 0f),
-                    radius = 980f,
-                )
-            )
-    ) {
+    SwimDarkLuxuryBackground {
         if (isInitialLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = SwimDesignTokens.Color.PurpleActive)

@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
+import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.theme.AppThemePreference
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.delay
@@ -110,11 +111,7 @@ fun TechnicalSettingsScreen(
         externalActionsArmed = true
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(settingsBackground())
-    ) {
+    SwimDarkLuxuryBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -540,17 +537,6 @@ private fun StatusChip(text: String) {
         Text(text = text, color = SwimDesignTokens.Color.PurpleActive, fontSize = 10.sp, fontWeight = FontWeight.Black)
     }
 }
-
-private fun settingsBackground(): Brush =
-    Brush.radialGradient(
-        colors = listOf(
-            SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.34f),
-            SwimDesignTokens.Color.BackgroundBase.copy(alpha = 0.96f),
-            SwimDesignTokens.Color.BackgroundDeep,
-        ),
-        center = Offset(Float.POSITIVE_INFINITY, 0f),
-        radius = 980f,
-    )
 
 private fun purpleGradient(): Brush =
     Brush.radialGradient(

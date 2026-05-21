@@ -189,18 +189,18 @@ fun HomeScreen(
 
     SwimDarkLuxuryBackground {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val compact = maxHeight < 760.dp
+            val compact = maxHeight < 840.dp
             val horizontalPadding = if (compact) 28.dp else SwimDesignTokens.Spacing.ScreenHorizontal
             val profileSize = if (compact) 58.dp else SwimDesignTokens.Home.ProfileButtonSize
             val orbSize = if (compact) 292.dp else 320.dp
             val titleSize = when {
                 compact -> 28.sp
                 statusText.length > 10 -> 30.sp
-                else -> 34.sp
+                else -> 32.sp
             }
-            val subtitleSize = if (compact) 13.sp else 15.sp
+            val subtitleSize = if (compact) 13.sp else 14.sp
             val serverHeight = if (compact) 78.dp else 86.dp
-            val statsHeight = if (compact) 120.dp else 142.dp
+            val statsHeight = if (compact) 108.dp else 136.dp
             val dockHeight = 89.dp
             val bottomDockPadding = 34.dp
 
@@ -236,7 +236,7 @@ fun HomeScreen(
                     text = statusText,
                     color = SwimDesignTokens.Color.TextPrimary,
                     fontSize = titleSize,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.ExtraBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -254,7 +254,7 @@ fun HomeScreen(
                     modifier = Modifier.padding(top = if (compact) 6.dp else 8.dp),
                 )
 
-                Spacer(modifier = Modifier.height(if (compact) 12.dp else 18.dp))
+                Spacer(modifier = Modifier.height(if (compact) 10.dp else 18.dp))
 
                 SwimServerPill(
                     server = activeServer,
@@ -264,7 +264,7 @@ fun HomeScreen(
                     compact = compact,
                 )
 
-                Spacer(modifier = Modifier.height(if (compact) 10.dp else 14.dp))
+                Spacer(modifier = Modifier.height(if (compact) 8.dp else 14.dp))
 
                 SwimStatsCard(
                     bytesIn = bytesIn,
@@ -301,16 +301,25 @@ private fun ProtectedIndicator(active: Boolean, compact: Boolean, modifier: Modi
         val color = if (active) SwimDesignTokens.Color.SuccessGreen else SwimDesignTokens.Color.TextMuted
         Box(
             modifier = Modifier
-                .size(12.dp)
+                .size(if (compact) 14.dp else 16.dp)
                 .clip(CircleShape)
-                .background(color)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+                .background(SwimDesignTokens.Material.BowlBottom)
+                .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.7f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(if (compact) 7.dp else 8.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+        }
+        Spacer(modifier = Modifier.width(if (compact) 8.dp else 9.dp))
         Text(
             text = if (active) "Protected" else "Standby",
             color = color,
-            fontSize = if (compact) 16.sp else 18.sp,
-            fontWeight = FontWeight.Medium,
+            fontSize = if (compact) 15.sp else 16.sp,
+            fontWeight = FontWeight.SemiBold,
         )
     }
 }

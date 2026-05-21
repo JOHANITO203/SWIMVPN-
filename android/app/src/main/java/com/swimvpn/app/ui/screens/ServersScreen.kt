@@ -962,17 +962,13 @@ private fun EmptyServerSourcePill(tab: ServerSourceTab) {
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun MotionReveal(
     visible: Boolean,
     delayMillis: Int,
     content: @Composable () -> Unit,
 ) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(300, delayMillis, PremiumEase)) +
-            slideInVertically(tween(320, delayMillis, PremiumEase)) { 18 },
-        exit = fadeOut(tween(120)),
-    ) {
+    if (visible) {
         content()
     }
 }

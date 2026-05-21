@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -51,29 +52,70 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
-fun Modifier.swimDarkLuxuryBackground(): Modifier = drawBehind {
-    drawRect(SwimDesignTokens.Color.HomeBackgroundDeep)
-    drawRect(
-        brush = Brush.radialGradient(
-            colors = listOf(
-                SwimDesignTokens.Color.HomePurplePrimary.copy(alpha = 0.32f),
-                SwimDesignTokens.Color.HomePurpleDeep.copy(alpha = 0.10f),
-                Color.Transparent
-            ),
-            center = Offset(size.width * 0.92f, size.height * 0.28f),
-            radius = size.width * 0.72f
-        )
+fun Modifier.swimDarkLuxuryBackground(): Modifier = drawWithCache {
+    val baseWash = Brush.verticalGradient(
+        colors = listOf(
+            Color.Black.copy(alpha = 0.94f),
+            SwimDesignTokens.Color.HomeBackgroundBase.copy(alpha = 0.82f),
+            SwimDesignTokens.Color.HomeBackgroundDeep.copy(alpha = 0.98f),
+        ),
+        startY = 0f,
+        endY = size.height,
     )
-    drawRect(
-        brush = Brush.radialGradient(
-            colors = listOf(
-                Color.Transparent,
-                Color.Black.copy(alpha = 0.62f)
-            ),
-            center = Offset(size.width * 0.16f, size.height * 0.92f),
-            radius = size.width * 0.96f
-        )
+    val orbHalo = Brush.radialGradient(
+        colors = listOf(
+            SwimDesignTokens.Color.HomePurpleActive.copy(alpha = 0.18f),
+            SwimDesignTokens.Color.HomePurplePrimary.copy(alpha = 0.11f),
+            SwimDesignTokens.Color.HomePurpleDeep.copy(alpha = 0.045f),
+            Color.Transparent,
+        ),
+        center = Offset(size.width * 0.52f, size.height * 0.28f),
+        radius = size.width * 0.74f,
     )
+    val sideGlow = Brush.radialGradient(
+        colors = listOf(
+            SwimDesignTokens.Color.HomePurplePrimary.copy(alpha = 0.28f),
+            SwimDesignTokens.Color.HomePurpleDeep.copy(alpha = 0.13f),
+            Color.Transparent,
+        ),
+        center = Offset(size.width * 0.98f, size.height * 0.34f),
+        radius = size.width * 0.82f,
+    )
+    val leftSheen = Brush.radialGradient(
+        colors = listOf(
+            SwimDesignTokens.Color.HomeSurfaceHighlight.copy(alpha = 0.050f),
+            Color.Transparent,
+        ),
+        center = Offset(size.width * 0.18f, size.height * 0.42f),
+        radius = size.width * 0.58f,
+    )
+    val lowerVignette = Brush.radialGradient(
+        colors = listOf(
+            Color.Transparent,
+            Color.Black.copy(alpha = 0.70f),
+        ),
+        center = Offset(size.width * 0.16f, size.height * 0.92f),
+        radius = size.width * 1.04f,
+    )
+    val verticalVignette = Brush.verticalGradient(
+        colors = listOf(
+            Color.Black.copy(alpha = 0.30f),
+            Color.Transparent,
+            Color.Black.copy(alpha = 0.38f),
+        ),
+        startY = 0f,
+        endY = size.height,
+    )
+
+    onDrawBehind {
+        drawRect(SwimDesignTokens.Color.HomeBackgroundDeep)
+        drawRect(brush = baseWash)
+        drawRect(brush = orbHalo)
+        drawRect(brush = sideGlow)
+        drawRect(brush = leftSheen)
+        drawRect(brush = lowerVignette)
+        drawRect(brush = verticalVignette)
+    }
 }
 
 @Composable

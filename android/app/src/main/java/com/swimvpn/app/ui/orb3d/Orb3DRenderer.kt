@@ -1267,16 +1267,16 @@ internal class Orb3DRenderer : GLSurfaceView.Renderer {
     private fun SwimParticleOrbState.config(reducedMotion: Boolean): Orb3DStateConfig {
         val base = when (this) {
             SwimParticleOrbState.DISCONNECTED -> Orb3DStateConfig(
-                deformation = 0.45f,
-                lineAlpha = 0.12f,
-                particleAlpha = 0.28f,
-                shimmerAlpha = 0.08f,
+                deformation = 0.58f,
+                lineAlpha = 0.24f,
+                particleAlpha = 0.34f,
+                shimmerAlpha = 0.12f,
                 coreGlowAlpha = 0.07f,
                 motion = SwimParticleOrbState.DISCONNECTED.orbMotionConfig(),
-                lineWidth = 1.0f,
+                lineWidth = 1.08f,
                 particleSize = 2.0f,
                 haloParticleSize = 1.8f,
-                primary = Orb3DPalette.MutedPurple,
+                primary = Orb3DPalette.PurplePrimary,
                 secondary = Orb3DPalette.PurplePrimary,
                 visualIntensity = SwimParticleOrbState.DISCONNECTED.orbVisualIntensity(),
                 breathing = SwimParticleOrbState.DISCONNECTED.orbBreathingProfile(),

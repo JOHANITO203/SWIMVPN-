@@ -5,6 +5,7 @@
 - Replaced the direct Home `VpnCoreOrb` usage with `HomeVpnCoreStage`, preserving the existing `toggleVpnFromHome()` click path and real `VpnState` to `VpnOrbState` mapper.
 - Synchronized button accent, glow, press compression, and breathing with the orb visual state so the button reads as embedded in the same energy field instead of pasted on top.
 - Removed the `renderBehindCompose=true` SurfaceView layering mode after device capture proved it created a visible black rectangular plate around the orb; the holographic layer now renders on the transparent SurfaceView path again.
+- Promoted the polished `SwimDarkLuxuryBackground` to Profile, Technical Settings, Support, and Config Import so product screens share the same dark violet atmospheric field as Home, Servers, and Subscription.
 - Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
 
 # 2026-05-20 - Removed video orb integration and restored safe Canvas orb
@@ -3365,3 +3366,12 @@ pm run build PASSED.
 - Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
 - Added a debug-only `donut-orb-lab` route that opens only when launched with the ADB extra `open_donut_orb_lab=true`, so the POC can be visually QA'd on device without changing normal app navigation.
 - Rejected after live device QA and removed the POC files plus the debug lab route to restore the normal app surface.
+
+## 2026-05-21 - Android navigation performance triage
+- Audited Home/Servers/Subscription navigation jank after visual polish.
+- Kept top-level navigation optimized with singleTop/restoreState helpers to reduce route stacking.
+- Restored Home orb render cadence to 60 FPS (`16_666_667ns`) per QA direction.
+- Reverted Home orb z-order to the prior transparent visual plane to remove the black plate regression.
+- Reduced Servers screen entrance stagger cost by rendering reveal content immediately while preserving dock motion.
+- Freed local workstation memory by stopping Gradle/Kotlin Java daemons; preserved VS Code/Codex/VPN processes.
+- Verified `:app:compileDebugKotlin :app:assembleDebug` with `--no-daemon`; installed debug APK on Wi-Fi adb device.

@@ -297,13 +297,13 @@ private data class HomeVpnCoreVisuals(
 
 private fun VpnOrbState.coreVisuals(): HomeVpnCoreVisuals = when (this) {
     VpnOrbState.DISCONNECTED -> HomeVpnCoreVisuals(
-        accent = SwimDesignTokens.Color.TextMuted,
-        breathingMs = 6200,
-        stageBreathRange = 0.006f,
-        buttonBreathRange = 0.004f,
-        buttonGlowAlpha = 0.14f,
-        shellLift = 0.12f,
-        buttonSizeRatio = 0.50f,
+        accent = Color(0xFF8F7BCB),
+        breathingMs = 5600,
+        stageBreathRange = 0.010f,
+        buttonBreathRange = 0.006f,
+        buttonGlowAlpha = 0.22f,
+        shellLift = 0.18f,
+        buttonSizeRatio = 0.49f,
     )
     VpnOrbState.CONNECTING -> HomeVpnCoreVisuals(
         accent = SwimDesignTokens.Material.PurpleCoreTop,

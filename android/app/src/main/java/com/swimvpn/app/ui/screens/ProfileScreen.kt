@@ -41,6 +41,7 @@ import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.config.ActiveConfigSource
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.ui.formatBytes
+import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import java.text.SimpleDateFormat
 import java.util.*
@@ -71,11 +72,7 @@ fun ProfileScreen(
         ?: profile.phone?.takeIf { it.isNotBlank() }
         ?: profile.userNumber
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(profileBackground())
-    ) {
+    SwimDarkLuxuryBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -202,17 +199,6 @@ fun ProfileScreen(
         }
     }
 }
-
-@Composable
-private fun profileBackground(): Brush =
-    Brush.radialGradient(
-        colors = listOf(
-            SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.30f),
-            SwimDesignTokens.Color.BackgroundBase,
-            SwimDesignTokens.Color.BackgroundDeep,
-        ),
-        radius = 920f,
-    )
 
 @Composable
 private fun AccountHeader(onBack: (() -> Unit)?) {

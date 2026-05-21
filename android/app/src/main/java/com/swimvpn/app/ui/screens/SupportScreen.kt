@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
+import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 
 @Composable
@@ -67,11 +68,7 @@ fun SupportScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(supportBackground())
-    ) {
+    SwimDarkLuxuryBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -380,17 +377,6 @@ private fun HardwareCircleButton(onClick: () -> Unit, content: @Composable () ->
         content()
     }
 }
-
-private fun supportBackground(): Brush =
-    Brush.radialGradient(
-        colors = listOf(
-            SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.34f),
-            SwimDesignTokens.Color.BackgroundBase.copy(alpha = 0.96f),
-            SwimDesignTokens.Color.BackgroundDeep,
-        ),
-        center = Offset(Float.POSITIVE_INFINITY, 0f),
-        radius = 980f,
-    )
 
 private fun purpleGradient(): Brush =
     Brush.radialGradient(
