@@ -1185,3 +1185,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: the new Dark Luxury Servers screen maps existing `ServerGroup`, `ServerNode`, and `ActiveConfigMetadata` into UI models instead of introducing new server state.
 - Reason: server entitlement, imported config parsing, managed node exposure, and active selection are already owned by the Android ViewModel/backend contracts.
 - Consequence: visual rows stay compact and premium, while selection still calls the existing `viewModel.selectServer(server)` path and quota/expiration remain config-level metadata.
+
+## 2026-05-21 - New manual card checkout is retired
+- Decision: new customer checkout supports only `SWIMPAY` and `CRYPTO`; the Telegram-driven manual card pipeline is no longer exposed or routable.
+- Reason: payment collection should move away from bot-mediated manual proof/approval and stay on explicit payment rails.
+- Consequence: Android no longer offers Card, backend rejects unsupported payment methods, and notification bots keep order/delivery admin commands only. Historical `CARD_MANUAL:*` order refs remain readable for legacy traceability.

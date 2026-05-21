@@ -11,7 +11,6 @@ export class TelegramSenderService {
 
   constructor(private readonly configService: ConfigService) {
     const token = selectNotificationSenderBotToken({
-      paymentBotToken: this.configService.get<string>('PAYMENT_BOT_TOKEN'),
       notificationBotToken: this.configService.get<string>('NOTIFICATION_BOT_TOKEN'),
       telegramBotToken: this.configService.get<string>('TELEGRAM_BOT_TOKEN'),
     });

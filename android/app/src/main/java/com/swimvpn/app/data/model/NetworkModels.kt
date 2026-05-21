@@ -15,12 +15,11 @@ data class Plan(
 )
 
 object PaymentMethodPolicy {
-    const val CARD_MANUAL = "CARD_MANUAL"
     const val SWIMPAY = "SWIMPAY"
     const val CRYPTO = "CRYPTO"
     const val DEFAULT_METHOD = SWIMPAY
 
-    val VISIBLE_METHODS = listOf(CARD_MANUAL, SWIMPAY, CRYPTO)
+    val VISIBLE_METHODS = listOf(SWIMPAY, CRYPTO)
 }
 
 object CheckoutRefreshPolicy {

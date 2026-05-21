@@ -415,7 +415,7 @@ async function main() {
                     raw_config: 'https://wb.routerwb.ru/demo',
                     source_quota_bytes: 1000n * 1024n * 1024n * 1024n,
                     source_used_bytes: 7n * 1024n * 1024n * 1024n,
-                    supplier_expires_at: new Date('2026-05-21T00:00:00.000Z'),
+                    supplier_expires_at: new Date('2099-05-21T00:00:00.000Z'),
                     supplier_provider_name: 'Provider',
                     health_status: InventoryHealthStatus.HEALTHY,
                   },
@@ -440,7 +440,7 @@ async function main() {
     'paid access time should be provider-managed, not expired by local plan duration',
   );
   assert(
-    activePlanQuotaProfile.subscriptionExpiresAt === '2026-05-21T00:00:00.000Z',
+    activePlanQuotaProfile.subscriptionExpiresAt === '2099-05-21T00:00:00.000Z',
     'paid access expiry should mirror supplier/assignment expiry when present',
   );
   assert(activePlanQuotaProfile.dataLimitGB === 50, 'customer-facing quota must come from the paid plan');
@@ -1151,14 +1151,13 @@ async function main() {
     {} as any,
   );
 
-  const fulfillmentFailure = await (fulfillmentFailureService as any).approveManualCardPayment({
-    orderRef: 'ORD-FAIL',
-    paymentRef: 'CARD_MANUAL:APPROVED:test-proof',
-    proofEventId: 'test-proof',
-  });
+  const fulfillmentFailure = await (fulfillmentFailureService as any).fulfillOrderByRef(
+    'ORD-FAIL',
+    'SWIMPAY_CONFIRMED:test-proof',
+  );
   assert(
     fulfillmentFailure.success === true && fulfillmentFailure.pendingFulfillment === true,
-    'approved manual payment with failed fulfillment should remain approved and pending fulfillment',
+    'confirmed payment with failed fulfillment should remain approved and pending fulfillment',
   );
   assert(
     fulfillmentFailure.fulfillmentError.includes('Inventory service unavailable'),
@@ -1196,11 +1195,10 @@ async function main() {
     {} as any,
   );
 
-  const structuredFulfillmentFailure = await (structuredFulfillmentFailureService as any).approveManualCardPayment({
-    orderRef: 'ORD-STRUCTURED-FAIL',
-    paymentRef: 'CARD_MANUAL:APPROVED:test-proof-structured',
-    proofEventId: 'test-proof-structured',
-  });
+  const structuredFulfillmentFailure = await (structuredFulfillmentFailureService as any).fulfillOrderByRef(
+    'ORD-STRUCTURED-FAIL',
+    'SWIMPAY_CONFIRMED:test-proof-structured',
+  );
   assert(
     structuredFulfillmentFailure.success === true &&
       structuredFulfillmentFailure.pendingFulfillment === true,
@@ -2261,7 +2259,7 @@ async function main() {
       email: 'new-checkout@example.com',
       phone: '79000000010',
       planId: 'plan-month',
-      paymentMethod: 'CARD_MANUAL',
+      paymentMethod: 'SWIMPAY',
     } as any),
     'user-bound checkout must require the device id',
   );

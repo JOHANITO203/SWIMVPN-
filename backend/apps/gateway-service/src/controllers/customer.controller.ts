@@ -22,8 +22,6 @@ export class CustomerController {
         throw new BadRequestException(message);
       }
       if (
-        message.includes('bot username is not configured') ||
-        message.includes('manual payment bot is not configured') ||
         message.includes('crypto pay api is not configured')
       ) {
         throw new ServiceUnavailableException(message);

@@ -7,11 +7,10 @@ import org.junit.Test
 
 class PaymentMethodPolicyTest {
     @Test
-    fun `defaults checkout to SwimPay while keeping fallback methods available`() {
+    fun `defaults checkout to SwimPay while keeping supported methods available`() {
         assertEquals(PaymentMethodPolicy.SWIMPAY, PaymentMethodPolicy.DEFAULT_METHOD)
         assertEquals(
             listOf(
-                PaymentMethodPolicy.CARD_MANUAL,
                 PaymentMethodPolicy.SWIMPAY,
                 PaymentMethodPolicy.CRYPTO,
             ),

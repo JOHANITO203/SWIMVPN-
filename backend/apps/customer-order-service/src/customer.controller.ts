@@ -103,15 +103,4 @@ export class CustomerController {
     return this.customerService.handleSwimPayWebhook(data);
   }
 
-  @MessagePattern({ cmd: 'approve_manual_card_payment' })
-  async approveManualCardPayment(
-    @Payload() data: { orderRef: string; paymentRef: string; proofEventId?: string },
-  ) {
-    return this.customerService.approveManualCardPayment(data);
-  }
-
-  @MessagePattern({ cmd: 'reject_manual_card_payment' })
-  async rejectManualCardPayment(@Payload() data: { orderRef: string; reason?: string }) {
-    return this.customerService.rejectManualCardPayment(data);
-  }
 } 

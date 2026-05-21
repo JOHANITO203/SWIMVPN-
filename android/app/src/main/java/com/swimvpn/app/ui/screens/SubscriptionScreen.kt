@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
@@ -56,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
@@ -611,14 +613,32 @@ private fun PaymentMethodPill(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = method.paymentLabel,
-            color = if (selected) Color.White else SwimDesignTokens.Color.TextSecondary,
-            fontSize = fixedSp(12),
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp),
+        ) {
+            val iconRes = method.paymentIconRes
+            if (iconRes != null) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .alpha(if (selected) 1f else 0.72f),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Text(
+                text = method.paymentLabel,
+                color = if (selected) Color.White else SwimDesignTokens.Color.TextSecondary,
+                fontSize = fixedSp(12),
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -841,15 +861,16 @@ private fun StaggeredEnter(
 
 private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?): SubscriptionPlanUi {
     val tier = code.toSubscriptionTier()
+    val planTitle = name.ifBlank { tier.displayName }
     return SubscriptionPlanUi(
         id = id,
         tier = tier,
-        title = tier.displayName,
-        subtitle = tier.subtitle,
+        title = planTitle,
+        subtitle = durationLabel.toPlanSubtitle(tier),
         price = formatPlanPrice(priceRub),
         billingPeriod = durationLabel.toBillingPeriod(),
-        features = tier.features,
-        ctaLabel = "Select ${tier.displayName}",
+        features = buildPlanFeatureBullets(tier = tier, quotaLabel = quotaLabel),
+        ctaLabel = "Select $planTitle",
         badgeLabel = if (tier == SubscriptionPlanTier.PREMIUM) "Most popular" else null,
         isHighlighted = tier == SubscriptionPlanTier.PREMIUM,
         isCurrentPlan = activeOfferCode?.toSubscriptionTierOrNull() == tier,
@@ -891,35 +912,34 @@ private val SubscriptionPlanTier.displayName: String
         SubscriptionPlanTier.PLATINUM -> "Platinum"
     }
 
-private val SubscriptionPlanTier.subtitle: String
+private val SubscriptionPlanTier.deviceAllowance: Int
     get() = when (this) {
-        SubscriptionPlanTier.BASIC -> "Essential protection"
-        SubscriptionPlanTier.PREMIUM -> "Advanced protection"
-        SubscriptionPlanTier.PLATINUM -> "Ultimate security"
+        SubscriptionPlanTier.BASIC -> 2
+        SubscriptionPlanTier.PREMIUM -> 3
+        SubscriptionPlanTier.PLATINUM -> 4
     }
 
-private val SubscriptionPlanTier.features: List<String>
-    get() = when (this) {
-        SubscriptionPlanTier.BASIC -> listOf(
-            "Secure VPN connection",
-            "Auto select server",
-            "No logs policy",
-        )
-        SubscriptionPlanTier.PREMIUM -> listOf(
-            "Everything in Basic",
-            "Access to premium servers",
-            "Kill switch",
-            "Split tunneling",
-            "Priority support",
-        )
-        SubscriptionPlanTier.PLATINUM -> listOf(
-            "Everything in Premium",
-            "Dedicated IP",
-            "Multi-hop connection",
-            "Advanced threat protection",
-            "24/7 VIP support",
-        )
+private fun String.toPlanSubtitle(tier: SubscriptionPlanTier): String =
+    when {
+        isNotBlank() -> "$this secure access"
+        else -> when (tier) {
+            SubscriptionPlanTier.BASIC -> "Short-term secure access"
+            SubscriptionPlanTier.PREMIUM -> "Monthly managed access"
+            SubscriptionPlanTier.PLATINUM -> "Extended premium access"
+        }
     }
+
+private fun buildPlanFeatureBullets(
+    tier: SubscriptionPlanTier,
+    quotaLabel: String,
+): List<String> {
+    val dataLabel = quotaLabel.ifBlank { "Plan data" }
+    return listOf(
+        "$dataLabel included",
+        "Up to ${tier.deviceAllowance} devices",
+        "AI Agent selects the best nodes in real time",
+    )
+}
 
 private val SubscriptionPlanTier.contentDescription: String
     get() = when (this) {
@@ -930,10 +950,16 @@ private val SubscriptionPlanTier.contentDescription: String
 
 private val String.paymentLabel: String
     get() = when (this) {
-        PaymentMethodPolicy.CARD_MANUAL -> "Card"
         PaymentMethodPolicy.SWIMPAY -> "SwimPay"
         PaymentMethodPolicy.CRYPTO -> "Crypto"
         else -> this
+    }
+
+private val String.paymentIconRes: Int?
+    get() = when (this) {
+        PaymentMethodPolicy.SWIMPAY -> R.drawable.ic_swimpay_mark
+        PaymentMethodPolicy.CRYPTO -> R.drawable.ic_crypto_pay_mark
+        else -> null
     }
 
 private fun String.toBillingPeriod(): String {

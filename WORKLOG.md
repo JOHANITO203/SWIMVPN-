@@ -3375,3 +3375,28 @@ pm run build PASSED.
 - Reduced Servers screen entrance stagger cost by rendering reveal content immediately while preserving dock motion.
 - Freed local workstation memory by stopping Gradle/Kotlin Java daemons; preserved VS Code/Codex/VPN processes.
 - Verified `:app:compileDebugKotlin :app:assembleDebug` with `--no-daemon`; installed debug APK on Wi-Fi adb device.
+
+## 2026-05-21 - Android subscription plan copy alignment
+- Updated Subscription plan cards to present user-facing decision facts instead of long technical feature lists.
+- Kept backend as the source for plan title, duration, quota, and price.
+- Added UI product policy for visible device allowance: Basic 2 devices, Premium 3 devices, Platinum 4 devices.
+- Added AI Agent plan bullet: real-time best-node selection.
+- Did not touch backend plans, Prisma migrations, slot_count, payments, VPN runtime, or parser logic.
+- Verified Android debug build with `./gradlew.bat --no-daemon :app:compileDebugKotlin :app:assembleDebug`.
+
+## 2026-05-21 - Manual card payment pipeline removed
+- Removed manual card checkout from Android-visible payment methods; Subscription now offers only SwimPay and Crypto.
+- Removed `CARD_MANUAL` from active checkout contracts and replaced the customer-order checkout fallback with an unsupported-method rejection.
+- Removed Telegram bot manual card proof/review/approval commands, routing helpers, env variables, and policy tests dedicated to the manual bot pipeline.
+- Preserved historical `CARD_MANUAL:APPROVED` fixture references where they represent already-paid legacy orders, not new checkout behavior.
+- Stabilized a date-sensitive backend policy fixture whose provider expiry had reached 2026-05-21 during verification.
+- Verification: backend `typecheck`, `test:policy`, `prisma:generate`, and Android `PaymentMethodPolicyTest`, `compileDebugKotlin`, `assembleDebug` passed.
+- Re-verified on request: no active manual-payment bot refs remain, backend checks passed again, and Android payment policy/debug build passed again.
+
+## 2026-05-21 - SwimPay payment icon
+- Added a transparent vector SwimPay mark derived from the provided logo direction, keeping only the central green/blue symbol and dropping the white/glass background plus secondary badge.
+- Integrated the mark into the Android Subscription payment method pill for SwimPay only.
+
+## 2026-05-21 - Crypto Pay payment icon
+- Added a transparent vector Crypto Pay mark inspired by the Crypto Pay/Crypto Bot visual family and official docs positioning.
+- Integrated the mark into the Android Subscription payment method pill for Crypto while keeping payment behavior unchanged.

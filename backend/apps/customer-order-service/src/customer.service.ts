@@ -25,11 +25,6 @@ import {
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
 import { SwimPayService } from './swim-pay.service';
-import {
-  looksLikeTelegramBotToken,
-  normalizeConfiguredPaymentBotUsername,
-  selectManualPaymentBotToken,
-} from './payment-bot-routing';
 
 @Injectable()
 export class CustomerService {
@@ -135,26 +130,7 @@ export class CustomerService {
         };
       }
 
-      const paymentBotUsername = await this.resolvePaymentBotUsername();
-      if (!paymentBotUsername) {
-        this.fail('Manual payment bot is not configured');
-      }
-
-      await this.prisma.order.update({
-        where: { id: checkout.order.id },
-        data: {
-          payment_ref: 'CARD_MANUAL:INIT',
-        },
-      });
-
-      return {
-        orderRef: checkout.order.order_ref,
-        status: checkout.order.status,
-        amountRub: checkout.plan.price_rub.toString(),
-        paymentMethod: 'CARD_MANUAL',
-        redirectUrl: `https://t.me/${paymentBotUsername}?start=card_${checkout.order.order_ref}`,
-        message: 'Continue payment in Telegram',
-      };
+      this.fail('Unsupported payment method');
     } catch (error: any) {
       this.fail(this.extractErrorMessage(error));
     }
@@ -1037,82 +1013,6 @@ export class CustomerService {
     return {
       received: true,
       ...result,
-    };
-  }
-
-  async approveManualCardPayment(data: { orderRef: string; paymentRef: string; proofEventId?: string }) {
-    const result = await this.fulfillOrderByRef(data.orderRef, data.paymentRef);
-
-    if (data.proofEventId && result?.success) {
-      await this.prisma.adminEvent.create({
-        data: {
-          event_type: 'CARD_PAYMENT_APPROVED',
-          entity_type: 'ORDER',
-          entity_id: data.orderRef,
-          payload_json: {
-            orderRef: data.orderRef,
-            paymentRef: data.paymentRef,
-            proofEventId: data.proofEventId,
-            processedAt: new Date().toISOString(),
-          } as any,
-        },
-      });
-    }
-
-    return result;
-  }
-
-  async rejectManualCardPayment(data: { orderRef: string; reason?: string }) {
-    const order = await this.prisma.order.findUnique({
-      where: { order_ref: data.orderRef },
-      include: {
-        customer: true,
-        plan: true,
-      },
-    });
-
-    if (!order) {
-      return { success: false, error: 'Order not found' };
-    }
-
-    if (order.status !== OrderStatus.PENDING) {
-      return {
-        success: false,
-        alreadyProcessed: true,
-        currentStatus: order.status,
-        orderRef: data.orderRef,
-        customerEmail: order.customer.email,
-        planName: order.plan.name,
-      };
-    }
-
-    await this.prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: OrderStatus.FAILED,
-        payment_ref: `CARD_MANUAL:REJECTED:${Date.now()}`,
-      },
-    });
-
-    await this.prisma.adminEvent.create({
-      data: {
-        event_type: 'CARD_PAYMENT_REJECTED',
-        entity_type: 'ORDER',
-        entity_id: order.order_ref,
-        payload_json: {
-          orderRef: order.order_ref,
-          reason: data.reason || null,
-          processedAt: new Date().toISOString(),
-        } as any,
-      },
-    });
-
-    return {
-      success: true,
-      orderRef: order.order_ref,
-      customerEmail: order.customer.email,
-      planName: order.plan.name,
-      rejected: true,
     };
   }
 
@@ -2120,52 +2020,8 @@ export class CustomerService {
     return (sourceUsedBytes ?? 0n) >= sourceQuotaBytes;
   }
 
-  private async resolvePaymentBotUsername() {
-    const configuredUsername = normalizeConfiguredPaymentBotUsername(process.env.PAYMENT_BOT_USERNAME);
-    if (configuredUsername) {
-      return configuredUsername;
-    }
-
-    const configuredValue = process.env.PAYMENT_BOT_USERNAME?.trim();
-    if (configuredValue && looksLikeTelegramBotToken(configuredValue)) {
-      const resolvedUsername = await this.fetchTelegramBotUsername(configuredValue);
-      if (resolvedUsername) {
-        return resolvedUsername;
-      }
-    }
-
-    const commandBotToken = selectManualPaymentBotToken({
-      paymentBotToken: process.env.PAYMENT_BOT_TOKEN,
-      notificationBotToken: process.env.NOTIFICATION_BOT_TOKEN,
-    });
-    if (commandBotToken) {
-      const resolvedUsername = await this.fetchTelegramBotUsername(commandBotToken);
-      if (resolvedUsername) {
-        return resolvedUsername;
-      }
-    }
-
-    return null;
-  }
-
   private looksLikeEmail(value: string) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-  }
-
-  private async fetchTelegramBotUsername(token: string) {
-    try {
-      const response = await fetch(`https://api.telegram.org/bot${token}/getMe`);
-      const json = await response.json().catch(() => ({}));
-      const username = json?.result?.username;
-
-      if (!response.ok || !json?.ok || typeof username !== 'string' || username.trim().length === 0) {
-        return null;
-      }
-
-      return username.trim().replace(/^@/, '');
-    } catch {
-      return null;
-    }
   }
 
   private extractErrorMessage(error: any, fallback = 'Unable to create checkout') {

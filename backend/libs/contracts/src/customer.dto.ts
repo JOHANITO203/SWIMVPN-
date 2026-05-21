@@ -54,7 +54,7 @@ export interface CheckoutResponse {
   orderRef: string;
   status: string;
   amountRub: string;
-  paymentMethod: 'CRYPTO' | 'CARD_MANUAL' | 'SWIMPAY';
+  paymentMethod: 'CRYPTO' | 'SWIMPAY';
   redirectUrl: string | null;
   message: string;
 }
@@ -177,7 +177,7 @@ export class CreateCheckoutDto {
 
   @IsString()
   @IsNotEmpty()
-  paymentMethod: 'CRYPTO' | 'CARD_MANUAL' | 'SWIMPAY';
+  paymentMethod: 'CRYPTO' | 'SWIMPAY';
 
   @IsString()
   @IsOptional()
