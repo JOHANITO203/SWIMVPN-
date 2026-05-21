@@ -2,21 +2,21 @@ import React from 'react';
 
 export const Footer = () => {
   return (
-    <footer className="py-12 border-t border-white/5 px-6 bg-slate-950">
-      <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+    <footer className="relative z-10 border-t border-white/5 bg-[#010101] px-6 py-12">
+      <div className="container mx-auto flex flex-col items-center justify-between gap-8 md:flex-row">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg" />
-          <span className="text-white font-black tracking-tighter text-xl italic">SWIMVPN+</span>
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#B89AFF] via-[#8A6AF1] to-[#5D3BD8]" />
+          <span className="text-xl font-black tracking-tighter text-white">SWIMVPN+</span>
         </div>
-        
-        <div className="flex gap-8 text-slate-500 text-sm font-semibold">
-          <a href="#privacy" className="hover:text-cyan-400 transition-colors">Privacy Policy</a>
-          <a href="#terms" className="hover:text-cyan-400 transition-colors">Terms of Service</a>
-          <a href="mailto:support@swimvpn.pro" className="hover:text-cyan-400 transition-colors">Contact</a>
+
+        <div className="flex flex-wrap justify-center gap-8 text-sm font-semibold text-[#A6A1B3]">
+          <a href="#privacy" className="transition-colors hover:text-[#B89AFF]">Confidentialité</a>
+          <a href="#terms" className="transition-colors hover:text-[#B89AFF]">Conditions</a>
+          <a href="mailto:support@swimvpn.pro" className="transition-colors hover:text-[#B89AFF]">Support</a>
         </div>
-        
-        <div className="text-slate-600 text-sm">
-          © {new Date().getFullYear()} swimvpn+. All rights reserved.
+
+        <div className="text-sm text-[#6E6978]">
+          © {new Date().getFullYear()} SWIMVPN+. Tous droits réservés.
         </div>
       </div>
     </footer>

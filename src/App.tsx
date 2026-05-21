@@ -25,7 +25,7 @@ export default function App() {
   }
 
   return (
-    <div className="font-sans min-h-screen bg-[#05070A]">
+    <div className="min-h-screen bg-[#050505] font-sans">
       {content}
     </div>
   );

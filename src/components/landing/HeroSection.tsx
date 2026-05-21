@@ -1,91 +1,127 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Download, ChevronRight } from 'lucide-react';
+import { Download, QrCode, ShieldCheck, Sparkles, WalletCards } from 'lucide-react';
 import InteractivePixelGlobe from './InteractivePixelGlobe';
+
+const cardBase =
+  'relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#111118]/80 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur-2xl';
 
 export const HeroSection = () => {
   return (
-    <section className="relative min-h-screen lg:min-h-[110vh] flex flex-col items-center justify-center pt-28 md:pt-40 pb-16 md:pb-20 px-6 overflow-hidden">
-      {/* Background ambient light */}
-      <div className="absolute top-0 left-1/4 w-full max-w-4xl h-96 bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-full max-w-4xl h-96 bg-blue-500/5 blur-[120px] rounded-full pointer-events-none" />
-
-      <div className="container mx-auto grid lg:grid-cols-2 gap-10 lg:gap-12 items-center z-10">
-        <motion.div
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center lg:text-left relative z-20"
-        >
+    <section className="relative z-10 px-4 pb-12 pt-32 md:px-6 md:pb-20 md:pt-40">
+      <div className="container mx-auto">
+        <div className="grid min-h-[calc(100vh-8rem)] grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[minmax(220px,0.9fr)_minmax(170px,0.7fr)_minmax(150px,0.55fr)]">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex items-center justify-center lg:justify-start gap-2 mb-6 md:mb-8"
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className={`${cardBase} min-h-[420px] p-7 sm:p-10 lg:col-span-7 lg:row-span-2 lg:p-12`}
           >
-            <div className="px-3 py-1 border border-cyan-500/30 bg-cyan-500/5 rounded text-[10px] font-bold text-cyan-400 uppercase tracking-[0.3em] font-mono">
-              V.4.2.0-STABLE
-            </div>
-            <div className="w-1 h-1 bg-white/20 rounded-full" />
-            <div className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] font-mono">
-              ENCRYPTED NODES: 4,092
+            <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#8A6AF1]/30 blur-[90px]" />
+            <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+            <div className="relative flex h-full flex-col justify-between gap-12">
+              <div>
+                <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#8A6AF1]/30 bg-[#8A6AF1]/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#C8B6FF]">
+                  <span className="h-2 w-2 rounded-full bg-[#35D978] shadow-[0_0_18px_rgba(53,217,120,0.65)]" />
+                  Pré-release APK disponible
+                </div>
+                <h1 className="max-w-4xl text-5xl font-black leading-[0.88] tracking-tighter text-white sm:text-7xl md:text-8xl lg:text-9xl">
+                  SWIMVPN+
+                </h1>
+                <p className="mt-8 max-w-2xl text-lg leading-relaxed text-[#A6A1B3] md:text-xl">
+                  Un VPN Android qui vous laisse choisir : acheter des configurations directement dans l’app,
+                  ou coller/importer gratuitement vos propres configs VLESS et Trojan.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <motion.a
+                  href="/downloads/swimvpn.apk"
+                  download="SwimVPN.apk"
+                  aria-label="Télécharger l’APK SwimVPN"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="inline-flex min-h-14 items-center justify-center gap-3 rounded-full bg-white px-8 py-4 font-black text-black shadow-[0_24px_70px_rgba(255,255,255,0.16)] transition hover:bg-[#F3F1F6]"
+                >
+                  <Download size={22} strokeWidth={3} />
+                  Télécharger l’APK
+                </motion.a>
+                <a
+                  href="#usage"
+                  className="inline-flex min-h-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-8 py-4 font-bold text-white transition hover:border-[#8A6AF1]/50 hover:bg-[#8A6AF1]/10"
+                >
+                  Voir comment ça marche
+                </a>
+              </div>
             </div>
           </motion.div>
 
-          <h1 className="text-5xl sm:text-6xl md:text-8xl lg:text-[9rem] font-black text-white leading-[0.85] tracking-[-0.05em] mb-6 md:mb-8 uppercase italic shrink-0">
-            SECURE <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-400 to-blue-600">
-              ANYTHING.
-            </span>
-          </h1>
+          <motion.div
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className={`${cardBase} min-h-[260px] p-6 lg:col-span-5 lg:row-span-2`}
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_35%,rgba(138,106,241,0.22),transparent_42%)]" />
+            <div className="relative h-full min-h-[360px]">
+              <InteractivePixelGlobe />
+            </div>
+          </motion.div>
 
-          <p className="text-slate-400 text-base md:text-xl max-w-xl mx-auto lg:mx-0 mb-8 md:mb-12 leading-relaxed font-medium">
-            SwimVPN+ is the ultimate Android protocol for seamless browsing. Persistent, stealthy, and built for speed on restricted networks.
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.14, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className={`${cardBase} p-6 lg:col-span-3`}
+          >
+            <WalletCards className="mb-8 text-[#B89AFF]" size={30} />
+            <h2 className="mb-3 text-2xl font-black text-white">Configs in-app</h2>
+            <p className="text-sm leading-relaxed text-[#A6A1B3]">
+              Achetez vos accès VPN depuis l’application et recevez des configs prêtes à utiliser.
+            </p>
+          </motion.div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 md:gap-6">
-            <motion.a
-              href="/downloads/swimvpn.apk"
-              download="SwimVPN.apk"
-              aria-label="Download SwimVPN APK"
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              className="group relative w-full sm:w-auto justify-center px-8 py-5 md:px-10 bg-white text-black font-black rounded-2xl flex items-center gap-3 overflow-hidden transition-all shadow-[0_20px_40px_-15px_rgba(255,255,255,0.3)] hover:shadow-[0_30px_60px_-15px_rgba(255,255,255,0.4)]"
-            >
-              <Download size={22} strokeWidth={3} />
-              DOWNLOAD APK
-            </motion.a>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className={`${cardBase} p-6 lg:col-span-3`}
+          >
+            <QrCode className="mb-8 text-[#B89AFF]" size={30} />
+            <h2 className="mb-3 text-2xl font-black text-white">Mode gratuit</h2>
+            <p className="text-sm leading-relaxed text-[#A6A1B3]">
+              Collez ou scannez vos configs VLESS/Trojan personnelles et utilisez SWIMVPN+ sans achat.
+            </p>
+          </motion.div>
 
-            <a
-              href="#features"
-              className="group w-full sm:w-auto justify-center px-8 py-5 md:px-10 bg-white/5 border border-white/10 text-white font-bold rounded-2xl flex items-center gap-3 hover:bg-white/10 transition-all hover:border-white/20"
-            >
-              /DOCUMENTATION
-              <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
-            </a>
-          </div>
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.26, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className={`${cardBase} p-6 lg:col-span-3`}
+          >
+            <Sparkles className="mb-8 text-[#B89AFF]" size={30} />
+            <h2 className="mb-3 text-2xl font-black text-white">Trial offert</h2>
+            <p className="text-sm leading-relaxed text-[#A6A1B3]">
+              Testez le service dès maintenant avant la release Play Store.
+            </p>
+          </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.2, ease: 'easeOut' }}
-          className="relative z-0 order-last w-full h-[350px] sm:h-[450px] md:h-[550px] lg:h-[700px] max-w-[400px] sm:max-w-[500px] md:max-w-[600px] lg:max-w-none mx-auto flex items-center justify-center lg:justify-end overflow-visible"
-        >
-          <div className="w-full h-full flex items-center justify-center lg:translate-x-12 xl:translate-x-24 lg:translate-y-12">
-            <InteractivePixelGlobe />
-          </div>
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className={`${cardBase} p-6 lg:col-span-3`}
+          >
+            <ShieldCheck className="mb-8 text-[#35D978]" size={30} />
+            <h2 className="mb-3 text-2xl font-black text-white">Pré-release</h2>
+            <p className="text-sm leading-relaxed text-[#A6A1B3]">
+              Disponible en APK officiel pendant que la publication Play Store se prépare.
+            </p>
+          </motion.div>
+        </div>
       </div>
-
-      {/* Scroll indicator */}
-      <motion.div
-        animate={{ y: [0, 10, 0] }}
-        transition={{ duration: 2, repeat: Infinity }}
-        className="hidden md:flex absolute bottom-10 left-1/2 -translate-x-1/2 w-6 h-10 border-2 border-white/10 rounded-full justify-center p-1"
-      >
-        <div className="w-1.5 h-3 bg-cyan-400 rounded-full" />
-      </motion.div>
     </section>
   );
 };

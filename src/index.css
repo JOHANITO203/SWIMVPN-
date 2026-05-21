@@ -11,17 +11,17 @@ html {
 }
 
 body {
-  @apply bg-[#05070A] text-slate-200 antialiased selection:bg-cyan-500/30 selection:text-cyan-200;
+  @apply bg-[#050505] text-[#F3F1F6] antialiased selection:bg-[#8A6AF1]/30 selection:text-white;
   background-image: 
-    radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.05) 0%, transparent 100%),
-    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 100% 100%, 40px 40px, 40px 40px;
+    radial-gradient(circle at 70% 20%, rgba(138, 106, 241, 0.14) 0%, transparent 34%),
+    radial-gradient(circle at 20% 60%, rgba(93, 59, 216, 0.10) 0%, transparent 30%),
+    linear-gradient(180deg, #07070B 0%, #050505 54%, #010101 100%);
+  background-size: 100% 100%;
 }
 
 @layer utilities {
-  .text-glow-cyan {
-    text-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+  .text-glow-violet {
+    text-shadow: 0 0 24px rgba(138, 106, 241, 0.36);
   }
   .border-glass {
     @apply border border-white/10 backdrop-blur-xl bg-white/5;

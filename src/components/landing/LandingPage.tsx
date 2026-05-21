@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { Download } from 'lucide-react';
 import { HeroSection } from './HeroSection';
 import { TrustStrip } from './TrustStrip';
 import { FeatureGrid } from './FeatureGrid';
@@ -10,30 +11,36 @@ import { Footer } from './Footer';
 
 const LandingPage = () => {
   return (
-    <div className="bg-[#05070A] min-h-screen text-slate-200 selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen overflow-hidden bg-[#050505] text-[#F3F1F6] selection:bg-[#8A6AF1]/30 selection:text-white">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_76%_18%,rgba(138,106,241,0.18),transparent_34%),radial-gradient(circle_at_18%_52%,rgba(93,59,216,0.12),transparent_30%),linear-gradient(180deg,#07070B_0%,#050505_52%,#010101_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.018)_1px,transparent_1px)] bg-[size:64px_64px] opacity-30" />
+      </div>
+
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-5xl z-50 pointer-events-none">
-        <div className="px-4 py-2 md:px-6 md:py-2.5 bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl flex justify-between items-center pointer-events-auto shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+        <div className="px-4 py-2 md:px-6 md:py-2.5 bg-[#111118]/75 border border-white/10 backdrop-blur-2xl rounded-full flex justify-between items-center pointer-events-auto shadow-[0_18px_42px_rgba(0,0,0,0.55)]">
           <div className="flex items-center gap-3">
              <div className="relative group">
-               <div className="absolute inset-0 bg-cyan-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
-               <div className="relative w-8 h-8 md:w-9 md:h-9 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
+               <div className="absolute inset-0 bg-[#8A6AF1] blur-lg opacity-25 group-hover:opacity-45 transition-opacity" />
+               <div className="relative w-8 h-8 md:w-9 md:h-9 bg-gradient-to-br from-[#B89AFF] via-[#8A6AF1] to-[#5D3BD8] rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-white font-black italic text-base">S</span>
                </div>
              </div>
-             <span className="text-white font-black tracking-tighter text-lg md:text-xl italic hidden xs:block">SWIMVPN+</span>
+             <span className="text-white font-black tracking-tighter text-lg md:text-xl hidden xs:block">SWIMVPN+</span>
           </div>
           
           <div className="flex items-center gap-4 md:gap-8">
-            <div className="hidden lg:flex gap-8 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] font-mono">
-              <a href="#features" className="hover:text-cyan-400 transition-colors">/FEATURES</a>
-              <a href="#protocol" className="hover:text-cyan-400 transition-colors">/PROTOCOL</a>
-              <a href="#download" className="hover:text-cyan-400 transition-colors">/DOWNLOAD</a>
+            <div className="hidden lg:flex gap-8 text-[10px] font-bold text-[#A6A1B3] uppercase tracking-[0.18em]">
+              <a href="#features" className="hover:text-[#B89AFF] transition-colors">Fonctions</a>
+              <a href="#usage" className="hover:text-[#B89AFF] transition-colors">Utilisation</a>
+              <a href="#download-apk" className="hover:text-[#B89AFF] transition-colors">APK</a>
             </div>
             <a 
               href="#download-apk" 
-              className="px-4 py-2 md:px-5 md:py-2.5 bg-cyan-500 text-black text-[10px] md:text-[11px] font-black rounded-lg hover:bg-cyan-400 transition-all uppercase tracking-tight shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+              className="inline-flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-gradient-to-br from-[#B89AFF] via-[#8A6AF1] to-[#5D3BD8] text-white text-[10px] md:text-[11px] font-black rounded-full hover:brightness-110 transition-all uppercase tracking-tight shadow-[0_0_28px_rgba(138,106,241,0.38)]"
             >
-              FETCH APK
+              <Download size={14} />
+              APK
             </a>
           </div>
         </div>
@@ -47,17 +54,21 @@ const LandingPage = () => {
         <WhySwimVPN />
         <DownloadSection />
         
-        {/* Final CTA */}
-        <section className="py-24 px-6 text-center">
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-6 uppercase tracking-tighter italic">READY TO CONNECT?</h2>
-          <p className="text-slate-400 mb-10 text-lg">Start with one tap. No setup required.</p>
+        <section className="relative z-10 px-6 py-24 text-center">
+          <h2 className="mx-auto mb-6 max-w-3xl text-4xl font-black tracking-tighter text-white md:text-6xl">
+            La pré-release est disponible maintenant.
+          </h2>
+          <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-[#A6A1B3]">
+            Téléchargez l’APK, testez le trial offert et utilisez SWIMVPN+ avec nos configs in-app ou vos propres configs VLESS/Trojan.
+          </p>
           <motion.a
             href="#download-apk"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="px-12 py-5 bg-white text-black font-black text-xl rounded-2xl inline-block hover:bg-cyan-50 transition-all uppercase tracking-tight shadow-[0_0_40px_rgba(255,255,255,0.1)]"
+            className="inline-flex items-center gap-3 rounded-full bg-white px-10 py-5 text-lg font-black text-black shadow-[0_24px_70px_rgba(255,255,255,0.16)] transition-all hover:bg-[#F3F1F6]"
           >
-            DOWNLOAD APK
+            <Download size={22} />
+            Télécharger l’APK
           </motion.a>
         </section>
       </main>

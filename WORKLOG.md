@@ -3466,3 +3466,10 @@ pm run build PASSED.
 - Kept the Android notification channel label stable as the app name while allowing the notification title/body to mirror the live VPN runtime state.
 - Updated notification refreshes when the VPN runtime status or runtime error changes.
 - Verification: `:app:assembleDebug` passed.
+
+## 2026-05-21 - Landing page SwimVPN bento conversion
+- Reworked the landing page into a dark SwimVPN app-aligned bento layout focused on APK download, pre-release availability, the current trial, in-app VPN config purchases, and free personal config import.
+- Replaced cyan/cyber terminal messaging with black hardware surfaces, violet SwimVPN accents, rounded bento cards, and French user-facing acquisition copy.
+- Clarified the dual usage model: users can buy ready-to-use configs in the app or paste/scan their own VLESS/Trojan configs for free usage.
+- Updated the download section, usage steps, feature grid, phone mockup, footer, and global landing background to match the current app visual grammar.
+- Verification: `npm run build` passed. `npm run lint` still fails on pre-existing backend alias/type issues and an existing globe ref typing issue unrelated to this landing copy/layout pass.

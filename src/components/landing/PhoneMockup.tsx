@@ -1,53 +1,53 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Shield, Zap, Lock } from 'lucide-react';
+import { Copy, Shield, Zap } from 'lucide-react';
 
 export const PhoneMockup = () => {
   return (
-    <div className="relative w-72 h-[580px] mx-auto bg-black border-[8px] border-white/5 rounded-[3.5rem] shadow-2xl overflow-hidden shadow-cyan-500/10 transition-transform duration-500 hover:scale-[1.02]">
+    <div className="relative w-72 h-[580px] mx-auto overflow-hidden rounded-[3.5rem] border-[8px] border-white/5 bg-black shadow-2xl shadow-[#8A6AF1]/10 transition-transform duration-500 hover:scale-[1.02]">
       {/* Notch */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-white/5 rounded-b-2xl z-20 border-x border-b border-white/5" />
       
       {/* Inner Screen */}
-      <div className="relative h-full w-full bg-[#05070A] p-8 flex flex-col items-center justify-between pt-16">
+      <div className="relative flex h-full w-full flex-col items-center justify-between bg-[#050505] p-8 pt-16">
         {/* Technical Grid inside phone */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
              style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
 
-        <div className="w-full flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5 relative z-10">
+        <div className="relative z-10 flex w-full items-center justify-between rounded-3xl border border-white/10 bg-white/[0.04] p-4">
            <div className="flex items-center gap-3">
-             <div className="w-7 h-7 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-lg shadow-lg flex items-center justify-center">
+             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#B89AFF] via-[#8A6AF1] to-[#5D3BD8] shadow-lg">
                 <Shield size={14} className="text-white" />
              </div>
-             <span className="text-[10px] font-black italic text-white tracking-widest leading-none">SWIMVPN+</span>
+             <span className="text-[10px] font-black text-white tracking-widest leading-none">SWIMVPN+</span>
            </div>
-           <div className="text-[8px] text-white/30 font-bold uppercase tracking-[0.2em] font-mono">NODE:STABLE</div>
+           <div className="text-[8px] font-bold uppercase tracking-[0.2em] text-white/30">TRIAL</div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center gap-12 relative z-10 w-full">
            <motion.div 
              animate={{ scale: [1, 1.02, 1], rotate: [0, 1, 0] }}
              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-             className="w-40 h-40 rounded-full border border-cyan-500/20 flex items-center justify-center relative"
+             className="relative flex h-40 w-40 items-center justify-center rounded-full border border-[#8A6AF1]/25"
            >
-             <div className="absolute inset-0 bg-cyan-400/5 rounded-full" />
-             <div className="absolute inset-2 border border-blue-500/10 rounded-full animate-spin-slow" />
-             <div className="w-28 h-28 bg-black border border-white/10 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(6,182,212,0.2)]">
+             <div className="absolute inset-0 rounded-full bg-[#8A6AF1]/10" />
+             <div className="absolute inset-2 rounded-full border border-[#B89AFF]/10" />
+             <div className="flex h-28 w-28 items-center justify-center rounded-full border border-white/10 bg-black shadow-[0_0_50px_rgba(138,106,241,0.24)]">
                 <motion.div
                   animate={{ opacity: [0.5, 1, 0.5] }}
                   transition={{ duration: 2, repeat: Infinity }}
-                  className="w-24 h-24 bg-cyan-500/5 rounded-full flex items-center justify-center"
+                  className="flex h-24 w-24 items-center justify-center rounded-full bg-[#8A6AF1]/10"
                 >
-                  <Shield className="text-cyan-400" size={40} strokeWidth={1.5} />
+                  <Shield className="text-[#B89AFF]" size={40} strokeWidth={1.5} />
                 </motion.div>
              </div>
            </motion.div>
            
            <div className="text-center w-full space-y-2">
-             <h4 className="text-white font-black text-2xl tracking-tighter uppercase italic leading-none">PROTECTED</h4>
+             <h4 className="text-2xl font-black leading-none tracking-tighter text-white">Connecté</h4>
              <div className="flex items-center justify-center gap-2">
-               <div className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-pulse" />
-               <p className="text-cyan-400 text-[9px] font-mono font-bold tracking-[0.4em] uppercase">LINK_ESTABLISHED</p>
+               <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#35D978]" />
+               <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#70F0A3]">Protection active</p>
              </div>
            </div>
         </div>
@@ -55,22 +55,22 @@ export const PhoneMockup = () => {
         <div className="w-full space-y-6 relative z-10">
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white/5 border border-white/5 p-3 rounded-xl">
-              <div className="flex items-center gap-2 mb-1">
-                <Zap size={12} className="text-yellow-400 opacity-60" />
-                <span className="text-[8px] text-white/30 font-mono font-bold">LATENCY</span>
+              <div className="mb-1 flex items-center gap-2">
+                <Zap size={12} className="text-[#B89AFF] opacity-70" />
+                <span className="text-[8px] font-bold text-white/30">Agent IA</span>
               </div>
-              <div className="text-[12px] text-white font-mono font-bold">14.02ms</div>
+              <div className="text-[12px] font-bold text-white">Meilleur nœud</div>
             </div>
             <div className="bg-white/5 border border-white/5 p-3 rounded-xl">
-              <div className="flex items-center gap-2 mb-1">
-                <Lock size={12} className="text-emerald-400 opacity-60" />
-                <span className="text-[8px] text-white/30 font-mono font-bold">SECURITY</span>
+              <div className="mb-1 flex items-center gap-2">
+                <Copy size={12} className="text-[#B89AFF] opacity-70" />
+                <span className="text-[8px] font-bold text-white/30">Config</span>
               </div>
-              <div className="text-[12px] text-white font-mono font-bold italic">AES-256</div>
+              <div className="text-[12px] font-bold text-white">VLESS/Trojan</div>
             </div>
           </div>
-          <button className="w-full py-5 bg-white text-black font-black text-[11px] rounded-2xl uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all">
-            TERMINATE LINK
+          <button className="w-full rounded-full bg-gradient-to-br from-[#B89AFF] via-[#8A6AF1] to-[#5D3BD8] py-5 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]">
+            Connecter
           </button>
         </div>
       </div>

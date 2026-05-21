@@ -1,59 +1,56 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Download, Smartphone } from 'lucide-react';
+import { Download, Gift, ShieldCheck, Smartphone } from 'lucide-react';
 
 export const DownloadSection = () => {
   return (
-    <section id="download-apk" className="py-32 px-6 relative overflow-hidden">
-      {/* Background effects */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-[500px] bg-cyan-600/5 blur-[160px] rounded-full" />
+    <section id="download-apk" className="relative z-10 overflow-hidden px-4 py-24 md:px-6 md:py-32">
+      <div className="absolute left-1/2 top-1/2 h-[560px] w-full max-w-5xl -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#8A6AF1]/10 blur-[160px]" />
       
-      <div className="container mx-auto max-w-4xl relative z-10">
-        <div className="border border-white/5 bg-black/40 rounded-[2rem] p-8 sm:p-12 md:p-24 text-center backdrop-blur-3xl overflow-hidden relative">
-          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
-          
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="mb-12 flex flex-col items-center gap-4"
-          >
-            <div className="px-4 py-1 border border-cyan-500/30 bg-cyan-500/5 rounded text-[10px] font-bold text-cyan-400 uppercase tracking-[0.4em] font-mono mb-4">
-              // DOWNLOAD_V_4_2_0
+      <div className="container relative z-10 mx-auto max-w-5xl">
+        <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#111118]/80 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.58)] backdrop-blur-3xl md:p-10">
+          <div className="grid gap-4 lg:grid-cols-5">
+            <div className="rounded-[2rem] bg-[#07070B]/70 p-8 lg:col-span-3 md:p-12">
+              <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#35D978]/25 bg-[#35D978]/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#70F0A3]">
+                <span className="h-2 w-2 rounded-full bg-[#35D978]" />
+                Trial offert actuellement
+              </div>
+              <h2 className="mb-6 text-4xl font-black leading-[0.95] tracking-tighter text-white md:text-7xl">
+                Téléchargez la pré-release APK.
+              </h2>
+              <p className="mb-10 max-w-2xl text-lg leading-relaxed text-[#A6A1B3]">
+                La version Play Store arrive plus tard. Aujourd’hui, vous pouvez déjà installer l’APK officiel,
+                tester l’application et choisir entre achat in-app ou import gratuit de configs personnelles.
+              </p>
+              <motion.a
+                href="/downloads/swimvpn.apk"
+                download="swimvpn.apk"
+                aria-label="Télécharger l’APK SwimVPN"
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className="inline-flex min-h-14 items-center justify-center gap-3 rounded-full bg-gradient-to-br from-[#B89AFF] via-[#8A6AF1] to-[#5D3BD8] px-9 py-4 text-lg font-black text-white shadow-[0_0_28px_rgba(138,106,241,0.42)] transition hover:brightness-110"
+              >
+                <Download size={24} strokeWidth={3} />
+                Télécharger l’APK
+              </motion.a>
             </div>
-            <div className="w-20 h-20 border border-white/10 rounded-3xl flex items-center justify-center relative group">
-              <div className="absolute inset-0 bg-cyan-500/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <Download className="text-white group-hover:text-cyan-400 transition-colors" size={32} />
-            </div>
-          </motion.div>
-          
-          <h2 className="text-4xl sm:text-5xl md:text-8xl font-black text-white mb-8 tracking-tighter uppercase italic leading-[0.85]">
-            GET THE <br /> <span className="text-glow-cyan">OFFICIAL APK.</span>
-          </h2>
-          
-          <p className="text-slate-500 text-base md:text-xl max-w-2xl mx-auto mb-12 md:mb-16 font-medium leading-relaxed">
-            Unrestricted access starts here. Optimized for stability, 256-bit encryption, and zero-latency performance.
-          </p>
-          
-          <div className="flex flex-col items-center gap-8">
-            <motion.a
-              href="/downloads/swimvpn.apk"
-              download="swimvpn.apk"
-              aria-label="Download swimvpnapk"
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              className="px-10 py-5 md:px-16 md:py-6 bg-white text-black font-black text-lg md:text-xl rounded-2xl flex items-center gap-4 shadow-[0_30px_60px_-15px_rgba(255,255,255,0.2)] hover:shadow-[0_40px_80px_-15px_rgba(255,255,255,0.3)] transition-all"
-            >
-              <Download size={28} strokeWidth={3} />
-              DOWNLOAD APK
-            </motion.a>
-            
-            <div className="flex flex-wrap justify-center items-center gap-6 text-white/30 text-[10px] font-bold tracking-[0.2em] uppercase font-mono">
-              <span className="flex items-center gap-2"><Smartphone size={14} /> ANDROID_X64</span>
-              <div className="w-1 h-1 bg-white/10 rounded-full" />
-              <span>SHA-256 VERIFIED</span>
-              <div className="w-1 h-1 bg-white/10 rounded-full" />
-              <span>BUILD: 2026.04.27</span>
+
+            <div className="grid gap-4 lg:col-span-2">
+              <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-7">
+                <Smartphone className="mb-6 text-[#B89AFF]" />
+                <h3 className="mb-2 text-xl font-black text-white">Android uniquement</h3>
+                <p className="text-sm leading-relaxed text-[#A6A1B3]">APK officiel pour tester SWIMVPN+ avant la release Play Store.</p>
+              </div>
+              <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-7">
+                <Gift className="mb-6 text-[#B89AFF]" />
+                <h3 className="mb-2 text-xl font-black text-white">Trial disponible</h3>
+                <p className="text-sm leading-relaxed text-[#A6A1B3]">Essayez l’app maintenant et validez le workflow avant d’acheter.</p>
+              </div>
+              <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-7">
+                <ShieldCheck className="mb-6 text-[#35D978]" />
+                <h3 className="mb-2 text-xl font-black text-white">Libre avec vos configs</h3>
+                <p className="text-sm leading-relaxed text-[#A6A1B3]">VLESS et Trojan peuvent être collés ou importés pour un usage gratuit.</p>
+              </div>
             </div>
           </div>
         </div>
