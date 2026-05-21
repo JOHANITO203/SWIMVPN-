@@ -696,7 +696,7 @@ class SwimVpnService : VpnService() {
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("SWIMVPN+")
             .setContentText(localizedNotificationText())
-            .setSmallIcon(R.drawable.swimvpn_logo)
+            .setSmallIcon(R.drawable.ic_stat_swimvpn)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setOngoing(true)

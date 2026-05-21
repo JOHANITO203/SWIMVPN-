@@ -3419,3 +3419,29 @@ pm run build PASSED.
 - Wired Servers runtime summaries, AI card fallback labels, ping/load/detail labels, imported quota captions, and premium access summaries to shared FR/EN/RU resources.
 - Kept backend plan/pricing/entitlement contracts untouched; this was a UI localization consistency fix only.
 - Verification: targeted hardcoded-label scans passed, FR/EN/RU key parity remained aligned, mojibake scan passed, and `:app:compileDebugKotlin` passed.
+
+## 2026-05-21 - Android launcher icon shark mark
+- Replaced the old Android-template launcher foreground/background with the SwimVPN shark mark from the provided SVG direction.
+- Updated adaptive launcher XML to use drawable foreground/background layers with a matte black-purple background and centered purple shark mark.
+- Replaced legacy `mipmap-anydpi` launcher vectors so older launcher paths no longer show the Android template.
+- Verification: `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android notification status icon
+- Added the provided 24dp monochrome shark vector as `ic_stat_swimvpn` for Android foreground-service notifications.
+- Switched the VPN service notification small icon from the app logo PNG to the notification-safe monochrome vector.
+- Removed the legacy `mipmap-anydpi` launcher vectors that were added during the launcher pass; launcher remains on adaptive v26 XML plus density PNG fallbacks.
+- Removed unused `ic_shark_logo.xml`; kept `swimvpn_logo.png` because `MainActivity` still references it.
+- Verification: `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android launcher density cleanup
+- Regenerated legacy launcher fallback PNGs from the SwimVPN shark mark preview for mdpi, hdpi, xhdpi, xxhdpi, and xxxhdpi.
+- Removed obsolete `ic_launcher_adaptive_back.png` and `ic_launcher_adaptive_fore.png` density assets because adaptive v26 now uses vector foreground/background layers.
+- Kept only the required launcher stack: adaptive v26 XML, vector foreground/background, and clean density PNG fallbacks.
+- Verification: PNG dimensions match Android density targets and `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android launch, onboarding, and state screen polish
+- Changed the Android window theme from a light AppCompat launch surface to a dark SwimVPN launch surface to remove the white startup flash before Compose renders.
+- Rebuilt the Compose loading splash with the SwimVPN launcher mark, dark purple hardware background, and a subtle breathing glow.
+- Reconciled onboarding with the shared SwimVPN dark luxury background, monolithic hardware card, purple icon core, and pill CTA while preserving the existing three-step flow.
+- Reworked the bootstrap error state into a dark premium card with a restrained purple status icon and pill retry action.
+- Verification: `:app:assembleDebug` passed.

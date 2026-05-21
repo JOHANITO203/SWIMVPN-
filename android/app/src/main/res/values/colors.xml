@@ -6,6 +6,8 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="swim_background_deep">#FF07070B</color>
+    <color name="swim_background_base">#FF0D0C13</color>
     <color name="swim_blue_main">#4A9ED7</color>
     <color name="vpn_cyan">#00C6FF</color>
     <color name="vpn_navy">#051937</color>

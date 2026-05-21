@@ -35,11 +35,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -364,112 +366,65 @@ private fun NavHostController.navigateOnce(route: String) {
 @Composable
 fun SplashScreen() {
     val infiniteTransition = rememberInfiniteTransition(label = "splash")
-
-    // 1. Animation de respiration légère du logo
     val logoScale by infiniteTransition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+        initialValue = 0.985f,
+        targetValue = 1.025f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
         ),
-        label = "logoScale"
+        label = "splashLogoScale",
     )
-
-    // 2. Onde Radar 1 (Scale & Alpha)
-    val radarScale1 by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 2.5f,
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.22f,
+        targetValue = 0.34f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
+            animation = tween(2800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
         ),
-        label = "radarScale1"
-    )
-    val radarAlpha1 by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "radarAlpha1"
-    )
-
-    // 3. Onde Radar 2 (Décalée)
-    val radarScale2 by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 2.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing, delayMillis = 1250),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "radarScale2"
-    )
-    val radarAlpha2 by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2500, easing = LinearEasing, delayMillis = 1250),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "radarAlpha2"
+        label = "splashGlowAlpha",
     )
 
     Box(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SwimDesignTokens.Color.BackgroundDeep)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.36f),
+                        SwimDesignTokens.Color.BackgroundBase.copy(alpha = 0.84f),
+                        SwimDesignTokens.Color.BackgroundDeep,
+                    ),
+                    center = androidx.compose.ui.geometry.Offset(820f, 210f),
+                    radius = 920f,
+                )
+            ),
+        contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            
-            Box(contentAlignment = Alignment.Center) {
-                // Onde 1
-                Box(
-                    modifier = Modifier
-                        .size(180.dp)
-                        .scale(radarScale1)
-                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha1), CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha1 * 0.15f), CircleShape)
+        Box(
+            modifier = Modifier
+                .size(190.dp)
+                .shadow(24.dp, CircleShape, clip = false)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            SwimDesignTokens.Color.PurplePrimary.copy(alpha = glowAlpha),
+                            SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.88f),
+                            SwimDesignTokens.Color.BackgroundDeep.copy(alpha = 0.98f),
+                        )
+                    )
                 )
-
-                // Onde 2
-                Box(
-                    modifier = Modifier
-                        .size(180.dp)
-                        .scale(radarScale2)
-                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha2), CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = radarAlpha2 * 0.15f), CircleShape)
-                )
-
-                // Anneau Premium qui tourne (Proposition 2)
-                CircularProgressIndicator(
-                    modifier = Modifier.size(200.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 2.dp,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                )
-
-                // Logo Central (qui flotte/respire)
-                Image(
-                    painter = painterResource(id = R.drawable.swimvpn_logo),
-                    contentDescription = stringResource(R.string.content_desc_logo),
-                    modifier = Modifier
-                        .size(180.dp)
-                        .scale(logoScale)
-                        .clip(CircleShape)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(72.dp))
-
-            // Texte Corporate espacé
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 6.sp // Espacement premium
-                ),
-                color = MaterialTheme.colorScheme.onBackground
+                .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                contentDescription = stringResource(R.string.content_desc_logo),
+                modifier = Modifier
+                    .size(154.dp)
+                    .scale(logoScale),
             )
         }
     }
@@ -552,13 +507,77 @@ fun QrScannerView(onCodeScanned: (String) -> Unit, onClose: () -> Unit) {
 
 @Composable
 fun ErrorScreen(message: String, onRetry: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.content_desc_error), tint = Color.Red, modifier = Modifier.size(64.dp))
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = message, color = MaterialTheme.colorScheme.onBackground)
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onRetry) { Text(stringResource(R.string.btn_retry)) }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SwimDesignTokens.Color.BackgroundDeep)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.24f),
+                        Color.Transparent,
+                    ),
+                    center = androidx.compose.ui.geometry.Offset(760f, 180f),
+                    radius = 720f,
+                )
+            )
+            .padding(28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(SwimDesignTokens.Shadow.HardwareSurface, SwimDesignTokens.Shape.LargeHardwareCard, clip = false)
+                .clip(SwimDesignTokens.Shape.LargeHardwareCard)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            SwimDesignTokens.Color.SurfaceHighlight.copy(alpha = 0.78f),
+                            SwimDesignTokens.Color.SurfaceBase.copy(alpha = 0.96f),
+                            SwimDesignTokens.Color.BackgroundDeep.copy(alpha = 0.99f),
+                        )
+                    )
+                )
+                .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.LargeHardwareCard)
+                .padding(26.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(74.dp)
+                    .clip(CircleShape)
+                    .background(SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.52f))
+                    .border(1.dp, SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.32f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = stringResource(R.string.content_desc_error),
+                    tint = SwimDesignTokens.Color.PurpleActive,
+                    modifier = Modifier.size(34.dp),
+                )
+            }
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(
+                text = message,
+                color = SwimDesignTokens.Color.TextPrimary,
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(22.dp))
+            Button(
+                onClick = onRetry,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = SwimDesignTokens.Shape.Pill,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SwimDesignTokens.Color.PurplePrimary,
+                    contentColor = Color.White,
+                ),
+            ) {
+                Text(stringResource(R.string.btn_retry), fontWeight = FontWeight.Black)
+            }
         }
     }
 }
