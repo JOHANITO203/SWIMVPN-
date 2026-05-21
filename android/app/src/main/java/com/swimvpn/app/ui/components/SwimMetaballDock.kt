@@ -44,6 +44,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.swimvpn.app.R
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -112,12 +114,16 @@ fun MetaballNavDock(
     width: Dp = DockTokens.Width,
     showActiveLabel: Boolean = true,
 ) {
-    val items = remember {
+    val homeLabel = stringResource(R.string.dock_home)
+    val serversLabel = stringResource(R.string.dock_servers)
+    val subscriptionLabel = stringResource(R.string.dock_subscription)
+    val accountLabel = stringResource(R.string.dock_account)
+    val items = remember(homeLabel, serversLabel, subscriptionLabel, accountLabel) {
         listOf(
-            DockItem(NavDockItem.HOME, "Accueil", Icons.Default.Home),
-            DockItem(NavDockItem.SERVERS, "Serveurs", Icons.Default.Storage),
-            DockItem(NavDockItem.SUBSCRIPTION, "Abonnement", Icons.Default.CreditCard),
-            DockItem(NavDockItem.SETTINGS, "Compte", Icons.Default.Settings),
+            DockItem(NavDockItem.HOME, homeLabel, Icons.Default.Home),
+            DockItem(NavDockItem.SERVERS, serversLabel, Icons.Default.Storage),
+            DockItem(NavDockItem.SUBSCRIPTION, subscriptionLabel, Icons.Default.CreditCard),
+            DockItem(NavDockItem.SETTINGS, accountLabel, Icons.Default.Settings),
         )
     }
     val selectedIndex = items.indexOfFirst { it.item == selectedItem }.coerceAtLeast(0)

@@ -55,6 +55,7 @@
     <string name="selected_server_title">SERVEUR SÉLECTIONNÉ</string>
     <string name="selected_server_none">Aucun serveur sélectionné</string>
     <string name="selected_server_hint">Choisissez une route active avant de vous connecter</string>
+    <string name="selected_server_auto_select">Sélection auto</string>
     <string name="runtime_diag_mode">Mode : %1$s</string>
     <string name="runtime_diag_xray_session">Session Xray : %1$s</string>
     <string name="runtime_diag_xray_log">Journal Xray : %1$s</string>
@@ -68,6 +69,13 @@
     <string name="scanner_unavailable">Scanner indisponible sur cet appareil</string>
     <string name="content_desc_close">Fermer</string>
     <string name="content_desc_error">Erreur</string>
+    <string name="content_desc_back">Retour</string>
+    <string name="content_desc_delete_config">Supprimer la configuration</string>
+    <string name="content_desc_swim_orb">Orbe holographique SwimVPN</string>
+    <string name="dock_home">Accueil</string>
+    <string name="dock_servers">Serveurs</string>
+    <string name="dock_subscription">Abonnement</string>
+    <string name="dock_account">Compte</string>
 
     <!-- Import Modal -->
     <string name="import_title">IMPORTER L’ACCÈS</string>
@@ -83,6 +91,19 @@
     <string name="label_stable">STABLE</string>
     <string name="input_placeholder">vless://... ou SWIM-CODE</string>
     <string name="btn_activate">ACTIVER</string>
+    <string name="import_section_method">MÉTHODE D’IMPORT</string>
+    <string name="import_section_configs">CONFIGURATIONS IMPORTÉES</string>
+    <string name="import_manual_title">Saisie manuelle</string>
+    <string name="import_manual_subtitle">Entrer le texte d’accès</string>
+    <string name="import_qr_title">QR code</string>
+    <string name="import_qr_subtitle">Scanner l’accès</string>
+    <string name="import_header_title">Importer l’accès</string>
+    <string name="import_header_subtitle">Ajoutez des configurations gérées à vos serveurs</string>
+    <string name="import_vault_title">Coffre d’accès</string>
+    <string name="import_vault_subtitle">Saisie manuelle et QR code uniquement</string>
+    <string name="import_saved_count">%1$d enregistrée(s)</string>
+    <string name="import_button_config">Importer cette configuration</string>
+    <string name="common_close">Fermer</string>
 
     <!-- Servers -->
     <string name="title_locations">LOCALISATIONS</string>
@@ -92,6 +113,53 @@
     <string name="server_group_access">Serveurs Premium</string>
     <string name="server_group_backend_count">%1$d serveur(s) premium</string>
     <string name="server_group_imported_count">%1$d serveur(s) importé(s)</string>
+    <string name="servers_tab_imported">Serveurs importés</string>
+    <string name="servers_tab_premium">Serveurs premium</string>
+    <string name="servers_premium_access_title">Accès premium</string>
+    <string name="servers_premium_access_subtitle">Abonnez-vous pour débloquer les serveurs gérés</string>
+    <string name="servers_locked">Verrouillé</string>
+    <string name="servers_inactive">Inactif</string>
+    <string name="servers_choose_plan">Choisir un forfait</string>
+    <string name="servers_subscription_required">Abonnement requis</string>
+    <string name="servers_quota_premium">Quota premium</string>
+    <string name="servers_access_until">Accès jusqu’au</string>
+    <string name="servers_import_access_title">Importer l’accès</string>
+    <string name="servers_import_access_subtitle">Manuel ou QR code</string>
+    <string name="servers_subscribe_title">S’abonner</string>
+    <string name="servers_subscribe_subtitle">Débloquer les nœuds gérés</string>
+    <string name="servers_total_quota">Quota total</string>
+    <string name="servers_expires_on">Expire le</string>
+    <string name="servers_unknown_country">Inconnu</string>
+    <string name="servers_location_unavailable">Localisation indisponible</string>
+    <string name="servers_load_percent">%1$d%% charge</string>
+    <string name="servers_ping_failed">Échec</string>
+    <string name="servers_details_pending">Détails serveur en attente</string>
+    <string name="servers_manage_plan">Gérer le forfait</string>
+    <string name="servers_refresh_access">Actualiser l’accès</string>
+    <string name="servers_plan_renewal">Forfait et renouvellement</string>
+    <string name="servers_nodes_sync">Synchronisation des nœuds</string>
+    <string name="servers_premium_access_short">Accès premium</string>
+    <string name="servers_agent_active">Agent actif</string>
+    <string name="servers_agent_ready">Agent prêt</string>
+    <string name="servers_agent_subtitle">Meilleurs serveurs\npour votre connexion</string>
+    <string name="servers_import_required">Import requis</string>
+    <string name="servers_no_config">Aucune config</string>
+    <string name="servers_unlimited">Illimité</string>
+    <string name="servers_used_format">%1$s utilisés</string>
+    <string name="servers_no_expiration">Sans expiration</string>
+    <string name="servers_plan_basic">Basique</string>
+    <string name="servers_plan_premium">Premium</string>
+    <string name="servers_plan_platinum">Platine</string>
+    <string name="servers_plan_active">%1$s actif</string>
+    <string name="servers_plan_sync">%1$s en synchronisation</string>
+    <string name="servers_preparing">Préparation en cours</string>
+    <string name="servers_nodes_available">%1$d nœud(s) géré(s) disponible(s)</string>
+    <string name="servers_nodes_syncing">Votre accès est actif, les nœuds se synchronisent</string>
+    <string name="servers_order_preparing">Votre commande est en préparation</string>
+    <string name="servers_managed_by_plan">Géré par le forfait</string>
+    <string name="servers_managed">Géré</string>
+    <string name="servers_managed_by_provider">Géré par le fournisseur</string>
+    <string name="servers_detail_separator"> · </string>
 
     <!-- Profile -->
     <string name="title_account">COMPTE</string>
@@ -159,6 +227,8 @@
     <string name="btn_retry">RÉESSAYER</string>
     <string name="menu_signout">Déconnexion</string>
     <string name="profile_trial_badge">ESSAI 3 JOURS</string>
+    <string name="profile_menu_technical_subtitle">Application et connexion</string>
+    <string name="profile_menu_support_subtitle">Assistance et contact</string>
 
     <string name="err_bootstrap_failed">Impossible de charger votre profil. Vérifiez votre connexion.</string>
     <string name="err_server_maintenance">Maintenance serveur (HTTP %1$d). Réessayez plus tard.</string>
@@ -213,6 +283,28 @@
     <!-- Subscription -->
     <string name="sub_title">FORFAITS&#10;D’ACCÈS VPN</string>
     <string name="sub_desc">Choisissez le forfait qui correspond à vos besoins et protégez votre connexion instantanément.</string>
+    <string name="subscription_screen_title">Abonnement</string>
+    <string name="subscription_screen_subtitle">Choisissez le forfait adapté à vos besoins</string>
+    <string name="subscription_choose_plan">Choisir %1$s</string>
+    <string name="subscription_most_chosen">Le plus choisi</string>
+    <string name="subscription_plan_basic">Basique</string>
+    <string name="subscription_plan_premium">Premium</string>
+    <string name="subscription_plan_platinum">Platine</string>
+    <string name="subscription_subtitle_with_duration">%1$s - accès sécurisé</string>
+    <string name="subscription_subtitle_basic">Accès sécurisé courte durée</string>
+    <string name="subscription_subtitle_premium">Accès mensuel géré</string>
+    <string name="subscription_subtitle_platinum">Accès premium longue durée</string>
+    <string name="subscription_data_fallback">Données du forfait</string>
+    <string name="subscription_feature_data">%1$s inclus</string>
+    <string name="subscription_feature_devices">Jusqu’à %1$d appareils</string>
+    <string name="subscription_feature_ai">Agent IA : meilleurs nœuds en temps réel</string>
+    <string name="subscription_content_basic">Forfait basique</string>
+    <string name="subscription_content_premium">Forfait premium</string>
+    <string name="subscription_content_platinum">Forfait platine</string>
+    <string name="subscription_period_week">/semaine</string>
+    <string name="subscription_period_month">/mois</string>
+    <string name="subscription_period_quarter">/trimestre</string>
+    <string name="subscription_period_year">/an</string>
     <string name="title_pricing">TARIFS</string>
     <string name="plan_weekly">BRONZE</string>
     <string name="plan_weekly_desc">50 Go • 299 ₽ / semaine</string>
@@ -269,6 +361,20 @@
     <string name="battery_optimization">Optimisation batterie</string>
     <string name="battery_optimization_chip">CORRIGER</string>
     <string name="btn_save">ENREGISTRER TOUTES LES PRÉFÉRENCES</string>
+    <string name="technical_auto_connect_title">Connexion auto</string>
+    <string name="technical_auto_connect_on">Active au prochain lancement</string>
+    <string name="technical_auto_connect_off">Désactivée</string>
+    <string name="technical_kill_switch_title">Coupe-circuit</string>
+    <string name="technical_battery_title">Optimisation batterie</string>
+    <string name="technical_battery_required">Exemption recommandée</string>
+    <string name="technical_battery_optimized">Déjà optimisée</string>
+    <string name="technical_agent_title">Agent IA</string>
+    <string name="technical_agent_on">Sélection intelligente active</string>
+    <string name="technical_agent_off">Sélection manuelle</string>
+    <string name="technical_language_title">Langue</string>
+    <string name="technical_theme_title">Thème</string>
+    <string name="technical_theme_dark_active">Sombre actif</string>
+    <string name="technical_theme_light_active">Clair actif</string>
 
     <string name="payment_confirm_email_title">CONFIRMER L’EMAIL</string>
     <string name="payment_confirm_email_body">Nous utiliserons cet email pour le suivi du paiement et la livraison.</string>

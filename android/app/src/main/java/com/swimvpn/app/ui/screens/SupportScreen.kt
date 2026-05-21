@@ -154,7 +154,7 @@ private fun SupportHeader(onBack: () -> Unit) {
         HardwareCircleButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Retour",
+                contentDescription = stringResource(R.string.content_desc_back),
                 tint = SwimDesignTokens.Color.TextPrimary,
                 modifier = Modifier.size(20.dp),
             )

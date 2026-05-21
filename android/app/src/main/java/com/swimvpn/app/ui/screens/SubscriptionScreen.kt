@@ -1,5 +1,7 @@
 package com.swimvpn.app.ui.screens
 
+import android.content.res.Resources
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -118,13 +121,14 @@ fun SubscriptionScreen(
     onNavigateServers: () -> Unit = {},
     onNavigateSettings: () -> Unit = {},
 ) {
+    val resources = LocalContext.current.resources
     val visiblePlans = remember(plans) {
         plans
             .filter { plan -> plan.priceRub.toBigDecimalOrNull()?.compareTo(BigDecimal.ZERO) == 1 }
             .sortedWith(compareBy<Plan> { plan -> plan.code.toSubscriptionTier().order }.thenBy { it.displayOrder })
     }
-    val uiPlans = remember(visiblePlans, activeOfferCode) {
-        visiblePlans.map { plan -> plan.toSubscriptionPlanUi(activeOfferCode) }
+    val uiPlans = remember(visiblePlans, activeOfferCode, resources) {
+        visiblePlans.map { plan -> plan.toSubscriptionPlanUi(activeOfferCode, resources) }
     }
     var selectedPaymentMethod by remember { mutableStateOf(PaymentMethodPolicy.DEFAULT_METHOD) }
     var pendingPlan by remember { mutableStateOf<SubscriptionPlanUi?>(null) }
@@ -265,7 +269,7 @@ fun SubscriptionScreen(
 private fun SubscriptionHeader(compact: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = "Abonnement",
+            text = stringResource(R.string.subscription_screen_title),
             color = SwimDesignTokens.Color.TextPrimary,
             fontSize = fixedSp(if (compact) 24 else 27),
             fontWeight = FontWeight.Black,
@@ -273,7 +277,7 @@ private fun SubscriptionHeader(compact: Boolean) {
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "Choisissez le forfait adapté à vos besoins",
+            text = stringResource(R.string.subscription_screen_subtitle),
             color = SwimDesignTokens.Color.TextMuted,
             fontSize = fixedSp(if (compact) 11 else 13),
             textAlign = TextAlign.Center,
@@ -492,7 +496,7 @@ private fun PlanIconBadge(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = tier.contentDescription,
+            contentDescription = stringResource(tier.contentDescriptionRes),
             tint = tint,
             modifier = Modifier.size(size * 0.48f),
         )
@@ -859,19 +863,19 @@ private fun StaggeredEnter(
     }
 }
 
-private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?): SubscriptionPlanUi {
+private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?, resources: Resources): SubscriptionPlanUi {
     val tier = code.toSubscriptionTier()
-    val planTitle = name.ifBlank { tier.displayName }.toLocalizedPlanTitle(tier)
+    val planTitle = name.ifBlank { tier.displayName(resources) }.toLocalizedPlanTitle(tier, resources)
     return SubscriptionPlanUi(
         id = id,
         tier = tier,
         title = planTitle,
-        subtitle = durationLabel.toPlanSubtitle(tier),
+        subtitle = durationLabel.toPlanSubtitle(tier, resources),
         price = formatPlanPrice(priceRub),
-        billingPeriod = durationLabel.toBillingPeriod(),
-        features = buildPlanFeatureBullets(tier = tier, quotaLabel = quotaLabel),
-        ctaLabel = "Choisir $planTitle",
-        badgeLabel = if (tier == SubscriptionPlanTier.PREMIUM) "Le plus choisi" else null,
+        billingPeriod = durationLabel.toBillingPeriod(resources),
+        features = buildPlanFeatureBullets(tier = tier, quotaLabel = quotaLabel, resources = resources),
+        ctaLabel = resources.getString(R.string.subscription_choose_plan, planTitle),
+        badgeLabel = if (tier == SubscriptionPlanTier.PREMIUM) resources.getString(R.string.subscription_most_chosen) else null,
         isHighlighted = tier == SubscriptionPlanTier.PREMIUM,
         isCurrentPlan = activeOfferCode?.toSubscriptionTierOrNull() == tier,
     )
@@ -905,19 +909,15 @@ private val SubscriptionPlanTier.order: Int
         SubscriptionPlanTier.PLATINUM -> 2
     }
 
-private val SubscriptionPlanTier.displayName: String
-    get() = when (this) {
-        SubscriptionPlanTier.BASIC -> "Basique"
-        SubscriptionPlanTier.PREMIUM -> "Premium"
-        SubscriptionPlanTier.PLATINUM -> "Platine"
-    }
+private fun SubscriptionPlanTier.displayName(resources: Resources): String =
+    resources.getString(planTitleRes)
 
-private fun String.toLocalizedPlanTitle(tier: SubscriptionPlanTier): String =
+private fun String.toLocalizedPlanTitle(tier: SubscriptionPlanTier, resources: Resources): String =
     when {
-        equals("Basic", ignoreCase = true) || equals("WEEK", ignoreCase = true) -> "Basique"
-        equals("Platinum", ignoreCase = true) || equals("QUARTER", ignoreCase = true) -> "Platine"
-        equals("Premium", ignoreCase = true) || equals("MONTH", ignoreCase = true) -> "Premium"
-        isBlank() -> tier.displayName
+        equals("Basic", ignoreCase = true) || equals("WEEK", ignoreCase = true) -> resources.getString(R.string.subscription_plan_basic)
+        equals("Platinum", ignoreCase = true) || equals("QUARTER", ignoreCase = true) -> resources.getString(R.string.subscription_plan_platinum)
+        equals("Premium", ignoreCase = true) || equals("MONTH", ignoreCase = true) -> resources.getString(R.string.subscription_plan_premium)
+        isBlank() -> tier.displayName(resources)
         else -> this
     }
 
@@ -928,33 +928,41 @@ private val SubscriptionPlanTier.deviceAllowance: Int
         SubscriptionPlanTier.PLATINUM -> 4
     }
 
-private fun String.toPlanSubtitle(tier: SubscriptionPlanTier): String =
+private fun String.toPlanSubtitle(tier: SubscriptionPlanTier, resources: Resources): String =
     when {
-        isNotBlank() -> "$this - accès sécurisé"
+        isNotBlank() -> resources.getString(R.string.subscription_subtitle_with_duration, this)
         else -> when (tier) {
-            SubscriptionPlanTier.BASIC -> "Accès sécurisé courte durée"
-            SubscriptionPlanTier.PREMIUM -> "Accès mensuel géré"
-            SubscriptionPlanTier.PLATINUM -> "Accès premium longue durée"
+            SubscriptionPlanTier.BASIC -> resources.getString(R.string.subscription_subtitle_basic)
+            SubscriptionPlanTier.PREMIUM -> resources.getString(R.string.subscription_subtitle_premium)
+            SubscriptionPlanTier.PLATINUM -> resources.getString(R.string.subscription_subtitle_platinum)
         }
     }
 
 private fun buildPlanFeatureBullets(
     tier: SubscriptionPlanTier,
     quotaLabel: String,
+    resources: Resources,
 ): List<String> {
-    val dataLabel = quotaLabel.ifBlank { "Données du forfait" }
+    val dataLabel = quotaLabel.ifBlank { resources.getString(R.string.subscription_data_fallback) }
     return listOf(
-        "$dataLabel inclus",
-        "Jusqu’à ${tier.deviceAllowance} appareils",
-        "Agent IA : meilleurs nœuds en temps réel",
+        resources.getString(R.string.subscription_feature_data, dataLabel),
+        resources.getString(R.string.subscription_feature_devices, tier.deviceAllowance),
+        resources.getString(R.string.subscription_feature_ai),
     )
 }
 
-private val SubscriptionPlanTier.contentDescription: String
+private val SubscriptionPlanTier.planTitleRes: Int
     get() = when (this) {
-        SubscriptionPlanTier.BASIC -> "Forfait basique"
-        SubscriptionPlanTier.PREMIUM -> "Forfait premium"
-        SubscriptionPlanTier.PLATINUM -> "Forfait platine"
+        SubscriptionPlanTier.BASIC -> R.string.subscription_plan_basic
+        SubscriptionPlanTier.PREMIUM -> R.string.subscription_plan_premium
+        SubscriptionPlanTier.PLATINUM -> R.string.subscription_plan_platinum
+    }
+
+private val SubscriptionPlanTier.contentDescriptionRes: Int
+    get() = when (this) {
+        SubscriptionPlanTier.BASIC -> R.string.subscription_content_basic
+        SubscriptionPlanTier.PREMIUM -> R.string.subscription_content_premium
+        SubscriptionPlanTier.PLATINUM -> R.string.subscription_content_platinum
     }
 
 private val String.paymentLabel: String
@@ -971,14 +979,14 @@ private val String.paymentIconRes: Int?
         else -> null
     }
 
-private fun String.toBillingPeriod(): String {
+private fun String.toBillingPeriod(resources: Resources): String {
     val lower = lowercase()
     return when {
-        "week" in lower -> "/semaine"
-        "month" in lower -> "/mois"
-        "quarter" in lower -> "/trimestre"
-        "year" in lower -> "/an"
-        else -> "/période"
+        "week" in lower -> resources.getString(R.string.subscription_period_week)
+        "month" in lower -> resources.getString(R.string.subscription_period_month)
+        "quarter" in lower -> resources.getString(R.string.subscription_period_quarter)
+        "year" in lower -> resources.getString(R.string.subscription_period_year)
+        else -> resources.getString(R.string.label_period).trim()
     }
 }
 

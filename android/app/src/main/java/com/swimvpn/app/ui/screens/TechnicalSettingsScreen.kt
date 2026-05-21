@@ -151,15 +151,15 @@ fun TechnicalSettingsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsSwitchPill(
                     icon = Icons.Outlined.PowerSettingsNew,
-                    title = "Connexion auto",
-                    subtitle = if (autoConnect) "Active au prochain lancement" else "Désactivée",
+                    title = stringResource(R.string.technical_auto_connect_title),
+                    subtitle = if (autoConnect) stringResource(R.string.technical_auto_connect_on) else stringResource(R.string.technical_auto_connect_off),
                     checked = autoConnect,
                     onCheckedChange = onAutoConnectChange,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsActionPill(
                     icon = Icons.Outlined.Security,
-                    title = "Coupe-circuit",
+                    title = stringResource(R.string.technical_kill_switch_title),
                     subtitle = killSwitchStatusChip(killSwitchStatus),
                     enabled = externalActionsArmed,
                     onClick = {
@@ -187,8 +187,8 @@ fun TechnicalSettingsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsActionPill(
                     icon = Icons.Outlined.PowerSettingsNew,
-                    title = "Optimisation batterie",
-                    subtitle = if (batteryOptimizationRequired) "Exemption recommandée" else "Déjà optimisée",
+                    title = stringResource(R.string.technical_battery_title),
+                    subtitle = if (batteryOptimizationRequired) stringResource(R.string.technical_battery_required) else stringResource(R.string.technical_battery_optimized),
                     enabled = externalActionsArmed,
                     onClick = {
                         if (!openBatteryOptimizationSettings(context)) {
@@ -199,8 +199,8 @@ fun TechnicalSettingsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsSwitchPill(
                     icon = Icons.Outlined.Speed,
-                    title = "Agent IA",
-                    subtitle = if (agentEnabled) "Sélection intelligente active" else "Sélection manuelle",
+                    title = stringResource(R.string.technical_agent_title),
+                    subtitle = if (agentEnabled) stringResource(R.string.technical_agent_on) else stringResource(R.string.technical_agent_off),
                     checked = agentEnabled,
                     onCheckedChange = { agentEnabled = it },
                 )
@@ -220,7 +220,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
         HardwareCircleButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Retour",
+                contentDescription = stringResource(R.string.content_desc_back),
                 tint = SwimDesignTokens.Color.TextPrimary,
                 modifier = Modifier.size(20.dp),
             )
@@ -235,7 +235,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
                 maxLines = 1,
             )
             Text(
-                text = "Application et connexion",
+                text = stringResource(R.string.profile_menu_technical_subtitle),
                 color = SwimDesignTokens.Color.TextSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -248,7 +248,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
 private fun LanguagePill(language: String, onLanguageChange: (String) -> Unit) {
     SettingsPillScaffold(
         icon = Icons.Outlined.Language,
-        title = "Langue",
+        title = stringResource(R.string.technical_language_title),
         subtitle = languageDisplay(language),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -263,8 +263,8 @@ private fun LanguagePill(language: String, onLanguageChange: (String) -> Unit) {
 private fun ThemeSwitchPill(dark: Boolean, onChange: (Boolean) -> Unit) {
     SettingsPillScaffold(
         icon = Icons.Outlined.Palette,
-        title = "Thème",
-        subtitle = if (dark) "Sombre actif" else "Clair actif",
+        title = stringResource(R.string.technical_theme_title),
+        subtitle = if (dark) stringResource(R.string.technical_theme_dark_active) else stringResource(R.string.technical_theme_light_active),
     ) {
         SwimSwitch(checked = dark, onCheckedChange = onChange)
     }
@@ -281,7 +281,7 @@ private fun RoutingPill(
     val running = runtimeStatus.equals("RUNNING", ignoreCase = true)
     SettingsPillScaffold(
         icon = Icons.Outlined.AccountTree,
-        title = "Routage",
+        title = stringResource(R.string.label_routing),
         subtitle = routingChipLabel(selectedMode),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

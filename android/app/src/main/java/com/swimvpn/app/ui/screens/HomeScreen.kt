@@ -367,7 +367,7 @@ private fun SwimServerPill(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = server?.let { "${it.city} · Sélection auto" } ?: stringResource(R.string.selected_server_hint),
+                    text = server?.let { "${it.city} · ${stringResource(R.string.selected_server_auto_select)}" } ?: stringResource(R.string.selected_server_hint),
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = if (compact) 13.sp else 15.sp,
                     maxLines = 1,

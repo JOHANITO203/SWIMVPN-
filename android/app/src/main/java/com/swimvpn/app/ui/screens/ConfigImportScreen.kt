@@ -48,11 +48,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.swimvpn.app.R
 import com.swimvpn.app.QrScannerView
 import com.swimvpn.app.config.ConfigPreview
 import com.swimvpn.app.config.ConfigRepository
@@ -119,7 +121,7 @@ fun ConfigImportScreen(
 
                 item {
                     Text(
-                        text = "MÉTHODE D’IMPORT",
+                        text = stringResource(R.string.import_section_method),
                         color = SwimDesignTokens.Color.PurpleActive,
                         fontSize = importFixedSp(12),
                         fontWeight = FontWeight.Black,
@@ -132,15 +134,15 @@ fun ConfigImportScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         ImportMethodPill(
-                            title = "Saisie manuelle",
-                            subtitle = "Entrer le texte d’accès",
+                            title = stringResource(R.string.import_manual_title),
+                            subtitle = stringResource(R.string.import_manual_subtitle),
                             icon = Icons.Default.Edit,
                             modifier = Modifier.weight(1f),
                             onClick = { showImportDialog = true },
                         )
                         ImportMethodPill(
-                            title = "QR code",
-                            subtitle = "Scanner l’accès",
+                            title = stringResource(R.string.import_qr_title),
+                            subtitle = stringResource(R.string.import_qr_subtitle),
                             icon = Icons.Default.QrCode,
                             modifier = Modifier.weight(1f),
                             onClick = { showQrScanner = true },
@@ -150,7 +152,7 @@ fun ConfigImportScreen(
 
                 item {
                     Text(
-                        text = "CONFIGURATIONS IMPORTÉES",
+                        text = stringResource(R.string.import_section_configs),
                         color = SwimDesignTokens.Color.PurpleActive,
                         fontSize = importFixedSp(12),
                         fontWeight = FontWeight.Black,
@@ -263,7 +265,7 @@ private fun ImportHeader(onBack: () -> Unit) {
         HardwareIconButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Retour",
+                contentDescription = stringResource(R.string.content_desc_back),
                 tint = SwimDesignTokens.Color.TextPrimary,
                 modifier = Modifier.size(20.dp),
             )
@@ -271,14 +273,14 @@ private fun ImportHeader(onBack: () -> Unit) {
         Spacer(modifier = Modifier.width(14.dp))
         Column {
             Text(
-                text = "Importer l’accès",
+                text = stringResource(R.string.import_header_title),
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontSize = importFixedSp(27),
                 fontWeight = FontWeight.Black,
                 maxLines = 1,
             )
             Text(
-                text = "Ajoutez des configurations gérées à vos serveurs",
+                text = stringResource(R.string.import_header_subtitle),
                 color = SwimDesignTokens.Color.TextSecondary,
                 fontSize = importFixedSp(12),
                 maxLines = 1,
@@ -344,20 +346,20 @@ private fun ImportHeroCard(importedCount: Int) {
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Coffre d’accès",
+                    text = stringResource(R.string.import_vault_title),
                     color = SwimDesignTokens.Color.TextPrimary,
                     fontSize = importFixedSp(20),
                     fontWeight = FontWeight.Black,
                 )
                 Text(
-                    text = "Saisie manuelle et QR code uniquement",
+                    text = stringResource(R.string.import_vault_subtitle),
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = importFixedSp(12),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            StatusChip(text = "$importedCount enregistrées")
+            StatusChip(text = stringResource(R.string.import_saved_count, importedCount))
         }
     }
 }
@@ -487,7 +489,7 @@ private fun ImportedProfileRow(
         HardwareIconButton(onClick = onDelete, size = 42.dp) {
             Icon(
                 imageVector = Icons.Default.DeleteOutline,
-                contentDescription = "Supprimer la configuration",
+                contentDescription = stringResource(R.string.content_desc_delete_config),
                 tint = SwimDesignTokens.Color.TextSecondary,
                 modifier = Modifier.size(18.dp),
             )

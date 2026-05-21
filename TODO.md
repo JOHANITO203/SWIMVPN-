@@ -439,10 +439,9 @@ otification-bot-service event handoff.
 - After locale flicker fix, continue localization cleanup carefully:
   - audit ConfigImportScreen and remaining screens for user-facing hardcodes
   - keep locale application outside Compose-side reactive loops
-  - add a focused device smoke test for en, r, and 
-u after each future language batch
+  - add a focused device smoke test for en, fr, and ru after each future language batch
 - Re-test the Android technical screen on device after the entry-action guard:
-  - opening Param�tres techniques should no longer jump into Android Settings
+  - opening Paramètres techniques should no longer jump into Android Settings
   - verify VPN session stays active while the technical screen opens
   - verify the kill-switch shortcut still opens Android VPN settings after the short entry delay
 - Continue phase-status verification:
@@ -965,7 +964,7 @@ u after each future language batch
 - Redeploy backend services after adding `subscription/cancel-current`.
 - Build and install a new signed release APK after Android profile cancellation UI changes.
 - Test active paid backend config cancellation:
-  - Profile shows �R�silier l�acc�s�.
+  - Profile shows `Résilier l’accès`.
   - Dialog confirms the action.
   - Backend returns refreshed profile without premium runtime config.
   - If a backend premium config is selected and VPN is running, VPN stops and auto-connect is disabled.
@@ -1171,7 +1170,7 @@ u after each future language batch
 - [ ] Keep the boot-completed flow bootstrap-gated; do not add direct premium restore after reboot without entitlement revalidation.
 
 ## 2026-05-07 22:34:00 +03:00 - Tunnel speed QA follow-up
-- [ ] Install matching signed build and compare CPU/d�bit for full tunnel before/after Xray stats/sniffing trim.
+- [ ] Install matching signed build and compare CPU/débit for full tunnel before/after Xray stats/sniffing trim.
 - [ ] Benchmark full tunnel vs local proxy on the same server and same network.
 - [ ] Test Wi-Fi 2.4 GHz, stronger Wi-Fi/5 GHz if available, and mobile network separately before changing MTU.
 - [ ] Only tune MTU/tun2socks buffers after collecting baseline speed, CPU, reconnect, and packet-loss evidence.

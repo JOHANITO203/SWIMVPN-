@@ -19,9 +19,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.swimvpn.app.R
 import com.swimvpn.app.config.ConfigPreview
 import com.swimvpn.app.config.ValidationStatus
 import com.swimvpn.app.ui.theme.SwimDesignTokens
@@ -113,7 +115,7 @@ fun ConfigPreviewCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
-                                contentDescription = "Supprimer",
+                                contentDescription = stringResource(R.string.content_desc_delete_config),
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -552,7 +554,7 @@ fun ClipboardImportSheet(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Importer cette configuration")
+                        Text(stringResource(R.string.import_button_config))
                     }
                 } ?: run {
                     // Invalid config
@@ -580,7 +582,7 @@ fun ClipboardImportSheet(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Fermer")
+                Text(stringResource(R.string.common_close))
             }
         }
     }

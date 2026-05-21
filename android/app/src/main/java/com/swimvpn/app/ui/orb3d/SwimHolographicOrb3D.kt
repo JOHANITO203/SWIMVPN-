@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import com.swimvpn.app.R
 
 @Composable
 fun SwimHolographicOrb3D(
@@ -26,7 +27,7 @@ fun SwimHolographicOrb3D(
         modifier = modifier,
         factory = { context ->
             OrbGLSurfaceView(context).apply {
-                contentDescription = "Swim holographic 3D orb"
+                contentDescription = context.getString(R.string.content_desc_swim_orb)
                 setRenderBehindCompose(renderBehindCompose)
                 update(state, isReducedMotionEnabled, quality)
             }

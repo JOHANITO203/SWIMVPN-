@@ -3406,3 +3406,16 @@ pm run build PASSED.
 - Reconciled visible English copy across onboarding resources, Home, Servers, Subscription, Import configuration, Account, Technical settings, Support, and the metaball dock.
 - Preserved brand/technical terms where appropriate, including SwimPay, Crypto, Premium, VPN, proxy, tunnel, QR code, and protocol names.
 - Did not touch backend contracts, VPN runtime, parser logic, payment behavior, entitlement checks, or navigation architecture.
+
+## 2026-05-21 - Android English/Russian language module pass
+- Added an explicit English Android language pack in `values-en/strings.xml` while keeping French as the default fallback.
+- Kept FR/EN/RU resource keys aligned and cleaned Russian strings that still contained English payment/support labels.
+- Moved exposed dock, import, server, subscription header, profile menu, support back action, technical settings, Home auto-select, and orb accessibility labels toward resource-backed strings.
+- Cleaned old mojibake in repository notes that could confuse future localization QA.
+- Verification: FR/EN/RU key parity passed, Russian leftover scan passed, mojibake scan passed for Android resources/UI and repo notes, and `:app:compileDebugKotlin` passed.
+
+## 2026-05-21 - Android localization review findings fixed
+- Wired Subscription dynamic plan titles, CTA labels, billing periods, feature bullets, badges, and content descriptions to shared FR/EN/RU resources.
+- Wired Servers runtime summaries, AI card fallback labels, ping/load/detail labels, imported quota captions, and premium access summaries to shared FR/EN/RU resources.
+- Kept backend plan/pricing/entitlement contracts untouched; this was a UI localization consistency fix only.
+- Verification: targeted hardcoded-label scans passed, FR/EN/RU key parity remained aligned, mojibake scan passed, and `:app:compileDebugKotlin` passed.

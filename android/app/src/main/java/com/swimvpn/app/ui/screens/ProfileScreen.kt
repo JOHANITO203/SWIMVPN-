@@ -176,14 +176,14 @@ fun ProfileScreen(
                 AccountActionPill(
                     icon = Icons.Outlined.Settings,
                     title = stringResource(R.string.menu_technical),
-                    subtitle = "Application et connexion",
+                    subtitle = stringResource(R.string.profile_menu_technical_subtitle),
                     onClick = onNavigateToTechnical,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AccountActionPill(
                     icon = Icons.AutoMirrored.Outlined.HelpOutline,
                     title = stringResource(R.string.menu_support),
-                    subtitle = "Assistance et contact",
+                    subtitle = stringResource(R.string.profile_menu_support_subtitle),
                     onClick = onNavigateToSupport,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -210,7 +210,7 @@ private fun AccountHeader(onBack: (() -> Unit)?) {
             HardwareAccountButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Retour",
+                    contentDescription = stringResource(R.string.content_desc_back),
                     tint = SwimDesignTokens.Color.TextPrimary,
                     modifier = Modifier.size(20.dp),
                 )
@@ -968,7 +968,7 @@ fun TrialActivationProfileScreen(
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = MaterialTheme.colorScheme.onSurface)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_desc_back), tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(

@@ -1,5 +1,6 @@
 package com.swimvpn.app.ui.screens
 
+import android.content.res.Resources
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -59,13 +60,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
+import com.swimvpn.app.R
 import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ServerGroup
@@ -142,6 +146,7 @@ fun ServersScreen(
     isRecommendedServerValidated: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     var selectedTab by remember { mutableStateOf(ServerSourceTab.IMPORTED) }
     val sourceGroups = remember(serverGroups) {
         serverGroups.groupBy { it.source.lowercase(Locale.ROOT) }
@@ -164,14 +169,15 @@ fun ServersScreen(
         profile,
         recommendedServerId,
         isRecommendedServerValidated,
+        resources,
     ) {
         ServerScreenUiState(
             selectedTab = selectedTab,
             aiActive = isRecommendedServerValidated && recommendedServerId != null,
-            importedConfig = activeConfigMetadata.toImportedConfigSummaryUi(),
-            premiumAccess = profile.toPremiumAccessSummaryUi(premiumServers),
-            importedNodes = importedServers.toNodeUi(activeServerId),
-            premiumNodes = premiumServers.toNodeUi(activeServerId),
+            importedConfig = activeConfigMetadata.toImportedConfigSummaryUi(resources),
+            premiumAccess = profile.toPremiumAccessSummaryUi(premiumServers, resources),
+            importedNodes = importedServers.toNodeUi(activeServerId, resources),
+            premiumNodes = premiumServers.toNodeUi(activeServerId, resources),
             selectedNodeId = activeServerId,
         )
     }
@@ -375,13 +381,13 @@ private fun ServerSourceSegmentedControl(
 
         Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             SegmentLabel(
-                text = "Serveurs importés",
+                text = stringResource(R.string.servers_tab_imported),
                 selected = selectedTab == ServerSourceTab.IMPORTED,
                 onClick = { onTabSelected(ServerSourceTab.IMPORTED) },
                 modifier = Modifier.weight(1f),
             )
             SegmentLabel(
-                text = "Serveurs premium",
+                text = stringResource(R.string.servers_tab_premium),
                 selected = selectedTab == ServerSourceTab.PREMIUM,
                 onClick = { onTabSelected(ServerSourceTab.PREMIUM) },
                 modifier = Modifier.weight(1f),
@@ -446,14 +452,18 @@ private fun AiStatusCard(
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (aiActive) "Agent actif" else "Agent prêt",
+                    text = if (aiActive) {
+                        stringResource(R.string.servers_agent_active)
+                    } else {
+                        stringResource(R.string.servers_agent_ready)
+                    },
                     color = SwimDesignTokens.Color.TextPrimary,
                     fontSize = titleSize,
                     fontWeight = FontWeight.Black,
                     maxLines = 1,
                 )
                 Text(
-                    text = "Meilleurs serveurs\npour votre connexion",
+                    text = stringResource(R.string.servers_agent_subtitle),
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = bodySize,
                     lineHeight = fixedSp(if (compact) 14 else 15),
@@ -466,10 +476,10 @@ private fun AiStatusCard(
 
         QuotaPill(
             config = config ?: ImportedConfigSummaryUi(
-                totalQuotaGb = "Inconnu",
-                quotaCaption = "Import requis",
-                expiresOn = "Inconnu",
-                expiresCaption = "Aucune config",
+                totalQuotaGb = stringResource(R.string.servers_unknown_country),
+                quotaCaption = stringResource(R.string.servers_import_required),
+                expiresOn = stringResource(R.string.servers_unknown_country),
+                expiresCaption = stringResource(R.string.servers_no_config),
             ),
             modifier = Modifier.align(Alignment.BottomCenter),
         )
@@ -517,12 +527,12 @@ private fun PremiumAccessCard(
     modifier: Modifier = Modifier,
 ) {
     val resolved = access ?: PremiumAccessSummaryUi(
-        title = "Accès premium",
-        subtitle = "Abonnez-vous pour débloquer les serveurs gérés",
-        quotaValue = "Verrouillé",
-        quotaCaption = "Abonnement requis",
-        expiresOn = "Inactif",
-        expiresCaption = "Choisir un forfait",
+        title = stringResource(R.string.servers_premium_access_title),
+        subtitle = stringResource(R.string.servers_premium_access_subtitle),
+        quotaValue = stringResource(R.string.servers_locked),
+        quotaCaption = stringResource(R.string.servers_subscription_required),
+        expiresOn = stringResource(R.string.servers_inactive),
+        expiresCaption = stringResource(R.string.servers_choose_plan),
         accessActive = false,
         hasPremiumNodes = false,
     )
@@ -644,14 +654,14 @@ private fun PremiumSummaryPill(access: PremiumAccessSummaryUi, modifier: Modifie
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuotaColumn(label = "Quota premium", value = access.quotaValue, caption = access.quotaCaption, modifier = Modifier.weight(1f))
+        QuotaColumn(label = stringResource(R.string.servers_quota_premium), value = access.quotaValue, caption = access.quotaCaption, modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
                 .height(58.dp)
                 .width(1.dp)
                 .background(SwimDesignTokens.Color.DividerSubtle)
         )
-        QuotaColumn(label = "Accès jusqu’au", value = access.expiresOn, caption = access.expiresCaption, modifier = Modifier.weight(1f))
+        QuotaColumn(label = stringResource(R.string.servers_access_until), value = access.expiresOn, caption = access.expiresCaption, modifier = Modifier.weight(1f))
     }
 }
 
@@ -669,15 +679,15 @@ private fun ServerActionsRow(
     ) {
         if (selectedTab == ServerSourceTab.IMPORTED) {
             ServerActionPill(
-                title = "Importer l’accès",
-                subtitle = "Manuel ou QR code",
+                title = stringResource(R.string.servers_import_access_title),
+                subtitle = stringResource(R.string.servers_import_access_subtitle),
                 icon = Icons.Default.Download,
                 onClick = onImportAccessClick,
                 modifier = Modifier.weight(1f),
             )
             ServerActionPill(
-                title = "S’abonner",
-                subtitle = "Débloquer les nœuds gérés",
+                title = stringResource(R.string.servers_subscribe_title),
+                subtitle = stringResource(R.string.servers_subscribe_subtitle),
                 icon = Icons.Default.WorkspacePremium,
                 onClick = onSubscribeClick,
                 modifier = Modifier.weight(1f),
@@ -685,14 +695,14 @@ private fun ServerActionsRow(
         } else {
             ServerActionPill(
                 title = when {
-                    premiumHasNodes -> "Gérer le forfait"
-                    premiumActive -> "Actualiser l’accès"
-                    else -> "S’abonner"
+                    premiumHasNodes -> stringResource(R.string.servers_manage_plan)
+                    premiumActive -> stringResource(R.string.servers_refresh_access)
+                    else -> stringResource(R.string.servers_subscribe_title)
                 },
                 subtitle = when {
-                    premiumHasNodes -> "Forfait et renouvellement"
-                    premiumActive -> "Synchronisation des nœuds"
-                    else -> "Accès premium"
+                    premiumHasNodes -> stringResource(R.string.servers_plan_renewal)
+                    premiumActive -> stringResource(R.string.servers_nodes_sync)
+                    else -> stringResource(R.string.servers_premium_access_short)
                 },
                 icon = Icons.Default.WorkspacePremium,
                 onClick = onSubscribeClick,
@@ -747,14 +757,14 @@ private fun QuotaPill(config: ImportedConfigSummaryUi, modifier: Modifier = Modi
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuotaColumn(label = "Quota total", value = config.totalQuotaGb, caption = config.quotaCaption, modifier = Modifier.weight(1f))
+        QuotaColumn(label = stringResource(R.string.servers_total_quota), value = config.totalQuotaGb, caption = config.quotaCaption, modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
                 .height(58.dp)
                 .width(1.dp)
                 .background(SwimDesignTokens.Color.DividerSubtle)
         )
-        QuotaColumn(label = "Expire le", value = config.expiresOn, caption = config.expiresCaption, modifier = Modifier.weight(1f))
+        QuotaColumn(label = stringResource(R.string.servers_expires_on), value = config.expiresOn, caption = config.expiresCaption, modifier = Modifier.weight(1f))
     }
 }
 
@@ -973,76 +983,73 @@ private fun MotionReveal(
     }
 }
 
-private fun List<ServerNode>.toNodeUi(activeServerId: String?): List<ServerNodeUi> =
+private fun List<ServerNode>.toNodeUi(activeServerId: String?, resources: Resources): List<ServerNodeUi> =
     map { server ->
         ServerNodeUi(
             id = server.id,
-            countryName = server.country.ifBlank { server.city.ifBlank { "Inconnu" } },
-            cityLabel = server.city.ifBlank { server.providerName ?: server.groupName ?: "Localisation indisponible" },
-            detailLabel = server.buildServerDetailLabel(),
+            countryName = server.country.ifBlank { server.city.ifBlank { resources.getString(R.string.servers_unknown_country) } },
+            cityLabel = server.city.ifBlank { server.providerName ?: server.groupName ?: resources.getString(R.string.servers_location_unavailable) },
+            detailLabel = server.buildServerDetailLabel(resources),
             flagEmoji = getFlagEmoji(server.countryCode.orEmpty()),
-            pingLabel = server.buildPingLabel(),
+            pingLabel = server.buildPingLabel(resources),
             pingFresh = server.ping > 0 && server.latencyMeasuredAtMs > 0L && !server.latencyProbeFailed,
             pingFailed = server.latencyProbeFailed,
-            loadLabel = server.load?.let { "$it% load" },
+            loadLabel = server.load?.let { resources.getString(R.string.servers_load_percent, it) },
             isSelected = server.id == activeServerId,
         )
     }
 
-private fun ServerNode.buildPingLabel(): String =
+private fun ServerNode.buildPingLabel(resources: Resources): String =
     when {
-        latencyProbeFailed -> "Fail"
+        latencyProbeFailed -> resources.getString(R.string.servers_ping_failed)
         ping > 0 -> "${ping}ms"
         else -> "--"
     }
 
-private fun ServerNode.buildServerDetailLabel(): String {
+private fun ServerNode.buildServerDetailLabel(resources: Resources): String {
     val parts = buildList {
         providerName?.takeIf { it.isNotBlank() }?.let { add(it) }
         if (providerName.isNullOrBlank()) {
             groupName?.takeIf { it.isNotBlank() }?.let { add(it) }
         }
         protocol.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)?.let { add(it) }
-        load?.let { add("$it% load") }
+        load?.let { add(resources.getString(R.string.servers_load_percent, it)) }
         availabilityStatus?.takeIf { it.isNotBlank() }?.lowercase(Locale.ROOT)?.replaceFirstChar { char -> char.titlecase(Locale.ROOT) }?.let { add(it) }
     }
-    return parts.distinct().take(3).joinToString(" · ").ifBlank {
-        host.takeIf { it.isNotBlank() } ?: "Détails serveur en attente"
+    return parts.distinct().take(3).joinToString(resources.getString(R.string.servers_detail_separator)).ifBlank {
+        host.takeIf { it.isNotBlank() } ?: resources.getString(R.string.servers_details_pending)
     }
 }
 
-private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(): ImportedConfigSummaryUi? {
+private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(resources: Resources): ImportedConfigSummaryUi? {
     if (this == null) return null
     val totalBytes = trafficTotalBytes
     val usedBytes = trafficUsedBytes ?: 0L
     val quotaValue = when {
         totalBytes != null && totalBytes > 0L -> formatBytes(totalBytes)
-        else -> "Illimité"
+        else -> resources.getString(R.string.servers_unlimited)
     }
     val quotaCaption = when {
-        totalBytes != null && totalBytes > 0L -> "${formatBytes(usedBytes)} utilisés"
-        else -> "Illimité"
+        totalBytes != null && totalBytes > 0L -> resources.getString(R.string.servers_used_format, formatBytes(usedBytes))
+        else -> resources.getString(R.string.servers_unlimited)
     }
     return ImportedConfigSummaryUi(
         totalQuotaGb = quotaValue,
         quotaCaption = quotaCaption,
-        expiresOn = expiresAt?.let(::formatServerExpiryDate) ?: "Inconnu",
-        expiresCaption = expiresAt?.let(::formatServerExpiryCaption) ?: "Sans expiration",
+        expiresOn = expiresAt?.let(::formatServerExpiryDate) ?: resources.getString(R.string.servers_unknown_country),
+        expiresCaption = expiresAt?.let(::formatServerExpiryCaption) ?: resources.getString(R.string.servers_no_expiration),
     )
 }
 
-private fun AccessProfileResponse?.toPremiumAccessSummaryUi(premiumServers: List<ServerNode>): PremiumAccessSummaryUi? {
+private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
+    premiumServers: List<ServerNode>,
+    resources: Resources,
+): PremiumAccessSummaryUi? {
     if (this == null) {
         return null
     }
 
-    val planName = publicPlanName
-        ?: when (offerCode) {
-            "WEEK" -> "Basique"
-            "MONTH" -> "Premium"
-            "QUARTER" -> "Platine"
-            else -> if (isPremiumAllowed) "Premium" else "Accès premium"
-        }
+    val planName = localizedPremiumPlanName(resources)
     val totalBytes = premiumServers.firstNotNullOfOrNull { it.trafficTotalBytes?.filter(Char::isDigit)?.toLongOrNull() }
         ?: dataLimitBytes.takeIf { it > 0L }
     val usedBytes = premiumServers.firstNotNullOfOrNull { it.trafficUsedBytes?.filter(Char::isDigit)?.toLongOrNull() }
@@ -1054,36 +1061,57 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(premiumServers: List
 
     return PremiumAccessSummaryUi(
         title = when {
-            active -> "$planName actif"
-            waitingFulfillment -> "$planName en synchronisation"
-            isPendingFulfillment -> "Préparation en cours"
-            else -> "Accès premium"
+            active -> resources.getString(R.string.servers_plan_active, planName)
+            waitingFulfillment -> resources.getString(R.string.servers_plan_sync, planName)
+            isPendingFulfillment -> resources.getString(R.string.servers_preparing)
+            else -> resources.getString(R.string.servers_premium_access_title)
         },
         subtitle = when {
-            active -> "${premiumServers.size} nœuds gérés disponibles"
-            waitingFulfillment -> "Votre accès est actif, les nœuds se synchronisent"
-            isPendingFulfillment -> "Votre commande est en préparation"
-            else -> "Abonnez-vous pour débloquer les serveurs gérés"
+            active -> resources.getString(R.string.servers_nodes_available, premiumServers.size)
+            waitingFulfillment -> resources.getString(R.string.servers_nodes_syncing)
+            isPendingFulfillment -> resources.getString(R.string.servers_order_preparing)
+            else -> resources.getString(R.string.servers_premium_access_subtitle)
         },
         quotaValue = when {
             totalBytes != null && totalBytes > 0L -> formatBytes(totalBytes)
-            isPremiumAllowed -> "Illimité"
-            else -> "Verrouillé"
+            isPremiumAllowed -> resources.getString(R.string.servers_unlimited)
+            else -> resources.getString(R.string.servers_locked)
         },
         quotaCaption = when {
-            totalBytes != null && totalBytes > 0L -> "${formatBytes(usedBytes)} utilisés"
-            isPremiumAllowed -> "Géré par le forfait"
-            else -> "Abonnement requis"
+            totalBytes != null && totalBytes > 0L -> resources.getString(R.string.servers_used_format, formatBytes(usedBytes))
+            isPremiumAllowed -> resources.getString(R.string.servers_managed_by_plan)
+            else -> resources.getString(R.string.servers_subscription_required)
         },
-        expiresOn = expiry?.let(::formatServerExpiryDate) ?: if (isPremiumAllowed) "Géré" else "Inactif",
-        expiresCaption = expiry?.let(::formatServerExpiryCaption) ?: if (isPremiumAllowed) "Géré par le fournisseur" else "Choisir un forfait",
+        expiresOn = expiry?.let(::formatServerExpiryDate) ?: if (isPremiumAllowed) {
+            resources.getString(R.string.servers_managed)
+        } else {
+            resources.getString(R.string.servers_inactive)
+        },
+        expiresCaption = expiry?.let(::formatServerExpiryCaption) ?: if (isPremiumAllowed) {
+            resources.getString(R.string.servers_managed_by_provider)
+        } else {
+            resources.getString(R.string.servers_choose_plan)
+        },
         accessActive = isPremiumAllowed || isPendingFulfillment,
         hasPremiumNodes = active,
     )
 }
 
+private fun AccessProfileResponse.localizedPremiumPlanName(resources: Resources): String {
+    val planName = publicPlanName?.trim().orEmpty()
+    val normalizedName = planName.uppercase(Locale.ROOT)
+    return when {
+        offerCode == "WEEK" || normalizedName == "BASIC" -> resources.getString(R.string.servers_plan_basic)
+        offerCode == "MONTH" || normalizedName == "PREMIUM" -> resources.getString(R.string.servers_plan_premium)
+        offerCode == "QUARTER" || normalizedName == "PLATINUM" -> resources.getString(R.string.servers_plan_platinum)
+        planName.isNotBlank() -> planName
+        isPremiumAllowed -> resources.getString(R.string.servers_plan_premium)
+        else -> resources.getString(R.string.servers_premium_access_title)
+    }
+}
+
 fun getFlagEmoji(countryCode: String): String {
-    if (countryCode.length != 2) return "🌐"
+    if (countryCode.length != 2) return "\uD83C\uDF10"
     val firstLetter = Character.codePointAt(countryCode.uppercase(Locale.ROOT), 0) - 0x41 + 0x1F1E6
     val secondLetter = Character.codePointAt(countryCode.uppercase(Locale.ROOT), 1) - 0x41 + 0x1F1E6
     return String(Character.toChars(firstLetter)) + String(Character.toChars(secondLetter))
