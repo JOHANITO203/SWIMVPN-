@@ -265,7 +265,7 @@ fun SubscriptionScreen(
 private fun SubscriptionHeader(compact: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = "Subscription",
+            text = "Abonnement",
             color = SwimDesignTokens.Color.TextPrimary,
             fontSize = fixedSp(if (compact) 24 else 27),
             fontWeight = FontWeight.Black,
@@ -273,7 +273,7 @@ private fun SubscriptionHeader(compact: Boolean) {
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "Choose the plan that fits your needs",
+            text = "Choisissez le forfait adapté à vos besoins",
             color = SwimDesignTokens.Color.TextMuted,
             fontSize = fixedSp(if (compact) 11 else 13),
             textAlign = TextAlign.Center,
@@ -408,7 +408,7 @@ private fun PriceBlock(plan: SubscriptionPlanUi, compact: Boolean) {
         }
         if (plan.isCurrentPlan) {
             Text(
-                text = "Current",
+                text = "Actuel",
                 color = SwimDesignTokens.Color.PurpleActive,
                 fontSize = fixedSp(10),
                 fontWeight = FontWeight.Bold,
@@ -666,7 +666,7 @@ private fun GuaranteeRow(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.width(14.dp))
         Column {
             Text(
-                text = "30-day money-back guarantee",
+                text = "Garantie satisfait ou remboursé 30 jours",
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontSize = fixedSp(13),
                 fontWeight = FontWeight.Black,
@@ -674,7 +674,7 @@ private fun GuaranteeRow(modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "Cancel anytime, no questions asked.",
+                text = "Annulation possible à tout moment, sans justification.",
                 color = SwimDesignTokens.Color.TextMuted,
                 fontSize = fixedSp(12),
                 maxLines = 1,
@@ -861,7 +861,7 @@ private fun StaggeredEnter(
 
 private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?): SubscriptionPlanUi {
     val tier = code.toSubscriptionTier()
-    val planTitle = name.ifBlank { tier.displayName }
+    val planTitle = name.ifBlank { tier.displayName }.toLocalizedPlanTitle(tier)
     return SubscriptionPlanUi(
         id = id,
         tier = tier,
@@ -870,8 +870,8 @@ private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?): SubscriptionPla
         price = formatPlanPrice(priceRub),
         billingPeriod = durationLabel.toBillingPeriod(),
         features = buildPlanFeatureBullets(tier = tier, quotaLabel = quotaLabel),
-        ctaLabel = "Select $planTitle",
-        badgeLabel = if (tier == SubscriptionPlanTier.PREMIUM) "Most popular" else null,
+        ctaLabel = "Choisir $planTitle",
+        badgeLabel = if (tier == SubscriptionPlanTier.PREMIUM) "Le plus choisi" else null,
         isHighlighted = tier == SubscriptionPlanTier.PREMIUM,
         isCurrentPlan = activeOfferCode?.toSubscriptionTierOrNull() == tier,
     )
@@ -907,9 +907,18 @@ private val SubscriptionPlanTier.order: Int
 
 private val SubscriptionPlanTier.displayName: String
     get() = when (this) {
-        SubscriptionPlanTier.BASIC -> "Basic"
+        SubscriptionPlanTier.BASIC -> "Basique"
         SubscriptionPlanTier.PREMIUM -> "Premium"
-        SubscriptionPlanTier.PLATINUM -> "Platinum"
+        SubscriptionPlanTier.PLATINUM -> "Platine"
+    }
+
+private fun String.toLocalizedPlanTitle(tier: SubscriptionPlanTier): String =
+    when {
+        equals("Basic", ignoreCase = true) || equals("WEEK", ignoreCase = true) -> "Basique"
+        equals("Platinum", ignoreCase = true) || equals("QUARTER", ignoreCase = true) -> "Platine"
+        equals("Premium", ignoreCase = true) || equals("MONTH", ignoreCase = true) -> "Premium"
+        isBlank() -> tier.displayName
+        else -> this
     }
 
 private val SubscriptionPlanTier.deviceAllowance: Int
@@ -921,11 +930,11 @@ private val SubscriptionPlanTier.deviceAllowance: Int
 
 private fun String.toPlanSubtitle(tier: SubscriptionPlanTier): String =
     when {
-        isNotBlank() -> "$this secure access"
+        isNotBlank() -> "$this - accès sécurisé"
         else -> when (tier) {
-            SubscriptionPlanTier.BASIC -> "Short-term secure access"
-            SubscriptionPlanTier.PREMIUM -> "Monthly managed access"
-            SubscriptionPlanTier.PLATINUM -> "Extended premium access"
+            SubscriptionPlanTier.BASIC -> "Accès sécurisé courte durée"
+            SubscriptionPlanTier.PREMIUM -> "Accès mensuel géré"
+            SubscriptionPlanTier.PLATINUM -> "Accès premium longue durée"
         }
     }
 
@@ -933,19 +942,19 @@ private fun buildPlanFeatureBullets(
     tier: SubscriptionPlanTier,
     quotaLabel: String,
 ): List<String> {
-    val dataLabel = quotaLabel.ifBlank { "Plan data" }
+    val dataLabel = quotaLabel.ifBlank { "Données du forfait" }
     return listOf(
-        "$dataLabel included",
-        "Up to ${tier.deviceAllowance} devices",
-        "AI Agent selects the best nodes in real time",
+        "$dataLabel inclus",
+        "Jusqu’à ${tier.deviceAllowance} appareils",
+        "Agent IA : meilleurs nœuds en temps réel",
     )
 }
 
 private val SubscriptionPlanTier.contentDescription: String
     get() = when (this) {
-        SubscriptionPlanTier.BASIC -> "Basic plan"
-        SubscriptionPlanTier.PREMIUM -> "Premium plan"
-        SubscriptionPlanTier.PLATINUM -> "Platinum plan"
+        SubscriptionPlanTier.BASIC -> "Forfait basique"
+        SubscriptionPlanTier.PREMIUM -> "Forfait premium"
+        SubscriptionPlanTier.PLATINUM -> "Forfait platine"
     }
 
 private val String.paymentLabel: String
@@ -965,11 +974,11 @@ private val String.paymentIconRes: Int?
 private fun String.toBillingPeriod(): String {
     val lower = lowercase()
     return when {
-        "week" in lower -> "/week"
-        "month" in lower -> "/month"
-        "quarter" in lower -> "/quarter"
-        "year" in lower -> "/year"
-        else -> "/period"
+        "week" in lower -> "/semaine"
+        "month" in lower -> "/mois"
+        "quarter" in lower -> "/trimestre"
+        "year" in lower -> "/an"
+        else -> "/période"
     }
 }
 

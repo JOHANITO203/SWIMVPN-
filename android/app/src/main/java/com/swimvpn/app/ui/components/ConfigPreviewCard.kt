@@ -113,7 +113,7 @@ fun ConfigPreviewCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = "Supprimer",
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -183,7 +183,7 @@ fun ConfigPreviewCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Warnings",
+                                text = "Alertes",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
@@ -296,13 +296,13 @@ fun ImportConfigDialog(
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Manual input",
+                        text = "Saisie manuelle",
                         color = SwimDesignTokens.Color.TextPrimary,
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
                         maxLines = 1
                     )
                     Text(
-                        text = "Enter one VPN access payload",
+                        text = "Entrez une configuration d’accès VPN",
                         color = SwimDesignTokens.Color.TextSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
@@ -316,7 +316,7 @@ fun ImportConfigDialog(
                 onValueChange = onTextChange,
                 placeholder = {
                     Text(
-                        text = "vless://... or vmess://... or trojan://...",
+                        text = "vless://... ou vmess://... ou trojan://...",
                         color = SwimDesignTokens.Color.TextMuted
                     )
                 },
@@ -325,7 +325,7 @@ fun ImportConfigDialog(
                     .height(132.dp),
                 label = {
                     Text(
-                        text = "Configuration URL or code",
+                        text = "URL ou code de configuration",
                         color = SwimDesignTokens.Color.PurpleActive
                     )
                 },
@@ -357,14 +357,14 @@ fun ImportConfigDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 DialogPillButton(
-                    text = "Cancel",
+                    text = "Annuler",
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
                     active = false,
                     enabled = true
                 )
                 DialogPillButton(
-                    text = "Import",
+                    text = "Importer",
                     onClick = { onImport(initialText) },
                     modifier = Modifier.weight(1f),
                     active = true,
@@ -496,7 +496,7 @@ fun ClipboardImportSheet(
         ) {
             // Title
             Text(
-                text = "Import from Clipboard",
+                text = "Importer depuis le presse-papiers",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
             
@@ -513,7 +513,7 @@ fun ClipboardImportSheet(
                         modifier = Modifier.size(48.dp)
                     )
                     Text(
-                        text = "Clipboard is empty",
+                        text = "Le presse-papiers est vide",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -530,7 +530,7 @@ fun ClipboardImportSheet(
                         modifier = Modifier.size(48.dp)
                     )
                     Text(
-                        text = "Clipboard content doesn't appear to be a VPN configuration",
+                        text = "Le contenu du presse-papiers ne semble pas être une configuration VPN",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
@@ -552,7 +552,7 @@ fun ClipboardImportSheet(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Import this configuration")
+                        Text("Importer cette configuration")
                     }
                 } ?: run {
                     // Invalid config
@@ -567,7 +567,7 @@ fun ClipboardImportSheet(
                             modifier = Modifier.size(48.dp)
                         )
                         Text(
-                            text = "Invalid configuration format",
+                            text = "Format de configuration invalide",
                             color = MaterialTheme.colorScheme.error
                         )
                     }
@@ -580,7 +580,7 @@ fun ClipboardImportSheet(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Close")
+                Text("Fermer")
             }
         }
     }

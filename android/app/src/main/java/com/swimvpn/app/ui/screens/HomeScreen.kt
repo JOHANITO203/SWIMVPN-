@@ -316,7 +316,7 @@ private fun ProtectedIndicator(active: Boolean, compact: Boolean, modifier: Modi
         }
         Spacer(modifier = Modifier.width(if (compact) 8.dp else 9.dp))
         Text(
-            text = if (active) "Protected" else "Standby",
+            text = if (active) "Protégé" else "En veille",
             color = color,
             fontSize = if (compact) 15.sp else 16.sp,
             fontWeight = FontWeight.SemiBold,
@@ -367,7 +367,7 @@ private fun SwimServerPill(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = server?.let { "${it.city} · Auto select" } ?: stringResource(R.string.selected_server_hint),
+                    text = server?.let { "${it.city} · Sélection auto" } ?: stringResource(R.string.selected_server_hint),
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = if (compact) 13.sp else 15.sp,
                     maxLines = 1,
@@ -438,7 +438,7 @@ private fun SwimStatsCard(
             SwimStatsItem(
                 icon = Icons.Default.SettingsInputAntenna,
                 label = stringResource(R.string.status_connected),
-                value = if (connected) "Live" else "Idle",
+                value = if (connected) "Actif" else "Repos",
                 compact = compact,
             )
         }

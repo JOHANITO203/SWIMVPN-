@@ -375,13 +375,13 @@ private fun ServerSourceSegmentedControl(
 
         Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             SegmentLabel(
-                text = "Imported Servers",
+                text = "Serveurs importés",
                 selected = selectedTab == ServerSourceTab.IMPORTED,
                 onClick = { onTabSelected(ServerSourceTab.IMPORTED) },
                 modifier = Modifier.weight(1f),
             )
             SegmentLabel(
-                text = "Premium Servers",
+                text = "Serveurs premium",
                 selected = selectedTab == ServerSourceTab.PREMIUM,
                 onClick = { onTabSelected(ServerSourceTab.PREMIUM) },
                 modifier = Modifier.weight(1f),
@@ -446,14 +446,14 @@ private fun AiStatusCard(
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (aiActive) "Agent active" else "Agent ready",
+                    text = if (aiActive) "Agent actif" else "Agent prêt",
                     color = SwimDesignTokens.Color.TextPrimary,
                     fontSize = titleSize,
                     fontWeight = FontWeight.Black,
                     maxLines = 1,
                 )
                 Text(
-                    text = "Showing the best servers\nfor your connection",
+                    text = "Meilleurs serveurs\npour votre connexion",
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = bodySize,
                     lineHeight = fixedSp(if (compact) 14 else 15),
@@ -466,10 +466,10 @@ private fun AiStatusCard(
 
         QuotaPill(
             config = config ?: ImportedConfigSummaryUi(
-                totalQuotaGb = "Unknown",
-                quotaCaption = "Import required",
-                expiresOn = "Unknown",
-                expiresCaption = "No config",
+                totalQuotaGb = "Inconnu",
+                quotaCaption = "Import requis",
+                expiresOn = "Inconnu",
+                expiresCaption = "Aucune config",
             ),
             modifier = Modifier.align(Alignment.BottomCenter),
         )
@@ -517,12 +517,12 @@ private fun PremiumAccessCard(
     modifier: Modifier = Modifier,
 ) {
     val resolved = access ?: PremiumAccessSummaryUi(
-        title = "Premium access",
-        subtitle = "Subscribe to unlock managed servers",
-        quotaValue = "Locked",
-        quotaCaption = "Subscription required",
-        expiresOn = "Inactive",
-        expiresCaption = "Choose a plan",
+        title = "Accès premium",
+        subtitle = "Abonnez-vous pour débloquer les serveurs gérés",
+        quotaValue = "Verrouillé",
+        quotaCaption = "Abonnement requis",
+        expiresOn = "Inactif",
+        expiresCaption = "Choisir un forfait",
         accessActive = false,
         hasPremiumNodes = false,
     )
@@ -644,14 +644,14 @@ private fun PremiumSummaryPill(access: PremiumAccessSummaryUi, modifier: Modifie
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuotaColumn(label = "Premium quota", value = access.quotaValue, caption = access.quotaCaption, modifier = Modifier.weight(1f))
+        QuotaColumn(label = "Quota premium", value = access.quotaValue, caption = access.quotaCaption, modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
                 .height(58.dp)
                 .width(1.dp)
                 .background(SwimDesignTokens.Color.DividerSubtle)
         )
-        QuotaColumn(label = "Access until", value = access.expiresOn, caption = access.expiresCaption, modifier = Modifier.weight(1f))
+        QuotaColumn(label = "Accès jusqu’au", value = access.expiresOn, caption = access.expiresCaption, modifier = Modifier.weight(1f))
     }
 }
 
@@ -669,15 +669,15 @@ private fun ServerActionsRow(
     ) {
         if (selectedTab == ServerSourceTab.IMPORTED) {
             ServerActionPill(
-                title = "Import Access",
-                subtitle = "Manual or QR code",
+                title = "Importer l’accès",
+                subtitle = "Manuel ou QR code",
                 icon = Icons.Default.Download,
                 onClick = onImportAccessClick,
                 modifier = Modifier.weight(1f),
             )
             ServerActionPill(
-                title = "Subscribe",
-                subtitle = "Unlock managed nodes",
+                title = "S’abonner",
+                subtitle = "Débloquer les nœuds gérés",
                 icon = Icons.Default.WorkspacePremium,
                 onClick = onSubscribeClick,
                 modifier = Modifier.weight(1f),
@@ -685,14 +685,14 @@ private fun ServerActionsRow(
         } else {
             ServerActionPill(
                 title = when {
-                    premiumHasNodes -> "Manage plan"
-                    premiumActive -> "Refresh access"
-                    else -> "Subscribe"
+                    premiumHasNodes -> "Gérer le forfait"
+                    premiumActive -> "Actualiser l’accès"
+                    else -> "S’abonner"
                 },
                 subtitle = when {
-                    premiumHasNodes -> "Plan and renewal"
-                    premiumActive -> "Nodes syncing"
-                    else -> "Get premium access"
+                    premiumHasNodes -> "Forfait et renouvellement"
+                    premiumActive -> "Synchronisation des nœuds"
+                    else -> "Accès premium"
                 },
                 icon = Icons.Default.WorkspacePremium,
                 onClick = onSubscribeClick,
@@ -747,14 +747,14 @@ private fun QuotaPill(config: ImportedConfigSummaryUi, modifier: Modifier = Modi
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuotaColumn(label = "Total quota", value = config.totalQuotaGb, caption = config.quotaCaption, modifier = Modifier.weight(1f))
+        QuotaColumn(label = "Quota total", value = config.totalQuotaGb, caption = config.quotaCaption, modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
                 .height(58.dp)
                 .width(1.dp)
                 .background(SwimDesignTokens.Color.DividerSubtle)
         )
-        QuotaColumn(label = "Expires on", value = config.expiresOn, caption = config.expiresCaption, modifier = Modifier.weight(1f))
+        QuotaColumn(label = "Expire le", value = config.expiresOn, caption = config.expiresCaption, modifier = Modifier.weight(1f))
     }
 }
 
@@ -953,7 +953,7 @@ private fun EmptyServerSourcePill(tab: ServerSourceTab) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = if (tab == ServerSourceTab.IMPORTED) "No imported servers yet" else "No premium servers available",
+            text = if (tab == ServerSourceTab.IMPORTED) "Aucun serveur importé" else "Aucun serveur premium disponible",
             color = SwimDesignTokens.Color.TextSecondary,
             fontSize = fixedSp(12),
             fontWeight = FontWeight.Medium,
@@ -977,8 +977,8 @@ private fun List<ServerNode>.toNodeUi(activeServerId: String?): List<ServerNodeU
     map { server ->
         ServerNodeUi(
             id = server.id,
-            countryName = server.country.ifBlank { server.city.ifBlank { "Unknown" } },
-            cityLabel = server.city.ifBlank { server.providerName ?: server.groupName ?: "Location unavailable" },
+            countryName = server.country.ifBlank { server.city.ifBlank { "Inconnu" } },
+            cityLabel = server.city.ifBlank { server.providerName ?: server.groupName ?: "Localisation indisponible" },
             detailLabel = server.buildServerDetailLabel(),
             flagEmoji = getFlagEmoji(server.countryCode.orEmpty()),
             pingLabel = server.buildPingLabel(),
@@ -1007,7 +1007,7 @@ private fun ServerNode.buildServerDetailLabel(): String {
         availabilityStatus?.takeIf { it.isNotBlank() }?.lowercase(Locale.ROOT)?.replaceFirstChar { char -> char.titlecase(Locale.ROOT) }?.let { add(it) }
     }
     return parts.distinct().take(3).joinToString(" · ").ifBlank {
-        host.takeIf { it.isNotBlank() } ?: "Server details pending"
+        host.takeIf { it.isNotBlank() } ?: "Détails serveur en attente"
     }
 }
 
@@ -1017,17 +1017,17 @@ private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(): ImportedConfigSum
     val usedBytes = trafficUsedBytes ?: 0L
     val quotaValue = when {
         totalBytes != null && totalBytes > 0L -> formatBytes(totalBytes)
-        else -> "Unlimited"
+        else -> "Illimité"
     }
     val quotaCaption = when {
-        totalBytes != null && totalBytes > 0L -> "${formatBytes(usedBytes)} used"
-        else -> "Unlimited"
+        totalBytes != null && totalBytes > 0L -> "${formatBytes(usedBytes)} utilisés"
+        else -> "Illimité"
     }
     return ImportedConfigSummaryUi(
         totalQuotaGb = quotaValue,
         quotaCaption = quotaCaption,
-        expiresOn = expiresAt?.let(::formatServerExpiryDate) ?: "Unknown",
-        expiresCaption = expiresAt?.let(::formatServerExpiryCaption) ?: "No expiry",
+        expiresOn = expiresAt?.let(::formatServerExpiryDate) ?: "Inconnu",
+        expiresCaption = expiresAt?.let(::formatServerExpiryCaption) ?: "Sans expiration",
     )
 }
 
@@ -1038,10 +1038,10 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(premiumServers: List
 
     val planName = publicPlanName
         ?: when (offerCode) {
-            "WEEK" -> "Basic"
+            "WEEK" -> "Basique"
             "MONTH" -> "Premium"
-            "QUARTER" -> "Platinum"
-            else -> if (isPremiumAllowed) "Premium" else "Premium access"
+            "QUARTER" -> "Platine"
+            else -> if (isPremiumAllowed) "Premium" else "Accès premium"
         }
     val totalBytes = premiumServers.firstNotNullOfOrNull { it.trafficTotalBytes?.filter(Char::isDigit)?.toLongOrNull() }
         ?: dataLimitBytes.takeIf { it > 0L }
@@ -1054,29 +1054,29 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(premiumServers: List
 
     return PremiumAccessSummaryUi(
         title = when {
-            active -> "$planName active"
-            waitingFulfillment -> "$planName syncing"
-            isPendingFulfillment -> "Fulfillment pending"
-            else -> "Premium access"
+            active -> "$planName actif"
+            waitingFulfillment -> "$planName en synchronisation"
+            isPendingFulfillment -> "Préparation en cours"
+            else -> "Accès premium"
         },
         subtitle = when {
-            active -> "${premiumServers.size} managed nodes available"
-            waitingFulfillment -> "Your access is active, nodes are syncing"
-            isPendingFulfillment -> "Your order is being prepared"
-            else -> "Subscribe to unlock managed servers"
+            active -> "${premiumServers.size} nœuds gérés disponibles"
+            waitingFulfillment -> "Votre accès est actif, les nœuds se synchronisent"
+            isPendingFulfillment -> "Votre commande est en préparation"
+            else -> "Abonnez-vous pour débloquer les serveurs gérés"
         },
         quotaValue = when {
             totalBytes != null && totalBytes > 0L -> formatBytes(totalBytes)
-            isPremiumAllowed -> "Unlimited"
-            else -> "Locked"
+            isPremiumAllowed -> "Illimité"
+            else -> "Verrouillé"
         },
         quotaCaption = when {
-            totalBytes != null && totalBytes > 0L -> "${formatBytes(usedBytes)} used"
-            isPremiumAllowed -> "Plan managed"
-            else -> "Subscription required"
+            totalBytes != null && totalBytes > 0L -> "${formatBytes(usedBytes)} utilisés"
+            isPremiumAllowed -> "Géré par le forfait"
+            else -> "Abonnement requis"
         },
-        expiresOn = expiry?.let(::formatServerExpiryDate) ?: if (isPremiumAllowed) "Managed" else "Inactive",
-        expiresCaption = expiry?.let(::formatServerExpiryCaption) ?: if (isPremiumAllowed) "Provider managed" else "Choose a plan",
+        expiresOn = expiry?.let(::formatServerExpiryDate) ?: if (isPremiumAllowed) "Géré" else "Inactif",
+        expiresCaption = expiry?.let(::formatServerExpiryCaption) ?: if (isPremiumAllowed) "Géré par le fournisseur" else "Choisir un forfait",
         accessActive = isPremiumAllowed || isPendingFulfillment,
         hasPremiumNodes = active,
     )

@@ -16,7 +16,7 @@
     <string name="status_trial">ESSAI ACTIF</string>
     <string name="status_pro">PRO ACTIF</string>
     <string name="btn_connect">CONNECTER</string>
-    <string name="btn_connect_on">ON</string>
+    <string name="btn_connect_on">ACTIF</string>
     <string name="status_connected">Connecté</string>
     <string name="status_disconnected">Déconnecté</string>
     <string name="status_connecting">Connexion...</string>
@@ -30,9 +30,9 @@
     <string name="label_download">TÉLÉCHARGEMENT</string>
     <string name="label_upload">ENVOI</string>
     <string name="home_badge_trial">ESSAI 3 JOURS</string>
-    <string name="home_badge_basic">BASIC ACTIF</string>
+    <string name="home_badge_basic">BASIQUE ACTIF</string>
     <string name="home_badge_premium">PREMIUM ACTIF</string>
-    <string name="home_badge_platinum">PLATINUM ACTIF</string>
+    <string name="home_badge_platinum">PLATINE ACTIF</string>
     <string name="home_badge_pending_fulfillment">COMMANDE EN COURS</string>
     <string name="home_badge_access">ACCÈS ACTIF</string>
     <string name="home_badge_standard">MODE STANDARD</string>
@@ -146,9 +146,9 @@
     <string name="profile_status_inactive">INACTIF</string>
     <string name="label_management">GESTION</string>
     <string name="label_plan">Forfait</string>
-    <string name="plan_basic">Basic</string>
+    <string name="plan_basic">Basique</string>
     <string name="plan_premium">Premium</string>
-    <string name="plan_platinum">Platinum</string>
+    <string name="plan_platinum">Platine</string>
     <string name="label_expires">Expire</string>
     <string name="menu_subscription">Abonnement</string>
     <string name="menu_cancel_subscription">Résilier l’accès</string>
@@ -199,9 +199,9 @@
     <string name="support_title">AIDE &amp; SUPPORT</string>
     <string name="support_faq_title">FAQ</string>
     <string name="faq_connect_title">Comment se connecter ?</string>
-    <string name="faq_connect_desc">Choisissez un serveur actif ou importez une configuration d’accès valide, puis appuyez sur le bouton central &quot;ON&quot; pour démarrer le tunnel sécurisé.</string>
+    <string name="faq_connect_desc">Choisissez un serveur actif ou importez une configuration d’accès valide, puis appuyez sur le bouton central &quot;ACTIF&quot; pour démarrer le tunnel sécurisé.</string>
     <string name="faq_import_title">Comment importer un accès ?</string>
-    <string name="faq_import_desc">Ouvrez Import Access depuis le bouton + de l’accueil ou depuis votre profil, puis collez, scannez ou saisissez votre configuration brute.</string>
+    <string name="faq_import_desc">Ouvrez Importer l’accès depuis le bouton + de l’accueil ou depuis votre profil, puis collez, scannez ou saisissez votre configuration brute.</string>
     <string name="support_contact_title">NOUS CONTACTER</string>
     <string name="support_email">Email du support</string>
     <string name="support_email_value">support@swimvpn.pro</string>
@@ -216,9 +216,9 @@
     <string name="title_pricing">TARIFS</string>
     <string name="plan_weekly">BRONZE</string>
     <string name="plan_weekly_desc">50 Go • 299 ₽ / semaine</string>
-    <string name="plan_monthly">SILVER</string>
+    <string name="plan_monthly">ARGENT</string>
     <string name="plan_monthly_desc">150 Go • 699 ₽ / mois</string>
-    <string name="plan_annual">GOLD</string>
+    <string name="plan_annual">OR</string>
     <string name="plan_annual_desc">500 Go • 1899 ₽ / trimestre</string>
     <string name="label_traffic">TRAFIC</string>
     <string name="label_period"> / période</string>
@@ -261,7 +261,7 @@
     <string name="proxy_title">Proxy local avancé</string>
     <string name="section_connectivity">CONNECTIVITÉ</string>
     <string name="auto_connect">Connexion automatique</string>
-    <string name="kill_switch">Kill Switch</string>
+    <string name="kill_switch">Coupe-circuit</string>
     <string name="kill_switch_system_chip">ANDROID</string>
     <string name="kill_switch_chip_system">SYSTÈME</string>
     <string name="kill_switch_chip_always_on">TOUJOURS ACTIF</string>
@@ -270,9 +270,9 @@
     <string name="battery_optimization_chip">CORRIGER</string>
     <string name="btn_save">ENREGISTRER TOUTES LES PRÉFÉRENCES</string>
 
-    <string name="payment_confirm_email_title">CONFIRM EMAIL</string>
-    <string name="payment_confirm_email_body">We will use this email for payment follow-up and delivery.</string>
-    <string name="payment_confirm_email_confirm">CONFIRM</string>
-    <string name="payment_confirm_email_cancel">CANCEL</string>
-    <string name="payment_confirm_email_missing">No email found in your profile.</string>
+    <string name="payment_confirm_email_title">CONFIRMER L’EMAIL</string>
+    <string name="payment_confirm_email_body">Nous utiliserons cet email pour le suivi du paiement et la livraison.</string>
+    <string name="payment_confirm_email_confirm">CONFIRMER</string>
+    <string name="payment_confirm_email_cancel">ANNULER</string>
+    <string name="payment_confirm_email_missing">Aucun email trouvé dans votre profil.</string>
 </resources>

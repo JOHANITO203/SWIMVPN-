@@ -119,7 +119,7 @@ fun ConfigImportScreen(
 
                 item {
                     Text(
-                        text = "IMPORT METHOD",
+                        text = "MÉTHODE D’IMPORT",
                         color = SwimDesignTokens.Color.PurpleActive,
                         fontSize = importFixedSp(12),
                         fontWeight = FontWeight.Black,
@@ -132,15 +132,15 @@ fun ConfigImportScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         ImportMethodPill(
-                            title = "Manual Input",
-                            subtitle = "Enter access text",
+                            title = "Saisie manuelle",
+                            subtitle = "Entrer le texte d’accès",
                             icon = Icons.Default.Edit,
                             modifier = Modifier.weight(1f),
                             onClick = { showImportDialog = true },
                         )
                         ImportMethodPill(
-                            title = "QR Code",
-                            subtitle = "Scan access",
+                            title = "QR code",
+                            subtitle = "Scanner l’accès",
                             icon = Icons.Default.QrCode,
                             modifier = Modifier.weight(1f),
                             onClick = { showQrScanner = true },
@@ -150,7 +150,7 @@ fun ConfigImportScreen(
 
                 item {
                     Text(
-                        text = "IMPORTED CONFIGURATIONS",
+                        text = "CONFIGURATIONS IMPORTÉES",
                         color = SwimDesignTokens.Color.PurpleActive,
                         fontSize = importFixedSp(12),
                         fontWeight = FontWeight.Black,
@@ -202,10 +202,10 @@ fun ConfigImportScreen(
                             showToast(formatImportSuccessMessage(result.importedCount))
                         }
                         is com.swimvpn.app.config.ImportResult.Error -> {
-                            showToast("Import error: ${result.errors.firstOrNull() ?: "Unknown error"}")
+                            showToast("Erreur d’import : ${result.errors.firstOrNull() ?: "Erreur inconnue"}")
                         }
                         is com.swimvpn.app.config.ImportResult.Duplicate -> {
-                            showToast("This configuration is already imported")
+                            showToast("Cette configuration est déjà importée")
                         }
                     }
                 }
@@ -229,13 +229,13 @@ fun ConfigImportScreen(
                                 activeProfileId = result.profile.id
                                 onProfilesImported(result.importedProfiles)
                                 onCloseQrScanner()
-                                showToast(formatImportSuccessMessage(result.importedCount, "from QR code"))
+                                showToast(formatImportSuccessMessage(result.importedCount, "depuis le QR code"))
                             }
                             is com.swimvpn.app.config.ImportResult.Error -> {
-                                showToast("QR import error: ${result.errors.firstOrNull() ?: "Unknown error"}")
+                                showToast("Erreur d’import QR : ${result.errors.firstOrNull() ?: "Erreur inconnue"}")
                             }
                             is com.swimvpn.app.config.ImportResult.Duplicate -> {
-                                showToast("This configuration is already imported")
+                                showToast("Cette configuration est déjà importée")
                             }
                         }
                     }
@@ -263,7 +263,7 @@ private fun ImportHeader(onBack: () -> Unit) {
         HardwareIconButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = "Retour",
                 tint = SwimDesignTokens.Color.TextPrimary,
                 modifier = Modifier.size(20.dp),
             )
@@ -271,14 +271,14 @@ private fun ImportHeader(onBack: () -> Unit) {
         Spacer(modifier = Modifier.width(14.dp))
         Column {
             Text(
-                text = "Import access",
+                text = "Importer l’accès",
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontSize = importFixedSp(27),
                 fontWeight = FontWeight.Black,
                 maxLines = 1,
             )
             Text(
-                text = "Add managed configurations to your servers",
+                text = "Ajoutez des configurations gérées à vos serveurs",
                 color = SwimDesignTokens.Color.TextSecondary,
                 fontSize = importFixedSp(12),
                 maxLines = 1,
@@ -344,20 +344,20 @@ private fun ImportHeroCard(importedCount: Int) {
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Access vault",
+                    text = "Coffre d’accès",
                     color = SwimDesignTokens.Color.TextPrimary,
                     fontSize = importFixedSp(20),
                     fontWeight = FontWeight.Black,
                 )
                 Text(
-                    text = "Manual input and QR code only",
+                    text = "Saisie manuelle et QR code uniquement",
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = importFixedSp(12),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            StatusChip(text = "$importedCount saved")
+            StatusChip(text = "$importedCount enregistrées")
         }
     }
 }
@@ -487,7 +487,7 @@ private fun ImportedProfileRow(
         HardwareIconButton(onClick = onDelete, size = 42.dp) {
             Icon(
                 imageVector = Icons.Default.DeleteOutline,
-                contentDescription = "Delete configuration",
+                contentDescription = "Supprimer la configuration",
                 tint = SwimDesignTokens.Color.TextSecondary,
                 modifier = Modifier.size(18.dp),
             )
@@ -509,13 +509,13 @@ private fun EmptyImportState() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "No access imported",
+            text = "Aucun accès importé",
             color = SwimDesignTokens.Color.TextPrimary,
             fontSize = importFixedSp(16),
             fontWeight = FontWeight.Black,
         )
         Text(
-            text = "Use manual input or scan a QR code to add selectable servers.",
+            text = "Utilisez la saisie manuelle ou scannez un QR code pour ajouter des serveurs sélectionnables.",
             color = SwimDesignTokens.Color.TextSecondary,
             fontSize = importFixedSp(12),
             maxLines = 2,
@@ -588,7 +588,7 @@ private fun importFixedSp(value: Int): TextUnit {
 }
 
 private fun formatImportSuccessMessage(importedCount: Int, sourceLabel: String? = null): String {
-    val itemLabel = if (importedCount == 1) "server" else "servers"
+    val itemLabel = if (importedCount == 1) "serveur" else "serveurs"
     val sourceSuffix = sourceLabel?.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
-    return "Imported $importedCount $itemLabel$sourceSuffix successfully"
+    return "$importedCount $itemLabel importé(s)$sourceSuffix avec succès"
 }

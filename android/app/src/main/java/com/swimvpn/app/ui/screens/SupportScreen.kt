@@ -154,7 +154,7 @@ private fun SupportHeader(onBack: () -> Unit) {
         HardwareCircleButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = "Retour",
                 tint = SwimDesignTokens.Color.TextPrimary,
                 modifier = Modifier.size(20.dp),
             )
@@ -207,7 +207,7 @@ private fun SupportHero() {
                     maxLines = 1,
                 )
                 Text(
-                    text = "Trouver une reponse ou contacter l'equipe.",
+                    text = "Trouver une réponse ou contacter l’équipe.",
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = 12.sp,
                     maxLines = 2,

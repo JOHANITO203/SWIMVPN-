@@ -152,14 +152,14 @@ fun TechnicalSettingsScreen(
                 SettingsSwitchPill(
                     icon = Icons.Outlined.PowerSettingsNew,
                     title = "Connexion auto",
-                    subtitle = if (autoConnect) "Active au prochain lancement" else "Desactivee",
+                    subtitle = if (autoConnect) "Active au prochain lancement" else "Désactivée",
                     checked = autoConnect,
                     onCheckedChange = onAutoConnectChange,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsActionPill(
                     icon = Icons.Outlined.Security,
-                    title = "Kill switch",
+                    title = "Coupe-circuit",
                     subtitle = killSwitchStatusChip(killSwitchStatus),
                     enabled = externalActionsArmed,
                     onClick = {
@@ -188,7 +188,7 @@ fun TechnicalSettingsScreen(
                 SettingsActionPill(
                     icon = Icons.Outlined.PowerSettingsNew,
                     title = "Optimisation batterie",
-                    subtitle = if (batteryOptimizationRequired) "Exemption recommandee" else "Deja optimisee",
+                    subtitle = if (batteryOptimizationRequired) "Exemption recommandée" else "Déjà optimisée",
                     enabled = externalActionsArmed,
                     onClick = {
                         if (!openBatteryOptimizationSettings(context)) {
@@ -200,7 +200,7 @@ fun TechnicalSettingsScreen(
                 SettingsSwitchPill(
                     icon = Icons.Outlined.Speed,
                     title = "Agent IA",
-                    subtitle = if (agentEnabled) "Selection intelligente active" else "Selection manuelle",
+                    subtitle = if (agentEnabled) "Sélection intelligente active" else "Sélection manuelle",
                     checked = agentEnabled,
                     onCheckedChange = { agentEnabled = it },
                 )
@@ -220,7 +220,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
         HardwareCircleButton(onClick = onBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = "Retour",
                 tint = SwimDesignTokens.Color.TextPrimary,
                 modifier = Modifier.size(20.dp),
             )
@@ -228,7 +228,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
         Spacer(modifier = Modifier.width(14.dp))
         Column {
             Text(
-                text = "Parametres",
+                text = "Paramètres",
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Black,
@@ -263,8 +263,8 @@ private fun LanguagePill(language: String, onLanguageChange: (String) -> Unit) {
 private fun ThemeSwitchPill(dark: Boolean, onChange: (Boolean) -> Unit) {
     SettingsPillScaffold(
         icon = Icons.Outlined.Palette,
-        title = "Theme",
-        subtitle = if (dark) "Dark active" else "Light active",
+        title = "Thème",
+        subtitle = if (dark) "Sombre actif" else "Clair actif",
     ) {
         SwimSwitch(checked = dark, onCheckedChange = onChange)
     }
@@ -328,7 +328,7 @@ private fun SettingsActionPill(
         subtitle = subtitle,
         modifier = if (enabled) Modifier.clickable(onClick = onClick) else Modifier,
     ) {
-        StatusChip(if (enabled) "OPEN" else "WAIT")
+        StatusChip(if (enabled) "OUVRIR" else "ATTENTE")
     }
 }
 
@@ -569,9 +569,9 @@ private fun routingChipLabel(routingMode: String): String =
 
 private fun languageDisplay(language: String): String =
     when (language.lowercase()) {
-        "fr" -> "Francais"
-        "ru" -> "Russkiy"
-        else -> "English"
+        "fr" -> "Français"
+        "ru" -> "Russe"
+        else -> "Anglais"
     }
 
 private fun readKillSwitchStatus(context: android.content.Context): KillSwitchStatus {

@@ -1,4 +1,4 @@
-# 2026-05-21 - Home VPN core orb/button reconciliation
+﻿# 2026-05-21 - Home VPN core orb/button reconciliation
 
 - Imported the isolated 3D holographic orb renderer into the Android app under `ui/orb3d` without touching VPN runtime, parser, backend, entitlement, dock, or navigation logic.
 - Added `HomeVpnCoreStage` as a single Home visual object combining the holographic orb layer and the central hardware power button.
@@ -2224,7 +2224,7 @@ pm run build PASSED.
     - Split resale slot semantics from customer-facing device allowance: backend allocation uses one resale slot per order, while profile/subscription UI can display up to two devices.
     - Updated plan seed slot counts to `1` for Basic, Premium, and Platinum.
     - Added Prisma migration `20260430093000_resale_cap_two_orders` to set inventory default max resale slots to `2`, normalize plan/assignment slot counts to `1`, recalculate used resale slots, and refresh health status while preserving expired/disabled states.
-    - Updated Android subscription cards to show `Up to 2 devices` / `Jusqu�� 2 appareils` / `?? 2 ?????????`.
+    - Updated Android subscription cards to show `Up to 2 devices` / `Jusqu'à 2 appareils` / `До 2 устройств`.
 - **Verification**:
     - `cd backend && npm run prisma:validate` PASSED.
     - `cd backend && npm run lint` PASSED.
@@ -2255,7 +2255,7 @@ pm run build PASSED.
 - **Problem**: Docker/Dokploy stopped at `prisma-migrate` with exit 1, blocking all app tests.
 - **Root Cause**:
     - Root `docker-compose.yml` rebuilt `DATABASE_URL` from raw `POSTGRES_PASSWORD`; the current password contains URL-sensitive characters, so Prisma failed with `P1013 invalid port number in database URL`.
-    - The new migration `20260430093000_resale_cap_two_orders` also contained a UTF-8 BOM, causing PostgreSQL to fail at `syntax error at or near "﻿ALTER"`.
+    - The new migration `20260430093000_resale_cap_two_orders` also contained a UTF-8 BOM, causing PostgreSQL to fail at `syntax error at or near "ï»¿ALTER"`.
 - **Changes**:
     - Updated all root compose backend services to consume `${DATABASE_URL}` directly instead of reconstructing it from raw Postgres credentials.
     - Rewrote `backend/prisma/migrations/20260430093000_resale_cap_two_orders/migration.sql` without BOM while preserving its SQL logic.
@@ -2682,7 +2682,7 @@ pm run build PASSED.
 - **Change**:
   - Added customer cancellation contract, gateway endpoint, and customer-service handler.
   - Customer cancellation verifies `userNumber + deviceId`, finds the active assignment, then calls inventory `revoke_assignment` so `used_resale_slots` and inventory health are recalculated by the existing source-of-truth logic.
-  - Android profile screen now shows a guarded �Cancel access / R�silier l�acc�s� action for active paid subscriptions.
+  - Android profile screen now shows a guarded `Cancel access / Résilier l'accès` action for active paid subscriptions.
   - Confirming cancellation calls the backend, clears selected backend premium config/auto-connect when relevant, stops the backend VPN session if it is active, and refreshes the profile. Imported configs remain available.
 - **Verification**:
   - `cd android && .\gradlew.bat :app:compileDebugKotlin --no-daemon --max-workers=1 --console=plain` PASSED.
@@ -3400,3 +3400,9 @@ pm run build PASSED.
 ## 2026-05-21 - Crypto Pay payment icon
 - Added a transparent vector Crypto Pay mark inspired by the Crypto Pay/Crypto Bot visual family and official docs positioning.
 - Integrated the mark into the Android Subscription payment method pill for Crypto while keeping payment behavior unchanged.
+
+## 2026-05-21 - Android French language stabilization pass
+- Made the Android base string resources French so the default fallback language is French instead of English.
+- Reconciled visible English copy across onboarding resources, Home, Servers, Subscription, Import configuration, Account, Technical settings, Support, and the metaball dock.
+- Preserved brand/technical terms where appropriate, including SwimPay, Crypto, Premium, VPN, proxy, tunnel, QR code, and protocol names.
+- Did not touch backend contracts, VPN runtime, parser logic, payment behavior, entitlement checks, or navigation architecture.

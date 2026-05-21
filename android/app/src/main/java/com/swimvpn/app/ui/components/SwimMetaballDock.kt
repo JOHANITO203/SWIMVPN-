@@ -114,10 +114,10 @@ fun MetaballNavDock(
 ) {
     val items = remember {
         listOf(
-            DockItem(NavDockItem.HOME, "Home", Icons.Default.Home),
-            DockItem(NavDockItem.SERVERS, "Servers", Icons.Default.Storage),
-            DockItem(NavDockItem.SUBSCRIPTION, "Subscription", Icons.Default.CreditCard),
-            DockItem(NavDockItem.SETTINGS, "Settings", Icons.Default.Settings),
+            DockItem(NavDockItem.HOME, "Accueil", Icons.Default.Home),
+            DockItem(NavDockItem.SERVERS, "Serveurs", Icons.Default.Storage),
+            DockItem(NavDockItem.SUBSCRIPTION, "Abonnement", Icons.Default.CreditCard),
+            DockItem(NavDockItem.SETTINGS, "Compte", Icons.Default.Settings),
         )
     }
     val selectedIndex = items.indexOfFirst { it.item == selectedItem }.coerceAtLeast(0)

@@ -84,7 +84,7 @@ fun ProfileScreen(
         ) {
             AccountHeader(onBack = onBack)
 
-            AccountSectionTitle("Compte")
+            AccountSectionTitle(stringResource(R.string.title_account))
             AccountCanvas {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -210,7 +210,7 @@ private fun AccountHeader(onBack: (() -> Unit)?) {
             HardwareAccountButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = "Retour",
                     tint = SwimDesignTokens.Color.TextPrimary,
                     modifier = Modifier.size(20.dp),
                 )
@@ -226,7 +226,7 @@ private fun AccountHeader(onBack: (() -> Unit)?) {
                 maxLines = 1,
             )
             Text(
-                text = "Identite et acces",
+                text = "Identité et accès",
                 color = SwimDesignTokens.Color.TextSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -968,7 +968,7 @@ fun TrialActivationProfileScreen(
                     .clickable { onBack() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = MaterialTheme.colorScheme.onSurface)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
