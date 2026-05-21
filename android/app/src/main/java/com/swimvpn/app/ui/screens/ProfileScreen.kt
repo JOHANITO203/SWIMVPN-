@@ -12,6 +12,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
@@ -67,7 +69,7 @@ fun ProfileScreen(
     val context = LocalContext.current
     val badgeText = profileBadgeText(profile, context)
     val badgeColor = profileBadgeColor(profile)
-    var accountExpanded by remember { mutableStateOf(true) }
+    var accountExpanded by remember { mutableStateOf(false) }
     val displayIdentity = profile.email?.takeIf { it.isNotBlank() }
         ?: profile.phone?.takeIf { it.isNotBlank() }
         ?: profile.userNumber
@@ -129,7 +131,7 @@ fun ProfileScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            imageVector = if (accountExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                             contentDescription = null,
                             tint = SwimDesignTokens.Color.TextSecondary,
                             modifier = Modifier.size(18.dp),

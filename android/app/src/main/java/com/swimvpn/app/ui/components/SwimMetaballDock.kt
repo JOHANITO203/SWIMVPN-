@@ -241,6 +241,7 @@ fun MetaballNavDock(
             val selected = item.item == selectedItem
             val outerSize = if (selected) DockTokens.ActiveOuterDiameter else DockTokens.InactiveOuterDiameter
             val iconSize = if (selected) DockTokens.ActiveIconSize else DockTokens.InactiveIconSize
+            val selectedInk = if (tokens == SwimDesignTokens.Light) tokens.color.homeTextPrimary else Color.White
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -254,13 +255,13 @@ fun MetaballNavDock(
                 Icon(
                     imageVector = item.icon,
                     contentDescription = item.label,
-                    tint = if (selected) Color.White else tokens.color.homeTextMuted,
+                    tint = if (selected) selectedInk else tokens.color.homeTextMuted,
                     modifier = Modifier.size(iconSize),
                 )
                 if (selected && showActiveLabel) {
                     Text(
                         text = item.label,
-                        color = Color.White,
+                        color = selectedInk,
                         fontSize = 7.sp,
                         fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center,
@@ -326,7 +327,11 @@ private fun DockBodyCanvas(
             path = body,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    tokens.color.homeTopHighlight.copy(alpha = if (lightTheme) 0.66f else 0.88f),
+                    if (lightTheme) {
+                        tokens.color.homeTopHighlight.copy(alpha = 0.54f)
+                    } else {
+                        tokens.material.shellTop.copy(alpha = 0.16f)
+                    },
                     tokens.material.shellMid,
                     tokens.material.shellBottom,
                 ),
@@ -338,7 +343,11 @@ private fun DockBodyCanvas(
             path = body,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    tokens.highlight.innerTop.copy(alpha = if (lightTheme) 0.46f else tokens.highlight.innerTop.alpha),
+                    if (lightTheme) {
+                        tokens.highlight.innerTop.copy(alpha = 0.34f)
+                    } else {
+                        tokens.highlight.purpleEdge.copy(alpha = 0.10f)
+                    },
                     Color.Transparent,
                     tokens.material.bowlInnerShadow.copy(alpha = if (lightTheme) 0.22f else SwimDesignTokens.Shadow.InnerBottomAlpha),
                 ),
@@ -448,7 +457,11 @@ private fun DockNodeButton(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        tokens.color.homeTopHighlight.copy(alpha = if (lightTheme) 0.40f - pressedDepth * 0.08f else 0.54f - pressedDepth * 0.10f),
+                        if (lightTheme) {
+                            tokens.color.homeTopHighlight.copy(alpha = 0.34f - pressedDepth * 0.08f)
+                        } else {
+                            tokens.material.shellTop.copy(alpha = 0.13f - pressedDepth * 0.03f)
+                        },
                         tokens.material.shellMid,
                         tokens.material.shellBottom,
                     ),
@@ -491,7 +504,11 @@ private fun DockNodeButton(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        tokens.highlight.skinSheen.copy(alpha = if (lightTheme) 0.22f else 0.32f),
+                        if (lightTheme) {
+                            tokens.highlight.skinSheen.copy(alpha = 0.20f)
+                        } else {
+                            tokens.highlight.purpleEdge.copy(alpha = 0.12f)
+                        },
                         Color.Transparent,
                     ),
                     center = Offset(center.x - bowlRadius * 0.30f, center.y - bowlRadius * 0.44f),
@@ -502,16 +519,17 @@ private fun DockNodeButton(
             )
         }
         if (renderContent) {
+            val selectedInk = if (tokens == SwimDesignTokens.Light) tokens.color.homeTextPrimary else Color.White
             Icon(
                 imageVector = item.icon,
                 contentDescription = item.label,
-                tint = if (selected) Color.White else tokens.color.homeTextMuted,
+                tint = if (selected) selectedInk else tokens.color.homeTextMuted,
                 modifier = Modifier.size(iconSize),
             )
             if (selected && showActiveLabel) {
                 Text(
                     text = item.label,
-                    color = Color.White,
+                    color = selectedInk,
                     fontSize = 7.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,

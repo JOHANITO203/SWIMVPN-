@@ -3511,3 +3511,41 @@ pm run build PASSED.
 - Added a light-surface contrast mode for the procedural Home orb, boosting mesh/rim/glow readability only when the light token family is active.
 - Reworked the Home server pill badge and chevron bowl with tokenized gradients/strokes and removed the stray white specular point.
 - Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android dark material regression polish
+- Audited the dark-theme regression from the light pass and traced the visible white lines to local alpha overrides on white highlight tokens inside shared cards, pills, and the metaball dock.
+- Replaced literal white top hairlines with short tinted material glows derived from purple edge/body stroke tokens.
+- Softened dark dock body and node highlights so the dock reads as molded black hardware instead of white-streaked plastic.
+- Rebalanced the Home power core shell and status dot borders to keep depth without hard white rings.
+- Installed the rebuilt debug APK on the Wi-Fi ADB phone and captured the current Subscription dark screen for visual QA.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android light startup and dock ink fix
+- Audited the light startup mismatch and found the native Android window theme was still using a fixed dark boot background before Compose could apply the persisted light theme.
+- Applied the persisted `ThemeMode` to AppCompat before `super.onCreate` so the native launch window resolves the correct day/night resource family earlier.
+- Added light and night boot resources so light startup uses a lavender app background while dark startup keeps the black SwimVPN background.
+- Updated the metaball dock selected icon/label ink to use dark text in light mode instead of forcing white.
+- Installed the rebuilt debug APK on the Wi-Fi ADB phone and captured the current startup surface.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android dark material and startup correction
+- Re-audited the dark card regression and found `SwimPillSurface` was amplifying the dark `shellTop` token to a high alpha, producing a white reflective wash on Home server cards and related pill surfaces.
+- Reworked shared dark pill/card surfaces with a subdued dark veil, reduced purple-edge highlight, and deterministic micro-grain so dark cards feel more matte and hardware-like without adding noisy texture.
+- Applied the same dark material skin to Subscription plan cards and reduced their top highlight so they no longer introduce bright white hairlines.
+- Widened the Subscription screen content padding to make the layout more edge-to-edge and immersive while preserving small-phone margins.
+- Removed the visual Bootstrap splash gradient and changed the base native boot color back to SwimVPN dark matte to prevent a white launch flash when the app preference is dark.
+- Installed the rebuilt debug APK on the Wi-Fi ADB phone and captured the current runtime screen.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android Subscription white-line removal
+- Removed the remaining local dark-mode hairlines from Subscription plan cards, CTA pills, and hardware boxes.
+- Kept light-mode top highlights soft and theme-aware while replacing dark hard white lines with either no line or a short low-alpha purple glow.
+- Installed the rebuilt debug APK on the Wi-Fi ADB phone for visual QA.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android account compact default
+- Changed the Account screen profile card to open in compact mode by default.
+- Replaced the profile-card expansion affordance with a downward arrow when compact and an upward arrow when expanded.
+- Kept account data, sign-out behavior, management actions, and navigation callbacks unchanged.
+- Installed the rebuilt debug APK on the Wi-Fi ADB phone for QA.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.

@@ -78,6 +78,8 @@ import com.swimvpn.app.ui.components.NavDockItem
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.SwimDockDestination
 import com.swimvpn.app.ui.components.SwimMetaballDock
+import com.swimvpn.app.ui.components.drawSwimDarkMaterialSkin
+import com.swimvpn.app.ui.theme.LocalSwimVisualTokens
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -184,9 +186,9 @@ fun SubscriptionScreen(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val compact = maxWidth < 390.dp || maxHeight < 760.dp
             val horizontalPadding = if (compact) {
-                SwimDesignTokens.Subscription.CompactHorizontalPadding
+                12.dp
             } else {
-                SwimDesignTokens.Subscription.HorizontalPadding
+                16.dp
             }
             val cardGap = if (compact) 13.dp else SwimDesignTokens.Subscription.CardGap
 
@@ -295,6 +297,7 @@ private fun SubscriptionPlanCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
@@ -330,10 +333,13 @@ private fun SubscriptionPlanCard(
             )
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .drawBehind {
-                drawRect(
-                    color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = if (plan.isHighlighted) 0.88f else 0.72f),
-                    size = Size(size.width, 1.15.dp.toPx()),
-                )
+                drawSwimDarkMaterialSkin(tokens)
+                if (tokens == SwimDesignTokens.Light) {
+                    drawRect(
+                        color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = if (plan.isHighlighted) 0.42f else 0.30f),
+                        size = Size(size.width, 0.9.dp.toPx()),
+                    )
+                }
                 if (plan.isHighlighted) {
                     drawRect(
                         brush = Brush.radialGradient(
@@ -357,7 +363,7 @@ private fun SubscriptionPlanCard(
                     ),
                 )
             }
-            .padding(if (compact) 20.dp else 26.dp),
+            .padding(if (compact) 18.dp else 22.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -726,9 +732,19 @@ private fun PressablePill(
             .border(1.dp, if (highlighted) SwimDesignTokens.Color.StrokeActive else SwimDesignTokens.Color.StrokeSubtle, shape)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .drawBehind {
+                val tokens = SwimDesignTokens.Current
+                val topGlow = if (tokens == SwimDesignTokens.Dark) {
+                    SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = if (highlighted) 0.08f else 0.035f)
+                } else {
+                    SwimDesignTokens.Highlight.InnerTop.copy(alpha = if (highlighted) 0.34f else 0.26f)
+                }
                 drawRect(
-                    color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = if (highlighted) 0.40f else 0.72f),
-                    size = Size(size.width, 1.dp.toPx()),
+                    brush = Brush.verticalGradient(
+                        colors = listOf(topGlow, Color.Transparent),
+                        startY = 0f,
+                        endY = 8.dp.toPx(),
+                    ),
+                    size = Size(size.width, 8.dp.toPx()),
                 )
             }
             .semantics {
@@ -773,6 +789,7 @@ private fun HardwareBox(
     shape: Shape,
     content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     Box(
         modifier = modifier
             .shadow(18.dp, shape, clip = false)
@@ -780,7 +797,13 @@ private fun HardwareBox(
             .background(planSurfaceBrush(highlighted = false))
             .border(1.dp, SwimDesignTokens.Color.DividerSubtle, shape)
             .drawBehind {
-                drawRect(color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = 0.72f), size = Size(size.width, 1.dp.toPx()))
+                drawSwimDarkMaterialSkin(tokens)
+                if (tokens == SwimDesignTokens.Light) {
+                    drawRect(
+                        color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = 0.28f),
+                        size = Size(size.width, 0.9.dp.toPx()),
+                    )
+                }
             },
         content = content,
     )

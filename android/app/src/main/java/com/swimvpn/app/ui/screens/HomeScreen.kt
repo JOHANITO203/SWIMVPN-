@@ -294,6 +294,7 @@ fun HomeScreen(
 
 @Composable
 private fun ProtectedIndicator(active: Boolean, compact: Boolean, modifier: Modifier = Modifier) {
+    val lightTheme = SwimDesignTokens.Current == SwimDesignTokens.Light
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -305,7 +306,15 @@ private fun ProtectedIndicator(active: Boolean, compact: Boolean, modifier: Modi
                 .size(if (compact) 14.dp else 16.dp)
                 .clip(CircleShape)
                 .background(SwimDesignTokens.Material.BowlBottom)
-                .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.7f), CircleShape),
+                .border(
+                    1.dp,
+                    if (lightTheme) {
+                        SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.56f)
+                    } else {
+                        SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = 0.38f)
+                    },
+                    CircleShape,
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Box(

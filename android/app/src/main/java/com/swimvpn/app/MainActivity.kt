@@ -73,10 +73,20 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val prefs = PreferencesManager(this)
-        val persistedLanguage = runBlocking {
-            prefs.languageFlow.first()
+        val persistedLanguage: String
+        val persistedThemeMode: ThemeMode
+        runBlocking {
+            persistedLanguage = prefs.languageFlow.first()
+            persistedThemeMode = prefs.themeModeFlow.first()
         }
         applyLocale(persistedLanguage)
+        AppCompatDelegate.setDefaultNightMode(
+            when (persistedThemeMode) {
+                ThemeMode.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+                ThemeMode.DARK -> AppCompatDelegate.MODE_NIGHT_YES
+                ThemeMode.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            },
+        )
         super.onCreate(savedInstanceState)
         
         lifecycleScope.launch {
@@ -364,18 +374,7 @@ fun BootstrapSurface() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SwimDesignTokens.Color.BackgroundDeep)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        SwimDesignTokens.Color.PurpleDeep.copy(alpha = 0.36f),
-                        SwimDesignTokens.Color.BackgroundBase.copy(alpha = 0.84f),
-                        SwimDesignTokens.Color.BackgroundDeep,
-                    ),
-                    center = androidx.compose.ui.geometry.Offset(820f, 210f),
-                    radius = 920f,
-                )
-            ),
+            .background(SwimDesignTokens.Color.BackgroundDeep),
     )
 }
 

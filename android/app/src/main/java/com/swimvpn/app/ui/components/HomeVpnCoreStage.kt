@@ -182,6 +182,7 @@ private fun VpnHardwarePowerCore(
     bowlSize: Dp,
 ) {
     val tokens = LocalSwimVisualTokens.current
+    val lightTheme = tokens == SwimDesignTokens.Light
     Box(
         modifier = modifier
             .scale(pressScale * breathScale)
@@ -224,7 +225,11 @@ private fun VpnHardwarePowerCore(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        tokens.material.shellTop.copy(alpha = 0.09f + shellLift * 0.05f),
+                        if (lightTheme) {
+                            tokens.material.shellTop.copy(alpha = 0.72f + shellLift * 0.06f)
+                        } else {
+                            tokens.material.shellTop.copy(alpha = 0.16f + shellLift * 0.04f)
+                        },
                         tokens.material.shellMid.copy(alpha = 0.98f),
                         tokens.material.shellBottom,
                     ),
@@ -238,7 +243,11 @@ private fun VpnHardwarePowerCore(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        tokens.highlight.skinSheen.copy(alpha = 0.16f + shellLift * 0.10f),
+                        if (lightTheme) {
+                            tokens.highlight.skinSheen.copy(alpha = 0.26f + shellLift * 0.06f)
+                        } else {
+                            tokens.highlight.purpleEdge.copy(alpha = 0.12f + shellLift * 0.06f)
+                        },
                         Color.Transparent,
                     ),
                     center = Offset(center.x - radius * 0.28f, center.y - radius * 0.36f),
@@ -267,7 +276,7 @@ private fun VpnHardwarePowerCore(
                 .size(bowlSize)
                 .clip(CircleShape)
                 .background(Color.Transparent)
-                .border(1.dp, tokens.color.homeStrokeMedium, CircleShape),
+                .border(1.dp, if (lightTheme) tokens.color.homeStrokeMedium else tokens.highlight.bodyStroke, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Canvas(modifier = Modifier.matchParentSize()) {
