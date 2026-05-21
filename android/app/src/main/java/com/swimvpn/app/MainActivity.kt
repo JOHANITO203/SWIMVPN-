@@ -53,6 +53,7 @@ import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.ui.formatBytes
+import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.screens.*
 import com.swimvpn.app.ui.theme.*
 import com.swimvpn.app.vpn.RuntimeMode
@@ -64,30 +65,16 @@ import com.swimvpn.app.vpn.VpnNotificationLanguage
 import com.swimvpn.app.vpn.VpnState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.flow.first
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        logStartup("Activity.onCreate start")
         val prefs = PreferencesManager(this)
-        val persistedLanguage: String
-        val persistedThemeMode: ThemeMode
-        runBlocking {
-            persistedLanguage = prefs.languageFlow.first()
-            persistedThemeMode = prefs.themeModeFlow.first()
-        }
-        applyLocale(persistedLanguage)
-        AppCompatDelegate.setDefaultNightMode(
-            when (persistedThemeMode) {
-                ThemeMode.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
-                ThemeMode.DARK -> AppCompatDelegate.MODE_NIGHT_YES
-                ThemeMode.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-            },
-        )
         super.onCreate(savedInstanceState)
+        logStartup("Activity.onCreate after super")
         
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -104,13 +91,30 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        val initialLanguage = AppCompatDelegate.getApplicationLocales()[0]?.language
+            ?: Locale.getDefault().language
+            ?: VpnNotificationLanguage.DEFAULT_LANGUAGE
+        logStartup("Activity.onCreate before setContent")
         setContent {
+            var firstCompositionLogged by remember { mutableStateOf(false) }
             val themeMode by prefs.themeModeFlow.collectAsState(initial = ThemeMode.SYSTEM)
+            val language by prefs.languageFlow.collectAsState(initial = initialLanguage)
             val systemDark = isSystemInDarkTheme()
             val darkTheme = when (themeMode) {
                 ThemeMode.SYSTEM -> systemDark
                 ThemeMode.DARK -> true
                 ThemeMode.LIGHT -> false
+            }
+
+            LaunchedEffect(language) {
+                applyLocale(language)
+            }
+
+            SideEffect {
+                if (!firstCompositionLogged) {
+                    firstCompositionLogged = true
+                    logStartup("Compose first composition")
+                }
             }
 
             SwimVpnTheme(darkTheme = darkTheme) {
@@ -125,6 +129,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        logStartup("Activity.onCreate after setContent")
     }
 
     override fun onResume() {
@@ -145,6 +150,12 @@ class MainActivity : AppCompatActivity() {
 
         AppCompatDelegate.setApplicationLocales(targetLocales)
     }
+
+    private fun logStartup(message: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d("SwimStartup", "${System.currentTimeMillis()} $message")
+        }
+    }
 }
 
 @Composable
@@ -162,7 +173,18 @@ fun AppNavigation(
     }
 
     LaunchedEffect(bootstrapDestination) {
-        val destination = bootstrapDestination ?: return@LaunchedEffect
+        if (BuildConfig.DEBUG) {
+            Log.d("SwimStartup", "${System.currentTimeMillis()} bootstrapDestination=$bootstrapDestination")
+        }
+    }
+
+    if (bootstrapDestination == null) {
+        StartupBridgeSurface()
+        return
+    }
+
+    LaunchedEffect(bootstrapDestination) {
+        val destination = bootstrapDestination
         when (state) {
             is AppState.Success -> {
                 viewModel.maybeRestoreAutoConnectFromBoot(context)
@@ -175,8 +197,7 @@ fun AppNavigation(
         }
     }
 
-    NavHost(navController = navController, startDestination = "loading") {
-        composable("loading") { BootstrapSurface() }
+    NavHost(navController = navController, startDestination = bootstrapDestination) {
         composable("onboarding") { 
             OnboardingScreen(onFinish = { 
                 viewModel.completeOnboarding()
@@ -230,7 +251,6 @@ fun AppNavigation(
                         onCancelSubscription = { viewModel.cancelCurrentSubscription(context) },
                         onSignOut = {
                             viewModel.signOut()
-                            navController.navigate("loading") { popUpTo(0) }
                         },
                         onBack = { navController.popBackStack() }
                     )
@@ -370,12 +390,13 @@ private fun NavHostController.navigateOnce(route: String) {
 }
 
 @Composable
-fun BootstrapSurface() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SwimDesignTokens.Color.BackgroundDeep),
-    )
+fun StartupBridgeSurface() {
+    LaunchedEffect(Unit) {
+        if (BuildConfig.DEBUG) {
+            Log.d("SwimStartup", "${System.currentTimeMillis()} StartupBridgeSurface shown")
+        }
+    }
+    StartupShell()
 }
 
 @Composable

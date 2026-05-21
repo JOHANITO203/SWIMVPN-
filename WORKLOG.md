@@ -3564,3 +3564,13 @@ pm run build PASSED.
 - Kept the hero globe non-interactive on mobile so vertical scroll remains safe while preserving the premium render quality.
 - Softened the Suspense fallback so the temporary loading state no longer looks like a low-quality replacement globe.
 - Verification: `npm run build` passed. `npm run lint` still fails on existing backend alias/dependency TypeScript errors unrelated to the landing globe files.
+
+## 2026-05-22 - Android startup black-screen reorganization
+- Removed blocking DataStore reads from `MainActivity.onCreate`; `setContent` is now called without `runBlocking`.
+- Split startup into native boot color, lightweight branded `StartupShell`, initial access shell, and asynchronous secondary hydration.
+- Added day/night boot colors for native themes and Android 12+ splash resources while keeping `windowDisablePreview` disabled.
+- Changed initial `Success` emission so Home/Profile can mount before backend servers, imported profiles, plans, and latency finish loading.
+- Deferred `SwimHolographicOrb3D` behind a lightweight Canvas placeholder so the GL orb is created only after the first useful Home frame.
+- Added debug-only `SwimStartup` timing logs for Activity creation, first composition, bridge surface, bootstrap resolution, Home mount, and orb mount.
+- Installed the rebuilt debug APK on the Wi-Fi ADB phone and captured cold/resume sequences under `screenshots/startup-seq-patched-final/`.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.

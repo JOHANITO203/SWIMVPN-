@@ -1190,3 +1190,8 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: new customer checkout supports only `SWIMPAY` and `CRYPTO`; the Telegram-driven manual card pipeline is no longer exposed or routable.
 - Reason: payment collection should move away from bot-mediated manual proof/approval and stay on explicit payment rails.
 - Consequence: Android no longer offers Card, backend rejects unsupported payment methods, and notification bots keep order/delivery admin commands only. Historical `CARD_MANUAL:*` order refs remain readable for legacy traceability.
+
+## 2026-05-22 - Startup shell precedes noncritical hydration
+- Decision: Android startup now renders a branded lightweight shell before backend servers, imported profile groups, plans, latency, and the GL orb are ready.
+- Reason: the app must not look frozen behind a blank native/app surface while noncritical data and heavy visual layers load.
+- Consequence: backend access/profile remains authoritative, but noncritical visual/data enrichment hydrates after the first useful UI. The Home screen may briefly show a minimal server state before hydrated routes arrive.

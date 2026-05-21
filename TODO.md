@@ -1299,3 +1299,8 @@ otification-bot-service event handoff.
 - [x] Present measured ping as a compact live badge based on existing probe fields.
 - [ ] Add a dedicated runtime/bandit phase for continuous ping refresh if product wants probes to run periodically while the screen is open.
 - [ ] Polish action pill copy widths so `Import Access` and subtitles avoid truncation on narrow/high-font-scale devices.
+
+## 2026-05-22 - Startup performance follow-up
+- [ ] Use Perfetto or Android Studio Profiler to confirm whether duplicate Home/orb mount logs are caused by navigation recomposition or secondary hydration.
+- [ ] Consider a cached minimal active-server snapshot if the brief "Aucun serveur" initial Home shell is visually too abrupt during cold start.
+- [ ] Remove or gate `SwimStartup` timing logs behind a temporary debug flag before release hardening.

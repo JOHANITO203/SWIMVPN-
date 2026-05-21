@@ -158,6 +158,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun s(resId: Int, vararg args: Any): String = app.getString(resId, *args)
 
+    private fun logStartup(message: String) {
+        if (BuildConfig.DEBUG) {
+            Log.d("SwimStartup", "${System.currentTimeMillis()} $message")
+        }
+    }
+
     private fun observeAdaptiveRuntime() {
         viewModelScope.launch {
             VpnManager.runtimeStatus
@@ -275,6 +281,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun initApp() {
         viewModelScope.launch {
             try {
+                logStartup("bootstrap start")
                 _state.value = AppState.Loading
 
                 val isOnboardingDone = prefs.onboardingDoneFlow.first()
@@ -324,6 +331,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 prefs.saveUserNumber(bootstrap.userNumber)
+                logStartup("bootstrap access resolved")
 
                 val shouldGoToHome = bootstrap.profile != null &&
                     !bootstrap.profile.requiresProfileCompletion
@@ -336,6 +344,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         autoConnect = autoConnect,
                         language = language,
                         themeMode = themeMode,
+                        loadBackendServers = false,
+                        loadImportedProfiles = false,
+                        loadStorePlans = false,
+                        failOnBackendServerError = false,
                     )
 
                     if (successState == null) {
@@ -343,7 +355,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     _state.value = successState
-                    refreshServerLatency()
+                    logStartup("initial Success shell emitted")
+                    hydrateSuccessStateAfterFirstRender(successState)
                 } else {
                     _state.value = AppState.TrialSetup(
                         userNumber = bootstrap.userNumber,
@@ -356,6 +369,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         language = language,
                         themeMode = themeMode,
                     )
+                    logStartup("TrialSetup shell emitted")
                 }
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Error initApp", e)
@@ -387,6 +401,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 is AppState.TrialSetup -> _state.value = currentState.copy(routingMode = runtimeMode)
                 else -> {}
             }
+        }
+    }
+
+    private fun hydrateSuccessStateAfterFirstRender(seedState: AppState.Success) {
+        viewModelScope.launch {
+            logStartup("secondary hydration start")
+            val current = _state.value as? AppState.Success ?: return@launch
+            if (current.profile.userNumber != seedState.profile.userNumber) {
+                return@launch
+            }
+
+            val hydratedState = buildSuccessState(
+                profile = current.profile,
+                isOnboardingDone = current.isOnboardingDone,
+                routingMode = current.routingMode,
+                autoConnect = current.autoConnect,
+                language = current.language,
+                themeMode = current.themeMode,
+                plansFallback = current.plans,
+                loadBackendServers = true,
+                loadImportedProfiles = true,
+                loadStorePlans = true,
+                failOnBackendServerError = false,
+            ) ?: return@launch
+
+            val latest = _state.value as? AppState.Success ?: return@launch
+            if (latest.profile.userNumber != seedState.profile.userNumber) {
+                return@launch
+            }
+
+            _state.value = hydratedState
+            logStartup("secondary hydration emitted")
+            refreshServerLatency()
         }
     }
 
@@ -1366,35 +1413,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         language: String,
         themeMode: ThemeMode,
         plansFallback: List<com.swimvpn.app.data.model.Plan> = emptyList(),
+        loadBackendServers: Boolean = true,
+        loadImportedProfiles: Boolean = true,
+        loadStorePlans: Boolean = true,
+        failOnBackendServerError: Boolean = true,
     ): AppState.Success? {
         val pinnedIds = prefs.pinnedServerIdsFlow.first()
-        val importedGroups = configRepository.getImportedProfileGroups()
-        val deviceId = getDeviceId()
-        val backendServers = try {
-            if (deviceId == null) {
-                if (profile.isPremiumAllowed) {
-                    Log.e("MainViewModel", "Device identity unavailable while loading premium servers")
-                    _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
-                    return null
-                }
-                emptyList()
-            } else {
-                api.getServers(profile.userNumber, deviceId)
-            }
-        } catch (e: Exception) {
-            Log.e("MainViewModel", "API Error fetching servers", e)
-            if (profile.isPremiumAllowed) {
-                _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
-                return null
-            }
+        val importedGroups = if (loadImportedProfiles) {
+            configRepository.getImportedProfileGroups()
+        } else {
             emptyList()
         }
+        val deviceId = getDeviceId()
+        val backendServers = if (!loadBackendServers) {
+            emptyList()
+        } else {
+            try {
+                if (deviceId == null) {
+                    if (profile.isPremiumAllowed && failOnBackendServerError) {
+                        Log.e("MainViewModel", "Device identity unavailable while loading premium servers")
+                        _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
+                        return null
+                    }
+                    emptyList()
+                } else {
+                    api.getServers(profile.userNumber, deviceId)
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "API Error fetching servers", e)
+                if (profile.isPremiumAllowed) {
+                    if (failOnBackendServerError) {
+                        _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
+                        return null
+                    }
+                    emptyList()
+                } else {
+                    emptyList()
+                }
+            }
+        }
 
-        val plans = try {
-            api.getPlans()
-        } catch (e: Exception) {
-            Log.e("MainViewModel", "API Error fetching plans; continuing app shell without store plans", e)
+        val plans = if (!loadStorePlans) {
             plansFallback
+        } else {
+            try {
+                api.getPlans()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "API Error fetching plans; continuing app shell without store plans", e)
+                plansFallback
+            }
         }
 
         val resolvedBackendServers = resolveBackendServers(profile, backendServers, pinnedIds)

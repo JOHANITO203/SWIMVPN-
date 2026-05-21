@@ -1,5 +1,6 @@
 package com.swimvpn.app.ui.components
 
+import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -22,8 +23,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PowerSettingsNew
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +42,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.swimvpn.app.BuildConfig
 import com.swimvpn.app.ui.orb.VpnOrbState
 import com.swimvpn.app.ui.orb3d.OrbRenderQuality
 import com.swimvpn.app.ui.orb3d.SwimHolographicOrb3D
@@ -89,22 +96,45 @@ fun HomeVpnCoreStage(
     val buttonBreath = 1f + (breath - 0.5f) * core.buttonBreathRange
     val buttonSize = size * core.buttonSizeRatio
     val bowlSize = buttonSize * 0.67f
+    var renderOrb by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(renderOrb) {
+        if (renderOrb) return@LaunchedEffect
+        if (BuildConfig.DEBUG) {
+            Log.d("SwimStartup", "${System.currentTimeMillis()} Home mounted; deferring orb")
+        }
+        withFrameNanos { }
+        withFrameNanos { }
+        renderOrb = true
+        if (BuildConfig.DEBUG) {
+            Log.d("SwimStartup", "${System.currentTimeMillis()} GL orb mounted")
+        }
+    }
 
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center,
     ) {
-        SwimHolographicOrb3D(
-            state = state.toHolographicState(),
-            isReducedMotionEnabled = isReducedMotionEnabled,
-            quality = if (isReducedMotionEnabled) OrbRenderQuality.Low else OrbRenderQuality.Auto,
-            interactionEnabled = false,
-            renderBehindCompose = false,
-            lightSurfaceMode = lightTheme,
-            modifier = Modifier
-                .matchParentSize()
-                .scale(stageBreath),
-        )
+        if (renderOrb) {
+            SwimHolographicOrb3D(
+                state = state.toHolographicState(),
+                isReducedMotionEnabled = isReducedMotionEnabled,
+                quality = if (isReducedMotionEnabled) OrbRenderQuality.Low else OrbRenderQuality.Auto,
+                interactionEnabled = false,
+                renderBehindCompose = false,
+                lightSurfaceMode = lightTheme,
+                modifier = Modifier
+                    .matchParentSize()
+                    .scale(stageBreath),
+            )
+        } else {
+            VpnOrbPlaceholder(
+                accent = accent,
+                modifier = Modifier
+                    .matchParentSize()
+                    .scale(stageBreath),
+            )
+        }
 
         if (lightTheme) {
             LightOrbContrastVeil(
@@ -127,6 +157,42 @@ fun HomeVpnCoreStage(
             interactionSource = interactionSource,
             modifier = Modifier.size(buttonSize),
             bowlSize = bowlSize,
+        )
+    }
+}
+
+@Composable
+private fun VpnOrbPlaceholder(
+    accent: Color,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier = modifier) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val radius = size.minDimension * 0.43f
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    accent.copy(alpha = 0.18f),
+                    accent.copy(alpha = 0.055f),
+                    Color.Transparent,
+                ),
+                center = center,
+                radius = radius * 1.55f,
+            ),
+            radius = radius * 1.55f,
+            center = center,
+        )
+        drawCircle(
+            color = accent.copy(alpha = 0.14f),
+            radius = radius,
+            center = center,
+            style = Stroke(width = 0.9.dp.toPx()),
+        )
+        drawCircle(
+            color = Color.White.copy(alpha = 0.045f),
+            radius = radius * 0.73f,
+            center = center,
+            style = Stroke(width = 0.75.dp.toPx()),
         )
     }
 }
