@@ -1,41 +1,177 @@
 package com.swimvpn.app.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.unit.dp
 
-object SwimDesignTokens {
-    object Color {
-        val HomeBackgroundDeep = ComposeColor(0xFF07070B)
-        val HomeBackgroundBase = ComposeColor(0xFF0D0C13)
-        val HomeSurfaceBase = ComposeColor(0xFF131317)
-        val HomeSurfaceElevated = ComposeColor(0xFF1A1A20)
-        val HomeSurfaceHighlight = ComposeColor(0xFF24232B)
-        val HomePurplePrimary = ComposeColor(0xFF8A6AF1)
-        val HomePurpleActive = ComposeColor(0xFFA489E7)
-        val HomePurpleDeep = ComposeColor(0xFF443677)
-        val HomeSuccessGreen = ComposeColor(0xFF35D978)
-        val HomeTextPrimary = ComposeColor(0xFFF3F1F6)
-        val HomeTextSecondary = ComposeColor(0xFFA6A1B3)
-        val HomeTextMuted = ComposeColor(0xFF6E6978)
-        val HomeDividerSubtle = ComposeColor.White.copy(alpha = 0.08f)
-        val HomeStrokeSubtle = ComposeColor.White.copy(alpha = 0.10f)
-        val HomeTopHighlight = ComposeColor.White.copy(alpha = 0.08f)
+data class SwimColorTokens(
+    val homeBackgroundDeep: ComposeColor,
+    val homeBackgroundBase: ComposeColor,
+    val homeSurfaceBase: ComposeColor,
+    val homeSurfaceElevated: ComposeColor,
+    val homeSurfaceHighlight: ComposeColor,
+    val homePurplePrimary: ComposeColor,
+    val homePurpleActive: ComposeColor,
+    val homePurpleDeep: ComposeColor,
+    val homeSuccessGreen: ComposeColor,
+    val homeTextPrimary: ComposeColor,
+    val homeTextSecondary: ComposeColor,
+    val homeTextMuted: ComposeColor,
+    val homeDividerSubtle: ComposeColor,
+    val homeStrokeSubtle: ComposeColor,
+    val homeTopHighlight: ComposeColor,
+)
 
-        val BackgroundDeep = HomeBackgroundDeep
-        val BackgroundBase = HomeBackgroundBase
-        val SurfaceBase = HomeSurfaceBase
-        val SurfaceElevated = HomeSurfaceElevated
-        val SurfaceHighlight = HomeSurfaceHighlight
-        val PurplePrimary = HomePurplePrimary
-        val PurpleActive = HomePurpleActive
-        val PurpleDeep = HomePurpleDeep
-        val SuccessGreen = HomeSuccessGreen
-        val TextPrimary = HomeTextPrimary
-        val TextSecondary = HomeTextSecondary
-        val TextMuted = HomeTextMuted
-        val DividerSubtle = HomeDividerSubtle
-        val StrokeSubtle = HomeStrokeSubtle
+data class SwimMaterialTokens(
+    val shellTop: ComposeColor,
+    val shellMid: ComposeColor,
+    val shellBottom: ComposeColor,
+    val bowlTop: ComposeColor,
+    val bowlMid: ComposeColor,
+    val bowlBottom: ComposeColor,
+    val purpleCoreTop: ComposeColor,
+    val purpleCoreMid: ComposeColor,
+    val purpleCoreBottom: ComposeColor,
+    val outerDarkVeil: ComposeColor,
+    val bowlInnerShadow: ComposeColor,
+)
+
+data class SwimHighlightTokens(
+    val innerTop: ComposeColor,
+    val bowlRim: ComposeColor,
+    val bodyStroke: ComposeColor,
+    val skinSheen: ComposeColor,
+    val purpleEdge: ComposeColor,
+)
+
+data class SwimVisualTokens(
+    val color: SwimColorTokens,
+    val material: SwimMaterialTokens,
+    val highlight: SwimHighlightTokens,
+)
+
+object SwimDesignTokens {
+    val Dark = SwimVisualTokens(
+        color = SwimColorTokens(
+            homeBackgroundDeep = ComposeColor(0xFF07070B),
+            homeBackgroundBase = ComposeColor(0xFF0D0C13),
+            homeSurfaceBase = ComposeColor(0xFF131317),
+            homeSurfaceElevated = ComposeColor(0xFF1A1A20),
+            homeSurfaceHighlight = ComposeColor(0xFF24232B),
+            homePurplePrimary = ComposeColor(0xFF8A6AF1),
+            homePurpleActive = ComposeColor(0xFFA489E7),
+            homePurpleDeep = ComposeColor(0xFF443677),
+            homeSuccessGreen = ComposeColor(0xFF35D978),
+            homeTextPrimary = ComposeColor(0xFFF3F1F6),
+            homeTextSecondary = ComposeColor(0xFFA6A1B3),
+            homeTextMuted = ComposeColor(0xFF6E6978),
+            homeDividerSubtle = ComposeColor.White.copy(alpha = 0.08f),
+            homeStrokeSubtle = ComposeColor.White.copy(alpha = 0.10f),
+            homeTopHighlight = ComposeColor.White.copy(alpha = 0.08f),
+        ),
+        material = SwimMaterialTokens(
+            shellTop = ComposeColor.White.copy(alpha = 0.07f),
+            shellMid = ComposeColor(0xFF17171C),
+            shellBottom = ComposeColor(0xFF07070B),
+            bowlTop = ComposeColor(0xFF101116),
+            bowlMid = ComposeColor(0xFF05060A),
+            bowlBottom = ComposeColor.Black.copy(alpha = 0.96f),
+            purpleCoreTop = ComposeColor(0xFFB89AFF),
+            purpleCoreMid = ComposeColor(0xFF8A6AF1),
+            purpleCoreBottom = ComposeColor(0xFF5D3BD8),
+            outerDarkVeil = ComposeColor.Black.copy(alpha = 0.40f),
+            bowlInnerShadow = ComposeColor.Black.copy(alpha = 0.60f),
+        ),
+        highlight = SwimHighlightTokens(
+            innerTop = ComposeColor.White.copy(alpha = 0.08f),
+            bowlRim = ComposeColor.White.copy(alpha = 0.04f),
+            bodyStroke = ComposeColor.White.copy(alpha = 0.055f),
+            skinSheen = ComposeColor.White.copy(alpha = 0.18f),
+            purpleEdge = ComposeColor(0xFF8A6AF1).copy(alpha = 0.11f),
+        ),
+    )
+
+    val Light = SwimVisualTokens(
+        color = SwimColorTokens(
+            homeBackgroundDeep = ComposeColor(0xFFF8F4FF),
+            homeBackgroundBase = ComposeColor(0xFFF1EBFC),
+            homeSurfaceBase = ComposeColor(0xFFFFFFFF),
+            homeSurfaceElevated = ComposeColor(0xFFFAF7FF),
+            homeSurfaceHighlight = ComposeColor(0xFFEFE7FF),
+            homePurplePrimary = ComposeColor(0xFF7C5BE8),
+            homePurpleActive = ComposeColor(0xFF6D4FD8),
+            homePurpleDeep = ComposeColor(0xFFD8CCFF),
+            homeSuccessGreen = ComposeColor(0xFF168A4B),
+            homeTextPrimary = ComposeColor(0xFF17121F),
+            homeTextSecondary = ComposeColor(0xFF625A72),
+            homeTextMuted = ComposeColor(0xFF8A8296),
+            homeDividerSubtle = ComposeColor(0xFF24164A).copy(alpha = 0.10f),
+            homeStrokeSubtle = ComposeColor(0xFF24164A).copy(alpha = 0.12f),
+            homeTopHighlight = ComposeColor.White.copy(alpha = 0.74f),
+        ),
+        material = SwimMaterialTokens(
+            shellTop = ComposeColor.White.copy(alpha = 0.84f),
+            shellMid = ComposeColor(0xFFF6F0FF),
+            shellBottom = ComposeColor(0xFFE5DCF5),
+            bowlTop = ComposeColor(0xFFFFFFFF),
+            bowlMid = ComposeColor(0xFFF2ECFB),
+            bowlBottom = ComposeColor(0xFFE4DBF0),
+            purpleCoreTop = ComposeColor(0xFFB89AFF),
+            purpleCoreMid = ComposeColor(0xFF8A6AF1),
+            purpleCoreBottom = ComposeColor(0xFF5D3BD8),
+            outerDarkVeil = ComposeColor(0xFF24164A).copy(alpha = 0.10f),
+            bowlInnerShadow = ComposeColor(0xFF24164A).copy(alpha = 0.18f),
+        ),
+        highlight = SwimHighlightTokens(
+            innerTop = ComposeColor.White.copy(alpha = 0.78f),
+            bowlRim = ComposeColor.White.copy(alpha = 0.56f),
+            bodyStroke = ComposeColor(0xFF24164A).copy(alpha = 0.075f),
+            skinSheen = ComposeColor.White.copy(alpha = 0.64f),
+            purpleEdge = ComposeColor(0xFF7C5BE8).copy(alpha = 0.16f),
+        ),
+    )
+
+    private var activeVisualTokens: SwimVisualTokens = Dark
+
+    fun activateVisualTokens(tokens: SwimVisualTokens) {
+        activeVisualTokens = tokens
+    }
+
+    val Current: SwimVisualTokens
+        get() = activeVisualTokens
+
+    object Color {
+        val HomeBackgroundDeep get() = Current.color.homeBackgroundDeep
+        val HomeBackgroundBase get() = Current.color.homeBackgroundBase
+        val HomeSurfaceBase get() = Current.color.homeSurfaceBase
+        val HomeSurfaceElevated get() = Current.color.homeSurfaceElevated
+        val HomeSurfaceHighlight get() = Current.color.homeSurfaceHighlight
+        val HomePurplePrimary get() = Current.color.homePurplePrimary
+        val HomePurpleActive get() = Current.color.homePurpleActive
+        val HomePurpleDeep get() = Current.color.homePurpleDeep
+        val HomeSuccessGreen get() = Current.color.homeSuccessGreen
+        val HomeTextPrimary get() = Current.color.homeTextPrimary
+        val HomeTextSecondary get() = Current.color.homeTextSecondary
+        val HomeTextMuted get() = Current.color.homeTextMuted
+        val HomeDividerSubtle get() = Current.color.homeDividerSubtle
+        val HomeStrokeSubtle get() = Current.color.homeStrokeSubtle
+        val HomeTopHighlight get() = Current.color.homeTopHighlight
+
+        val BackgroundDeep get() = HomeBackgroundDeep
+        val BackgroundBase get() = HomeBackgroundBase
+        val SurfaceBase get() = HomeSurfaceBase
+        val SurfaceElevated get() = HomeSurfaceElevated
+        val SurfaceHighlight get() = HomeSurfaceHighlight
+        val PurplePrimary get() = HomePurplePrimary
+        val PurpleActive get() = HomePurpleActive
+        val PurpleDeep get() = HomePurpleDeep
+        val SuccessGreen get() = HomeSuccessGreen
+        val TextPrimary get() = HomeTextPrimary
+        val TextSecondary get() = HomeTextSecondary
+        val TextMuted get() = HomeTextMuted
+        val DividerSubtle get() = HomeDividerSubtle
+        val StrokeSubtle get() = HomeStrokeSubtle
     }
 
     object Shape {
@@ -46,25 +182,25 @@ object SwimDesignTokens {
     }
 
     object Material {
-        val ShellTop = ComposeColor.White.copy(alpha = 0.07f)
-        val ShellMid = ComposeColor(0xFF17171C)
-        val ShellBottom = ComposeColor(0xFF07070B)
-        val BowlTop = ComposeColor(0xFF101116)
-        val BowlMid = ComposeColor(0xFF05060A)
-        val BowlBottom = ComposeColor.Black.copy(alpha = 0.96f)
-        val PurpleCoreTop = ComposeColor(0xFFB89AFF)
-        val PurpleCoreMid = ComposeColor(0xFF8A6AF1)
-        val PurpleCoreBottom = ComposeColor(0xFF5D3BD8)
-        val OuterDarkVeil = ComposeColor.Black.copy(alpha = 0.40f)
-        val BowlInnerShadow = ComposeColor.Black.copy(alpha = 0.60f)
+        val ShellTop get() = Current.material.shellTop
+        val ShellMid get() = Current.material.shellMid
+        val ShellBottom get() = Current.material.shellBottom
+        val BowlTop get() = Current.material.bowlTop
+        val BowlMid get() = Current.material.bowlMid
+        val BowlBottom get() = Current.material.bowlBottom
+        val PurpleCoreTop get() = Current.material.purpleCoreTop
+        val PurpleCoreMid get() = Current.material.purpleCoreMid
+        val PurpleCoreBottom get() = Current.material.purpleCoreBottom
+        val OuterDarkVeil get() = Current.material.outerDarkVeil
+        val BowlInnerShadow get() = Current.material.bowlInnerShadow
     }
 
     object Highlight {
-        val InnerTop = ComposeColor.White.copy(alpha = 0.08f)
-        val BowlRim = ComposeColor.White.copy(alpha = 0.04f)
-        val BodyStroke = ComposeColor.White.copy(alpha = 0.055f)
-        val SkinSheen = ComposeColor.White.copy(alpha = 0.18f)
-        val PurpleEdge = Color.PurplePrimary.copy(alpha = 0.11f)
+        val InnerTop get() = Current.highlight.innerTop
+        val BowlRim get() = Current.highlight.bowlRim
+        val BodyStroke get() = Current.highlight.bodyStroke
+        val SkinSheen get() = Current.highlight.skinSheen
+        val PurpleEdge get() = Current.highlight.purpleEdge
     }
 
     object Shadow {
@@ -213,3 +349,5 @@ object SwimDesignTokens {
         val DockReservedHeight = 192.dp
     }
 }
+
+val LocalSwimVisualTokens = compositionLocalOf { SwimDesignTokens.Dark }

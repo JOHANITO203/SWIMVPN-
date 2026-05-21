@@ -111,6 +111,11 @@ class SwimVpnService : VpnService() {
         val rawConfig: String?,
     )
 
+    private data class VpnNotificationContent(
+        val title: String,
+        val text: String,
+    )
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
 
@@ -679,10 +684,10 @@ class SwimVpnService : VpnService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                localizedNotificationText(),
+                getString(R.string.app_name),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = localizedNotificationText()
+                description = getString(R.string.app_name)
                 setShowBadge(false)
             }
 
@@ -693,9 +698,11 @@ class SwimVpnService : VpnService() {
     }
 
     private fun createNotification(): Notification {
+        val content = localizedNotificationContent()
         return NotificationCompat.Builder(this, channelId)
-            .setContentTitle("SWIMVPN+")
-            .setContentText(localizedNotificationText())
+            .setContentTitle(content.title)
+            .setContentText(content.text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(content.text))
             .setSmallIcon(R.drawable.ic_stat_swimvpn)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
@@ -721,9 +728,47 @@ class SwimVpnService : VpnService() {
         notificationManager.notify(notificationId, createNotification())
     }
 
-    private fun localizedNotificationText(): String {
+    private fun localizedNotificationContent(): VpnNotificationContent {
         val localizedContext = localizedContextFor(notificationLanguage)
-        return localizedContext.getString(R.string.vpn_notification_running)
+        val status = VpnManager.runtimeStatus.value
+        val mode = VpnManager.runtimeMode.value
+        val modeLabel = localizedNotificationModeLabel(localizedContext, mode)
+        val stateLabel = when (status) {
+            RuntimeStatus.IDLE,
+            RuntimeStatus.STOPPED_BY_USER -> localizedContext.getString(R.string.status_disconnected)
+            RuntimeStatus.STARTING -> localizedContext.getString(R.string.status_connecting)
+            RuntimeStatus.RUNNING -> localizedContext.getString(R.string.status_connected)
+            RuntimeStatus.RECONNECTING -> localizedContext.getString(R.string.vpn_notification_reconnecting_title)
+            RuntimeStatus.DEGRADED -> localizedContext.getString(R.string.vpn_notification_degraded_title)
+            RuntimeStatus.STOPPING -> localizedContext.getString(R.string.status_disconnecting)
+            RuntimeStatus.FAILED -> localizedContext.getString(R.string.status_error)
+        }
+
+        val text = when (status) {
+            RuntimeStatus.IDLE -> localizedContext.getString(R.string.vpn_notification_disconnected)
+            RuntimeStatus.STARTING -> localizedContext.getString(R.string.vpn_notification_starting, modeLabel)
+            RuntimeStatus.RUNNING -> localizedContext.getString(R.string.vpn_notification_connected, modeLabel)
+            RuntimeStatus.RECONNECTING -> localizedContext.getString(R.string.vpn_notification_reconnecting)
+            RuntimeStatus.DEGRADED -> localizedContext.getString(R.string.vpn_notification_degraded)
+            RuntimeStatus.STOPPING -> localizedContext.getString(R.string.vpn_notification_stopping)
+            RuntimeStatus.FAILED -> VpnManager.errorMessage.value
+                ?.takeIf { it.isNotBlank() }
+                ?: localizedContext.getString(R.string.vpn_notification_failed)
+            RuntimeStatus.STOPPED_BY_USER -> localizedContext.getString(R.string.vpn_notification_stopped_by_user)
+        }
+
+        return VpnNotificationContent(
+            title = localizedContext.getString(R.string.vpn_notification_title, stateLabel),
+            text = text,
+        )
+    }
+
+    private fun localizedNotificationModeLabel(context: Context, mode: RuntimeMode): String {
+        return when (mode) {
+            RuntimeMode.FULL_TUNNEL -> context.getString(R.string.vpn_notification_mode_tunnel)
+            RuntimeMode.LOCAL_PROXY -> context.getString(R.string.vpn_notification_mode_proxy)
+            RuntimeMode.SPLIT_TUNNEL -> context.getString(R.string.vpn_notification_mode_split_tunnel)
+        }
     }
 
     private fun localizedContextFor(language: String): Context {
@@ -1000,6 +1045,7 @@ class SwimVpnService : VpnService() {
             tun2SocksLogPath = VpnManager.metrics.value.tun2SocksLogPath,
         )
         VpnManager.updateRuntimeStatus(status)
+        updateNotification()
     }
 
     private fun setRuntimeError(message: String, cause: DisconnectCause = DisconnectCause.UNKNOWN) {
@@ -1020,6 +1066,7 @@ class SwimVpnService : VpnService() {
             sessionStartedAt = sessionStartedAt,
         )
         VpnManager.setError(message)
+        updateNotification()
     }
 
     private fun hasActiveRuntimeResources(): Boolean {

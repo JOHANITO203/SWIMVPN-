@@ -9,6 +9,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -36,19 +37,19 @@ val ElectricBlue = Color(0xFF8A6AF1) // Legacy alias kept for compatibility.
 val RedAlert = Color(0xFFEF4444)
 
 // Light is derived from the current SwimVPN dark visual language.
-val BgLight = Color(0xFFF7F3FF)
-val CardLight = Color(0xFFFFFFFF)
-val TextLight = Color(0xFF17121F)
-val TextSecondaryLight = Color(0xFF716783)
+val BgLight = SwimDesignTokens.Light.color.homeBackgroundDeep
+val CardLight = SwimDesignTokens.Light.color.homeSurfaceBase
+val TextLight = SwimDesignTokens.Light.color.homeTextPrimary
+val TextSecondaryLight = SwimDesignTokens.Light.color.homeTextSecondary
 
 // Dark is the canonical SwimVPN theme.
-val BgDark = SwimDesignTokens.Color.BackgroundDeep
-val CardDark = SwimDesignTokens.Color.SurfaceBase
-val TextDark = SwimDesignTokens.Color.TextPrimary
-val TextSecondaryDark = SwimDesignTokens.Color.TextSecondary
+val BgDark = SwimDesignTokens.Dark.color.homeBackgroundDeep
+val CardDark = SwimDesignTokens.Dark.color.homeSurfaceBase
+val TextDark = SwimDesignTokens.Dark.color.homeTextPrimary
+val TextSecondaryDark = SwimDesignTokens.Dark.color.homeTextSecondary
 
 private val LightColorScheme = lightColorScheme(
-    primary = SwimBlueMain,
+    primary = SwimDesignTokens.Light.color.homePurplePrimary,
     primaryContainer = Color(0xFFE7DDFF),
     background = BgLight,
     surface = CardLight,
@@ -62,7 +63,7 @@ private val LightColorScheme = lightColorScheme(
     onSurfaceVariant = TextSecondaryLight,
     outline = Color(0xFFD7CCE7),
     outlineVariant = Color(0xFFE8DFF2),
-    secondary = Color(0xFF6D4FD8),
+    secondary = SwimDesignTokens.Light.color.homePurpleActive,
     secondaryContainer = Color(0xFFEDE6FF),
     onSecondary = Color.White,
     onSecondaryContainer = Color(0xFF24164A),
@@ -72,22 +73,22 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = ElectricBlue,
-    primaryContainer = SwimDesignTokens.Material.PurpleCoreBottom,
+    primary = SwimDesignTokens.Dark.color.homePurplePrimary,
+    primaryContainer = SwimDesignTokens.Dark.material.purpleCoreBottom,
     background = BgDark,
     surface = CardDark,
-    surfaceContainer = SwimDesignTokens.Color.SurfaceElevated,
-    surfaceContainerHigh = SwimDesignTokens.Color.SurfaceHighlight,
+    surfaceContainer = SwimDesignTokens.Dark.color.homeSurfaceElevated,
+    surfaceContainerHigh = SwimDesignTokens.Dark.color.homeSurfaceHighlight,
     onPrimary = Color.White,
     onPrimaryContainer = Color.White,
     onBackground = TextDark,
     onSurface = TextDark,
-    surfaceVariant = SwimDesignTokens.Color.SurfaceElevated,
+    surfaceVariant = SwimDesignTokens.Dark.color.homeSurfaceElevated,
     onSurfaceVariant = TextSecondaryDark,
     outline = Color.White.copy(alpha = 0.12f),
     outlineVariant = Color.White.copy(alpha = 0.08f),
-    secondary = SwimDesignTokens.Material.PurpleCoreTop,
-    secondaryContainer = SwimDesignTokens.Color.PurpleDeep,
+    secondary = SwimDesignTokens.Dark.material.purpleCoreTop,
+    secondaryContainer = SwimDesignTokens.Dark.color.homePurpleDeep,
     onSecondary = Color(0xFF110A24),
     onSecondaryContainer = Color.White,
     error = Color(0xFFF87171),
@@ -147,6 +148,8 @@ fun SwimVpnTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val visualTokens = if (darkTheme) SwimDesignTokens.Dark else SwimDesignTokens.Light
+    SwimDesignTokens.activateVisualTokens(visualTokens)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -160,10 +163,12 @@ fun SwimVpnTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        shapes = Shapes,
-        content = content
-    )
+    CompositionLocalProvider(LocalSwimVisualTokens provides visualTokens) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = Shapes,
+            content = content
+        )
+    }
 }

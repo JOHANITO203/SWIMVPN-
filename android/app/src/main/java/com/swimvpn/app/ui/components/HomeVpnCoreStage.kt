@@ -40,6 +40,7 @@ import com.swimvpn.app.ui.orb.VpnOrbState
 import com.swimvpn.app.ui.orb3d.OrbRenderQuality
 import com.swimvpn.app.ui.orb3d.SwimHolographicOrb3D
 import com.swimvpn.app.ui.orb3d.SwimParticleOrbState
+import com.swimvpn.app.ui.theme.LocalSwimVisualTokens
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 
 @Composable
@@ -132,6 +133,7 @@ private fun VpnHardwarePowerCore(
     modifier: Modifier = Modifier,
     bowlSize: Dp,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     Box(
         modifier = modifier
             .scale(pressScale * breathScale)
@@ -174,9 +176,9 @@ private fun VpnHardwarePowerCore(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        SwimDesignTokens.Material.ShellTop.copy(alpha = 0.09f + shellLift * 0.05f),
-                        SwimDesignTokens.Material.ShellMid.copy(alpha = 0.98f),
-                        SwimDesignTokens.Material.ShellBottom,
+                        tokens.material.shellTop.copy(alpha = 0.09f + shellLift * 0.05f),
+                        tokens.material.shellMid.copy(alpha = 0.98f),
+                        tokens.material.shellBottom,
                     ),
                     center = Offset(center.x - radius * 0.24f, center.y - radius * 0.36f),
                     radius = radius * 1.16f,
@@ -188,7 +190,7 @@ private fun VpnHardwarePowerCore(
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        SwimDesignTokens.Highlight.SkinSheen.copy(alpha = 0.16f + shellLift * 0.10f),
+                        tokens.highlight.skinSheen.copy(alpha = 0.16f + shellLift * 0.10f),
                         Color.Transparent,
                     ),
                     center = Offset(center.x - radius * 0.28f, center.y - radius * 0.36f),
@@ -217,7 +219,7 @@ private fun VpnHardwarePowerCore(
                 .size(bowlSize)
                 .clip(CircleShape)
                 .background(Color.Transparent)
-                .border(1.dp, SwimDesignTokens.Highlight.InnerTop.copy(alpha = 0.14f), CircleShape),
+                .border(1.dp, tokens.highlight.innerTop.copy(alpha = 0.14f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Canvas(modifier = Modifier.matchParentSize()) {
@@ -227,9 +229,9 @@ private fun VpnHardwarePowerCore(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
-                            SwimDesignTokens.Material.BowlTop.copy(alpha = 0.98f),
-                            SwimDesignTokens.Material.BowlMid.copy(alpha = 0.98f),
-                            SwimDesignTokens.Material.BowlBottom,
+                            tokens.material.bowlTop.copy(alpha = 0.98f),
+                            tokens.material.bowlMid.copy(alpha = 0.98f),
+                            tokens.material.bowlBottom,
                         ),
                         center = Offset(center.x, center.y + radius * 0.20f),
                         radius = radius * 1.12f,
@@ -239,7 +241,7 @@ private fun VpnHardwarePowerCore(
                 )
 
                 drawCircle(
-                    color = SwimDesignTokens.Material.BowlInnerShadow,
+                    color = tokens.material.bowlInnerShadow,
                     radius = radius * 0.98f,
                     center = center,
                     style = Stroke(width = 4.dp.toPx()),

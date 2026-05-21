@@ -3451,3 +3451,18 @@ pm run build PASSED.
 - Replaced the old blue/navy Material palette with dark tokens from `SwimDesignTokens` and a derived light palette using pale violet backgrounds, white/lilac surfaces, dark plum text, and the same SwimVPN violet accent.
 - Updated transparent system bars so status/navigation icons switch to dark glyphs in light mode and stay light in dark mode.
 - Kept custom hardware tokens unchanged for this pass; broad dynamic light/dark conversion of bespoke surfaces remains a separate visual-system step.
+
+## 2026-05-21 - Android dark/light token split
+- Converted the existing implicit SwimVPN visual tokens into explicit `SwimDesignTokens.Dark` color, material, and highlight groups.
+- Added a matching `SwimDesignTokens.Light` group with the same token structure, derived as a pearl/lavender sibling of the black-purple dark theme.
+- Added `LocalSwimVisualTokens` and wired `SwimVpnTheme` to provide dark or light visual tokens according to the active app theme.
+- Kept legacy `SwimDesignTokens.Color`, `Material`, and `Highlight` as dark aliases so existing screens continue compiling while they are migrated to the theme-aware provider.
+- Made legacy `SwimDesignTokens.Color`, `Material`, and `Highlight` resolve through the active visual token family, so existing screens and sub-screens now follow the selected Light/Dark theme without a risky mass rewrite.
+- Migrated shared hardware surfaces, the dark-luxury background, dock body, and Home power core rendering toward the theme-aware token provider.
+
+## 2026-05-21 - Android foreground notification state mirror
+- Replaced the static foreground-service notification body with state-aware copy driven by `VpnManager.runtimeStatus` and `VpnManager.runtimeMode`.
+- Added localized notification states for disconnected, connecting, connected, reconnecting, degraded, stopping, failed, and stopped-by-user in default French, French, English, and Russian resources.
+- Kept the Android notification channel label stable as the app name while allowing the notification title/body to mirror the live VPN runtime state.
+- Updated notification refreshes when the VPN runtime status or runtime error changes.
+- Verification: `:app:assembleDebug` passed.

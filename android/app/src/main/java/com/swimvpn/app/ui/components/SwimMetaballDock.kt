@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import com.swimvpn.app.R
+import com.swimvpn.app.ui.theme.LocalSwimVisualTokens
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -281,6 +282,7 @@ private fun DockBodyCanvas(
     activeGlowAlpha: Float,
     modifier: Modifier = Modifier,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     Canvas(modifier = modifier) {
         val sx = size.width / DockTokens.Width.value
         val sy = size.height / DockTokens.Height.value
@@ -308,8 +310,8 @@ private fun DockBodyCanvas(
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.42f * activeGlowAlpha),
-                    SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.10f * activeGlowAlpha),
+                    tokens.color.homePurplePrimary.copy(alpha = 0.42f * activeGlowAlpha),
+                    tokens.color.homePurplePrimary.copy(alpha = 0.10f * activeGlowAlpha),
                     Color.Transparent,
                 ),
                 center = Offset(activeCenter, cy),
@@ -323,8 +325,8 @@ private fun DockBodyCanvas(
             brush = Brush.verticalGradient(
                 colors = listOf(
                     Color.White.copy(alpha = 0.07f),
-                    SwimDesignTokens.Material.ShellMid,
-                    SwimDesignTokens.Material.ShellBottom,
+                    tokens.material.shellMid,
+                    tokens.material.shellBottom,
                 ),
                 startY = 0f,
                 endY = size.height,
@@ -334,7 +336,7 @@ private fun DockBodyCanvas(
             path = body,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    SwimDesignTokens.Highlight.InnerTop,
+                    tokens.highlight.innerTop,
                     Color.Transparent,
                     Color.Black.copy(alpha = SwimDesignTokens.Shadow.InnerBottomAlpha),
                 ),
@@ -344,7 +346,7 @@ private fun DockBodyCanvas(
         )
         drawPath(
             path = body,
-            color = SwimDesignTokens.Highlight.BodyStroke,
+            color = tokens.highlight.bodyStroke,
             style = Stroke(width = 0.8.dp.toPx()),
         )
     }
@@ -358,6 +360,7 @@ private fun ActiveCoreLayer(
     breathScale: Float,
     modifier: Modifier = Modifier,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     Canvas(modifier = modifier) {
         val sx = size.width / DockTokens.Width.value
         val sy = size.height / DockTokens.Height.value
@@ -369,8 +372,8 @@ private fun ActiveCoreLayer(
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.22f * glowAlpha),
-                    SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.08f * glowAlpha),
+                    tokens.color.homePurplePrimary.copy(alpha = 0.22f * glowAlpha),
+                    tokens.color.homePurplePrimary.copy(alpha = 0.08f * glowAlpha),
                     Color.Transparent,
                 ),
                 center = activeCenter,
@@ -383,9 +386,9 @@ private fun ActiveCoreLayer(
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    SwimDesignTokens.Material.PurpleCoreTop,
-                    SwimDesignTokens.Material.PurpleCoreMid,
-                    SwimDesignTokens.Material.PurpleCoreBottom,
+                    tokens.material.purpleCoreTop,
+                    tokens.material.purpleCoreMid,
+                    tokens.material.purpleCoreBottom,
                 ),
                 center = Offset(activeCenter.x - radius * 0.22f, activeCenter.y - radius * 0.28f),
                 radius = radius * 1.18f,
@@ -402,7 +405,7 @@ private fun ActiveCoreLayer(
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    SwimDesignTokens.Highlight.SkinSheen,
+                    tokens.highlight.skinSheen,
                     Color.Transparent,
                 ),
                 center = Offset(activeCenter.x - radius * 0.28f, activeCenter.y - radius * 0.34f),
@@ -423,6 +426,7 @@ private fun DockNodeButton(
     renderContent: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     val outerSize = if (selected) DockTokens.ActiveOuterDiameter else DockTokens.InactiveOuterDiameter
     val bowlSize = if (selected) DockTokens.ActiveBowlDiameter else DockTokens.InactiveBowlDiameter
     val iconSize = if (selected) DockTokens.ActiveIconSize else DockTokens.InactiveIconSize
@@ -442,8 +446,8 @@ private fun DockNodeButton(
                 brush = Brush.radialGradient(
                     colors = listOf(
                         Color.White.copy(alpha = 0.035f - pressedDepth * 0.01f),
-                        SwimDesignTokens.Material.ShellMid,
-                        SwimDesignTokens.Material.ShellBottom,
+                        tokens.material.shellMid,
+                        tokens.material.shellBottom,
                     ),
                     center = Offset(center.x - outerRadius * 0.22f, center.y - outerRadius * 0.30f),
                     radius = outerRadius * 1.15f,
@@ -452,16 +456,16 @@ private fun DockNodeButton(
                 center = center,
             )
             drawCircle(
-                color = SwimDesignTokens.Material.OuterDarkVeil,
+                color = tokens.material.outerDarkVeil,
                 radius = outerRadius * 0.88f,
                 center = Offset(center.x, center.y + outerRadius * 0.10f),
             )
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        SwimDesignTokens.Material.BowlTop,
-                        SwimDesignTokens.Material.BowlMid,
-                        SwimDesignTokens.Material.BowlBottom,
+                        tokens.material.bowlTop,
+                        tokens.material.bowlMid,
+                        tokens.material.bowlBottom,
                     ),
                     center = Offset(center.x, center.y + bowlRadius * 0.24f),
                     radius = bowlRadius * 1.08f,
@@ -470,13 +474,13 @@ private fun DockNodeButton(
                 center = center,
             )
             drawCircle(
-                color = SwimDesignTokens.Material.BowlInnerShadow,
+                color = tokens.material.bowlInnerShadow,
                 radius = bowlRadius,
                 center = center,
                 style = Stroke(width = 3.dp.toPx()),
             )
             drawCircle(
-                color = SwimDesignTokens.Highlight.BowlRim,
+                color = tokens.highlight.bowlRim,
                 radius = bowlRadius,
                 center = center,
                 style = Stroke(width = 0.8.dp.toPx()),
