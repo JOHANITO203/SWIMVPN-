@@ -1,10 +1,13 @@
 package com.swimvpn.app.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
@@ -26,62 +29,70 @@ object AppThemePreference {
 }
 
 // --- COLORS ---
-val SwimBlueMain = Color(0xFF4A9ED7) // Bleu du corps du requin
-val SwimBlueFace = Color(0xFFA6D8F0) // Bleu clair du visage
-val SwimNavyMouth = Color(0xFF0A3151) // Bleu marine de la bouche
-val ElectricBlue = Color(0xFF4A9ED7) // Alias pour compatibilité
+val SwimBlueMain = Color(0xFF8A6AF1) // Legacy alias: current SwimVPN accent is violet.
+val SwimBlueFace = Color(0xFFB89AFF)
+val SwimNavyMouth = Color(0xFF17121F)
+val ElectricBlue = Color(0xFF8A6AF1) // Legacy alias kept for compatibility.
 val RedAlert = Color(0xFFEF4444)
 
-// Light Palette cohérente avec le logo
-val BgLight = Color(0xFFF4F8FB)
+// Light is derived from the current SwimVPN dark visual language.
+val BgLight = Color(0xFFF7F3FF)
 val CardLight = Color(0xFFFFFFFF)
-val TextLight = Color(0xFF0A3151) // Utilisation du Navy pour le texte
-val TextSecondaryLight = Color(0xFF64748B)
+val TextLight = Color(0xFF17121F)
+val TextSecondaryLight = Color(0xFF716783)
 
-// Dark Palette
-val BgDark = Color(0xFF04111F)
-val CardDark = Color(0xFF0B2034)
-val TextDark = Color(0xFFE8F3FB)
-val TextSecondaryDark = Color(0xFF9FB5C8)
+// Dark is the canonical SwimVPN theme.
+val BgDark = SwimDesignTokens.Color.BackgroundDeep
+val CardDark = SwimDesignTokens.Color.SurfaceBase
+val TextDark = SwimDesignTokens.Color.TextPrimary
+val TextSecondaryDark = SwimDesignTokens.Color.TextSecondary
 
 private val LightColorScheme = lightColorScheme(
     primary = SwimBlueMain,
-    primaryContainer = Color(0xFFD8EEFB),
+    primaryContainer = Color(0xFFE7DDFF),
     background = BgLight,
     surface = CardLight,
-    surfaceContainer = Color(0xFFFFFFFF),
-    surfaceContainerHigh = Color(0xFFEAF4FA),
+    surfaceContainer = Color(0xFFFCFAFF),
+    surfaceContainerHigh = Color(0xFFF0E9FF),
     onPrimary = Color.White,
+    onPrimaryContainer = Color(0xFF21123F),
     onBackground = TextLight,
     onSurface = TextLight,
-    surfaceVariant = Color(0xFFEBF5FF),
+    surfaceVariant = Color(0xFFEDE6F8),
     onSurfaceVariant = TextSecondaryLight,
-    outline = Color(0xFFD9E6EE),
-    outlineVariant = Color(0xFFE7EEF4),
-    secondary = Color(0xFF0F766E),
-    secondaryContainer = Color(0xFFDDF8F3),
-    onSecondaryContainer = Color(0xFF0F3E3A),
-    error = RedAlert
+    outline = Color(0xFFD7CCE7),
+    outlineVariant = Color(0xFFE8DFF2),
+    secondary = Color(0xFF6D4FD8),
+    secondaryContainer = Color(0xFFEDE6FF),
+    onSecondary = Color.White,
+    onSecondaryContainer = Color(0xFF24164A),
+    error = RedAlert,
+    errorContainer = Color(0xFFFFE2E2),
+    onErrorContainer = Color(0xFF6F1111)
 )
 
 private val DarkColorScheme = darkColorScheme(
     primary = ElectricBlue,
-    primaryContainer = Color(0xFF123D5C),
+    primaryContainer = SwimDesignTokens.Material.PurpleCoreBottom,
     background = BgDark,
     surface = CardDark,
-    surfaceContainer = Color(0xFF102A42),
-    surfaceContainerHigh = Color(0xFF153650),
+    surfaceContainer = SwimDesignTokens.Color.SurfaceElevated,
+    surfaceContainerHigh = SwimDesignTokens.Color.SurfaceHighlight,
     onPrimary = Color.White,
+    onPrimaryContainer = Color.White,
     onBackground = TextDark,
     onSurface = TextDark,
-    surfaceVariant = Color(0xFF122A41),
+    surfaceVariant = SwimDesignTokens.Color.SurfaceElevated,
     onSurfaceVariant = TextSecondaryDark,
-    outline = Color(0xFF24455E),
-    outlineVariant = Color(0xFF183248),
-    secondary = Color(0xFF5EEAD4),
-    secondaryContainer = Color(0xFF134E4A),
-    onSecondaryContainer = Color(0xFFD8FFFA),
-    error = Color(0xFFF87171)
+    outline = Color.White.copy(alpha = 0.12f),
+    outlineVariant = Color.White.copy(alpha = 0.08f),
+    secondary = SwimDesignTokens.Material.PurpleCoreTop,
+    secondaryContainer = SwimDesignTokens.Color.PurpleDeep,
+    onSecondary = Color(0xFF110A24),
+    onSecondaryContainer = Color.White,
+    error = Color(0xFFF87171),
+    errorContainer = Color(0xFF5C1212),
+    onErrorContainer = Color(0xFFFFD7D7)
 )
 
 // --- TYPOGRAPHY ---
@@ -127,7 +138,7 @@ val Typography = Typography(
 val Shapes = Shapes(
     small = RoundedCornerShape(16.dp),
     medium = RoundedCornerShape(24.dp),
-    large = RoundedCornerShape(48.dp) // 3rem radius
+    large = RoundedCornerShape(48.dp)
 )
 
 @Composable
@@ -143,8 +154,9 @@ fun SwimVpnTheme(
             WindowCompat.setDecorFitsSystemWindows(window, false)
             window.statusBarColor = Color.Transparent.toArgb()
             window.navigationBarColor = Color.Transparent.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

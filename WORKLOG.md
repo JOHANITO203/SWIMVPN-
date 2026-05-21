@@ -3445,3 +3445,9 @@ pm run build PASSED.
 - Reconciled onboarding with the shared SwimVPN dark luxury background, monolithic hardware card, purple icon core, and pill CTA while preserving the existing three-step flow.
 - Reworked the bootstrap error state into a dark premium card with a restrained purple status icon and pill retry action.
 - Verification: `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android light theme derivation
+- Treated the current black/purple SwimVPN visual language as the canonical dark theme in `SwimVpnTheme`.
+- Replaced the old blue/navy Material palette with dark tokens from `SwimDesignTokens` and a derived light palette using pale violet backgrounds, white/lilac surfaces, dark plum text, and the same SwimVPN violet accent.
+- Updated transparent system bars so status/navigation icons switch to dark glyphs in light mode and stay light in dark mode.
+- Kept custom hardware tokens unchanged for this pass; broad dynamic light/dark conversion of bespoke surfaces remains a separate visual-system step.
