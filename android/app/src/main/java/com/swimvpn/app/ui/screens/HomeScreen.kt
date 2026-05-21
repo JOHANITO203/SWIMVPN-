@@ -53,15 +53,15 @@ import com.swimvpn.app.AppState
 import com.swimvpn.app.MainViewModel
 import com.swimvpn.app.R
 import com.swimvpn.app.data.network.ServerNode
+import com.swimvpn.app.ui.components.HomeVpnCoreStage
 import com.swimvpn.app.ui.components.SwimCircularIconButton
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.SwimDockDestination
 import com.swimvpn.app.ui.components.SwimHardwareCard
 import com.swimvpn.app.ui.components.SwimMetaballDock
-import com.swimvpn.app.ui.components.SwimOrbState
 import com.swimvpn.app.ui.components.SwimPillSurface
-import com.swimvpn.app.ui.components.SwimPowerOrb
 import com.swimvpn.app.ui.formatBytes
+import com.swimvpn.app.ui.orb.VpnOrbState
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStateStore
@@ -83,6 +83,7 @@ fun HomeScreen(
     val selectedRuntimeMode = data.routingMode
     val inMemoryVpnState by VpnManager.state.collectAsState()
     var vpnState by remember { mutableStateOf(inMemoryVpnState) }
+    var runtimeStatus by remember { mutableStateOf(RuntimeStatus.IDLE) }
     val bytesIn by VpnManager.bytesIn.collectAsState()
     val bytesOut by VpnManager.bytesOut.collectAsState()
     val errorMessage by VpnManager.errorMessage.collectAsState()
@@ -102,6 +103,7 @@ fun HomeScreen(
         while (true) {
             val snapshot = RuntimeStateStore.read(context)
             VpnManager.reconcileRuntimeSnapshot(snapshot)
+            runtimeStatus = if (snapshot.isFresh()) snapshot.status else RuntimeStatus.IDLE
             vpnState = if (snapshot.isFresh()) {
                 vpnStateForRuntimeStatus(snapshot.status)
             } else {
@@ -176,12 +178,7 @@ fun HomeScreen(
         }
     }
 
-    val orbState = when (vpnState) {
-        VpnState.CONNECTED -> SwimOrbState.Active
-        VpnState.CONNECTING, VpnState.DISCONNECTING -> SwimOrbState.Transitioning
-        VpnState.ERROR -> SwimOrbState.Error
-        else -> SwimOrbState.Idle
-    }
+    val orbState = mapVpnConnectionStateToOrbState(vpnState, runtimeStatus)
     val statusText = when (vpnState) {
         VpnState.CONNECTED -> stringResource(R.string.status_connected)
         VpnState.CONNECTING -> stringResource(R.string.status_connecting)
@@ -195,8 +192,7 @@ fun HomeScreen(
             val compact = maxHeight < 760.dp
             val horizontalPadding = if (compact) 28.dp else SwimDesignTokens.Spacing.ScreenHorizontal
             val profileSize = if (compact) 58.dp else SwimDesignTokens.Home.ProfileButtonSize
-            val orbSize = if (compact) 252.dp else 300.dp
-            val powerSize = if (compact) 164.dp else 190.dp
+            val orbSize = if (compact) 292.dp else 320.dp
             val titleSize = when {
                 compact -> 28.sp
                 statusText.length > 10 -> 30.sp
@@ -223,16 +219,15 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = horizontalPadding)
-                    .padding(top = if (compact) 70.dp else 82.dp)
+                    .padding(top = if (compact) 76.dp else 96.dp)
                     .padding(bottom = dockHeight + bottomDockPadding + 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                SwimPowerOrb(
+                HomeVpnCoreStage(
                     state = orbState,
-                    enabled = vpnState != VpnState.DISCONNECTING,
                     onClick = ::toggleVpnFromHome,
-                    orbSize = orbSize,
-                    powerButtonSize = powerSize,
+                    size = orbSize,
+                    modifier = Modifier.size(orbSize),
                 )
 
                 Spacer(modifier = Modifier.height(if (compact) 2.dp else 8.dp))
@@ -494,5 +489,15 @@ private fun vpnStateForRuntimeStatus(status: RuntimeStatus): VpnState {
         RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
         RuntimeStatus.FAILED -> VpnState.ERROR
         RuntimeStatus.STOPPED_BY_USER -> VpnState.DISCONNECTED
+    }
+}
+
+private fun mapVpnConnectionStateToOrbState(vpnState: VpnState, runtimeStatus: RuntimeStatus): VpnOrbState {
+    return when {
+        runtimeStatus == RuntimeStatus.RECONNECTING || runtimeStatus == RuntimeStatus.DEGRADED -> VpnOrbState.UNSTABLE
+        vpnState == VpnState.CONNECTED -> VpnOrbState.CONNECTED
+        vpnState == VpnState.CONNECTING || vpnState == VpnState.DISCONNECTING -> VpnOrbState.CONNECTING
+        vpnState == VpnState.ERROR -> VpnOrbState.UNSTABLE
+        else -> VpnOrbState.DISCONNECTED
     }
 }

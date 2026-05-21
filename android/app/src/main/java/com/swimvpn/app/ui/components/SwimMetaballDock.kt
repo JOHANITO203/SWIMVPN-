@@ -45,7 +45,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.ui.theme.SwimDesignTokens
+import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.max
 
 enum class SwimDockDestination {
     Home,
@@ -121,16 +123,31 @@ fun MetaballNavDock(
     val selectedIndex = items.indexOfFirst { it.item == selectedItem }.coerceAtLeast(0)
     val initialIndex = items.indexOfFirst { it.item == lastDockItemForCrossScreenMotion }.takeIf { it >= 0 } ?: selectedIndex
     val activeCenter = remember { Animatable(DockTokens.Centers[initialIndex]) }
+    val transitionProgress = remember { Animatable(1f) }
+    var previousCenter by remember { mutableStateOf(DockTokens.Centers[initialIndex]) }
     var pressedItem by remember { mutableStateOf<NavDockItem?>(null) }
 
     LaunchedEffect(selectedItem) {
-        activeCenter.animateTo(
-            targetValue = DockTokens.Centers[selectedIndex],
+        previousCenter = activeCenter.value
+        transitionProgress.snapTo(0f)
+        val transitionSpec = tween<Float>(
+            durationMillis = SwimDesignTokens.Motion.DockTransitionMs,
+            easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f),
+        )
+        val activeJob = launch {
+            activeCenter.animateTo(
+                targetValue = DockTokens.Centers[selectedIndex],
+                animationSpec = transitionSpec,
+            )
+        }
+        transitionProgress.animateTo(
+            targetValue = 1f,
             animationSpec = tween(
                 durationMillis = SwimDesignTokens.Motion.DockTransitionMs,
                 easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f),
             ),
         )
+        activeJob.join()
         lastDockItemForCrossScreenMotion = selectedItem
     }
 
@@ -153,7 +170,6 @@ fun MetaballNavDock(
         ),
         label = "dock-active-glow",
     )
-
     Box(
         modifier = modifier
             .width(width)
@@ -162,6 +178,8 @@ fun MetaballNavDock(
     ) {
         DockBodyCanvas(
             activeCenterDp = activeCenter.value,
+            previousCenterDp = previousCenter,
+            transitionProgress = transitionProgress.value,
             activeGlowAlpha = activeGlowAlpha,
             modifier = Modifier.fillMaxSize(),
         )
@@ -205,15 +223,11 @@ fun MetaballNavDock(
             )
         }
         ActiveCoreLayer(
+            activeCenterDp = activeCenter.value,
+            transitionProgress = transitionProgress.value,
             glowAlpha = activeGlowAlpha,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(
-                    x = activeCenter.value.dp - DockTokens.ActiveCoreDiameter / 2f,
-                    y = DockTokens.CenterY.dp - DockTokens.ActiveCoreDiameter / 2f,
-                )
-                .size(DockTokens.ActiveCoreDiameter)
-                .scale(activeBreathScale),
+            breathScale = activeBreathScale,
+            modifier = Modifier.fillMaxSize(),
         )
         items.forEachIndexed { index, item ->
             val selected = item.item == selectedItem
@@ -256,6 +270,8 @@ fun MetaballNavDock(
 @Composable
 private fun DockBodyCanvas(
     activeCenterDp: Float,
+    previousCenterDp: Float,
+    transitionProgress: Float,
     activeGlowAlpha: Float,
     modifier: Modifier = Modifier,
 ) {
@@ -265,9 +281,15 @@ private fun DockBodyCanvas(
         val cy = DockTokens.CenterY * sy
         val centers = DockTokens.Centers.map { it * sx }
         val activeCenter = activeCenterDp * sx
+        val previousCenter = previousCenterDp * sx
+        val settling = (1f - transitionProgress).coerceIn(0f, 1f)
         val radii = centers.map { center ->
             val distance = abs(center - activeCenter) / (DockTokens.CenterSpacing * sx)
-            val influence = (1f - distance).coerceIn(0f, 1f)
+            val previousDistance = abs(center - previousCenter) / (DockTokens.CenterSpacing * sx)
+            val influence = max(
+                (1f - distance).coerceIn(0f, 1f),
+                (1f - previousDistance).coerceIn(0f, 1f) * settling * 0.72f,
+            )
             (DockTokens.InactiveOuterRadius + (DockTokens.ActiveOuterRadius - DockTokens.InactiveOuterRadius) * influence) * sx
         }
         val body = buildMetaballPath(centers, radii, cy)
@@ -324,24 +346,34 @@ private fun DockBodyCanvas(
 
 @Composable
 private fun ActiveCoreLayer(
+    activeCenterDp: Float,
+    transitionProgress: Float,
     glowAlpha: Float,
+    breathScale: Float,
     modifier: Modifier = Modifier,
 ) {
     Canvas(modifier = modifier) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.minDimension / 2f
+        val sx = size.width / DockTokens.Width.value
+        val sy = size.height / DockTokens.Height.value
+        val cy = DockTokens.CenterY * sy
+        val activeCenter = Offset(activeCenterDp * sx, cy)
+        val progress = transitionProgress.coerceIn(0f, 1f)
+        val radius = DockTokens.ActiveCoreDiameter.toPx() / 2f * breathScale
+
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.24f * glowAlpha),
+                    SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.22f * glowAlpha),
+                    SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.08f * glowAlpha),
                     Color.Transparent,
                 ),
-                center = center,
-                radius = radius * 1.55f,
+                center = activeCenter,
+                radius = radius * 1.62f,
             ),
-            radius = radius * 1.55f,
-            center = center,
+            radius = radius * 1.62f,
+            center = activeCenter,
         )
+        val fillRadius = radius * (0.72f + progress * 0.28f)
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
@@ -349,16 +381,16 @@ private fun ActiveCoreLayer(
                     SwimDesignTokens.Material.PurpleCoreMid,
                     SwimDesignTokens.Material.PurpleCoreBottom,
                 ),
-                center = Offset(center.x - radius * 0.22f, center.y - radius * 0.28f),
+                center = Offset(activeCenter.x - radius * 0.22f, activeCenter.y - radius * 0.28f),
                 radius = radius * 1.18f,
             ),
-            radius = radius,
-            center = center,
+            radius = fillRadius,
+            center = activeCenter,
         )
         drawCircle(
             color = Color.White.copy(alpha = 0.12f),
-            radius = radius,
-            center = center,
+            radius = fillRadius,
+            center = activeCenter,
             style = Stroke(width = 0.8.dp.toPx()),
         )
         drawCircle(
@@ -367,11 +399,11 @@ private fun ActiveCoreLayer(
                     SwimDesignTokens.Highlight.SkinSheen,
                     Color.Transparent,
                 ),
-                center = Offset(center.x - radius * 0.28f, center.y - radius * 0.34f),
+                center = Offset(activeCenter.x - radius * 0.28f, activeCenter.y - radius * 0.34f),
                 radius = radius * 0.74f,
             ),
             radius = radius * 0.74f,
-            center = Offset(center.x - radius * 0.10f, center.y - radius * 0.16f),
+            center = Offset(activeCenter.x - radius * 0.10f, activeCenter.y - radius * 0.16f),
         )
     }
 }

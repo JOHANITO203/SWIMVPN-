@@ -1,5 +1,11 @@
 # TODO
 
+## [2026-05-21] Home VPN Core Visual QA
+- [ ] Installer l'APK debug sur le telephone et valider le z-order `GLSurfaceView` + bouton Compose en portrait.
+- [ ] Verifier que le bouton power reste cliquable et declenche le flux VPN existant.
+- [ ] Comparer les etats disconnected / connecting / connected / unstable pour confirmer que l'orb et le bouton respirent comme un seul objet.
+- [ ] Ajuster la taille du bouton central si le noyau parait trop lourd ou trop detache de l'orb.
+
 ## [2026-05-20] Android Subscription UI Follow-up
 - [ ] Valider le rendu écran `subscription` avec APK debug (basic, premium, platinum) sur petit et grand format.
 - [ ] Vérifier que la navigation dock (Home/Servers/Subscription) ne crée pas de pile infinie.

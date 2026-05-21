@@ -1,3 +1,11 @@
+# 2026-05-21 - Home VPN core is a single visual stage
+
+Decision: The Home VPN orb and central power button are now composed through `HomeVpnCoreStage` instead of being treated as independent visual elements.
+
+Reason: Visual QA showed that a separate button layered over the orb looked pasted onto the effect. A single stage lets the orb field, hardware button, state color, breathing, glow, and press depth derive from the same VPN visual state while preserving the existing VPN click/business flow.
+
+Impact: The 3D holographic renderer is isolated in `ui/orb3d`; Home consumes only `HomeVpnCoreStage(state, onClick, size)`. VPN runtime, parser, backend, entitlement, navigation, and dock behavior remain unchanged.
+
 # 2026-05-20 - Android VPN service kill recovery is a runtime contract
 
 Decision: A VPN session that Android destroys while it is active is persisted as a recoverable runtime interruption, not as a clean user stop.

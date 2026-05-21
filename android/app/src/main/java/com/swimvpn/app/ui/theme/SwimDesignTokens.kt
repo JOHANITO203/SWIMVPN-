@@ -88,11 +88,11 @@ object SwimDesignTokens {
 
     object Motion {
         const val PressScale = 0.96f
-        const val DockTransitionMs = 280
+        const val DockTransitionMs = 540
         const val DockBreathingMs = 4200
         const val DockBreathingScale = 1.01f
-        const val DockGlowIdleAlpha = 0.68f
-        const val DockGlowPeakAlpha = 0.74f
+        const val DockGlowIdleAlpha = 0.70f
+        const val DockGlowPeakAlpha = 0.80f
         const val ScreenEnterMs = 320
         const val StaggerMs = 30
     }

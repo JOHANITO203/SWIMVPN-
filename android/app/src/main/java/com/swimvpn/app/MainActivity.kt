@@ -189,6 +189,7 @@ fun AppNavigation(
                 serverGroups = data.serverGroups,
                 activeServerId = data.activeServer?.id,
                 activeConfigMetadata = data.activeConfigMetadata,
+                profile = data.profile,
                 recommendedServerId = data.recommendedServerId,
                 isRecommendedServerValidated = data.isRecommendedServerValidated,
                 onSelectServer = { server ->

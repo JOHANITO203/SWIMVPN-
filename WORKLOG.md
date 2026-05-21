@@ -1,3 +1,61 @@
+# 2026-05-21 - Home VPN core orb/button reconciliation
+
+- Imported the isolated 3D holographic orb renderer into the Android app under `ui/orb3d` without touching VPN runtime, parser, backend, entitlement, dock, or navigation logic.
+- Added `HomeVpnCoreStage` as a single Home visual object combining the holographic orb layer and the central hardware power button.
+- Replaced the direct Home `VpnCoreOrb` usage with `HomeVpnCoreStage`, preserving the existing `toggleVpnFromHome()` click path and real `VpnState` to `VpnOrbState` mapper.
+- Synchronized button accent, glow, press compression, and breathing with the orb visual state so the button reads as embedded in the same energy field instead of pasted on top.
+- Removed the `renderBehindCompose=true` SurfaceView layering mode after device capture proved it created a visible black rectangular plate around the orb; the holographic layer now renders on the transparent SurfaceView path again.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+# 2026-05-20 - Removed video orb integration and restored safe Canvas orb
+
+- Removed the Home orb MP4 runtime path after portrait QA showed the opaque video background as a visible rectangular plate.
+- Replaced `TextureView`/`MediaPlayer` playback in `VpnCoreOrb` with a lightweight Compose Canvas orbital mesh fallback behind the existing hardware power button.
+- Deleted the `swim_organic_orbital_mesh.mp4` raw resource and removed the empty `res/raw` directory so no video asset remains in the Android package.
+- Preserved the existing VPN click behavior, VPN state mapping, Home layout integration, dock, backend, parser, entitlement, and subscription contracts.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+# 2026-05-20 - Home orb Lottie and dock liquid removal
+
+- Removed the downloaded Gradient Lottie runtime path from the Home orb and restored a native Canvas orbital mesh driven by VPN visual state.
+- Removed the dock liquid runtime layer, liquid phase animation, and purple bridge traces between dock nodes.
+- Kept a simple localized purple active core in `MetaballNavDock` so the active node remains visible without the liquid effect.
+- Removed the targeted `lottie-compose` dependency and the copied raw Lottie assets from app resources.
+- Preserved VPN runtime, backend, parser, entitlement, payment, navigation contracts, and business logic.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Debug APK installed successfully on the ADB Wi-Fi device.
+
+# 2026-05-20 - Home orb mesh replacement with visible animation
+
+- Removed the native Canvas orbital mesh from `SwimHomeOrb` and replaced it with the provided lightweight `gradient background.json` Lottie asset rendered behind the Start button.
+- Added a targeted `lottie-compose` dependency from Maven Central and copied the animation as `res/raw/swim_gradient_background.json`; dotLottie/JitPack was intentionally not used because the `.lottie` file contains the same animation payload and would widen Gradle repository scope.
+- Added explicit layer rotation and state-based alpha/speed so the background element has visible loop motion instead of relying on an imperceptible animation frame change.
+- Preserved the Start button press compression, hardware layers, VPN state coloring, dock, VPN runtime, backend, parser, entitlement, payment, and business rules.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. ADB runtime install was attempted, but the Wi-Fi device dropped from `adb devices` before the final runtime capture could complete.
+
+# 2026-05-20 - Remove rejected Home Lottie background
+
+- Removed the Home Lottie background layer from `SwimPowerOrb` after visual QA rejection.
+- Removed the targeted `lottie-compose` dependency and deleted the `swim_gradient_background.json` raw resource.
+- Left the Start button hardware, press compression, state color, and transition progress indicator intact.
+- Preserved dock, VPN runtime, backend, parser, entitlement, payment, navigation contracts, and business logic.
+- Verification: no Lottie/gradient runtime references remain, `:app:compileDebugKotlin` and `:app:assembleDebug` passed, and the debug APK installed successfully on device `R5CWA0FEPZW`.
+
+# 2026-05-20 - Isolated VpnCoreOrb procedural POC
+
+- Added an isolated `ui/orb` laboratory package with `VpnOrbState`, `VpnCoreOrbTokens`, `VpnCoreOrb`, and `VpnCoreOrbLabScreen`.
+- Implemented the orb as a procedural Compose Canvas component: 320dp viewport, organic purple orbital mesh, deterministic particles, layered black power button, state-driven motion, and reduced-motion support.
+- Added a standalone lab screen with local controls for DISCONNECTED, CONNECTING, CONNECTED, and UNSTABLE states.
+- Did not integrate the lab into Home, navigation, dock, VPN runtime, backend, parser, or any existing product screen.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+# 2026-05-20 - Integrate VpnCoreOrb into Home
+
+- Replaced the Home central `SwimPowerOrb` visual with the isolated `VpnCoreOrb` component.
+- Preserved the existing Home VPN click path by reusing `toggleVpnFromHome()` and `viewModel.toggleVpn(...)`; no VPN runtime, parser, backend, tunnel, entitlement, or navigation logic was changed.
+- Added a Home-only UI mapper from real `VpnState` plus fresh `RuntimeStatus` to `VpnOrbState`, including `RECONNECTING` and `DEGRADED` as `UNSTABLE`.
+- Adjusted Home orb sizing to 320dp on normal phones and 292dp on compact heights while keeping server pill, stats, and metaball dock intact.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
 # 2026-05-20 - Android Subscription screen rebuild + navigation hook (restart)
 
 - Reworked `SubscriptionScreen.kt` to remove placeholder/accessibility artifacts and complete the reusable button architecture (`PressablePill`, payment method strip, dock callback wiring).
@@ -3259,9 +3317,51 @@ pm run build PASSED.
 - Backend, parser, VPN runtime, entitlement, payment, and access contracts were not changed.
 - Verification: `:app:compileDebugKotlin` passed.
 
+## 2026-05-20 - Servers premium contract and dock gooey flow
+- Split the Servers screen UI contract between Imported and Premium sources: Imported keeps imported config quota/expiry, while Premium now receives a separate `PremiumAccessSummaryUi` derived from backend entitlement/profile and backend server nodes.
+- Premium Servers no longer reuses the imported quota summary; it shows plan/access state, managed node count, premium quota/expiry, and subscription management actions.
+- Preserved the existing Android premium source of truth: backend nodes remain `source == "backend"` and are still gated by `profile.isPremiumAllowed` in `MainViewModel`.
+- Added a soft gooey bridge to `SwimMetaballDock` transitions so the active node leaves a controlled fluid trail between dock nodes without adding noise or texture.
+- Backend, parser, VPN runtime, entitlement, and payment logic were not changed.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+- Review follow-up: premium access now stays visually active while nodes sync, Premium actions no longer mirror Imported actions, and the dock gooey bridge is drawn inside the surface layer before highlights. Debug APK installed successfully on the ADB Wi-Fi device for visual QA.
+
+## 2026-05-20 - Account, Lottie start orb, and liquid dock pass
+- Simplified `ProfileScreen` by removing the redundant access-status info row and limiting management actions to Technical Settings, Help/Support, and Subscription.
+- Added the downloaded Gradient Lottie asset as `swim_gradient_orb.json` and integrated it behind the Home start button with a soft breathing animation driven by VPN visual state.
+- Added `lottie-compose` as a targeted Android dependency; no broad dependency updates were made.
+- Added the downloaded liquid bubble `.lottie` asset to `res/raw` for visual/reference continuity while keeping the dock runtime implemented in Compose Canvas.
+- Reworked `SwimMetaballDock` active core into a fuller liquid fill layer: the current node drains, the target node fills, and a rounded fluid stream passes through the dock valleys during navigation.
+- Backend, parser, VPN runtime, entitlement, and payment logic were not changed.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Debug APK installed successfully on the ADB Wi-Fi device for visual QA.
+
+## 2026-05-20 - Lottie orb tint and dock liquid timing correction
+- Kept the downloaded Gradient Lottie as the Home orb animation source instead of replacing it with a static image or standalone Canvas mesh.
+- Reframed the Lottie as a donut-style animated backdrop around the Start button: larger scale, stronger visibility, centered dark mask, and purple color filter derived from the active SwimVPN accent.
+- Recalculated dock liquid transfer so the purple flow peaks mid-transition instead of fading immediately from the source node.
+- Increased dock transition duration from 280ms to 540ms and slightly raised active glow breathing for a more readable liquid navigation feel.
+- Backend, parser, VPN runtime, entitlement, payment, and access contracts were not changed.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Debug APK installed successfully on the ADB Wi-Fi device and live screenshots were captured for Home and Servers.
+
+## 2026-05-20 - Orb and dock visible motion pass
+- Kept the Home Lottie orb at the same depth behind the Start button, but changed its parent rotation from a subtle `-3..3` oscillation to a continuous slow orbital rotation so the backdrop reads as animated.
+- Added a local Start button press response independent of VPN state: soft compression plus a short purple ring response inside the hardware button.
+- Kept dock liquid at the same visual depth as the active purple core and added an internal animated liquid phase so the active node has moving highlight material at rest, not just during navigation.
+- Preserved the existing dock icon layer above the liquid and did not change navigation, VPN runtime, backend, parser, entitlement, or payment behavior.
+- Verification: first compile caught a missing `cos` import in the dock animation; after correction, `:app:compileDebugKotlin` and `:app:assembleDebug` passed. Debug APK installed successfully on the ADB Wi-Fi device and a live Home screenshot was captured.
+
 ## 2026-05-20 - Onboarding profile contract fixes
 - Android now treats backend `profileCompletionRequired` as authoritative, even if an active entitlement state is also present.
 - The onboarding freemium continuation path now requires a completed profile and stays in setup if backend still returns `PROFILE_INCOMPLETE`.
 - Active trial users with paid fulfillment pending keep trial runtime access, while Android can still display/poll the pending paid fulfillment signal.
 - Trial Store runtime exposure now remains blocked by profile completion, so incomplete profiles cannot receive managed trial configs.
 - Verification: red/green Android `AccessProfileResponseTest`, backend customer security policy, backend typecheck, and targeted Android debug unit tests passed.
+
+## 2026-05-20 - Isolated animated particle donut orb POC
+- Added `AnimatedParticleDonutOrb` as a standalone Compose Canvas POC for a procedural SwimVPN donut/orb: no video, GIF, Lottie, or external asset.
+- Added reusable donut orb tokens and dimensions with a 320dp canvas, 300dp outer visual diameter, 168dp center hole, deterministic particles, orbital lines, state-based motion, reduced-motion scaling, and a central click target.
+- Added `AnimatedParticleDonutOrbPreviewScreen` with local state controls for Disconnected, Connecting, Connected, and Unstable visual states.
+- Kept the component isolated in `ui/orb`; Home, dock, VPN runtime, parser, backend, entitlement, navigation, and payment logic were not modified.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+- Added a debug-only `donut-orb-lab` route that opens only when launched with the ADB extra `open_donut_orb_lab=true`, so the POC can be visually QA'd on device without changing normal app navigation.
+- Rejected after live device QA and removed the POC files plus the debug lab route to restore the normal app surface.

@@ -66,15 +66,10 @@ fun ProfileScreen(
     val context = LocalContext.current
     val badgeText = profileBadgeText(profile, context)
     val badgeColor = profileBadgeColor(profile)
-    val localizedPlanName = profileLocalizedPlanName(profile, context)
-    var showCancelSubscriptionDialog by remember { mutableStateOf(false) }
     var accountExpanded by remember { mutableStateOf(true) }
-    val canCancelSubscription =
-        (profile.isActiveSubscription || profile.isPendingFulfillment) && onCancelSubscription != null
     val displayIdentity = profile.email?.takeIf { it.isNotBlank() }
         ?: profile.phone?.takeIf { it.isNotBlank() }
         ?: profile.userNumber
-    val planLabel = localizedPlanName?.takeIf { it.isNotBlank() } ?: badgeText
 
     Box(
         modifier = Modifier
@@ -163,11 +158,6 @@ fun ProfileScreen(
                         value = profile.phone?.takeIf { it.isNotBlank() }
                             ?: stringResource(R.string.profile_contact_missing),
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    AccountInfoPill(
-                        label = stringResource(R.string.profile_status_label),
-                        value = planLabel,
-                    )
                     if (profile.isTrialAvailable && profile.trialEligible && onActivateTrial != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         AccountActionPill(
@@ -187,29 +177,6 @@ fun ProfileScreen(
             AccountSectionTitle(stringResource(R.string.label_management))
             AccountCanvas {
                 AccountActionPill(
-                    icon = Icons.Outlined.CreditCard,
-                    title = stringResource(R.string.menu_subscription),
-                    subtitle = stringResource(R.string.profile_section_swimvpn_access),
-                    onClick = onNavigateToSubscription,
-                )
-                if (canCancelSubscription) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    AccountActionPill(
-                        icon = Icons.Outlined.CreditCard,
-                        title = stringResource(R.string.menu_cancel_subscription),
-                        subtitle = stringResource(R.string.subscription_cancel_dialog_title),
-                        onClick = { showCancelSubscriptionDialog = true },
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                AccountActionPill(
-                    icon = Icons.Outlined.LocalOffer,
-                    title = stringResource(R.string.menu_import_access),
-                    subtitle = "Importer une configuration",
-                    onClick = onNavigateToImport,
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                AccountActionPill(
                     icon = Icons.Outlined.Settings,
                     title = stringResource(R.string.menu_technical),
                     subtitle = "Application et connexion",
@@ -222,33 +189,17 @@ fun ProfileScreen(
                     subtitle = "Assistance et contact",
                     onClick = onNavigateToSupport,
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                AccountActionPill(
+                    icon = Icons.Outlined.CreditCard,
+                    title = stringResource(R.string.menu_subscription),
+                    subtitle = stringResource(R.string.profile_section_swimvpn_access),
+                    onClick = onNavigateToSubscription,
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-
-    if (showCancelSubscriptionDialog) {
-        AlertDialog(
-            onDismissRequest = { showCancelSubscriptionDialog = false },
-            title = { Text(stringResource(R.string.subscription_cancel_dialog_title)) },
-            text = { Text(stringResource(R.string.subscription_cancel_dialog_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showCancelSubscriptionDialog = false
-                        onCancelSubscription?.invoke()
-                    },
-                ) {
-                    Text(stringResource(R.string.subscription_cancel_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCancelSubscriptionDialog = false }) {
-                    Text(stringResource(R.string.subscription_cancel_keep))
-                }
-            },
-        )
     }
 }
 

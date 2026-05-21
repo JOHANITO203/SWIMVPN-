@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import com.swimvpn.app.config.ActiveConfigMetadata
+import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
@@ -91,6 +92,17 @@ data class ImportedConfigSummaryUi(
     val expiresCaption: String,
 )
 
+data class PremiumAccessSummaryUi(
+    val title: String,
+    val subtitle: String,
+    val quotaValue: String,
+    val quotaCaption: String,
+    val expiresOn: String,
+    val expiresCaption: String,
+    val accessActive: Boolean,
+    val hasPremiumNodes: Boolean,
+)
+
 data class ServerNodeUi(
     val id: String,
     val countryName: String,
@@ -108,6 +120,7 @@ data class ServerScreenUiState(
     val selectedTab: ServerSourceTab,
     val aiActive: Boolean,
     val importedConfig: ImportedConfigSummaryUi?,
+    val premiumAccess: PremiumAccessSummaryUi?,
     val importedNodes: List<ServerNodeUi>,
     val premiumNodes: List<ServerNodeUi>,
     val selectedNodeId: String?,
@@ -118,6 +131,7 @@ fun ServersScreen(
     serverGroups: List<ServerGroup>,
     activeServerId: String?,
     activeConfigMetadata: ActiveConfigMetadata?,
+    profile: AccessProfileResponse? = null,
     onSelectServer: (ServerNode) -> Unit,
     onImportAccessClick: () -> Unit,
     onSubscribeClick: () -> Unit,
@@ -147,6 +161,7 @@ fun ServersScreen(
         activeConfigMetadata,
         importedServers,
         premiumServers,
+        profile,
         recommendedServerId,
         isRecommendedServerValidated,
     ) {
@@ -154,6 +169,7 @@ fun ServersScreen(
             selectedTab = selectedTab,
             aiActive = isRecommendedServerValidated && recommendedServerId != null,
             importedConfig = activeConfigMetadata.toImportedConfigSummaryUi(),
+            premiumAccess = profile.toPremiumAccessSummaryUi(premiumServers),
             importedNodes = importedServers.toNodeUi(activeServerId),
             premiumNodes = premiumServers.toNodeUi(activeServerId),
             selectedNodeId = activeServerId,
@@ -235,36 +251,32 @@ fun ServerScreen(
 
                 item(key = "ai-card") {
                     MotionReveal(visible = entered, delayMillis = 80) {
-                        AiStatusCard(
-                            aiActive = uiState.aiActive,
-                            config = uiState.importedConfig,
-                            compact = compact,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        if (uiState.selectedTab == ServerSourceTab.IMPORTED) {
+                            AiStatusCard(
+                                aiActive = uiState.aiActive,
+                                config = uiState.importedConfig,
+                                compact = compact,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            PremiumAccessCard(
+                                access = uiState.premiumAccess,
+                                compact = compact,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
 
                 item(key = "actions") {
                     MotionReveal(visible = entered, delayMillis = 130) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        ) {
-                            ServerActionPill(
-                                title = "Import Access",
-                                subtitle = "Add your configs",
-                                icon = Icons.Default.Download,
-                                onClick = onImportAccessClick,
-                                modifier = Modifier.weight(1f),
-                            )
-                            ServerActionPill(
-                                title = "Subscribe",
-                                subtitle = "Get premium access",
-                                icon = Icons.Default.WorkspacePremium,
-                                onClick = onSubscribeClick,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
+                        ServerActionsRow(
+                            selectedTab = uiState.selectedTab,
+                            premiumActive = uiState.premiumAccess?.accessActive == true,
+                            premiumHasNodes = uiState.premiumAccess?.hasPremiumNodes == true,
+                            onImportAccessClick = onImportAccessClick,
+                            onSubscribeClick = onSubscribeClick,
+                        )
                     }
                 }
 
@@ -495,6 +507,198 @@ private fun AiOrbBadge(modifier: Modifier = Modifier) {
             }
         }
         Text("AI", color = Color.White, fontSize = fixedSp(14), fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
+private fun PremiumAccessCard(
+    access: PremiumAccessSummaryUi?,
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val resolved = access ?: PremiumAccessSummaryUi(
+        title = "Premium access",
+        subtitle = "Subscribe to unlock managed servers",
+        quotaValue = "Locked",
+        quotaCaption = "Subscription required",
+        expiresOn = "Inactive",
+        expiresCaption = "Choose a plan",
+        accessActive = false,
+        hasPremiumNodes = false,
+    )
+    val titleSize = fixedSp(if (compact) 17 else 19)
+    val bodySize = fixedSp(if (compact) 11 else 12)
+    Box(
+        modifier = modifier
+            .height(if (compact) 196.dp else SwimDesignTokens.Servers.AiCardHeight)
+            .shadow(
+                SwimDesignTokens.Shadow.HardwareSurface,
+                RoundedCornerShape(SwimDesignTokens.Servers.AiCardRadius),
+                clip = false,
+                spotColor = SwimDesignTokens.Color.PurplePrimary.copy(alpha = if (resolved.accessActive) 0.18f else 0f),
+            )
+            .clip(RoundedCornerShape(SwimDesignTokens.Servers.AiCardRadius))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Color.SurfaceHighlight.copy(alpha = if (resolved.accessActive) 0.72f else 0.48f),
+                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                if (resolved.accessActive) SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.32f)
+                else SwimDesignTokens.Color.StrokeSubtle,
+                RoundedCornerShape(SwimDesignTokens.Servers.AiCardRadius),
+            )
+            .drawBehind {
+                drawRect(SwimDesignTokens.Highlight.InnerTop, size = Size(size.width, 1.dp.toPx()))
+            }
+            .padding(22.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            PremiumOrbBadge(active = resolved.accessActive)
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = resolved.title,
+                    color = SwimDesignTokens.Color.TextPrimary,
+                    fontSize = titleSize,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = resolved.subtitle,
+                    color = SwimDesignTokens.Color.TextSecondary,
+                    fontSize = bodySize,
+                    lineHeight = fixedSp(if (compact) 14 else 15),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            ActivityPilotLight(active = resolved.accessActive)
+        }
+
+        PremiumSummaryPill(
+            access = resolved,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
+}
+
+@Composable
+private fun PremiumOrbBadge(active: Boolean, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(SwimDesignTokens.Servers.AiBadgeSize * 0.78f)
+            .clip(CircleShape)
+            .background(
+                Brush.radialGradient(
+                    if (active) {
+                        listOf(
+                            SwimDesignTokens.Material.PurpleCoreTop,
+                            SwimDesignTokens.Material.PurpleCoreMid,
+                            SwimDesignTokens.Material.PurpleCoreBottom,
+                            SwimDesignTokens.Material.BowlBottom,
+                        )
+                    } else {
+                        listOf(
+                            SwimDesignTokens.Material.BowlTop,
+                            SwimDesignTokens.Material.BowlMid,
+                            SwimDesignTokens.Material.BowlBottom,
+                        )
+                    }
+                )
+            )
+            .border(1.dp, SwimDesignTokens.Color.PurpleActive.copy(alpha = if (active) 0.38f else 0.16f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.WorkspacePremium,
+            contentDescription = null,
+            tint = if (active) Color.White else SwimDesignTokens.Color.TextSecondary,
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
+@Composable
+private fun PremiumSummaryPill(access: PremiumAccessSummaryUi, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(SwimDesignTokens.Servers.QuotaPillHeight)
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Color.SurfaceHighlight.copy(alpha = 0.48f),
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
+            .border(1.dp, SwimDesignTokens.Color.DividerSubtle, SwimDesignTokens.Shape.Pill)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        QuotaColumn(label = "Premium quota", value = access.quotaValue, caption = access.quotaCaption, modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .height(58.dp)
+                .width(1.dp)
+                .background(SwimDesignTokens.Color.DividerSubtle)
+        )
+        QuotaColumn(label = "Access until", value = access.expiresOn, caption = access.expiresCaption, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun ServerActionsRow(
+    selectedTab: ServerSourceTab,
+    premiumActive: Boolean,
+    premiumHasNodes: Boolean,
+    onImportAccessClick: () -> Unit,
+    onSubscribeClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (selectedTab == ServerSourceTab.IMPORTED) {
+            ServerActionPill(
+                title = "Import Access",
+                subtitle = "Manual or QR code",
+                icon = Icons.Default.Download,
+                onClick = onImportAccessClick,
+                modifier = Modifier.weight(1f),
+            )
+            ServerActionPill(
+                title = "Subscribe",
+                subtitle = "Unlock managed nodes",
+                icon = Icons.Default.WorkspacePremium,
+                onClick = onSubscribeClick,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            ServerActionPill(
+                title = when {
+                    premiumHasNodes -> "Manage plan"
+                    premiumActive -> "Refresh access"
+                    else -> "Subscribe"
+                },
+                subtitle = when {
+                    premiumHasNodes -> "Plan and renewal"
+                    premiumActive -> "Nodes syncing"
+                    else -> "Get premium access"
+                },
+                icon = Icons.Default.WorkspacePremium,
+                onClick = onSubscribeClick,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -828,6 +1032,57 @@ private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(): ImportedConfigSum
         quotaCaption = quotaCaption,
         expiresOn = expiresAt?.let(::formatServerExpiryDate) ?: "Unknown",
         expiresCaption = expiresAt?.let(::formatServerExpiryCaption) ?: "No expiry",
+    )
+}
+
+private fun AccessProfileResponse?.toPremiumAccessSummaryUi(premiumServers: List<ServerNode>): PremiumAccessSummaryUi? {
+    if (this == null) {
+        return null
+    }
+
+    val planName = publicPlanName
+        ?: when (offerCode) {
+            "WEEK" -> "Basic"
+            "MONTH" -> "Premium"
+            "QUARTER" -> "Platinum"
+            else -> if (isPremiumAllowed) "Premium" else "Premium access"
+        }
+    val totalBytes = premiumServers.firstNotNullOfOrNull { it.trafficTotalBytes?.filter(Char::isDigit)?.toLongOrNull() }
+        ?: dataLimitBytes.takeIf { it > 0L }
+    val usedBytes = premiumServers.firstNotNullOfOrNull { it.trafficUsedBytes?.filter(Char::isDigit)?.toLongOrNull() }
+        ?: parsedDataUsedBytes
+    val expiry = premiumServers.firstNotNullOfOrNull { it.expiresAt?.takeIf(String::isNotBlank) }
+        ?: effectiveExpiryAt
+    val active = isPremiumAllowed && premiumServers.isNotEmpty()
+    val waitingFulfillment = isPremiumAllowed && premiumServers.isEmpty()
+
+    return PremiumAccessSummaryUi(
+        title = when {
+            active -> "$planName active"
+            waitingFulfillment -> "$planName syncing"
+            isPendingFulfillment -> "Fulfillment pending"
+            else -> "Premium access"
+        },
+        subtitle = when {
+            active -> "${premiumServers.size} managed nodes available"
+            waitingFulfillment -> "Your access is active, nodes are syncing"
+            isPendingFulfillment -> "Your order is being prepared"
+            else -> "Subscribe to unlock managed servers"
+        },
+        quotaValue = when {
+            totalBytes != null && totalBytes > 0L -> formatBytes(totalBytes)
+            isPremiumAllowed -> "Unlimited"
+            else -> "Locked"
+        },
+        quotaCaption = when {
+            totalBytes != null && totalBytes > 0L -> "${formatBytes(usedBytes)} used"
+            isPremiumAllowed -> "Plan managed"
+            else -> "Subscription required"
+        },
+        expiresOn = expiry?.let(::formatServerExpiryDate) ?: if (isPremiumAllowed) "Managed" else "Inactive",
+        expiresCaption = expiry?.let(::formatServerExpiryCaption) ?: if (isPremiumAllowed) "Provider managed" else "Choose a plan",
+        accessActive = isPremiumAllowed || isPendingFulfillment,
+        hasPremiumNodes = active,
     )
 }
 
