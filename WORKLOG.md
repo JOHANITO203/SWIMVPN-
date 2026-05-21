@@ -3574,3 +3574,9 @@ pm run build PASSED.
 - Added debug-only `SwimStartup` timing logs for Activity creation, first composition, bridge surface, bootstrap resolution, Home mount, and orb mount.
 - Installed the rebuilt debug APK on the Wi-Fi ADB phone and captured cold/resume sequences under `screenshots/startup-seq-patched-final/`.
 - Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+# 2026-05-22 - Subscription plan icon refresh
+
+- Replaced generic Material plan icons in the Android Subscription screen with tintable vector drawables based on free Tabler Icons.
+- Shifted plan icon language away from shields toward membership/value symbols: medal for Basic, sparkles for Premium, and diamond for Platinum.
+- Preserved subscription data, backend checkout flow, payment methods, entitlement logic, plan ordering, dark/light tokens, and card layout.
+- Verification pending in this batch: Android compile, assemble, and device install.

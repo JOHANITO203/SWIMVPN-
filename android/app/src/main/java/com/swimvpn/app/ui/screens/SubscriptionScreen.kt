@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -457,10 +456,10 @@ private fun PlanIconBadge(
     highlighted: Boolean,
     size: Dp,
 ) {
-    val icon = when (tier) {
-        SubscriptionPlanTier.BASIC -> Icons.Default.Security
-        SubscriptionPlanTier.PREMIUM -> Icons.Default.Security
-        SubscriptionPlanTier.PLATINUM -> Icons.Default.WorkspacePremium
+    val iconRes = when (tier) {
+        SubscriptionPlanTier.BASIC -> R.drawable.ic_plan_basic_medal
+        SubscriptionPlanTier.PREMIUM -> R.drawable.ic_plan_premium_sparkles
+        SubscriptionPlanTier.PLATINUM -> R.drawable.ic_plan_platinum_diamond
     }
     val tint = if (highlighted) SwimDesignTokens.Color.PurpleActive else SwimDesignTokens.Color.TextPrimary
 
@@ -509,7 +508,7 @@ private fun PlanIconBadge(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = icon,
+            painter = painterResource(iconRes),
             contentDescription = stringResource(tier.contentDescriptionRes),
             tint = tint,
             modifier = Modifier.size(size * 0.48f),

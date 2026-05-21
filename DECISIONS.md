@@ -1195,3 +1195,10 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: Android startup now renders a branded lightweight shell before backend servers, imported profile groups, plans, latency, and the GL orb are ready.
 - Reason: the app must not look frozen behind a blank native/app surface while noncritical data and heavy visual layers load.
 - Consequence: backend access/profile remains authoritative, but noncritical visual/data enrichment hydrates after the first useful UI. The Home screen may briefly show a minimal server state before hydrated routes arrive.
+# 2026-05-22 - Subscription plan icons use non-shield membership symbols
+
+Decision: Subscription plan cards use tintable vector drawables derived from Tabler Icons instead of repeated Material shield icons.
+
+Reason: Shields made Basic and Premium read as generic VPN/security tiers. Medal, sparkles, and diamond better express membership progression, premium value, and top-tier rarity while staying compatible with the existing SwimVPN hardware badge surface.
+
+Impact: Only the visual icon assets and `PlanIconBadge` mapping changed. Backend plans, checkout, entitlement, payment methods, copy, pricing, and navigation remain unchanged.
