@@ -345,6 +345,7 @@ fun SwimHardwareCard(
             .border(1.dp, tokens.color.homeDividerSubtle, shape)
             .drawBehind {
                 drawSwimDarkMaterialSkin(tokens)
+                drawSwimLightCardTexture(tokens)
                 val topGlow = if (tokens == SwimDesignTokens.Light) {
                     tokens.highlight.innerTop.copy(alpha = 0.28f)
                 } else {
@@ -361,6 +362,61 @@ fun SwimHardwareCard(
             },
         content = content
     )
+}
+
+fun DrawScope.drawSwimLightCardTexture(tokens: SwimVisualTokens) {
+    if (tokens != SwimDesignTokens.Light) {
+        return
+    }
+
+    drawRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(
+                tokens.texture.rubberHighlight,
+                Color.Transparent,
+                tokens.texture.rubberVeil,
+            ),
+            startY = 0f,
+            endY = size.height,
+        )
+    )
+    drawRect(
+        brush = Brush.radialGradient(
+            colors = listOf(
+                tokens.texture.rubberVeil.copy(alpha = tokens.texture.rubberVeil.alpha * 1.55f),
+                Color.Transparent,
+            ),
+            center = Offset(size.width * 0.78f, size.height * 0.18f),
+            radius = size.maxDimension * 0.62f,
+        )
+    )
+
+    val step = 8.dp.toPx()
+    val microRadius = 0.28.dp.toPx()
+    val sparkRadius = 0.42.dp.toPx()
+    var y = step * 0.45f
+    var row = 0
+    while (y < size.height) {
+        var x = if (row % 2 == 0) step * 0.34f else step * 0.76f
+        while (x < size.width) {
+            val seed = ((x * 17.13f + y * 31.71f).toInt() and 15)
+            when (seed) {
+                1, 6 -> drawCircle(
+                    color = tokens.texture.starDust,
+                    radius = microRadius,
+                    center = Offset(x, y),
+                )
+                13 -> drawCircle(
+                    color = tokens.texture.starDustSpark,
+                    radius = sparkRadius,
+                    center = Offset(x, y),
+                )
+            }
+            x += step
+        }
+        row += 1
+        y += step
+    }
 }
 
 fun DrawScope.drawSwimDarkMaterialSkin(tokens: SwimVisualTokens) {

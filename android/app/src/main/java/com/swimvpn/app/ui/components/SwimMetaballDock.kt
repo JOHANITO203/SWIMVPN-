@@ -241,7 +241,7 @@ fun MetaballNavDock(
             val selected = item.item == selectedItem
             val outerSize = if (selected) DockTokens.ActiveOuterDiameter else DockTokens.InactiveOuterDiameter
             val iconSize = if (selected) DockTokens.ActiveIconSize else DockTokens.InactiveIconSize
-            val selectedInk = if (tokens == SwimDesignTokens.Light) tokens.color.homeTextPrimary else Color.White
+            val selectedInk = Color.White
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -519,7 +519,7 @@ private fun DockNodeButton(
             )
         }
         if (renderContent) {
-            val selectedInk = if (tokens == SwimDesignTokens.Light) tokens.color.homeTextPrimary else Color.White
+            val selectedInk = Color.White
             Icon(
                 imageVector = item.icon,
                 contentDescription = item.label,

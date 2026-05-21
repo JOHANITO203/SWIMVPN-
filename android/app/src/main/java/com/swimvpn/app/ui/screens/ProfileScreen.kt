@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -44,6 +45,8 @@ import com.swimvpn.app.config.ActiveConfigSource
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
+import com.swimvpn.app.ui.components.drawSwimLightCardTexture
+import com.swimvpn.app.ui.theme.LocalSwimVisualTokens
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import java.text.SimpleDateFormat
 import java.util.*
@@ -277,6 +280,7 @@ private fun AccountSectionTitle(title: String) {
 
 @Composable
 private fun AccountCanvas(content: @Composable ColumnScope.() -> Unit) {
+    val tokens = LocalSwimVisualTokens.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -297,6 +301,9 @@ private fun AccountCanvas(content: @Composable ColumnScope.() -> Unit) {
                 )
             )
             .border(1.dp, SwimDesignTokens.Highlight.BodyStroke, SwimDesignTokens.Shape.LargeHardwareCard)
+            .drawBehind {
+                drawSwimLightCardTexture(tokens)
+            }
             .padding(18.dp),
         content = content,
     )

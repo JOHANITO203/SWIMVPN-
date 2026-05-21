@@ -79,6 +79,7 @@ import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.SwimDockDestination
 import com.swimvpn.app.ui.components.SwimMetaballDock
 import com.swimvpn.app.ui.components.drawSwimDarkMaterialSkin
+import com.swimvpn.app.ui.components.drawSwimLightCardTexture
 import com.swimvpn.app.ui.theme.LocalSwimVisualTokens
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import java.math.BigDecimal
@@ -334,6 +335,7 @@ private fun SubscriptionPlanCard(
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .drawBehind {
                 drawSwimDarkMaterialSkin(tokens)
+                drawSwimLightCardTexture(tokens)
                 if (tokens == SwimDesignTokens.Light) {
                     drawRect(
                         color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = if (plan.isHighlighted) 0.42f else 0.30f),
@@ -798,6 +800,7 @@ private fun HardwareBox(
             .border(1.dp, SwimDesignTokens.Color.DividerSubtle, shape)
             .drawBehind {
                 drawSwimDarkMaterialSkin(tokens)
+                drawSwimLightCardTexture(tokens)
                 if (tokens == SwimDesignTokens.Light) {
                     drawRect(
                         color = SwimDesignTokens.Highlight.InnerTop.copy(alpha = 0.28f),

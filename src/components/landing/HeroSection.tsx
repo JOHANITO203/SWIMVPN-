@@ -143,9 +143,9 @@ export const HeroSection = () => {
 function GlobeFallback() {
   return (
     <div className="relative flex h-full min-h-[260px] w-full items-center justify-center overflow-hidden rounded-[1.5rem]">
-      <div className="absolute h-64 w-64 rounded-full bg-[#8A6AF1]/20 blur-[70px]" />
-      <div className="relative h-48 w-48 rounded-full border border-[#B89AFF]/25 bg-[radial-gradient(circle_at_50%_45%,rgba(184,154,255,0.22),rgba(7,7,11,0.2)_44%,transparent_70%)] shadow-[0_0_80px_rgba(138,106,241,0.22)]" />
-      <div className="absolute h-56 w-56 rounded-full border border-white/10" />
+      <div className="absolute h-72 w-72 rounded-full bg-[#8A6AF1]/16 blur-[90px]" />
+      <div className="absolute h-56 w-56 rounded-full border border-[#B89AFF]/20 shadow-[0_0_70px_rgba(138,106,241,0.18)]" />
+      <div className="relative h-48 w-48 rounded-full border border-white/10 bg-[radial-gradient(circle_at_45%_38%,rgba(184,154,255,0.16),rgba(7,7,11,0.14)_48%,transparent_72%)]" />
     </div>
   );
 }

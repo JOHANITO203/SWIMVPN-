@@ -3549,3 +3549,18 @@ pm run build PASSED.
 - Kept account data, sign-out behavior, management actions, and navigation callbacks unchanged.
 - Installed the rebuilt debug APK on the Wi-Fi ADB phone for QA.
 - Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+## 2026-05-21 - Android light dock ink and card texture tokens
+- Reverted the light-theme selected dock icon/label ink back to white after visual QA showed the dark ink direction was weaker.
+- Added semantic `SwimTextureTokens` to the shared visual token model for rubber veil, rubber highlight, star dust, and star dust sparkle overlays.
+- Added a light-only card texture renderer that applies a subtle lavender rubber/plastic veil and fine deterministic star-dust grain.
+- Applied the texture only to card containers: shared hardware cards, Subscription plan/hardware cards, and Account canvases. Pills, buttons, and the dock remain untextured.
+- Installed the rebuilt debug APK on the Wi-Fi ADB phone for QA.
+- Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+
+## 2026-05-21 - Landing mobile globe quality restoration
+- Audited the mobile globe regression and traced the quality drop to the recent low-DPR mobile canvas settings, disabled live antialiasing outside desktop, and a constrained mobile wrapper width.
+- Restored the real Three.js globe as the mobile hero visual with a wider responsive wrapper, balanced mobile/tablet camera distance, live antialiasing, and higher but capped mobile/tablet DPR.
+- Kept the hero globe non-interactive on mobile so vertical scroll remains safe while preserving the premium render quality.
+- Softened the Suspense fallback so the temporary loading state no longer looks like a low-quality replacement globe.
+- Verification: `npm run build` passed. `npm run lint` still fails on existing backend alias/dependency TypeScript errors unrelated to the landing globe files.

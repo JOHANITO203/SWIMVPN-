@@ -39,14 +39,11 @@ function GlobeScene({
 }) {
   const cameraConfig = useMemo(() => {
     if (device === 'mobile') {
-      // Very close and large on mobile to ensure it fills the space
-      return { position: [0, 0, 5.5] as [number, number, number], fov: 42, scale: 1.35 };
+      return { position: [0, 0, 7.4] as [number, number, number], fov: 40, scale: 1.08 };
     }
     if (device === 'tablet') {
-      // Generous sizing for tablets
-      return { position: [0, 0, 6.0] as [number, number, number], fov: 38, scale: 1.25 };
+      return { position: [0, 0, 7.1] as [number, number, number], fov: 37, scale: 1.12 };
     }
-    // Desktop layout (shifted right visually)
     return { position: [0, 0, 7.0] as [number, number, number], fov: 35, scale: 1.15 };
   }, [device]);
 
@@ -108,9 +105,7 @@ export const InteractivePixelGlobe = ({
         'relative',
         'h-full',
         'w-full',
-        'max-w-[400px]',
-        'sm:max-w-[500px]',
-        'md:max-w-[600px]',
+        'max-w-[600px]',
         'mx-auto',
         'overflow-visible',
         interactive ? 'lg:cursor-grab lg:active:cursor-grabbing' : '',
@@ -122,10 +117,18 @@ export const InteractivePixelGlobe = ({
       aria-hidden="true"
     >
       <Canvas
-        dpr={device === 'desktop' && !isStatic ? [1, 1.5] : [1, 1]}
+        dpr={
+          isStatic
+            ? [1, 1.15]
+            : device === 'mobile'
+              ? [1, 1.4]
+              : device === 'tablet'
+                ? [1, 1.6]
+                : [1, 2]
+        }
         frameloop={isStatic ? 'demand' : 'always'}
         gl={{
-          antialias: device === 'desktop' && !isStatic,
+          antialias: !isStatic,
           alpha: true,
           powerPreference: isStatic ? 'low-power' : 'high-performance',
           preserveDrawingBuffer: false,

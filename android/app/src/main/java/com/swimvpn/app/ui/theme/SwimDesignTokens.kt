@@ -53,10 +53,18 @@ data class SwimHighlightTokens(
     val purpleEdge: ComposeColor,
 )
 
+data class SwimTextureTokens(
+    val rubberVeil: ComposeColor,
+    val rubberHighlight: ComposeColor,
+    val starDust: ComposeColor,
+    val starDustSpark: ComposeColor,
+)
+
 data class SwimVisualTokens(
     val color: SwimColorTokens,
     val material: SwimMaterialTokens,
     val highlight: SwimHighlightTokens,
+    val texture: SwimTextureTokens,
 )
 
 object SwimDesignTokens {
@@ -106,6 +114,12 @@ object SwimDesignTokens {
             skinSheen = ComposeColor.White.copy(alpha = 0.18f),
             purpleEdge = ComposeColor(0xFF8A6AF1).copy(alpha = 0.11f),
         ),
+        texture = SwimTextureTokens(
+            rubberVeil = ComposeColor.Transparent,
+            rubberHighlight = ComposeColor.Transparent,
+            starDust = ComposeColor.Transparent,
+            starDustSpark = ComposeColor.Transparent,
+        ),
     )
 
     val Light = SwimVisualTokens(
@@ -153,6 +167,12 @@ object SwimDesignTokens {
             bodyStroke = ComposeColor(0xFF3D305C).copy(alpha = 0.085f),
             skinSheen = ComposeColor.White.copy(alpha = 0.42f),
             purpleEdge = ComposeColor(0xFF7657E8).copy(alpha = 0.16f),
+        ),
+        texture = SwimTextureTokens(
+            rubberVeil = ComposeColor(0xFF7A5BE8).copy(alpha = 0.040f),
+            rubberHighlight = ComposeColor.White.copy(alpha = 0.105f),
+            starDust = ComposeColor(0xFF3D305C).copy(alpha = 0.055f),
+            starDustSpark = ComposeColor.White.copy(alpha = 0.20f),
         ),
     )
 
@@ -238,6 +258,13 @@ object SwimDesignTokens {
         val BodyStroke get() = Current.highlight.bodyStroke
         val SkinSheen get() = Current.highlight.skinSheen
         val PurpleEdge get() = Current.highlight.purpleEdge
+    }
+
+    object Texture {
+        val RubberVeil get() = Current.texture.rubberVeil
+        val RubberHighlight get() = Current.texture.rubberHighlight
+        val StarDust get() = Current.texture.starDust
+        val StarDustSpark get() = Current.texture.starDustSpark
     }
 
     object Shadow {
