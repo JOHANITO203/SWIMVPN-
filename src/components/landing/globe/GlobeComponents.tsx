@@ -461,7 +461,7 @@ function ArcLine({ positions }: { positions: Float32Array }) {
   }, [positions]);
 
   return (
-    <line ref={lineRef}>
+    <line ref={(node) => { lineRef.current = node as unknown as THREE.Line | null; }}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>

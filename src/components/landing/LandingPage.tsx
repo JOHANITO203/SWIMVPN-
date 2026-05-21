@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Download } from 'lucide-react';
 import { HeroSection } from './HeroSection';
 import { TrustStrip } from './TrustStrip';
@@ -10,6 +10,8 @@ import { DownloadSection } from './DownloadSection';
 import { Footer } from './Footer';
 
 const LandingPage = () => {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <div className="min-h-screen overflow-hidden bg-[#050505] text-[#F3F1F6] selection:bg-[#8A6AF1]/30 selection:text-white">
       <div className="pointer-events-none fixed inset-0 z-0">
@@ -59,12 +61,12 @@ const LandingPage = () => {
             La pré-release est disponible maintenant.
           </h2>
           <p className="mx-auto mb-10 max-w-xl text-lg leading-relaxed text-[#A6A1B3]">
-            Téléchargez l’APK, testez le trial offert et utilisez SWIMVPN+ avec nos configs in-app ou vos propres configs VLESS/Trojan.
+            Téléchargez l’APK, activez le trial depuis l’app et utilisez SWIMVPN+ avec nos configs in-app ou vos propres configs VLESS/Trojan.
           </p>
           <motion.a
             href="#download-apk"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={shouldReduceMotion ? undefined : { scale: 1.05 }}
+            whileTap={shouldReduceMotion ? undefined : { scale: 0.95 }}
             className="inline-flex items-center gap-3 rounded-full bg-white px-10 py-5 text-lg font-black text-black shadow-[0_24px_70px_rgba(255,255,255,0.16)] transition-all hover:bg-[#F3F1F6]"
           >
             <Download size={22} />

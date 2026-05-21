@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 
 const STEPS = [
   { id: '01', title: 'Téléchargez l’APK', text: 'Installez la pré-release officielle avant l’arrivée Play Store.' },
@@ -9,6 +9,8 @@ const STEPS = [
 ];
 
 export const HowItWorks = () => {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <section id="usage" className="relative z-10 border-y border-white/5 bg-[#07070B]/50 px-4 py-24 md:px-6 md:py-32">
       <div className="container mx-auto">
@@ -26,9 +28,9 @@ export const HowItWorks = () => {
           {STEPS.map((step, idx) => (
             <motion.div
               key={idx}
-              initial={{ opacity: 0, y: 10 }}
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.1 }}
+              transition={shouldReduceMotion ? { duration: 0 } : { delay: idx * 0.1 }}
               viewport={{ once: true }}
               className="group relative min-h-[230px] overflow-hidden rounded-[2rem] border border-white/10 bg-[#111118]/75 p-8 shadow-[0_18px_42px_rgba(0,0,0,0.35)]"
             >

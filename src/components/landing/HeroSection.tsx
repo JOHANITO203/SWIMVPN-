@@ -1,20 +1,32 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { Suspense, lazy } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Download, QrCode, ShieldCheck, Sparkles, WalletCards } from 'lucide-react';
-import InteractivePixelGlobe from './InteractivePixelGlobe';
+
+const InteractivePixelGlobe = lazy(() => import('./InteractivePixelGlobe'));
 
 const cardBase =
   'relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#111118]/80 shadow-[0_18px_42px_rgba(0,0,0,0.55)] backdrop-blur-2xl';
 
 export const HeroSection = () => {
+  const shouldReduceMotion = useReducedMotion();
+  const heroInitial = shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 22 };
+  const tileInitial = shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 };
+  const heroTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.7, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
+  const tileTransition = (delay: number) =>
+    shouldReduceMotion
+      ? { duration: 0 }
+      : { delay, duration: 0.65, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
+
   return (
     <section className="relative z-10 px-4 pb-12 pt-32 md:px-6 md:pb-20 md:pt-40">
       <div className="container mx-auto">
         <div className="grid min-h-[calc(100vh-8rem)] grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[minmax(220px,0.9fr)_minmax(170px,0.7fr)_minmax(150px,0.55fr)]">
           <motion.div
-            initial={{ opacity: 0, y: 22 }}
+            initial={heroInitial}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            transition={heroTransition}
             className={`${cardBase} min-h-[420px] p-7 sm:p-10 lg:col-span-7 lg:row-span-2 lg:p-12`}
           >
             <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#8A6AF1]/30 blur-[90px]" />
@@ -40,8 +52,8 @@ export const HeroSection = () => {
                   href="/downloads/swimvpn.apk"
                   download="SwimVPN.apk"
                   aria-label="Télécharger l’APK SwimVPN"
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={shouldReduceMotion ? undefined : { scale: 1.02, y: -2 }}
+                  whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
                   className="inline-flex min-h-14 items-center justify-center gap-3 rounded-full bg-white px-8 py-4 font-black text-black shadow-[0_24px_70px_rgba(255,255,255,0.16)] transition hover:bg-[#F3F1F6]"
                 >
                   <Download size={22} strokeWidth={3} />
@@ -58,21 +70,26 @@ export const HeroSection = () => {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 22 }}
+            initial={heroInitial}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            transition={shouldReduceMotion ? { duration: 0 } : { delay: 0.08, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className={`${cardBase} min-h-[260px] p-6 lg:col-span-5 lg:row-span-2`}
           >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_60%_35%,rgba(138,106,241,0.22),transparent_42%)]" />
-            <div className="relative h-full min-h-[360px]">
-              <InteractivePixelGlobe />
+            <div className="relative hidden h-full min-h-[360px] md:block">
+              <Suspense fallback={<GlobeFallback />}>
+                <InteractivePixelGlobe interactive={false} performanceMode={shouldReduceMotion ? 'static' : 'live'} />
+              </Suspense>
+            </div>
+            <div className="relative flex min-h-[300px] items-center justify-center md:hidden">
+              <GlobeFallback />
             </div>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 18 }}
+            initial={tileInitial}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.14, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            transition={tileTransition(0.14)}
             className={`${cardBase} p-6 lg:col-span-3`}
           >
             <WalletCards className="mb-8 text-[#B89AFF]" size={30} />
@@ -83,9 +100,9 @@ export const HeroSection = () => {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 18 }}
+            initial={tileInitial}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            transition={tileTransition(0.2)}
             className={`${cardBase} p-6 lg:col-span-3`}
           >
             <QrCode className="mb-8 text-[#B89AFF]" size={30} />
@@ -96,22 +113,22 @@ export const HeroSection = () => {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 18 }}
+            initial={tileInitial}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.26, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            transition={tileTransition(0.26)}
             className={`${cardBase} p-6 lg:col-span-3`}
           >
             <Sparkles className="mb-8 text-[#B89AFF]" size={30} />
             <h2 className="mb-3 text-2xl font-black text-white">Trial offert</h2>
             <p className="text-sm leading-relaxed text-[#A6A1B3]">
-              Testez le service dès maintenant avant la release Play Store.
+              Activez le trial depuis l’app et consultez sa durée exacte avant la release Play Store.
             </p>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 18 }}
+            initial={tileInitial}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.32, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            transition={tileTransition(0.32)}
             className={`${cardBase} p-6 lg:col-span-3`}
           >
             <ShieldCheck className="mb-8 text-[#35D978]" size={30} />
@@ -125,3 +142,13 @@ export const HeroSection = () => {
     </section>
   );
 };
+
+function GlobeFallback() {
+  return (
+    <div className="relative flex h-full min-h-[260px] w-full items-center justify-center overflow-hidden rounded-[1.5rem]">
+      <div className="absolute h-64 w-64 rounded-full bg-[#8A6AF1]/20 blur-[70px]" />
+      <div className="relative h-48 w-48 rounded-full border border-[#B89AFF]/25 bg-[radial-gradient(circle_at_50%_45%,rgba(184,154,255,0.22),rgba(7,7,11,0.2)_44%,transparent_70%)] shadow-[0_0_80px_rgba(138,106,241,0.22)]" />
+      <div className="absolute h-56 w-56 rounded-full border border-white/10" />
+    </div>
+  );
+}

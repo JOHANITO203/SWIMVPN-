@@ -3473,3 +3473,11 @@ pm run build PASSED.
 - Clarified the dual usage model: users can buy ready-to-use configs in the app or paste/scan their own VLESS/Trojan configs for free usage.
 - Updated the download section, usage steps, feature grid, phone mockup, footer, and global landing background to match the current app visual grammar.
 - Verification: `npm run build` passed. `npm run lint` still fails on pre-existing backend alias/type issues and an existing globe ref typing issue unrelated to this landing copy/layout pass.
+
+## 2026-05-21 - Landing review finding fixes
+- Added reduced-motion handling to the landing motion surfaces, CTA press/hover effects, and phone mockup ambient animation.
+- Lazy-loaded the landing globe, hid the heavy Three.js globe on mobile in favor of a lightweight bento fallback, and split the globe into a separate production chunk.
+- Added a lower-power/static globe mode for reduced-motion decorative usage and removed the always-interactive hero globe behavior.
+- Reworded trial copy to say the trial is activated and its exact duration is shown inside the app instead of implying an unverified duration on the landing page.
+- Fixed the existing R3F globe line ref typing issue so landing typecheck no longer reports that file.
+- Verification: `npm run build` passed. `npm run lint` still fails only on existing backend alias/dependency issues outside the landing scope.

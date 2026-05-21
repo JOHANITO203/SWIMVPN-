@@ -10,8 +10,6 @@ import {
   GlobeWireframe,
 } from './globe/GlobeComponents';
 
-const MOBILE_BREAKPOINT = 768;
-
 function useDeviceType() {
   const [device, setDevice] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
@@ -32,7 +30,13 @@ function useDeviceType() {
   return device;
 }
 
-function GlobeScene({ device }: { device: 'mobile' | 'tablet' | 'desktop' }) {
+function GlobeScene({
+  device,
+  interactive,
+}: {
+  device: 'mobile' | 'tablet' | 'desktop';
+  interactive: boolean;
+}) {
   const cameraConfig = useMemo(() => {
     if (device === 'mobile') {
       // Very close and large on mobile to ensure it fills the space
@@ -71,7 +75,7 @@ function GlobeScene({ device }: { device: 'mobile' | 'tablet' | 'desktop' }) {
         </group>
       </Suspense>
 
-      {!device.includes('mobile') && (
+      {interactive && device !== 'mobile' && (
         <OrbitControls
           enableZoom={false}
           enablePan={false}
@@ -88,36 +92,42 @@ function GlobeScene({ device }: { device: 'mobile' | 'tablet' | 'desktop' }) {
   );
 }
 
-export const InteractivePixelGlobe = () => {
+export const InteractivePixelGlobe = ({
+  interactive = true,
+  performanceMode = 'live',
+}: {
+  interactive?: boolean;
+  performanceMode?: 'live' | 'static';
+}) => {
   const device = useDeviceType();
+  const isStatic = performanceMode === 'static';
 
   return (
     <div
-      className="
-        relative
-        w-full
-        h-full
-        max-w-[400px]
-        sm:max-w-[500px]
-        md:max-w-[600px]
-        mx-auto
-        overflow-visible
-        lg:cursor-grab
-        lg:active:cursor-grabbing
-      "
+      className={[
+        'relative',
+        'h-full',
+        'w-full',
+        'max-w-[400px]',
+        'sm:max-w-[500px]',
+        'md:max-w-[600px]',
+        'mx-auto',
+        'overflow-visible',
+        interactive ? 'lg:cursor-grab lg:active:cursor-grabbing' : '',
+      ].join(' ')}
       style={{
         touchAction: 'pan-y',
-        pointerEvents: 'auto',
+        pointerEvents: interactive ? 'auto' : 'none',
       }}
       aria-hidden="true"
     >
       <Canvas
-        dpr={device === 'desktop' ? [1, 2] : [1, 1.2]}
-        frameloop="always"
+        dpr={device === 'desktop' && !isStatic ? [1, 1.5] : [1, 1]}
+        frameloop={isStatic ? 'demand' : 'always'}
         gl={{
-          antialias: device === 'desktop',
+          antialias: device === 'desktop' && !isStatic,
           alpha: true,
-          powerPreference: 'high-performance',
+          powerPreference: isStatic ? 'low-power' : 'high-performance',
           preserveDrawingBuffer: false,
         }}
         onCreated={({ gl }) => {
@@ -127,10 +137,10 @@ export const InteractivePixelGlobe = () => {
         style={{
           background: 'transparent',
           touchAction: 'pan-y',
-          pointerEvents: 'auto',
+          pointerEvents: interactive ? 'auto' : 'none',
         }}
       >
-        <GlobeScene device={device} />
+        <GlobeScene device={device} interactive={interactive} />
       </Canvas>
     </div>
   );

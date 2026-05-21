@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Bot, Copy, Lock, QrCode, RadioTower, ShoppingBag } from 'lucide-react';
 
 const FEATURES = [
@@ -42,6 +42,8 @@ const FEATURES = [
 ];
 
 export const FeatureGrid = () => {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <section id="features" className="relative z-10 px-4 py-24 md:px-6 md:py-32">
       <div className="container mx-auto">
@@ -61,9 +63,9 @@ export const FeatureGrid = () => {
           {FEATURES.map((feature, idx) => (
             <motion.article
               key={feature.title}
-              initial={{ opacity: 0, y: 18 }}
+              initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.04, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              transition={shouldReduceMotion ? { duration: 0 } : { delay: idx * 0.04, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               viewport={{ once: true, margin: '-80px' }}
               className={`group relative min-h-[220px] overflow-hidden rounded-[2rem] border border-white/10 bg-[#111118]/75 p-7 shadow-[0_18px_42px_rgba(0,0,0,0.42)] backdrop-blur-2xl ${feature.span}`}
             >

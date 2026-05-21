@@ -1,8 +1,10 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Copy, Shield, Zap } from 'lucide-react';
 
 export const PhoneMockup = () => {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <div className="relative w-72 h-[580px] mx-auto overflow-hidden rounded-[3.5rem] border-[8px] border-white/5 bg-black shadow-2xl shadow-[#8A6AF1]/10 transition-transform duration-500 hover:scale-[1.02]">
       {/* Notch */}
@@ -26,16 +28,16 @@ export const PhoneMockup = () => {
 
         <div className="flex-1 flex flex-col items-center justify-center gap-12 relative z-10 w-full">
            <motion.div 
-             animate={{ scale: [1, 1.02, 1], rotate: [0, 1, 0] }}
-             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+             animate={shouldReduceMotion ? undefined : { scale: [1, 1.02, 1], rotate: [0, 1, 0] }}
+             transition={shouldReduceMotion ? undefined : { duration: 6, repeat: Infinity, ease: "easeInOut" }}
              className="relative flex h-40 w-40 items-center justify-center rounded-full border border-[#8A6AF1]/25"
            >
              <div className="absolute inset-0 rounded-full bg-[#8A6AF1]/10" />
              <div className="absolute inset-2 rounded-full border border-[#B89AFF]/10" />
              <div className="flex h-28 w-28 items-center justify-center rounded-full border border-white/10 bg-black shadow-[0_0_50px_rgba(138,106,241,0.24)]">
                 <motion.div
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity }}
+                  animate={shouldReduceMotion ? undefined : { opacity: [0.5, 1, 0.5] }}
+                  transition={shouldReduceMotion ? undefined : { duration: 2, repeat: Infinity }}
                   className="flex h-24 w-24 items-center justify-center rounded-full bg-[#8A6AF1]/10"
                 >
                   <Shield className="text-[#B89AFF]" size={40} strokeWidth={1.5} />
