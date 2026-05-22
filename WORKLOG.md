@@ -3645,3 +3645,11 @@ pm run build PASSED.
 - Updated paid fulfillment ordering to compute priority from live `used_resale_slots` and `max_resale_slots`, reducing risk from stale materialized scores.
 - Updated the sale-priority migration backfill and added tests for equal-used-slot and higher-utilization cases.
 - Verification: Prisma validation, inventory service targeted test, backend typecheck, policy suite, and diff check passed.
+
+# 2026-05-22 - Landing bento redesign without globe
+
+- Rebuilt the public landing page as a premium bento grid inspired by the provided Solora-style mock: large light hero card, dark glass cards, compact metrics, product workflow panel, and APK download strip.
+- Removed the landing page dependency on `HeroSection` and `InteractivePixelGlobe`, so the globe is no longer mounted on the landing page.
+- Kept the product message focused on APK pre-release, current trial, in-app VPN config purchase, and free manual/QR import for VLESS/Trojan configs.
+- Reused the existing SwimVPN shark mark asset and cleaned the visible landing copy so accented French text no longer appears mojibake in the rebuilt page.
+- Verification: `npm run build` passed. `npm run lint` still fails on existing root TypeScript backend alias/dependency errors unrelated to the landing page.
