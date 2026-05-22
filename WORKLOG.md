@@ -3734,3 +3734,8 @@ pm run build PASSED.
 - Added Google Search Console and Yandex Webmaster verification meta tags to the landing HTML.
 - Switched Twitter preview metadata from `summary` to `summary_large_image` for the existing `1200x630` OG image.
 - Hardened the landing Nginx config with UTF-8 charset, `.webmanifest` MIME type, no-cache rules for crawl metadata, and long-lived cache headers for static assets.
+
+# 2026-05-22 - Landing Nginx MIME review fix
+
+- Moved the `.webmanifest` MIME override from a server-level `types` block into the dedicated `site.webmanifest` location via `default_type`.
+- Preserved inherited Nginx MIME mappings for CSS, JS, SVG, PNG, fonts, and other static assets.
