@@ -195,6 +195,35 @@ proxies:
     'resolved runtime nodes must not expose the supplier subscription URL as rawConfig',
   );
 
+  const redirectServer = createServer((request, response) => {
+    if (!request.headers.cookie?.includes('__hash_=ok')) {
+      response.statusCode = 302;
+      response.setHeader('location', request.url || '/sub');
+      response.setHeader('set-cookie', '__hash_=ok; Max-Age=1800; Path=/');
+      response.end();
+      return;
+    }
+    assert(
+      String(request.headers['user-agent'] || '').includes('v2rayN'),
+      'remote subscription fetch should use a VPN subscription client user-agent',
+    );
+    response.setHeader('content-type', 'text/html; charset=utf-8');
+    response.end(Buffer.from(`${vlessOne}\n${trojan}`, 'utf8').toString('base64'));
+  });
+  await new Promise<void>((resolve) => redirectServer.listen(0, '127.0.0.1', resolve));
+  const redirectAddress = redirectServer.address();
+  if (!redirectAddress || typeof redirectAddress === 'string') {
+    throw new Error('Unable to allocate redirect subscription fixture');
+  }
+  try {
+    const cookieResolver = new VpnConfigService() as any;
+    cookieResolver.isBlockedHealthcheckHost = async () => false;
+    const cookieNodes = await cookieResolver.resolveManagedRuntimeNodes(`http://127.0.0.1:${redirectAddress.port}/sub`);
+    assert(cookieNodes.length === 2, 'resolver should preserve supplier cookies across redirects');
+  } finally {
+    await new Promise<void>((resolve, reject) => redirectServer.close((error) => error ? reject(error) : resolve()));
+  }
+
   const invalidNodes = service.parseManagedRuntimeNodes('not a vpn config');
   assert(invalidNodes.length === 0, 'unsupported payload should not produce runtime nodes');
 

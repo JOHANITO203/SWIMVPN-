@@ -91,6 +91,11 @@ export class VpnConfigService {
   private static readonly REMOTE_SUBSCRIPTION_TIMEOUT_MS = 3000;
   private static readonly REMOTE_SUBSCRIPTION_MAX_BYTES = 512 * 1024;
   private static readonly REMOTE_SUBSCRIPTION_MAX_REDIRECTS = 3;
+  private static readonly REMOTE_SUBSCRIPTION_HEADERS = {
+    'User-Agent': 'v2rayN/6.23',
+    Accept: 'text/plain, application/json, application/yaml, */*',
+    'Cache-Control': 'no-cache',
+  };
 
   parse(raw: string): SwimVpnProfile {
     try {
@@ -121,10 +126,18 @@ export class VpnConfigService {
     };
   }
 
-  processSupplierResource(raw: string): SupplierResourceParseResult {
-    const runtimeCandidates = this.extractRuntimeConfigCandidates(this.ingest(raw || ''));
+  async processSupplierResource(raw: string): Promise<SupplierResourceParseResult> {
+    const ingested = this.ingest(raw || '');
+    const runtimeCandidates = this.extractRuntimeConfigCandidates(ingested);
     const extractedRawConfig = runtimeCandidates[0] || this.extractPrimaryConfigCandidate(raw);
-    const parsedProfile = this.parse(extractedRawConfig);
+    const resolvedRuntimeNodes = this.isRemoteSubscriptionUrl(extractedRawConfig)
+      ? await this.resolveManagedRuntimeNodes(extractedRawConfig)
+      : [];
+    const parsedProfile = resolvedRuntimeNodes[0]
+      ? this.parse(resolvedRuntimeNodes[0].rawConfig)
+      : this.isRemoteSubscriptionUrl(extractedRawConfig)
+        ? this.invalid(extractedRawConfig, 'Remote subscription did not expose runtime nodes')
+        : this.parse(extractedRawConfig);
     const metadata = this.extractSupplierMetadata(raw);
 
     return {
@@ -1208,7 +1221,11 @@ export class VpnConfigService {
     return /^https?:\/\//i.test(value.trim());
   }
 
-  private async fetchRemoteSubscriptionPayload(rawUrl: string, redirects = 0): Promise<string> {
+  private async fetchRemoteSubscriptionPayload(
+    rawUrl: string,
+    redirects = 0,
+    cookieHeader?: string,
+  ): Promise<string> {
     if (redirects > VpnConfigService.REMOTE_SUBSCRIPTION_MAX_REDIRECTS) {
       throw new Error('Too many subscription redirects');
     }
@@ -1223,13 +1240,23 @@ export class VpnConfigService {
 
     const transport = url.protocol === 'https:' ? https : http;
     return new Promise((resolve, reject) => {
-      const request = transport.get(url, { timeout: VpnConfigService.REMOTE_SUBSCRIPTION_TIMEOUT_MS }, (response) => {
+      const headers: Record<string, string> = {
+        ...VpnConfigService.REMOTE_SUBSCRIPTION_HEADERS,
+      };
+      if (cookieHeader) {
+        headers.Cookie = cookieHeader;
+      }
+      const request = transport.get(url, {
+        headers,
+        timeout: VpnConfigService.REMOTE_SUBSCRIPTION_TIMEOUT_MS,
+      }, (response) => {
         const status = response.statusCode || 0;
         const location = response.headers.location;
         if ([301, 302, 303, 307, 308].includes(status) && location) {
           response.resume();
           const nextUrl = new URL(location, url).toString();
-          this.fetchRemoteSubscriptionPayload(nextUrl, redirects + 1).then(resolve, reject);
+          const nextCookieHeader = this.mergeSetCookieHeader(cookieHeader, response.headers['set-cookie']);
+          this.fetchRemoteSubscriptionPayload(nextUrl, redirects + 1, nextCookieHeader).then(resolve, reject);
           return;
         }
         if (status < 200 || status >= 300) {
@@ -1253,6 +1280,34 @@ export class VpnConfigService {
       request.on('timeout', () => request.destroy(new Error('Subscription fetch timed out')));
       request.on('error', reject);
     });
+  }
+
+  private mergeSetCookieHeader(
+    currentCookieHeader: string | undefined,
+    setCookieHeader: string[] | string | undefined,
+  ): string | undefined {
+    if (!setCookieHeader) {
+      return currentCookieHeader;
+    }
+
+    const cookies = new Map<string, string>();
+    for (const cookie of (currentCookieHeader || '').split(';')) {
+      const [name, ...rest] = cookie.trim().split('=');
+      if (name && rest.length > 0) {
+        cookies.set(name, `${name}=${rest.join('=')}`);
+      }
+    }
+
+    const setCookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+    for (const setCookie of setCookies) {
+      const firstPart = setCookie.split(';')[0]?.trim();
+      const [name] = firstPart.split('=');
+      if (name && firstPart) {
+        cookies.set(name, firstPart);
+      }
+    }
+
+    return cookies.size > 0 ? Array.from(cookies.values()).join('; ') : undefined;
   }
 
   private runtimeNodeId(rawConfig: string): string {

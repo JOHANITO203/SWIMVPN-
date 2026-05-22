@@ -1306,3 +1306,11 @@ Decision: Telegram admin review actions expose only safe folder identity, capaci
 Reason: The bot should be interactive enough to operate stock quickly, but Telegram must not become a secret-bearing runtime config viewer. PostgreSQL inventory/trial tables remain the source of truth, and raw supplier configs stay hidden from review messages.
 
 Impact: `/stock` now includes paid inventory and Trial Store stock, and post-import messages can open a Review action. The review intentionally omits hosts, ports, UUIDs, raw links, and supplier internals even when those values exist in `admin_preview_json`.
+
+# 2026-05-22 - Supplier URL imports must resolve runtime nodes
+
+Decision: HTTP(S) supplier URLs are valid stock only when backend resolution extracts at least one supported runtime node. The raw supplier URL remains stored intact, but classification and admin preview come from resolved runtime nodes.
+
+Reason: Accepting a remote supplier URL as a generic `UNKNOWN` subscription created false-positive imports: Telegram reported success while review showed zero nodes and no countries. Some suppliers also require subscription-client headers and redirect cookies before serving base64/YAML/JSON payloads, so the resolver must behave like a subscription client without exposing raw node details.
+
+Impact: Paid and trial imports now reject remote supplier URLs that cannot be resolved into nodes. The resolver sends bounded VPN-subscription headers, preserves cookies across allowed redirects, keeps anti-SSRF/timeout/size limits, and still separates raw supplier storage from runtime node exposure.

@@ -3793,3 +3793,11 @@ pm run build PASSED.
 - Review lookup matches full id, unique id prefix, folder code, or admin label across paid inventory and Trial Store.
 - `/stock` now explains how to review existing items directly.
 - Verification: admin bot formatter tests, backend `npm run typecheck`, full backend `npm run test:policy`, and `git diff --check` passed.
+
+# 2026-05-22 - Supplier subscription URL import resolution
+
+- Fixed backend supplier import parsing for HTTP(S) subscription URLs that require VPN-client headers and redirect cookies before returning real runtime payloads.
+- `processSupplierResource` now resolves remote supplier URLs before classification, preserves the original supplier URL as raw stock, and classifies the config from the first resolved runtime node.
+- Remote supplier URLs that resolve to zero runtime nodes are now rejected instead of entering paid/trial stock as `UNKNOWN`.
+- Added parser coverage for 302 + `Set-Cookie` supplier redirects, VPN subscription user-agent headers, base64 VLESS payload resolution, and invalid empty remote subscriptions.
+- Verification: supplier resource parser tests, managed nodes parser tests, backend `npm run typecheck`, and full backend `npm run test:policy` passed.

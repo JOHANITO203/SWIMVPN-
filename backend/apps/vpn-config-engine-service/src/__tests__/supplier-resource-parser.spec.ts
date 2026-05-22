@@ -31,15 +31,20 @@ VlessWB
 VlessWB Subscription page
 `.trim();
 
-const service = new VpnConfigService();
-const parsed = service.processSupplierResource(rawSupplierMessage);
+async function main() {
+  const service = new VpnConfigService() as any;
+  service.fetchRemoteSubscriptionPayload = async () => Buffer
+    .from('vless://22222222-2222-2222-2222-222222222222@wb-node.example:443?security=tls&type=ws&sni=wb-sni.example#VlessWB-France', 'utf8')
+    .toString('base64');
+  const parsed = await service.processSupplierResource(rawSupplierMessage);
 
 assert(
   parsed.rawConfig === 'https://wb.routerwb.ru/jtz5386jCHkztYRZ',
   'supplier resource should keep the extracted subscription URL as rawConfig',
 );
 assert(parsed.parsedProfile.validationState === 'VALID', 'supplier resource should parse as valid');
-assert(parsed.parsedProfile.address === 'wb.routerwb.ru', 'subscription host parsing failed');
+assert(parsed.parsedProfile.protocol === 'VLESS', 'resolved supplier protocol parsing failed');
+assert(parsed.parsedProfile.address === 'wb-node.example', 'resolved supplier node host parsing failed');
 assert(parsed.metadata.providerName === 'VlessWB', 'providerName parsing failed');
 assert(parsed.metadata.connectedDevices === 2, 'connected devices parsing failed');
 assert(parsed.metadata.deviceLimit === 3, 'device limit parsing failed');
@@ -53,26 +58,51 @@ assert(
 );
 assert(parsed.metadata.expiresAt === '2026-05-21T00:00:00Z', 'expiry parsing failed');
 
-const vmessPayload = Buffer.from(JSON.stringify({
-  v: '2',
-  ps: 'Trial VMess',
-  add: 'vmess-trial.example',
-  port: '443',
-  id: '11111111-1111-1111-1111-111111111111',
-  net: 'tcp',
-  tls: 'tls',
-})).toString('base64');
-const embeddedRuntime = service.processSupplierResource(`
+  const unresolvedService = new VpnConfigService() as any;
+  unresolvedService.fetchRemoteSubscriptionPayload = async () => '';
+  const unresolved = await unresolvedService.processSupplierResource('https://supplier.example/empty');
+  assert(unresolved.parsedProfile.validationState === 'INVALID', 'unresolved supplier URL should not import as UNKNOWN stock');
+
+  const vmessPayload = Buffer.from(JSON.stringify({
+    v: '2',
+    ps: 'Trial VMess',
+    add: 'vmess-trial.example',
+    port: '443',
+    id: '11111111-1111-1111-1111-111111111111',
+    net: 'tcp',
+    tls: 'tls',
+  })).toString('base64');
+  const embeddedRuntime = await service.processSupplierResource(`
 Trial managed nodes:
 vmess://${vmessPayload}
 trojan://secret@trojan-trial.example:443?security=tls#Trojan
 `.trim());
 
-assert(
-  embeddedRuntime.rawConfig === `vmess://${vmessPayload}`,
-  'supplier resource should prefer embedded runtime configs before generic text fallback',
-);
-assert(embeddedRuntime.parsedProfile.validationState === 'VALID', 'embedded VMess should parse as valid');
-assert(embeddedRuntime.parsedProfile.address === 'vmess-trial.example', 'embedded VMess host parsing failed');
+  assert(
+    embeddedRuntime.rawConfig === `vmess://${vmessPayload}`,
+    'supplier resource should prefer embedded runtime configs before generic text fallback',
+  );
+  assert(embeddedRuntime.parsedProfile.validationState === 'VALID', 'embedded VMess should parse as valid');
+  assert(embeddedRuntime.parsedProfile.address === 'vmess-trial.example', 'embedded VMess host parsing failed');
 
-console.log('supplier resource parser tests passed');
+  const resolvedSupplier = new VpnConfigService() as any;
+  resolvedSupplier.fetchRemoteSubscriptionPayload = async () => Buffer
+    .from('vless://99999999-9999-9999-9999-999999999999@trial-node.example:443?security=reality&type=tcp&sni=trial-sni.example&pbk=key&sid=12#Trial-France', 'utf8')
+    .toString('base64');
+  const resolved = await resolvedSupplier.processSupplierResource('https://supplier.example/trial-token');
+
+  assert(
+    resolved.rawConfig === 'https://supplier.example/trial-token',
+    'resolved supplier resource must preserve the supplier URL as rawConfig',
+  );
+  assert(resolved.parsedProfile.validationState === 'VALID', 'resolved supplier URL should parse first runtime node');
+  assert(resolved.parsedProfile.protocol === 'VLESS', 'resolved supplier URL should classify from fetched runtime node');
+  assert(resolved.parsedProfile.address === 'trial-node.example', 'resolved supplier URL should expose parsed node host for preview');
+
+  console.log('supplier resource parser tests passed');
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
