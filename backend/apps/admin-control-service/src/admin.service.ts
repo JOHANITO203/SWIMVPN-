@@ -4,9 +4,9 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '@app/database';
 import { AccountingEntrySource, AccountingEntryType } from '@prisma/client';
 import {
-  DEFAULT_RESALE_SLOT_CAP,
   AdminLoginDto,
   CreatePlanDto,
+  getDefaultSupplierCapacityUnits,
   getPlanSlotCount,
   MoveAssignmentDto,
   RevokeAssignmentDto,
@@ -168,7 +168,7 @@ export class AdminService {
           batchName: data.batchName,
           sourceQuotaGb: data.sourceQuotaGb ?? 1000,
           maxUsersPerConfig: data.maxUsersPerConfig ?? 5,
-          maxResaleSlots: data.maxResaleSlots ?? DEFAULT_RESALE_SLOT_CAP,
+          maxResaleSlots: data.maxResaleSlots ?? getDefaultSupplierCapacityUnits(data.category),
           supplierExpiresAt: data.supplierExpiresAt ?? null,
           supplierProviderName: data.supplierProviderName ?? null,
           supplierDeviceLimit: data.supplierDeviceLimit ?? null,

@@ -2,7 +2,10 @@
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
-import { DEFAULT_RESALE_SLOT_CAP, DEFAULT_SUPPLIER_DEVICE_LIMIT } from '@app/contracts';
+import {
+  DEFAULT_SUPPLIER_DEVICE_LIMIT,
+  getDefaultSupplierCapacityUnits,
+} from '@app/contracts';
 import { AccountingEntrySource, AccountingEntryType } from '@prisma/client';
 import { Telegraf } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
@@ -596,6 +599,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async importSupplierConfig(category: any, config: string, telegramUserId: string | null) {
+    const maxSupplierCapacityUnits = getDefaultSupplierCapacityUnits(category);
     const result = await firstValueFrom(
       this.inventoryClient.send(
         { cmd: 'import_configs' },
@@ -604,7 +608,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           configs: [config],
           batchName: `Admin bot import ${new Date().toISOString()}`,
           maxUsersPerConfig: DEFAULT_SUPPLIER_DEVICE_LIMIT,
-          maxResaleSlots: DEFAULT_RESALE_SLOT_CAP,
+          maxResaleSlots: maxSupplierCapacityUnits,
           supplierDeviceLimit: DEFAULT_SUPPLIER_DEVICE_LIMIT,
         },
       ),
@@ -618,7 +622,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         payload_json: {
           category,
           telegramUserId,
-          maxResaleSlots: DEFAULT_RESALE_SLOT_CAP,
+          maxResaleSlots: maxSupplierCapacityUnits,
           supplierDeviceLimit: DEFAULT_SUPPLIER_DEVICE_LIMIT,
           result,
           createdAt: new Date().toISOString(),

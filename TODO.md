@@ -1258,9 +1258,11 @@ otification-bot-service event handoff.
 - [ ] Decide later whether product UX needs explicit prorata/refund messaging; backend currently treats upgrade/downgrade as replacement after successful new purchase.
 
 ## 2026-05-22 - Subscription fulfillment surface implementation
-- [ ] Step 1 audit: inspect paid checkout, fulfillment, inventory capacity, profile badge, subscription card state, and Premium Servers exposure before code.
-- [ ] Step 1 implement: separate public plan allowance from supplier capacity naming and behavior.
-- [ ] Step 1 review: verify no private supplier strategy leaks into Android subscription/profile UI.
+- [x] Step 1 audit: inspect paid checkout, fulfillment, inventory capacity, profile badge, subscription card state, and Premium Servers exposure before code.
+- [x] Step 1 implement: separate public plan allowance from supplier capacity naming and behavior.
+- [x] Step 1 review: verify no private supplier strategy leaks into Android subscription/profile UI.
+- [ ] Step 1 follow-up: after deploy, decide whether existing paid inventory rows imported under the old default need a category-based `max_resale_slots` backfill.
+- [ ] Step 1 follow-up: after deploy, decide whether existing production `Plan.slot_count` rows should be backfilled to Basic 1, Premium 2, Platinum 3 if they predate the updated seed/defaults.
 - [ ] Step 2 implement: backend-safe HTTP(S) supplier subscription resolver through the VPN config engine.
 - [ ] Step 2 review: verify anti-SSRF, timeout, response size, metadata filtering, and raw config preservation.
 - [ ] Step 3 implement: same-plan active purchase lock plus upgrade-to-higher-plan flow.

@@ -3754,3 +3754,12 @@ pm run build PASSED.
 - Verification: targeted release policy test, full `:app:testReleaseUnitTest`, and `:app:assembleRelease` passed.
 - Warning cleanup: moved Android Java/Kotlin bytecode target from 1.8 to 17 and removed mechanical Kotlin compiler warnings in config parsing/tun2socks process startup without changing dependencies.
 - Preserved premium stale config handling, native runtime packaging, ABI filters, build download behavior, and entitlement logic unchanged.
+
+# 2026-05-22 - Subscription fulfillment Step 1 policy naming
+
+- Split public subscription device allowance from internal supplier capacity terminology in the shared backend plan policy.
+- Public user-facing allowance is now Basic 1, Premium 2, Platinum 3 devices.
+- Internal supplier capacity per SWIMVPN customer now follows the same plan weight, while default supplier stock capacity remains two customers per supplier config: Basic 2, Premium 4, Platinum 6 capacity units.
+- Updated paid config imports through inventory service, admin API logging, and Telegram admin bot import defaults to use category-specific supplier capacity defaults.
+- Updated Prisma seed values for new databases so plan `slot_count` reflects the public 1/2/3 display truth.
+- Verification: targeted supplier-capacity, inventory, and backend-security tests passed; full backend `npm run test:policy` passed; backend `npm run typecheck` passed.

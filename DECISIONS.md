@@ -1282,3 +1282,11 @@ Decision: Config folder codes use a 12-character fingerprint suffix, and admin p
 Reason: A six-character folder suffix was too collision-prone for growing inventory, while parser preview availability should not decide whether raw supplier stock can be preserved. Admin surfaces need to distinguish "zero nodes parsed" from "preview unavailable" without exposing parser internals or supplier secrets.
 
 Impact: Newly imported paid/trial configs get longer human folder codes and explicit preview status metadata. Existing folder codes remain valid until an application-level backfill is run.
+
+# 2026-05-22 - Public devices and supplier capacity are separate concepts
+
+Decision: Public plan device allowance and internal supplier config resale capacity use separate names and helpers.
+
+Reason: `device allowance` is customer-facing copy, while supplier stock capacity is a private inventory strategy. Reusing one helper for both made Basic/Premium/Platinum display rules look like backend resale limits and created confusion around whether users were becoming resellers.
+
+Impact: Public profile/subscription copy can say Basic 1, Premium 2, Platinum 3 devices. Paid inventory can still default to two SWIMVPN customers per supplier config by multiplying the plan capacity unit weight into Basic 2, Premium 4, Platinum 6 stock units. Legacy helpers remain compatibility aliases, but new backend code should prefer the explicit public/supplier helper names.

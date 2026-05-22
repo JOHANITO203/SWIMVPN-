@@ -4,7 +4,7 @@ import { PrismaService } from '@app/database';
 import { ImportConfigsDto, ImportTrialConfigsDto } from '@app/contracts/inventory.dto';
 import * as crypto from 'crypto';
 import {
-  DEFAULT_RESALE_SLOT_CAP,
+  getDefaultSupplierCapacityUnits,
   DEFAULT_SUPPLIER_DEVICE_LIMIT,
   getPlanResaleSlotCount,
   SwimVpnProfile,
@@ -115,11 +115,12 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           typeof supplierResource.metadata.trafficUsedBytes === 'number'
             ? BigInt(supplierResource.metadata.trafficUsedBytes)
             : 0n;
+        const defaultSupplierCapacityUnits = getDefaultSupplierCapacityUnits(data.category);
+        const maxResaleSlots = data.maxResaleSlots ?? defaultSupplierCapacityUnits;
         const usedResaleSlots = Math.min(
           supplierResource.metadata.connectedDevices ?? 0,
-          data.maxResaleSlots ?? DEFAULT_RESALE_SLOT_CAP,
+          maxResaleSlots,
         );
-        const maxResaleSlots = data.maxResaleSlots ?? DEFAULT_RESALE_SLOT_CAP;
         const item = await this.prisma.inventoryItem.create({
           data: {
             category: data.category,
