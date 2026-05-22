@@ -3722,3 +3722,9 @@ pm run build PASSED.
 - Trimmed the RU and FR Google Play short-description drafts to stay within the Play Store 80-character limit.
 - Added a `512x512` web app icon and updated the manifest to expose `192x192` and `512x512` PNG icons.
 - Removed the generic `maskable` purpose from the existing launcher-derived icon until a dedicated safe-area maskable asset is produced.
+
+# 2026-05-22 - Root domain redirect to canonical app domain
+
+- Added Traefik routers for `swimvpn.pro` on HTTP and HTTPS in `landing-service`.
+- Configured `swimvpn.pro` to redirect permanently to the canonical `https://app.swimvpn.pro/` host while keeping `app.swimvpn.pro` as the landing service route.
+- Verified the compose file with `docker compose config --quiet`.
