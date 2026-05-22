@@ -1,6 +1,7 @@
 import { AssignmentAccessStatus, InventoryHealthStatus, InventoryStatus, OrderStatus, PlanCategory } from '@prisma/client';
 import { InventoryService } from '../inventory.service';
 import { of } from 'rxjs';
+import * as crypto from 'crypto';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -34,7 +35,47 @@ async function assertRejects(fn: () => Promise<unknown>, expectedMessage: string
 const gb = 1024n * 1024n * 1024n;
 
 async function main() {
+  const journalFailureService = createService({
+    configEvent: {
+      create: async () => {
+        throw new Error('journal offline');
+      },
+    },
+  });
+  await journalFailureService.safeRecordConfigEvent(
+    { configEvent: { create: async () => { throw new Error('journal offline'); } } },
+    {
+      configScope: 'PAID',
+      configId: 'inventory-item-journal-failure',
+      eventType: 'CONFIG_IMPORTED',
+      payload: { probe: true },
+    },
+  );
+  const parserFailureService = new InventoryService(
+    {} as any,
+    {
+      send: () => {
+        throw new Error('parser offline');
+      },
+    } as any,
+    { emit: () => undefined } as any,
+    { emit: () => undefined } as any,
+  ) as any;
+  const parserFailureIdentity = await parserFailureService.buildConfigFolderIdentity({
+    rawConfig: 'vless://parser-failure',
+    prefix: 'TRIAL',
+    protocol: 'VLESS',
+    hasSupplierExpiry: false,
+  });
+  assert(
+    parserFailureIdentity.nodeCount === 0 &&
+      parserFailureIdentity.adminPreview.previewStatus === 'UNAVAILABLE' &&
+      parserFailureIdentity.adminPreview.previewError === 'PARSER_UNAVAILABLE',
+    'folder identity should mark parser preview as unavailable without failing import',
+  );
+
   const trialConfigsCreated: unknown[] = [];
+  const trialConfigEventsCreated: unknown[] = [];
   const recoveredTrialAssignments: unknown[] = [];
   const recoveredTrialGrantUpdates: unknown[] = [];
   const recoveredTrialEvents: unknown[] = [];
@@ -66,10 +107,15 @@ async function main() {
             },
           },
           trialConfig: {
-            findFirst: async () => ({
-              id: 'trial-config-imported',
-              supplier_expires_at: null,
-            }),
+            findMany: async () => [
+              {
+                id: 'trial-config-imported',
+                supplier_expires_at: null,
+                max_device_assignments: 5,
+                used_device_assignments: 0,
+                assigned_at: null,
+              },
+            ],
             updateMany: async (args: unknown) => {
               recoveredTrialConfigLocks.push(args);
               return { count: 1 };
@@ -106,10 +152,35 @@ async function main() {
           };
         },
       },
+      configEvent: {
+        create: async (args: unknown) => {
+          trialConfigEventsCreated.push(args);
+          return args;
+        },
+      },
     } as any,
     {
-      send: () =>
-        of({
+      send: (pattern: any) => {
+        if (pattern?.cmd === 'parse_managed_nodes') {
+          return of([
+            {
+              protocol: 'VLESS',
+              displayName: 'France Paris',
+              host: 'trial.secret.host',
+              port: 443,
+              uuid: 'trial-uuid-fr',
+            },
+            {
+              protocol: 'TROJAN',
+              displayName: 'Germany Berlin',
+              host: 'trial.secret.host',
+              port: 443,
+              uuid: 'trial-uuid-de',
+            },
+          ]);
+        }
+
+        return of({
           rawConfig: 'vless://trial-imported',
           parsedProfile: {
             validationState: 'VALID',
@@ -117,8 +188,10 @@ async function main() {
           },
           metadata: {
             providerName: 'trial-provider',
+            expiresAt: '2026-06-19T23:59:59.999Z',
           },
-        }),
+        });
+      },
     } as any,
     { emit: () => undefined } as any,
     { emit: () => undefined } as any,
@@ -131,6 +204,34 @@ async function main() {
   assert(
     (trialConfigsCreated[0] as any).data.raw_config === 'vless://trial-imported',
     'trial import must preserve raw trial config',
+  );
+  const expectedTrialFingerprint = crypto
+    .createHash('sha256')
+    .update('vless://trial-imported')
+    .digest('hex');
+  assert(
+    (trialConfigsCreated[0] as any).data.config_fingerprint === expectedTrialFingerprint &&
+      (trialConfigsCreated[0] as any).data.folder_code === `TRIAL-VLESS-${expectedTrialFingerprint.slice(0, 12).toUpperCase()}`,
+    'trial import should persist a stable config fingerprint and human folder code',
+  );
+  assert(
+    (trialConfigsCreated[0] as any).data.node_count === 2 &&
+      (trialConfigsCreated[0] as any).data.admin_preview_json?.nodeCount === 2 &&
+      (trialConfigsCreated[0] as any).data.admin_preview_json?.hasSupplierExpiry === true &&
+      !(JSON.stringify((trialConfigsCreated[0] as any).data.admin_preview_json).includes('trial.secret.host')) &&
+      !(JSON.stringify((trialConfigsCreated[0] as any).data.admin_preview_json).includes('uuid')),
+    'trial import admin preview should be useful but must not expose runtime supplier secrets',
+  );
+  assert(
+    trialConfigEventsCreated.some((args: any) =>
+      args.data?.config_scope === 'TRIAL' &&
+        args.data?.config_id === 'trial-config-imported' &&
+        args.data?.event_type === 'TRIAL_CONFIG_IMPORTED' &&
+        args.data?.folder_code === (trialConfigsCreated[0] as any).data.folder_code &&
+        !JSON.stringify(args.data?.payload_json).includes('trial.secret.host') &&
+        !JSON.stringify(args.data?.payload_json).includes('trial-uuid'),
+    ),
+    'trial import should append a safe config journal event',
   );
   assert(
     trialImportResult.details[0].status === 'IMPORTED',
@@ -156,7 +257,7 @@ async function main() {
   assert(
     recoveredTrialConfigLocks.some((args: any) =>
       args.where?.id === 'trial-config-imported' &&
-        args.where?.status === 'AVAILABLE' &&
+        args.where?.status?.in?.includes('AVAILABLE') &&
         args.data?.status === 'ASSIGNED',
     ),
     'trial import recovery should lock the trial config before assignment',
@@ -164,6 +265,243 @@ async function main() {
   assert(
     recoveredTrialEvents.some((args: any) => args.data?.event_type === 'TRIAL_CONFIG_ASSIGNED'),
     'trial import recovery should emit a trial-specific assignment event',
+  );
+
+  const paidConfigsCreated: unknown[] = [];
+  const paidConfigEventsCreated: unknown[] = [];
+  const paidImportService = new InventoryService(
+    {
+      inventoryItem: {
+        create: async (args: any) => {
+          paidConfigsCreated.push(args);
+          return {
+            id: 'inventory-paid-imported',
+            config_type: args.data.config_type,
+            display_protocol: args.data.display_protocol,
+            source_quota_bytes: args.data.source_quota_bytes,
+            source_used_bytes: args.data.source_used_bytes,
+            supplier_expires_at: args.data.supplier_expires_at,
+            supplier_provider_name: args.data.supplier_provider_name,
+            supplier_device_limit: args.data.supplier_device_limit,
+            used_resale_slots: args.data.used_resale_slots,
+            max_resale_slots: args.data.max_resale_slots,
+            health_status: args.data.health_status,
+          };
+        },
+      },
+      configEvent: {
+        create: async (args: unknown) => {
+          paidConfigEventsCreated.push(args);
+          return args;
+        },
+      },
+    } as any,
+    {
+      send: (pattern: any) => {
+        if (pattern?.cmd === 'parse_managed_nodes') {
+          return of([
+            {
+              protocol: 'VLESS',
+              displayName: 'Paris Node',
+              countryCode: 'FR',
+              host: 'paid.secret.host',
+              port: 443,
+              uuid: 'paid-uuid',
+            },
+          ]);
+        }
+
+        return of({
+          rawConfig: 'vless://paid-imported',
+          parsedProfile: {
+            validationState: 'VALID',
+            protocol: 'VLESS',
+          },
+          metadata: {},
+        });
+      },
+    } as any,
+    { emit: () => undefined } as any,
+    { emit: () => undefined } as any,
+  );
+  const paidImportResult = await paidImportService.importConfigs({
+    category: PlanCategory.MONTH,
+    configs: ['vless://paid-imported'],
+    batchName: 'paid-batch',
+  });
+  const expectedPaidFingerprint = crypto
+    .createHash('sha256')
+    .update('vless://paid-imported')
+    .digest('hex');
+  assert(paidImportResult.importedCount === 1, 'paid config should still import successfully');
+  assert(
+    (paidConfigsCreated[0] as any).data.config_fingerprint === expectedPaidFingerprint &&
+      (paidConfigsCreated[0] as any).data.folder_code === `MONTH-VLESS-${expectedPaidFingerprint.slice(0, 12).toUpperCase()}`,
+    'paid import should persist a stable config fingerprint and human folder code',
+  );
+  assert(
+    (paidConfigsCreated[0] as any).data.node_count === 1 &&
+      (paidConfigsCreated[0] as any).data.countries_preview?.includes('France') &&
+      (paidConfigsCreated[0] as any).data.admin_preview_json?.previewStatus === 'PARSED' &&
+      !(JSON.stringify((paidConfigsCreated[0] as any).data.admin_preview_json).includes('paid.secret.host')) &&
+      !(JSON.stringify((paidConfigsCreated[0] as any).data.admin_preview_json).includes('paid-uuid')),
+    'paid import admin preview should expose countries and counts without runtime secrets',
+  );
+  assert(
+    paidConfigEventsCreated.some((args: any) =>
+      args.data?.config_scope === 'PAID' &&
+        args.data?.config_id === 'inventory-paid-imported' &&
+        args.data?.event_type === 'CONFIG_IMPORTED' &&
+        args.data?.folder_code === (paidConfigsCreated[0] as any).data.folder_code &&
+        !JSON.stringify(args.data?.payload_json).includes('paid.secret.host') &&
+        !JSON.stringify(args.data?.payload_json).includes('paid-uuid'),
+    ),
+    'paid import should append a safe config journal event',
+  );
+
+  const overviewService = createService({
+    inventoryItem: {
+      findMany: async () => [
+        {
+          id: 'inventory-overview',
+          category: PlanCategory.MONTH,
+          batch_name: 'overview-batch',
+          display_protocol: 'VLESS',
+          status: InventoryStatus.ASSIGNED,
+          health_status: InventoryHealthStatus.HEALTHY,
+          used_resale_slots: 1,
+          max_resale_slots: 2,
+          sale_priority_score: 101,
+          source_used_bytes: 0n,
+          source_quota_bytes: 100n * gb,
+          supplier_expires_at: null,
+          supplier_provider_name: 'hidden-provider',
+          supplier_device_limit: 5,
+          config_fingerprint: expectedPaidFingerprint,
+          folder_code: 'MONTH-VLESS-OVERVIEW',
+          admin_label: 'MONTH VLESS OVERVIEW',
+          node_count: 3,
+          countries_preview: ['France', 'Germany'],
+          admin_preview_json: {
+            folderCode: 'MONTH-VLESS-OVERVIEW',
+            nodeCount: 3,
+            countriesPreview: ['France', 'Germany'],
+          },
+          assignments: [],
+        },
+      ],
+    },
+  });
+  const overview = await overviewService.listInventoryOverview();
+  assert(
+    overview[0].folderCode === 'MONTH-VLESS-OVERVIEW' &&
+      overview[0].nodeCount === 3 &&
+      overview[0].salePriorityScore === 101 &&
+      overview[0].countriesPreview?.includes('France') &&
+      overview[0].adminPreview?.folderCode === 'MONTH-VLESS-OVERVIEW',
+    'inventory overview should expose config folder identity, admin preview, and sale priority',
+  );
+
+  const sharedTrialAssignments: unknown[] = [];
+  const sharedTrialGrantUpdates: unknown[] = [];
+  const sharedTrialConfigLocks: unknown[] = [];
+  const sharedTrialConfigEvents: unknown[] = [];
+  const sharedTrialService = new InventoryService(
+    {
+      $transaction: async (callback: any) =>
+        callback({
+          trialCampaign: {
+            findUnique: async () => ({
+              id: 'trial-campaign-2026-05',
+              code: 'trial-2026-05',
+              duration_days: 3,
+            }),
+          },
+          trialGrant: {
+            findMany: async () =>
+              Array.from({ length: 6 }, (_, index) => ({
+                id: `trial-grant-shared-${index + 1}`,
+                customer_id: `customer-trial-shared-${index + 1}`,
+                customer: {
+                  public_id: `SW-TRIAL-SHARED-${index + 1}`,
+                },
+              })),
+            updateMany: async (args: unknown) => {
+              sharedTrialGrantUpdates.push(args);
+              return { count: 1 };
+            },
+          },
+          trialConfig: {
+            findMany: async () => {
+              const usedDeviceAssignments = sharedTrialAssignments.length;
+              return [
+                {
+                  id: 'trial-config-shared',
+                  folder_code: 'TRIAL-VLESS-SHARED',
+                  supplier_expires_at: null,
+                  used_device_assignments: usedDeviceAssignments,
+                  max_device_assignments: 5,
+                },
+              ];
+            },
+            updateMany: async (args: unknown) => {
+              sharedTrialConfigLocks.push(args);
+              return { count: 1 };
+            },
+          },
+          trialAssignment: {
+            create: async (args: unknown) => {
+              sharedTrialAssignments.push(args);
+              return args;
+            },
+          },
+          adminEvent: {
+            create: async () => undefined,
+          },
+          configEvent: {
+            create: async () => {
+              throw new Error('transaction journal should not be used');
+            },
+          },
+        }),
+      configEvent: {
+        create: async (args: unknown) => {
+          sharedTrialConfigEvents.push(args);
+          return args;
+        },
+      },
+    } as any,
+    { send: () => ({}) } as any,
+    { emit: () => undefined } as any,
+    { emit: () => undefined } as any,
+  );
+  const sharedTrialRecoveries = await (sharedTrialService as any).assignPendingTrialGrants(
+    'trial-campaign-2026-05',
+    'trial-2026-05',
+  );
+  assert(
+    sharedTrialAssignments.length === 5 &&
+      sharedTrialRecoveries.length === 5 &&
+      sharedTrialGrantUpdates.length === 5,
+    'one supplier trial config should recover up to five pending trial devices',
+  );
+  assert(
+    sharedTrialConfigLocks.every((args: any) =>
+      args.where?.id === 'trial-config-shared' &&
+        args.where?.used_device_assignments?.lt === 5 &&
+        args.data?.used_device_assignments?.increment === 1,
+    ),
+    'trial config recovery should consume one device capacity slot per assignment',
+  );
+  assert(
+    sharedTrialConfigEvents.length === 5 &&
+      sharedTrialConfigEvents.every((args: any) =>
+        args.data?.config_scope === 'TRIAL' &&
+          args.data?.config_id === 'trial-config-shared' &&
+          args.data?.folder_code === 'TRIAL-VLESS-SHARED' &&
+          args.data?.event_type === 'TRIAL_CONFIG_ASSIGNED',
+      ),
+    'trial assignment recovery should append config journal events',
   );
 
   const raceLostAssignments: unknown[] = [];
@@ -193,10 +531,15 @@ async function main() {
             updateMany: async () => ({ count: 0 }),
           },
           trialConfig: {
-            findFirst: async () => ({
-              id: 'trial-config-race-lost',
-              supplier_expires_at: null,
-            }),
+            findMany: async () => [
+              {
+                id: 'trial-config-race-lost',
+                supplier_expires_at: null,
+                max_device_assignments: 5,
+                used_device_assignments: 0,
+                assigned_at: null,
+              },
+            ],
             updateMany: async (args: any) => {
               if (args.data?.status === 'ASSIGNED') {
                 raceLostConfigLocks.push(args);
@@ -265,6 +608,21 @@ async function main() {
   );
 
   const healthService = createService({});
+  assert(
+    healthService.computeSalePriorityScore({ usedResaleSlots: 1, maxResaleSlots: 2 }) >
+      healthService.computeSalePriorityScore({ usedResaleSlots: 0, maxResaleSlots: 2 }),
+    'sale priority should prefer already-started supplier configs over fresh configs',
+  );
+  assert(
+    healthService.computeSalePriorityScore({ usedResaleSlots: 1, maxResaleSlots: 2 }) >
+      healthService.computeSalePriorityScore({ usedResaleSlots: 1, maxResaleSlots: 100 }),
+    'sale priority should prefer the already-started config closest to exhaustion when used slots tie',
+  );
+  assert(
+    healthService.computeSalePriorityScore({ usedResaleSlots: 2, maxResaleSlots: 3 }) >
+      healthService.computeSalePriorityScore({ usedResaleSlots: 1, maxResaleSlots: 2 }),
+    'sale priority should prefer higher utilization over raw used-slot count',
+  );
   const health = healthService.computeHealthStatus({
     currentHealth: InventoryHealthStatus.HEALTHY,
     supplierExpiresAt: null,
@@ -559,10 +917,18 @@ async function main() {
 
   const replacementUpdates: Array<{ model: string; where?: any; data?: any }> = [];
   const replacementEvents: any[] = [];
+  const replacementConfigEvents: any[] = [];
   let replacementFindManyWhere: any = null;
+  let replacementCandidateQuery = '';
   const replacementService = createService({
     inventoryItem: {
       findMany: async () => [],
+    },
+    configEvent: {
+      create: async ({ data }: any) => {
+        replacementConfigEvents.push(data);
+        return data;
+      },
     },
     $transaction: async (fn: any) =>
       fn({
@@ -640,6 +1006,7 @@ async function main() {
             if (where.id === 'inventory-platinum-new') {
               return {
                 id: 'inventory-platinum-new',
+                folder_code: 'QUARTER-VLESS-PLATINUM',
                 raw_config: 'vless://uuid@platinum.example:443#Platinum',
                 display_protocol: 'VLESS',
                 used_resale_slots: 0,
@@ -666,7 +1033,12 @@ async function main() {
             return { id: where.id, ...data };
           },
         },
-        $queryRaw: async () => [{ id: 'inventory-platinum-new' }],
+        $queryRaw: async (query: any) => {
+          replacementCandidateQuery = Array.isArray(query?.strings)
+            ? query.strings.join(' ')
+            : String(query);
+          return [{ id: 'inventory-platinum-new' }];
+        },
         delivery: {
           findFirst: async () => null,
           create: async ({ data }: any) => {
@@ -680,11 +1052,22 @@ async function main() {
             return data;
           },
         },
+        configEvent: {
+          create: async () => {
+            throw new Error('transaction journal should not be used');
+          },
+        },
       }),
   });
 
   const replacementResult = await replacementService.fulfillOrder('order-upgrade-new');
   assert(replacementResult.success === true, 'upgrade fulfillment should succeed');
+  assert(
+    replacementCandidateQuery.includes('FLOOR(("used_resale_slots"::numeric * 100000) / "max_resale_slots")') &&
+      replacementCandidateQuery.includes('("max_resale_slots" - "used_resale_slots") ASC') &&
+      replacementCandidateQuery.includes('"sale_priority_score" DESC'),
+    'paid fulfillment should prefer already-started configs before fresh inventory',
+  );
   const revokedReplacementAssignments = replacementUpdates.filter(
     (entry) =>
       entry.model === 'orderAssignment' &&
@@ -697,6 +1080,16 @@ async function main() {
   assert(
     replacementEvents.some((event) => event.event_type === 'CUSTOMER_ACCESS_REPLACED'),
     'upgrade/downgrade replacement must be audited',
+  );
+  assert(
+    replacementConfigEvents.some((event) =>
+      event.config_scope === 'PAID' &&
+        event.config_id === 'inventory-platinum-new' &&
+        event.folder_code === 'QUARTER-VLESS-PLATINUM' &&
+        event.event_type === 'CONFIG_ASSIGNED' &&
+        event.payload_json?.orderRef === 'ORD-UPGRADE-NEW',
+    ),
+    'paid fulfillment should append a config journal assignment event',
   );
   assert(
     replacementFindManyWhere?.customer_id === 'customer-upgrade' &&

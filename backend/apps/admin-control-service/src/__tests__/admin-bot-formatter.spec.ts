@@ -5,6 +5,10 @@ import {
   formatImportWizardCategoryPrompt,
   formatImportWizardConfigPrompt,
   formatImportWizardConfirmation,
+  formatTrialImportInstructions,
+  formatTrialImportResult,
+  formatTrialImportWizardConfirmation,
+  formatTrialImportWizardConfigPrompt,
   formatPendingFulfillment,
   isImportWizardCancel,
   isImportWizardConfirm,
@@ -112,6 +116,38 @@ assert(confirmation.includes('Basic'), 'wizard confirmation must show category')
 assert(confirmation.includes('confirm'), 'wizard confirmation must ask for confirm');
 assert(!confirmation.includes('abcdefghijklmnopqrstuvwxyz'), 'wizard confirmation must not expose full raw config');
 
+const trialInstructions = formatTrialImportInstructions();
+assert(trialInstructions.includes('/add_trial'), 'trial import instructions must expose direct add command');
+assert(trialInstructions.includes('/trial_wizard'), 'trial import instructions must expose guided wizard');
+assert(trialInstructions.includes('Trial Store'), 'trial import instructions must name Trial Store');
+
+const trialPrompt = formatTrialImportWizardConfigPrompt();
+assert(trialPrompt.includes('trial config'), 'trial wizard prompt must request a trial config');
+assert(trialPrompt.includes('/cancel_import'), 'trial wizard prompt must show cancel command');
+
+const trialConfirmation = formatTrialImportWizardConfirmation('vless://trial-secret-config-value');
+assert(trialConfirmation.includes('Confirm trial config import'), 'trial confirmation must identify trial import');
+assert(trialConfirmation.includes('confirm'), 'trial confirmation must ask for confirm');
+assert(!trialConfirmation.includes('trial-secret-config-value'), 'trial confirmation must not expose full raw config');
+
+const trialResult = formatTrialImportResult({
+  importedCount: 1,
+  recoveredPendingCount: 2,
+  details: [
+    {
+      id: 'trial-config-1234567890',
+      status: 'IMPORTED',
+      campaignCode: 'trial-2026-05',
+      configType: 'VLESS',
+      supplierProviderName: 'trial-provider',
+    },
+  ],
+});
+assert(trialResult.includes('Trial config import finished'), 'trial result must have trial title');
+assert(trialResult.includes('Imported: 1'), 'trial result must show imported count');
+assert(trialResult.includes('Recovered pending grants: 2'), 'trial result must show recovered grants');
+assert(trialResult.includes('trial-2026-05'), 'trial result must show campaign');
+
 assert(isImportWizardConfirm('confirm'), 'confirm text must confirm wizard');
 assert(isImportWizardConfirm('yes'), 'yes text must confirm wizard');
 assert(isImportWizardCancel('cancel'), 'cancel text must cancel wizard');
@@ -120,6 +156,14 @@ assert(isImportWizardCancel('/cancel_import'), 'cancel command must cancel wizar
 assert(
   ADMIN_BOT_COMMANDS.some((command) => command.command === 'add_wizard'),
   'telegram command menu must expose add_wizard',
+);
+assert(
+  ADMIN_BOT_COMMANDS.some((command) => command.command === 'trial_import'),
+  'telegram command menu must expose trial_import',
+);
+assert(
+  ADMIN_BOT_COMMANDS.some((command) => command.command === 'trial_wizard'),
+  'telegram command menu must expose trial_wizard',
 );
 assert(
   ADMIN_BOT_COMMANDS.some((command) => command.command === 'stock'),

@@ -31,6 +31,8 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'stock', description: 'Show inventory by plan bucket' },
   { command: 'add_wizard', description: 'Guided supplier config import' },
   { command: 'import', description: 'Show direct import instructions' },
+  { command: 'trial_import', description: 'Show trial config import instructions' },
+  { command: 'trial_wizard', description: 'Guided trial config import' },
   { command: 'pending', description: 'Show orders waiting for capacity' },
   { command: 'retry', description: 'Retry one order or all pending orders' },
   { command: 'orders', description: 'Show recent orders' },
@@ -117,6 +119,52 @@ export function formatImportResult(category: PlanCategory, result: any) {
       used,
       expires,
       `Slots: ${item.usedResaleSlots ?? 0}/${item.maxResaleSlots ?? 2}`,
+    ].filter(Boolean).join('\n'));
+  }
+
+  return lines.join('\n');
+}
+
+export function formatTrialImportInstructions() {
+  return [
+    'Import a supplier config into the Trial Store:',
+    '',
+    '/trial_wizard - guided trial config import',
+    '/add_trial <config-or-subscription-url>',
+    '',
+    'Trial configs are stored outside paid inventory.',
+    'Raw config is preserved in PostgreSQL.',
+    'Pending trial grants can be assigned automatically when capacity becomes available.',
+  ].join('\n');
+}
+
+export function formatTrialImportResult(result: any) {
+  const importedCount = result?.importedCount ?? 0;
+  const recoveredPendingCount = result?.recoveredPendingCount ?? 0;
+  const failures = Array.isArray(result?.details)
+    ? result.details.filter((item: any) => item.status !== 'IMPORTED').length
+    : 0;
+  const importedDetails = Array.isArray(result?.details)
+    ? result.details.filter((item: any) => item.status === 'IMPORTED')
+    : [];
+
+  const lines = [
+    'Trial config import finished',
+    `Imported: ${importedCount}`,
+    `Failed: ${failures}`,
+    `Recovered pending grants: ${recoveredPendingCount}`,
+  ];
+
+  for (const item of importedDetails.slice(0, 3)) {
+    const expires = item.supplierExpiresAt ? `Expires: ${String(item.supplierExpiresAt).slice(0, 10)}` : null;
+    const provider = item.supplierProviderName ? `Provider: ${item.supplierProviderName}` : null;
+    lines.push([
+      '',
+      `Trial config: ${String(item.id || 'unknown').slice(0, 12)}`,
+      `Campaign: ${item.campaignCode || 'trial-2026-05'}`,
+      `Protocol: ${item.configType || item.displayProtocol || 'unknown'}`,
+      provider,
+      expires,
     ].filter(Boolean).join('\n'));
   }
 
@@ -236,6 +284,29 @@ export function formatImportWizardConfirmation(category: PlanCategory, rawConfig
     `Config preview: ${previewSecret(rawConfig)}`,
     'Resale cap: 2 customer orders',
     'Supplier device limit metadata default: 5',
+    '',
+    'Reply confirm to import, or cancel to stop.',
+  ].join('\n');
+}
+
+export function formatTrialImportWizardConfigPrompt() {
+  return [
+    'Trial config import wizard',
+    '',
+    'Send the supplier trial config or subscription URL now.',
+    'It will be stored in the dedicated Trial Store, not paid inventory.',
+    'Raw config will be preserved in PostgreSQL.',
+    '',
+    'Use /cancel_import to stop.',
+  ].join('\n');
+}
+
+export function formatTrialImportWizardConfirmation(rawConfig: string) {
+  return [
+    'Confirm trial config import',
+    `Config preview: ${previewSecret(rawConfig)}`,
+    'Target: Trial Store',
+    'Default campaign: trial-2026-05',
     '',
     'Reply confirm to import, or cancel to stop.',
   ].join('\n');

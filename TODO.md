@@ -1,5 +1,16 @@
 # TODO
 
+## [2026-05-22] Inventory Folder Metadata Follow-up
+- [x] Add stable config fingerprints for paid and trial imported configs.
+- [x] Add human-readable folder names for config batches without exposing supplier details to customers.
+- [x] Add admin-safe preview fields such as node count and country list only.
+- [x] Add config-level event journal for import and assignment events.
+- [x] Add sale priority scoring for paid inventory allocation.
+- [ ] Add config-level journal entries for exhaustion, admin health changes, revocation, and moves.
+- [ ] Add admin API/UI surface to browse config folders and journal timelines.
+- [ ] Decide whether config journal needs `event_key` idempotence after the first admin timeline UI exists; current behavior is append-only.
+- [ ] Verify migration behavior against staging data before production deploy.
+
 ## [2026-05-21] Home VPN Core Visual QA
 - [ ] Installer l'APK debug sur le telephone et valider le z-order `GLSurfaceView` + bouton Compose en portrait.
 - [ ] Verifier que le bouton power reste cliquable et declenche le flux VPN existant.
@@ -1304,3 +1315,7 @@ otification-bot-service event handoff.
 - [ ] Use Perfetto or Android Studio Profiler to confirm whether duplicate Home/orb mount logs are caused by navigation recomposition or secondary hydration.
 - [ ] Consider a cached minimal active-server snapshot if the brief "Aucun serveur" initial Home shell is visually too abrupt during cold start.
 - [ ] Remove or gate `SwimStartup` timing logs behind a temporary debug flag before release hardening.
+
+## 2026-05-22 - Inventory folder identity follow-up
+- [ ] Add an admin/backoffice backfill command for existing `InventoryItem` and `TrialConfig` rows with missing `config_fingerprint`, `folder_code`, `admin_label`, `node_count`, `countries_preview`, or `admin_preview_json`.
+- [ ] The backfill must use the existing VPN config parser instead of SQL-only parsing so raw supplier configs stay preserved and admin previews do not expose host, UUID, port, or supplier internals.

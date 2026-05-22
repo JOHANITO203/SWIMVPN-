@@ -69,6 +69,22 @@ Decision: SwimVPN keeps `/api/v1/payments/swimpay/webhook` as the canonical sign
 Reason: SwimPay staging was configured with `/webhooks/swimpay`; accepting the alias removes a production-staging 404 without changing the customer-order webhook trust boundary or fulfillment rules.
 # DECISIONS
 
+## [2026-05-22] [Trial supplier config capacity is shared by five devices]
+
+Decision: A Trial Store supplier config can back up to five trial device assignments by default. `TrialConfig` now tracks `max_device_assignments` and `used_device_assignments`, and `TrialAssignment.trial_config_id` is no longer unique.
+
+Reason: A trial supplier config contains multiple usable nodes and should be consumed by up to five devices for the launch trial campaign. Treating one config as exhausted after one device contradicted the intended stock model and wasted trial inventory.
+
+Impact: Trial allocation remains backend-authoritative. Raw configs are still preserved intact. Android public plan copy is unchanged by this backend capacity rule. Future admin views can show trial stock capacity without exposing supplier details to customers.
+
+## [2026-05-22] [Config folders expose safe metadata only]
+
+Decision: Imported paid and trial configs now get stable folder identity metadata and a config-level journal, but admin previews and event payloads intentionally exclude raw config, host, port, UUID, SNI, and other runtime secrets.
+
+Reason: Admin workflows need a human-readable dossier, traceability, country/node summaries, and sale priority without leaking supplier implementation details into surfaces that may later be customer-facing or broadly visible.
+
+Impact: PostgreSQL stores `config_fingerprint`, `folder_code`, `admin_label`, `node_count`, `countries_preview`, `admin_preview_json`, `ConfigEvent`, and paid `sale_priority_score`. Raw VPN configs remain preserved only in the existing raw config fields.
+
 ## [2026-05-20] [Subscription UI must stay checkout-authoritative]
 
 Decision: `SubscriptionScreen` UI actions must remain coupled to backend checkout creation and existing `profile.offerCode`, with no mock plan logic or fake payment completion state.
@@ -1195,6 +1211,22 @@ Consequence: The subscription fetcher can interoperate with redirect-cookie prov
 - Decision: Android startup now renders a branded lightweight shell before backend servers, imported profile groups, plans, latency, and the GL orb are ready.
 - Reason: the app must not look frozen behind a blank native/app surface while noncritical data and heavy visual layers load.
 - Consequence: backend access/profile remains authoritative, but noncritical visual/data enrichment hydrates after the first useful UI. The Home screen may briefly show a minimal server state before hydrated routes arrive.
+# 2026-05-22 - Admin Telegram bot imports trial configs through Trial Store
+
+Decision: The `TELEGRAM_BOT_TOKEN` admin operations bot can import trial configs through dedicated `/trial_import`, `/trial_wizard`, and `/add_trial` commands.
+
+Reason: The backend already separates trial capacity from paid inventory through `TrialCampaign`, `TrialConfig`, `TrialGrant`, and `TrialAssignment`. Extending the existing bot workflow should call `import_trial_configs` directly instead of routing trial links through paid `import_configs`.
+
+Impact: Trial configs remain outside paid inventory, raw configs are preserved, and pending trial grants can be recovered by the existing inventory assignment logic. Paid plans, checkout, payment, Android, VPN runtime, and parser internals are unchanged.
+
+# 2026-05-22 - Russian is the Android fallback app language
+
+Decision: Android uses Russian as the first app-language fallback when no persisted AppCompat locale exists.
+
+Reason: `PreferencesManager` and VPN notifications already define `ru` as the default, but `MainActivity` still fell back to the phone system language during the first non-blocking composition. Using the same RU fallback keeps startup deterministic without restoring blocking DataStore reads.
+
+Impact: Existing user-selected locales remain respected. No backend, VPN, parser, payment, or trial logic changes.
+
 # 2026-05-22 - Subscription plan icons use non-shield membership symbols
 
 Decision: Subscription plan cards use tintable vector drawables derived from Tabler Icons instead of repeated Material shield icons.
@@ -1202,3 +1234,35 @@ Decision: Subscription plan cards use tintable vector drawables derived from Tab
 Reason: Shields made Basic and Premium read as generic VPN/security tiers. Medal, sparkles, and diamond better express membership progression, premium value, and top-tier rarity while staying compatible with the existing SwimVPN hardware badge surface.
 
 Impact: Only the visual icon assets and `PlanIconBadge` mapping changed. Backend plans, checkout, entitlement, payment methods, copy, pricing, and navigation remain unchanged.
+
+# 2026-05-22 - Config journal is observability, not fulfillment authority
+
+Decision: `ConfigEvent` writes are best-effort and constrained to `PAID` or `TRIAL` scopes.
+
+Reason: import and assignment flows must not fail because the admin audit journal is temporarily unavailable or schema-drifted. PostgreSQL inventory/order/trial tables remain the source of truth for allocation, while the event table is an operational trace.
+
+Impact: failed journal writes are logged by `InventoryService` and do not roll back paid fulfillment, trial assignment, or config import. Existing configs still need an application-level backfill to populate folder identity and admin previews because country/node preview depends on the VPN config parser.
+
+# 2026-05-22 - Config assignment journal writes happen after commit
+
+Decision: Config assignment journal events are collected during paid/trial assignment and written only after the business transaction commits.
+
+Reason: PostgreSQL can mark a transaction as aborted after a failed write even if TypeScript catches the error. Since `ConfigEvent` is operational trace, it must never poison paid fulfillment or pending-trial recovery.
+
+Impact: `CONFIG_ASSIGNED` and `TRIAL_CONFIG_ASSIGNED` can be absent if the journal write fails after commit, but inventory, orders, grants, assignments, and delivery records remain authoritative. `ConfigEvent.event_type` is constrained to the known event enum and the journal remains append-only rather than idempotent.
+
+# 2026-05-22 - Paid inventory sale priority uses fill ratio
+
+Decision: Paid inventory sale priority is based on current fill ratio (`used_resale_slots / max_resale_slots`), with fresh configs scoring zero.
+
+Reason: The business rule is to sell already-started supplier configs through to exhaustion before opening fresh stock. A remaining-slot bonus could prefer large partially-used configs over smaller configs closer to exhaustion, which diluted the stock-draining behavior.
+
+Impact: Fulfillment now orders by a live fill-ratio expression, then used slots, then fewer remaining slots, while the stored `sale_priority_score` remains a materialized admin/backfill signal. Direct writes to `used_resale_slots` outside service helpers are still discouraged.
+
+# 2026-05-22 - Config folder preview remains non-blocking
+
+Decision: Config folder codes use a 12-character fingerprint suffix, and admin previews carry `previewStatus` instead of blocking import when node preview parsing fails.
+
+Reason: A six-character folder suffix was too collision-prone for growing inventory, while parser preview availability should not decide whether raw supplier stock can be preserved. Admin surfaces need to distinguish "zero nodes parsed" from "preview unavailable" without exposing parser internals or supplier secrets.
+
+Impact: Newly imported paid/trial configs get longer human folder codes and explicit preview status metadata. Existing folder codes remain valid until an application-level backfill is run.

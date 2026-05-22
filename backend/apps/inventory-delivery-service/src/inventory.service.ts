@@ -2,6 +2,7 @@ import { Injectable, Inject, Logger, OnModuleDestroy, OnModuleInit } from '@nest
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { ImportConfigsDto, ImportTrialConfigsDto } from '@app/contracts/inventory.dto';
+import * as crypto from 'crypto';
 import {
   DEFAULT_RESALE_SLOT_CAP,
   DEFAULT_SUPPLIER_DEVICE_LIMIT,
@@ -11,6 +12,7 @@ import {
 import { firstValueFrom } from 'rxjs';
 import {
   AssignmentAccessStatus,
+  ConfigEventType,
   InventoryHealthStatus,
   InventoryStatus,
   OrderStatus,
@@ -22,6 +24,14 @@ import {
 } from '@prisma/client';
 import { canAllocateSupplierConfig } from './supplier-capacity.policy';
 import { resolveInventoryHealthcheckIntervalMs } from './inventory-health-scheduler.policy';
+
+type ConfigEventInput = {
+  configScope: 'PAID' | 'TRIAL';
+  configId: string;
+  folderCode?: string | null;
+  eventType: ConfigEventType;
+  payload: Record<string, unknown>;
+};
 
 @Injectable()
 export class InventoryService implements OnModuleInit, OnModuleDestroy {
@@ -89,6 +99,12 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           : supplierResource.metadata.expiresAt
             ? new Date(supplierResource.metadata.expiresAt)
             : null;
+        const configIdentity = await this.buildConfigFolderIdentity({
+          rawConfig: supplierResource.rawConfig,
+          prefix: data.category,
+          protocol: profile.protocol,
+          hasSupplierExpiry: !!supplierExpiresAt,
+        });
         const sourceQuotaBytes =
           typeof supplierResource.metadata.trafficTotalBytes === 'number'
             ? BigInt(supplierResource.metadata.trafficTotalBytes)
@@ -124,6 +140,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
               data.maxUsersPerConfig ?? InventoryService.DEFAULT_MAX_USERS_PER_CONFIG,
             max_resale_slots: maxResaleSlots,
             used_resale_slots: usedResaleSlots,
+            sale_priority_score: this.computeSalePriorityScore({
+              usedResaleSlots,
+              maxResaleSlots,
+            }),
             supplier_expires_at: supplierExpiresAt,
             supplier_provider_name:
               data.supplierProviderName?.trim() ||
@@ -134,6 +154,26 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
               supplierResource.metadata.deviceLimit ??
               data.maxUsersPerConfig ??
               DEFAULT_SUPPLIER_DEVICE_LIMIT,
+            config_fingerprint: configIdentity.fingerprint,
+            folder_code: configIdentity.folderCode,
+            admin_label: configIdentity.adminLabel,
+            node_count: configIdentity.nodeCount,
+            countries_preview: configIdentity.countriesPreview as any,
+            admin_preview_json: configIdentity.adminPreview as any,
+          },
+        });
+        await this.safeRecordConfigEvent(this.prisma, {
+          configScope: 'PAID',
+          configId: item.id,
+          folderCode: configIdentity.folderCode,
+          eventType: ConfigEventType.CONFIG_IMPORTED,
+          payload: {
+            folderCode: configIdentity.folderCode,
+            category: data.category,
+            configType: item.config_type,
+            nodeCount: configIdentity.nodeCount,
+            countriesPreview: configIdentity.countriesPreview,
+            importedAt: item.imported_at?.toISOString?.() ?? new Date().toISOString(),
           },
         });
         results.push({
@@ -265,7 +305,15 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             OR "source_quota_bytes" <= 0
             OR "source_used_bytes" < "source_quota_bytes"
           )
-        ORDER BY "imported_at" ASC
+        ORDER BY
+          CASE
+            WHEN "used_resale_slots" <= 0 OR "max_resale_slots" <= 0 THEN 0
+            ELSE FLOOR(("used_resale_slots"::numeric * 100000) / "max_resale_slots")
+          END DESC,
+          "used_resale_slots" DESC,
+          ("max_resale_slots" - "used_resale_slots") ASC,
+          "sale_priority_score" DESC,
+          "imported_at" ASC
         FOR UPDATE SKIP LOCKED
       `);
 
@@ -325,6 +373,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         where: { id: inventoryItem.id },
         data: {
           used_resale_slots: nextUsedSlots,
+          sale_priority_score: this.computeSalePriorityScore({
+            usedResaleSlots: nextUsedSlots,
+            maxResaleSlots: inventoryItem.max_resale_slots,
+          }),
           health_status: nextHealth,
           status: InventoryStatus.ASSIGNED,
           assigned_order_id: inventoryItem.assigned_order_id ?? order.id,
@@ -378,6 +430,24 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             assignedAt: new Date().toISOString(),
           } as any,
         },
+      });
+      const configAssignedAt = new Date().toISOString();
+      postCommitEffects.push(() => {
+        void this.safeRecordConfigEvent(this.prisma, {
+          configScope: 'PAID',
+          configId: inventoryItem.id,
+          folderCode: inventoryItem.folder_code,
+          eventType: ConfigEventType.CONFIG_ASSIGNED,
+          payload: {
+            folderCode: inventoryItem.folder_code,
+            orderRef: order.order_ref,
+            planCode: order.plan.code,
+            slotCount: requiredSlots,
+            usedResaleSlots: nextUsedSlots,
+            maxResaleSlots: inventoryItem.max_resale_slots,
+            assignedAt: configAssignedAt,
+          },
+        });
       });
 
       postCommitEffects.push(() => {
@@ -715,6 +785,12 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         supplierExpiresAt && supplierExpiresAt.getTime() <= Date.now()
           ? TrialConfigStatus.DEAD
           : TrialConfigStatus.AVAILABLE;
+      const configIdentity = await this.buildConfigFolderIdentity({
+        rawConfig: supplierResource.rawConfig,
+        prefix: 'TRIAL',
+        protocol: profile.protocol,
+        hasSupplierExpiry: !!supplierExpiresAt,
+      });
 
       const item = await this.prisma.trialConfig.create({
         data: {
@@ -729,6 +805,26 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             data.supplierProviderName?.trim() ||
             supplierResource.metadata.providerName?.trim() ||
             null,
+          config_fingerprint: configIdentity.fingerprint,
+          folder_code: configIdentity.folderCode,
+          admin_label: configIdentity.adminLabel,
+          node_count: configIdentity.nodeCount,
+          countries_preview: configIdentity.countriesPreview as any,
+          admin_preview_json: configIdentity.adminPreview as any,
+        },
+      });
+      await this.safeRecordConfigEvent(this.prisma, {
+        configScope: 'TRIAL',
+        configId: item.id,
+        folderCode: configIdentity.folderCode,
+        eventType: ConfigEventType.TRIAL_CONFIG_IMPORTED,
+        payload: {
+          folderCode: configIdentity.folderCode,
+          campaignCode,
+          configType: item.config_type,
+          nodeCount: configIdentity.nodeCount,
+          countriesPreview: configIdentity.countriesPreview,
+          importedAt: item.imported_at?.toISOString?.() ?? new Date().toISOString(),
         },
       });
 
@@ -756,13 +852,13 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
   private async assignPendingTrialGrants(campaignId: string, campaignCode: string) {
     const now = new Date();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const campaign = await tx.trialCampaign.findUnique({
         where: { id: campaignId },
       });
 
       if (!campaign) {
-        return [];
+        return { recoveredAssignments: [], configEvents: [] as ConfigEventInput[] };
       }
 
       const pendingGrants = await tx.trialGrant.findMany({
@@ -778,19 +874,25 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         include: { customer: true },
       });
       const recoveredAssignments = [];
+      const configEvents: ConfigEventInput[] = [];
 
       for (const grant of pendingGrants) {
-        const candidate = await tx.trialConfig.findFirst({
+        const candidates = await tx.trialConfig.findMany({
           where: {
             campaign_id: campaignId,
-            status: TrialConfigStatus.AVAILABLE,
+            status: { in: [TrialConfigStatus.AVAILABLE, TrialConfigStatus.ASSIGNED] },
+            max_device_assignments: { gt: 0 },
             OR: [
               { supplier_expires_at: null },
               { supplier_expires_at: { gt: now } },
             ],
           },
           orderBy: { imported_at: 'asc' },
+          take: 25,
         });
+        const candidate = candidates.find(
+          (config) => config.used_device_assignments < config.max_device_assignments,
+        );
 
         if (!candidate) {
           break;
@@ -799,11 +901,13 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         const lockedConfig = await tx.trialConfig.updateMany({
           where: {
             id: candidate.id,
-            status: TrialConfigStatus.AVAILABLE,
+            status: { in: [TrialConfigStatus.AVAILABLE, TrialConfigStatus.ASSIGNED] },
+            used_device_assignments: { lt: candidate.max_device_assignments },
           },
           data: {
             status: TrialConfigStatus.ASSIGNED,
             assigned_at: now,
+            used_device_assignments: { increment: 1 },
           },
         });
 
@@ -836,8 +940,12 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
               status: TrialConfigStatus.ASSIGNED,
             },
             data: {
-              status: TrialConfigStatus.AVAILABLE,
-              assigned_at: null,
+              status:
+                candidate.used_device_assignments > 0
+                  ? TrialConfigStatus.ASSIGNED
+                  : TrialConfigStatus.AVAILABLE,
+              assigned_at: candidate.used_device_assignments > 0 ? candidate.assigned_at : null,
+              used_device_assignments: { decrement: 1 },
             },
           });
           continue;
@@ -870,6 +978,20 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             } as any,
           },
         });
+        configEvents.push({
+          configScope: 'TRIAL',
+          configId: candidate.id,
+          folderCode: candidate.folder_code,
+          eventType: ConfigEventType.TRIAL_CONFIG_ASSIGNED,
+          payload: {
+            folderCode: candidate.folder_code,
+            campaignCode,
+            grantId: grant.id,
+            userNumber: grant.customer.public_id,
+            expiresAt: expiresAt.toISOString(),
+            assignedAt: now.toISOString(),
+          },
+        });
 
         recoveredAssignments.push({
           grantId: grant.id,
@@ -879,8 +1001,14 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      return recoveredAssignments;
+      return { recoveredAssignments, configEvents };
     });
+
+    for (const event of result.configEvents) {
+      await this.safeRecordConfigEvent(this.prisma, event);
+    }
+
+    return result.recoveredAssignments;
   }
 
   async listInventoryOverview() {
@@ -917,11 +1045,18 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       healthStatus: item.health_status,
       usedResaleSlots: item.used_resale_slots,
       maxResaleSlots: item.max_resale_slots,
+      salePriorityScore: item.sale_priority_score,
       sourceUsedBytes: item.source_used_bytes.toString(),
       sourceQuotaBytes: item.source_quota_bytes?.toString() ?? null,
       supplierExpiresAt: item.supplier_expires_at?.toISOString() ?? null,
       supplierProviderName: item.supplier_provider_name,
       supplierDeviceLimit: item.supplier_device_limit,
+      configFingerprint: item.config_fingerprint,
+      folderCode: item.folder_code,
+      adminLabel: item.admin_label,
+      nodeCount: item.node_count,
+      countriesPreview: item.countries_preview,
+      adminPreview: item.admin_preview_json,
       assignments: item.assignments.map((assignment) => ({
         id: assignment.id,
         orderRef: assignment.order.order_ref,
@@ -1139,6 +1274,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         where: { id: target.id },
         data: {
           used_resale_slots: { increment: assignment.slot_count },
+          sale_priority_score: this.computeSalePriorityScore({
+            usedResaleSlots: target.used_resale_slots + assignment.slot_count,
+            maxResaleSlots: target.max_resale_slots,
+          }),
           source_used_bytes: projectedTargetSourceUsedBytes,
           health_status: this.computeHealthStatus({
             currentHealth: target.health_status,
@@ -1471,11 +1610,212 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       where: { id: inventoryItemId },
       data: {
         used_resale_slots: usedSlots,
+        sale_priority_score: this.computeSalePriorityScore({
+          usedResaleSlots: usedSlots,
+          maxResaleSlots: inventoryItem.max_resale_slots,
+        }),
         source_used_bytes: sourceUsedBytes,
         health_status: nextHealth,
         status: usedSlots > 0 ? InventoryStatus.ASSIGNED : InventoryStatus.AVAILABLE,
       },
     });
+  }
+
+  private async buildConfigFolderIdentity(input: {
+    rawConfig: string;
+    prefix: string;
+    protocol: string;
+    hasSupplierExpiry: boolean;
+  }) {
+    const normalizedRaw = input.rawConfig.trim();
+    const fingerprint = crypto.createHash('sha256').update(normalizedRaw).digest('hex');
+    const shortFingerprint = fingerprint.slice(0, 12).toUpperCase();
+    const safePrefix = this.safeFolderToken(input.prefix);
+    const safeProtocol = this.safeFolderToken(input.protocol);
+    const folderCode = `${safePrefix}-${safeProtocol}-${shortFingerprint}`;
+    const preview = await this.parseManagedNodesForPreview(normalizedRaw);
+    const nodes = preview.nodes;
+    const protocols = Array.from(
+      new Set(nodes.map((node) => String(node.protocol || '').trim()).filter(Boolean)),
+    ).slice(0, 6);
+    const countriesPreview = this.extractCountriesPreview(nodes);
+
+    return {
+      fingerprint,
+      folderCode,
+      adminLabel: `${safePrefix} ${safeProtocol} ${shortFingerprint}`,
+      nodeCount: nodes.length,
+      countriesPreview,
+      adminPreview: {
+        folderCode,
+        nodeCount: nodes.length,
+        protocols,
+        countriesPreview,
+        previewStatus: preview.status,
+        previewError: preview.error,
+        hasSupplierExpiry: input.hasSupplierExpiry,
+        importedSource: safePrefix,
+      },
+    };
+  }
+
+  private async parseManagedNodesForPreview(rawConfig: string) {
+    try {
+      const nodes = await firstValueFrom(
+        this.vpnClient.send({ cmd: 'parse_managed_nodes' }, { rawConfig }),
+      );
+      return {
+        nodes: Array.isArray(nodes) ? nodes : [],
+        status: 'PARSED',
+        error: null,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Config folder preview unavailable: ${message}`);
+      return {
+        nodes: [],
+        status: 'UNAVAILABLE',
+        error: 'PARSER_UNAVAILABLE',
+      };
+    }
+  }
+
+  private extractCountriesPreview(nodes: any[]) {
+    const countryAliases: Record<string, string> = {
+      FR: 'France',
+      FRA: 'France',
+      DE: 'Germany',
+      DEU: 'Germany',
+      US: 'United States',
+      USA: 'United States',
+      UK: 'United Kingdom',
+      GB: 'United Kingdom',
+      GBR: 'United Kingdom',
+      CA: 'Canada',
+      CAN: 'Canada',
+      JP: 'Japan',
+      JPN: 'Japan',
+      SG: 'Singapore',
+      SGP: 'Singapore',
+      RU: 'Russia',
+      RUS: 'Russia',
+      NL: 'Netherlands',
+      NLD: 'Netherlands',
+      TR: 'Turkey',
+      TUR: 'Turkey',
+      PL: 'Poland',
+      POL: 'Poland',
+      ES: 'Spain',
+      ESP: 'Spain',
+      IT: 'Italy',
+      ITA: 'Italy',
+      SE: 'Sweden',
+      SWE: 'Sweden',
+      FI: 'Finland',
+      FIN: 'Finland',
+      BR: 'Brazil',
+      BRA: 'Brazil',
+      IN: 'India',
+      IND: 'India',
+      KR: 'Korea',
+      KOR: 'Korea',
+    };
+    const knownCountries = Array.from(new Set(Object.values(countryAliases)));
+    const found = new Set<string>();
+
+    for (const node of nodes) {
+      const fields = [
+        node?.countryName,
+        node?.country,
+        node?.countryCode,
+        node?.location,
+        node?.region,
+        node?.displayName,
+      ].map((value) => String(value || '').trim()).filter(Boolean);
+      for (const field of fields) {
+        const normalized = field.toUpperCase();
+        const alias = countryAliases[normalized] ?? countryAliases[field];
+        if (alias) {
+          found.add(alias);
+        }
+        const flagCountry = this.countryFromFlagEmoji(field, countryAliases);
+        if (flagCountry) {
+          found.add(flagCountry);
+        }
+      }
+      const label = fields.join(' ');
+      for (const country of knownCountries) {
+        if (label.toLowerCase().includes(country.toLowerCase())) {
+          found.add(country);
+        }
+      }
+    }
+
+    return Array.from(found).slice(0, 8);
+  }
+
+  private countryFromFlagEmoji(value: string, countryAliases: Record<string, string>) {
+    const chars = Array.from(value);
+    for (let index = 0; index < chars.length - 1; index += 1) {
+      const first = chars[index].codePointAt(0) ?? 0;
+      const second = chars[index + 1].codePointAt(0) ?? 0;
+      if (
+        first >= 0x1f1e6 &&
+        first <= 0x1f1ff &&
+        second >= 0x1f1e6 &&
+        second <= 0x1f1ff
+      ) {
+        const alpha2 = String.fromCharCode(first - 0x1f1e6 + 65, second - 0x1f1e6 + 65);
+        const country = countryAliases[alpha2];
+        if (country) {
+          return country;
+        }
+      }
+    }
+    return null;
+  }
+
+  private safeFolderToken(value: string) {
+    const token = value
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return token || 'CONFIG';
+  }
+
+  private async recordConfigEvent(
+    client: { configEvent?: { create: (args: any) => Promise<unknown> } },
+    input: ConfigEventInput,
+  ) {
+    if (!client.configEvent?.create) {
+      return;
+    }
+
+    await client.configEvent.create({
+      data: {
+        config_scope: input.configScope,
+        config_id: input.configId,
+        folder_code: input.folderCode ?? null,
+        event_type: input.eventType,
+        payload_json: input.payload as any,
+      },
+    });
+  }
+
+  private async safeRecordConfigEvent(
+    client: { configEvent?: { create: (args: any) => Promise<unknown> } },
+    input: ConfigEventInput,
+  ) {
+    try {
+      await this.recordConfigEvent(client, input);
+    } catch (error) {
+      this.logger.warn(
+        `Config journal write failed for ${input.configScope}:${input.configId}:${input.eventType}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private computeHealthStatus(input: {
@@ -1503,5 +1843,18 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     }
 
     return InventoryHealthStatus.HEALTHY;
+  }
+
+  private computeSalePriorityScore(input: {
+    usedResaleSlots: number;
+    maxResaleSlots: number;
+  }) {
+    const used = Math.max(0, Math.floor(input.usedResaleSlots));
+    const max = Math.max(0, Math.floor(input.maxResaleSlots));
+    if (used <= 0 || max <= 0) {
+      return 0;
+    }
+
+    return Math.floor((used * 100000) / max);
   }
 }

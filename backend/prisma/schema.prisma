@@ -81,6 +81,18 @@ enum AccountingEntrySource {
   REFUND
 }
 
+enum ConfigEventScope {
+  PAID
+  TRIAL
+}
+
+enum ConfigEventType {
+  CONFIG_IMPORTED
+  TRIAL_CONFIG_IMPORTED
+  CONFIG_ASSIGNED
+  TRIAL_CONFIG_ASSIGNED
+}
+
 model Customer {
   id         String   @id @default(uuid())
   public_id  String   @unique
@@ -155,13 +167,24 @@ model InventoryItem {
   source_used_bytes        BigInt                @default(0)
   max_resale_slots         Int                   @default(2)
   used_resale_slots        Int                   @default(0)
+  sale_priority_score      Int                   @default(0)
   supplier_expires_at      DateTime?
   supplier_provider_name   String?
   supplier_device_limit    Int?
   max_customer_allocations Int        @default(5)
+  config_fingerprint       String?
+  folder_code              String?
+  admin_label              String?
+  node_count               Int        @default(0)
+  countries_preview        Json?
+  admin_preview_json       Json?
 
   customer    Customer?        @relation(fields: [assigned_customer_id], references: [id])
   assignments OrderAssignment[]
+
+  @@index([config_fingerprint])
+  @@index([folder_code])
+  @@index([category, health_status, sale_priority_score, imported_at])
 }
 
 model TrialCampaign {
@@ -192,13 +215,24 @@ model TrialConfig {
   status                 TrialConfigStatus @default(AVAILABLE)
   supplier_provider_name String?
   supplier_expires_at    DateTime?
+  max_device_assignments Int               @default(5)
+  used_device_assignments Int              @default(0)
+  config_fingerprint     String?
+  folder_code            String?
+  admin_label            String?
+  node_count             Int               @default(0)
+  countries_preview      Json?
+  admin_preview_json     Json?
   imported_at            DateTime          @default(now())
   assigned_at            DateTime?
 
   campaign   TrialCampaign    @relation(fields: [campaign_id], references: [id])
-  assignment TrialAssignment?
+  assignments TrialAssignment[]
 
   @@index([campaign_id, status, imported_at])
+  @@index([campaign_id, status, used_device_assignments, imported_at])
+  @@index([config_fingerprint])
+  @@index([folder_code])
 }
 
 model TrialGrant {
@@ -231,7 +265,7 @@ model TrialGrant {
 model TrialAssignment {
   id              String           @id @default(uuid())
   grant_id        String           @unique
-  trial_config_id String           @unique
+  trial_config_id String
   customer_id     String
   status          TrialGrantStatus @default(ACTIVE)
   assigned_at     DateTime         @default(now())
@@ -244,6 +278,7 @@ model TrialAssignment {
   customer     Customer    @relation(fields: [customer_id], references: [id])
 
   @@index([customer_id, status])
+  @@index([trial_config_id])
 }
 
 model OrderAssignment {
@@ -318,6 +353,19 @@ model AdminEvent {
   created_at   DateTime @default(now())
 
   admin Admin? @relation(fields: [admin_id], references: [id])
+}
+
+model ConfigEvent {
+  id           String   @id @default(uuid())
+  config_scope ConfigEventScope
+  config_id    String
+  folder_code  String?
+  event_type   ConfigEventType
+  payload_json Json
+  created_at   DateTime @default(now())
+
+  @@index([config_scope, config_id, created_at])
+  @@index([folder_code, created_at])
 }
 
 model AccountingEntry {

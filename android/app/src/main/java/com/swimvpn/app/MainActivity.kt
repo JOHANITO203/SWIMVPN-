@@ -92,8 +92,8 @@ class MainActivity : AppCompatActivity() {
             }
         }
         val initialLanguage = AppCompatDelegate.getApplicationLocales()[0]?.language
-            ?: Locale.getDefault().language
             ?: VpnNotificationLanguage.DEFAULT_LANGUAGE
+        applyLocale(initialLanguage)
         logStartup("Activity.onCreate before setContent")
         setContent {
             var firstCompositionLogged by remember { mutableStateOf(false) }

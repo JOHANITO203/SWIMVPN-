@@ -16,6 +16,10 @@ import {
   formatImportResult,
   formatInventoryOverview,
   formatPendingFulfillment,
+  formatTrialImportInstructions,
+  formatTrialImportResult,
+  formatTrialImportWizardConfirmation,
+  formatTrialImportWizardConfigPrompt,
   isImportWizardCancel,
   isImportWizardConfirm,
   mapBotPlanInputToCategory,
@@ -27,7 +31,9 @@ import {
 type ImportWizardSession =
   | { step: 'category' }
   | { step: 'config'; category: any }
-  | { step: 'confirm'; category: any; config: string };
+  | { step: 'confirm'; category: any; config: string }
+  | { step: 'trial_config' }
+  | { step: 'trial_confirm'; config: string };
 
 @Injectable()
 export class AdminBotService implements OnModuleInit, OnModuleDestroy {
@@ -342,6 +348,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         '/add premium <config-or-subscription-url>',
         '/add platinum <config-or-subscription-url>',
         '',
+        'Trial Store:',
+        '/trial_import - trial config import instructions',
+        '/add_trial <config-or-subscription-url>',
+        '',
         'Each supplier link is capped at 2 customer orders.',
         'Raw config is preserved in PostgreSQL.',
       ].join('\n'));
@@ -350,6 +360,15 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     this.bot.command('add_wizard', async (ctx) => {
       this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'category' });
       await ctx.reply(formatImportWizardCategoryPrompt());
+    });
+
+    this.bot.command('trial_import', async (ctx) => {
+      await ctx.reply(formatTrialImportInstructions());
+    });
+
+    this.bot.command('trial_wizard', async (ctx) => {
+      this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'trial_config' });
+      await ctx.reply(formatTrialImportWizardConfigPrompt());
     });
 
     this.bot.command('cancel_import', async (ctx) => {
@@ -384,6 +403,25 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       } catch (error) {
         this.logger.error('Failed to import config via admin bot', error as Error);
         await ctx.reply('Inventory service rejected the import. Check parser warnings or service logs.');
+      }
+    });
+
+    this.bot.command('add_trial', async (ctx) => {
+      const text = ctx.message.text || '';
+      const match = text.match(/^\/add_trial(?:@\w+)?\s+([\s\S]+)$/i);
+      const config = match?.[1]?.trim();
+      if (!config) {
+        await ctx.reply('Usage: /add_trial <config-or-subscription-url>');
+        return;
+      }
+
+      await ctx.reply('Importing trial config...');
+      try {
+        const result = await this.importTrialConfig(config, ctx.from?.id?.toString() || null);
+        await ctx.reply(formatTrialImportResult(result));
+      } catch (error) {
+        this.logger.error('Failed to import trial config via admin bot', error as Error);
+        await ctx.reply('Trial Store rejected the import. Check parser warnings or service logs.');
       }
     });
 
@@ -424,6 +462,39 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
         this.importWizardSessions.set(key, { step: 'confirm', category: session.category, config });
         await ctx.reply(formatImportWizardConfirmation(session.category, config));
+        return;
+      }
+
+      if (session.step === 'trial_config') {
+        const config = text.trim();
+        if (!config) {
+          await ctx.reply('Missing trial config or subscription URL. Send it as one message.');
+          return;
+        }
+
+        this.importWizardSessions.set(key, { step: 'trial_confirm', config });
+        await ctx.reply(formatTrialImportWizardConfirmation(config));
+        return;
+      }
+
+      if (session.step === 'trial_confirm') {
+        if (!isImportWizardConfirm(text)) {
+          await ctx.reply('Reply confirm to import, or cancel to stop.');
+          return;
+        }
+
+        await ctx.reply('Importing trial config...');
+        try {
+          const result = await this.importTrialConfig(
+            session.config,
+            ctx.from?.id?.toString() || null,
+          );
+          this.importWizardSessions.delete(key);
+          await ctx.reply(formatTrialImportResult(result));
+        } catch (error) {
+          this.logger.error('Failed to import trial config via admin bot wizard', error as Error);
+          await ctx.reply('Trial Store rejected the import. Check parser warnings or service logs.');
+        }
         return;
       }
 
@@ -472,6 +543,9 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       '/import - import instructions',
       '/add_wizard - guided supplier config import',
       '/add basic|premium|platinum <config> - import supplier config',
+      '/trial_import - trial config import instructions',
+      '/trial_wizard - guided trial config import',
+      '/add_trial <config> - import config into Trial Store',
       '/orders - recent orders',
       '/pending - paid orders waiting for supplier capacity',
       '/retry <orderRef|all> - retry pending fulfillment',
@@ -546,6 +620,33 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           telegramUserId,
           maxResaleSlots: DEFAULT_RESALE_SLOT_CAP,
           supplierDeviceLimit: DEFAULT_SUPPLIER_DEVICE_LIMIT,
+          result,
+          createdAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+
+    return result;
+  }
+
+  private async importTrialConfig(config: string, telegramUserId: string | null) {
+    const result = await firstValueFrom(
+      this.inventoryClient.send(
+        { cmd: 'import_trial_configs' },
+        {
+          configs: [config],
+          batchName: `Admin bot trial import ${new Date().toISOString()}`,
+        },
+      ),
+    );
+
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'ADMIN_BOT_TRIAL_CONFIG_IMPORTED',
+        entity_type: 'TRIAL_CONFIG',
+        entity_id: 'BOT_TRIAL_IMPORT',
+        payload_json: {
+          telegramUserId,
           result,
           createdAt: new Date().toISOString(),
         } as any,

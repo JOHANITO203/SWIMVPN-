@@ -1,4 +1,20 @@
-﻿# 2026-05-21 - Android light theme token correction
+﻿# 2026-05-22 - Trial supplier config device capacity
+
+- Updated the Trial Store backend so one supplier trial config can be assigned to up to five trial devices instead of being consumed after the first assignment.
+- Added Prisma schema fields for trial config assignment capacity and usage, plus a migration that backfills current usage from existing trial assignments and removes the unique `TrialAssignment.trial_config_id` constraint.
+- Updated pending trial recovery to increment one device-capacity slot per recovered assignment while keeping raw config data intact and preserving the existing TrialCampaign/TrialGrant/TrialAssignment model.
+- Added a policy test proving that five pending trial grants can share one supplier trial config and a sixth remains pending when capacity is exhausted.
+- Verification: targeted inventory policy test passed, `npm run typecheck` passed, and `npm run test:policy` passed.
+
+# 2026-05-22 - Config folder identity, journal, and sale priority
+
+- Added paid/trial config folder identity metadata: stable SHA-256 fingerprint, human folder code, admin label, node count, countries preview, and admin-safe preview JSON.
+- Added config-level event journal storage for import and assignment events without duplicating raw configs or runtime secrets in journal payloads.
+- Added paid inventory sale priority scoring so fulfillment prefers already-started supplier configs before fresh stock while preserving health, quota, expiration, and capacity guards.
+- Updated inventory overview to expose folder identity, admin preview, and sale priority fields for future admin surfaces.
+- Verification: inventory policy test, Prisma validation, backend typecheck, and full policy suite passed.
+
+# 2026-05-21 - Android light theme token correction
 
 - Reworked the SwimVPN light visual tokens around a cleaner lavender premium scale: clearer backgrounds, raised surfaces, semantic strokes, readable text levels, stronger violet accents, and status colors.
 - Aligned the Material light color scheme with `SwimDesignTokens.Light` instead of scattered pastel hardcodes.
@@ -3574,9 +3590,58 @@ pm run build PASSED.
 - Added debug-only `SwimStartup` timing logs for Activity creation, first composition, bridge surface, bootstrap resolution, Home mount, and orb mount.
 - Installed the rebuilt debug APK on the Wi-Fi ADB phone and captured cold/resume sequences under `screenshots/startup-seq-patched-final/`.
 - Verification: `:app:compileDebugKotlin` and `:app:assembleDebug` passed.
+# 2026-05-22 - Subscription public device allowance copy
+
+- Updated the Android Subscription screen public plan bullets to show Basic up to 1 device, Premium up to 2 devices, and Platinum up to 3 devices.
+- Kept backend/internal supplier capacity, resale slots, trial capacity, payment, entitlement, and plan contracts unchanged.
+- Verification pending in this batch: Android compile, assemble, and device install.
+
+# 2026-05-22 - Admin Telegram bot trial config import
+
+- Added Trial Store import commands to the existing `TELEGRAM_BOT_TOKEN` admin operations bot: `/trial_import`, `/trial_wizard`, and `/add_trial <config>`.
+- Reused the existing trial config backend workflow by sending imports to `import_trial_configs`, keeping trial configs outside paid inventory and preserving raw config input.
+- Added formatter coverage for the trial bot commands, wizard prompt, confirmation preview, and import result summary.
+- Preserved VPN runtime, Android, parser internals, payment, paid inventory allocation, and entitlement rules.
+- Verification pending in this batch: backend formatter test, typecheck, and policy tests.
+
+# 2026-05-22 - Android default language fallback set to Russian
+
+- Set the first non-blocking Android locale fallback to Russian when no app locale has been selected yet.
+- Preserved existing user-selected app locales and the DataStore language flow; no blocking DataStore read was reintroduced before `setContent()`.
+- Verified the backend trial config surface still exists as a dedicated Trial Store path: `TrialCampaign`, `TrialConfig`, `TrialGrant`, `TrialAssignment`, admin `trigger_trial_import`, and inventory `import_trial_configs`.
+- Verification pending in this batch: Android compile, assemble, and device install.
+
 # 2026-05-22 - Subscription plan icon refresh
 
 - Replaced generic Material plan icons in the Android Subscription screen with tintable vector drawables based on free Tabler Icons.
 - Shifted plan icon language away from shields toward membership/value symbols: medal for Basic, sparkles for Premium, and diamond for Platinum.
 - Preserved subscription data, backend checkout flow, payment methods, entitlement logic, plan ordering, dark/light tokens, and card layout.
 - Verification pending in this batch: Android compile, assemble, and device install.
+
+# 2026-05-22 - Inventory lots 2-4 review fixes
+
+- Resolved the code-review finding where `ConfigEvent` writes could block config import, paid fulfillment, or trial assignment by making journal writes best-effort with warning logs.
+- Tightened `ConfigEvent.config_scope` to a Prisma/PostgreSQL enum with only `PAID` and `TRIAL`.
+- Documented that existing inventory/trial rows need a parser-backed backfill for folder identity and admin preview metadata.
+- Verification: Prisma generate/validate, inventory service targeted test, backend typecheck, full backend policy suite, and diff check passed.
+
+# 2026-05-22 - Inventory lot 2 folder identity review fixes
+
+- Increased new config folder-code fingerprint suffixes from 6 to 12 characters to reduce admin-facing collision risk while keeping the full SHA-256 fingerprint stored.
+- Added explicit folder preview status metadata so parser preview failures are visible as `UNAVAILABLE` without blocking paid/trial config import.
+- Improved countries preview extraction to read structured country fields/codes/emoji flags when present, with display-name fallback.
+- Verification: inventory service targeted test, Prisma validation, backend typecheck, policy suite, and diff check passed.
+
+# 2026-05-22 - Inventory lot 3 config journal review fixes
+
+- Moved paid and trial assignment `ConfigEvent` writes out of Prisma transactions so journal failures cannot poison business commits.
+- Added `ConfigEventType` as a Prisma/PostgreSQL enum for known config journal events.
+- Kept the config journal append-only and documented future idempotence as an admin timeline follow-up.
+- Verification: Prisma generate/validate, inventory service targeted test, backend typecheck, policy suite, and diff check passed.
+
+# 2026-05-22 - Inventory lot 4 sale priority review fixes
+
+- Replaced the sale priority formula with a fill-ratio score so already-started configs closest to exhaustion outrank large partially-used configs.
+- Updated paid fulfillment ordering to compute priority from live `used_resale_slots` and `max_resale_slots`, reducing risk from stale materialized scores.
+- Updated the sale-priority migration backfill and added tests for equal-used-slot and higher-utilization cases.
+- Verification: Prisma validation, inventory service targeted test, backend typecheck, policy suite, and diff check passed.

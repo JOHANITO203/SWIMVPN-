@@ -960,9 +960,9 @@ private fun String.toLocalizedPlanTitle(tier: SubscriptionPlanTier, resources: R
 
 private val SubscriptionPlanTier.deviceAllowance: Int
     get() = when (this) {
-        SubscriptionPlanTier.BASIC -> 2
-        SubscriptionPlanTier.PREMIUM -> 3
-        SubscriptionPlanTier.PLATINUM -> 4
+        SubscriptionPlanTier.BASIC -> 1
+        SubscriptionPlanTier.PREMIUM -> 2
+        SubscriptionPlanTier.PLATINUM -> 3
     }
 
 private fun String.toPlanSubtitle(tier: SubscriptionPlanTier, resources: Resources): String =
