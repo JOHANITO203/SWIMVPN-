@@ -1,0 +1,25 @@
+{
+  "name": "SWIMVPN",
+  "short_name": "SWIMVPN",
+  "description": "Android VPN with in-app access purchase, trial access, and custom VPN config import.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#05070A",
+  "theme_color": "#05070A",
+  "icons": [
+    {
+      "src": "/brand/swimvpn-shark-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/swimvpn-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

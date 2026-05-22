@@ -3709,3 +3709,10 @@ pm run build PASSED.
 - Optimized the SwimPay transparent PNG from a full-resolution source to a `192x192` icon asset suitable for the landing payment card.
 - Added `aria-pressed` to the mobile-visible RU/FR selector.
 - Tightened the landing header, hero spacing, CTA sizing, and final APK stat grid for small portrait screens while preserving broader desktop and landscape layouts.
+
+# 2026-05-22 - Landing metadata, Play docs, cleanup audit, and Agent IA plan
+
+- Added explicit landing favicon, Apple touch icon, and web manifest metadata using the existing SWIMVPN shark/app icon identity.
+- Created Google Play preparation docs for RU/FR store listing drafts, Data Safety review, VpnService declaration, and release asset checklist.
+- Added a repo cleanup audit that classifies generated/local artifacts and tracked QA screenshots without deleting anything.
+- Documented the current Agent IA implementation as a deterministic adaptive recommendation layer, plus a future PR plan for explainability, probe freshness, backend-safe health signals, tests, and copy alignment.

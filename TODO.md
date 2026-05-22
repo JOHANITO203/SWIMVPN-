@@ -1,5 +1,19 @@
 # TODO
 
+## [2026-05-22] Agent IA Optimization Follow-up
+- [ ] Add concise recommendation reason codes to `AdaptiveDecisionAgent`.
+- [ ] Add bounded visible-screen latency refresh for server candidates.
+- [ ] Keep Agent IA wording as guidance/indices, not autonomous server selection.
+- [ ] Add regression tests for expired users, premium-blocked nodes, missing runtime configs, imported configs, and fresh probe failures.
+- [ ] Consider backend aggregate health signals only if they do not expose supplier/private node metadata.
+
+## [2026-05-22] Google Play / Landing Release Follow-up
+- [ ] Validate Google Play Data Safety draft against final production backend, Android release build, support bot, logs, and payment flows.
+- [ ] Produce final Play Store screenshots from a release-candidate APK.
+- [ ] Confirm privacy policy URL before Play submission.
+- [ ] Validate final VpnService declaration wording against production runtime modes and foreground notification behavior.
+- [ ] Decide which tracked QA screenshots can be archived or deleted after owner review.
+
 ## [2026-05-22] Inventory Folder Metadata Follow-up
 - [x] Add stable config fingerprints for paid and trial imported configs.
 - [x] Add human-readable folder names for config batches without exposing supplier details to customers.
