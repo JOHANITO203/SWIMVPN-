@@ -29,6 +29,7 @@ import {
   mapBotPlanInputToCategory,
   parseExpenseCommand,
   parseInventoryActionCommand,
+  parseReviewCommand,
   parseRetryCommand,
 } from './admin-bot.formatter';
 
@@ -112,6 +113,16 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.command('stock', async (ctx) => {
       await this.replyStockOverview(ctx);
+    });
+
+    this.bot.command('review', async (ctx) => {
+      const parsed = parseReviewCommand(ctx.message.text || '');
+      if (parsed.valid === false) {
+        await ctx.reply(parsed.reason);
+        return;
+      }
+
+      await this.replyInventoryReviewSearch(ctx, parsed.scope, parsed.query);
     });
 
     this.bot.command('orders', async (ctx) => {
@@ -581,6 +592,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       'SWIMVPN+ Admin Operations Bot',
       '',
       '/stock - inventory overview by plan bucket',
+      '/review <id-or-folder> - review existing paid/trial config',
       '/import - import instructions',
       '/add_wizard - guided supplier config import',
       '/add basic|premium|platinum <config> - import supplier config',
@@ -681,6 +693,80 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       this.logger.error('Failed to build inventory review via admin bot', error as Error);
       await ctx.reply('Review unavailable right now. Check service logs.');
     }
+  }
+
+  private async replyInventoryReviewSearch(
+    ctx: any,
+    requestedScope: 'paid' | 'trial' | 'any',
+    query: string,
+  ) {
+    try {
+      const [paidOverview, trialOverview] = await Promise.all([
+        requestedScope === 'trial'
+          ? Promise.resolve([])
+          : firstValueFrom(this.inventoryClient.send({ cmd: 'list_inventory_overview' }, {})),
+        requestedScope === 'paid'
+          ? Promise.resolve([])
+          : firstValueFrom(this.inventoryClient.send({ cmd: 'list_trial_inventory_overview' }, {})),
+      ]);
+
+      const matches = [
+        ...this.findReviewMatches('paid', Array.isArray(paidOverview) ? paidOverview : [], query),
+        ...this.findReviewMatches('trial', Array.isArray(trialOverview) ? trialOverview : [], query),
+      ];
+
+      if (matches.length === 0) {
+        await ctx.reply([
+          'Review unavailable. No config matched your query.',
+          '',
+          'Try /stock, then use:',
+          '/review <id-or-folder>',
+          '/review paid <id-or-folder>',
+          '/review trial <id-or-folder>',
+        ].join('\n'), this.mainKeyboard());
+        return;
+      }
+
+      if (matches.length > 1) {
+        await ctx.reply([
+          'Review query is ambiguous. Use a longer id or folder code.',
+          '',
+          ...matches.slice(0, 8).map((match) => {
+            const label = match.item.folderCode || match.item.adminLabel || match.item.id || 'unknown';
+            return `- ${match.scope}: ${label}`;
+          }),
+        ].join('\n'), this.mainKeyboard());
+        return;
+      }
+
+      const [match] = matches;
+      await ctx.reply(formatInventoryReview(match.scope, match.item), this.mainKeyboard());
+    } catch (error) {
+      this.logger.error('Failed to search inventory review via admin bot', error as Error);
+      await ctx.reply('Review unavailable right now. Check service logs.');
+    }
+  }
+
+  private findReviewMatches(scope: 'paid' | 'trial', items: any[], query: string) {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return items
+      .filter((item) => {
+        const fields = [
+          item.id,
+          item.folderCode,
+          item.adminLabel,
+        ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+        return fields.some((value) => {
+          const normalized = value.toLowerCase();
+          return normalized === normalizedQuery || normalized.startsWith(normalizedQuery);
+        });
+      })
+      .map((item) => ({ scope, item }));
   }
 
   private extractFirstImportedId(result: any) {

@@ -26,12 +26,20 @@ For every task, always execute in this exact order:
 1. AUDIT
 2. PLAN
 3. IMPLEMENT
-4. VERIFY
-5. NOTE
+4. REVIEW
+5. CORRECTION
+6. RE-REVIEW
+7. VERIFY
+8. NOTE
 
 Do not skip a step.
 Do not merge steps.
 Do not start coding before AUDIT and PLAN are explicit.
+Do not move to the next implementation step until REVIEW and RE-REVIEW are explicit.
+
+If REVIEW finds no findings, record "No findings" and continue to VERIFY.
+If REVIEW finds findings, execute CORRECTION at the root cause, then run RE-REVIEW.
+If RE-REVIEW still finds findings, repeat CORRECTION and RE-REVIEW until the implementation matches the task goal or a blocker is reported.
 
 ---
 
@@ -74,7 +82,51 @@ Implementation rules:
 - never bypass entitlement/security checks
 - never rewrite unrelated modules
 
-### 4. VERIFY
+### 4. REVIEW
+
+After implementation, before broad verification:
+- review the implementation against the original task goal
+- review the diff for unrelated changes
+- review business rules and source-of-truth boundaries
+- review security boundaries and entitlement checks where relevant
+- review parser/config handling safety where relevant
+- review UI copy/UX consistency where relevant
+- review tests added or changed
+- identify findings clearly, ordered by severity
+
+Required review output:
+- Findings
+- Root cause for each finding
+- Files affected
+- Proposed correction
+- Whether correction is required before VERIFY
+
+If no findings are found, explicitly state "No findings".
+
+### 5. CORRECTION
+
+If REVIEW finds issues:
+- correct the issue at the source
+- do not patch around symptoms
+- do not mask failing behavior
+- do not weaken tests to pass
+- keep the correction inside the approved scope
+- add or adjust tests when the finding reveals missing coverage
+
+If REVIEW finds no issues, record that CORRECTION is not required and proceed.
+
+### 6. RE-REVIEW
+
+After CORRECTION:
+- re-check the corrected files
+- verify every finding has been resolved
+- check that no new contradictions or regressions were introduced
+- check that tests still cover the intended behavior
+
+If RE-REVIEW finds issues, repeat CORRECTION and RE-REVIEW.
+Do not proceed to VERIFY until RE-REVIEW is clean or a blocker is reported.
+
+### 7. VERIFY
 
 After implementation, verify using:
 - build or compile checks where possible
@@ -87,7 +139,7 @@ After implementation, verify using:
 Never claim completion without verification.
 Never hide failed tests.
 
-### 5. NOTE
+### 8. NOTE
 
 After each meaningful batch:
 - update `WORKLOG.md`
@@ -128,6 +180,9 @@ After implementation, always output:
 - Files changed
 - Exact fixes made
 - Business rules affected
+- Review findings
+- Corrections applied
+- Re-review result
 - Tests/builds run
 - Tests/builds passed
 - Tests/builds failed

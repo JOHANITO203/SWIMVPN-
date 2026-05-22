@@ -17,6 +17,7 @@ import {
   isImportWizardConfirm,
   parseExpenseCommand,
   parseInventoryActionCommand,
+  parseReviewCommand,
   parseRetryCommand,
   mapBotPlanInputToCategory,
 } from '../admin-bot.formatter';
@@ -86,6 +87,7 @@ assert(trialOverview.includes('France, Canada'), 'trial stock summary should exp
 const combinedOverview = formatCombinedInventoryOverview({ paid: [], trial: [] });
 assert(combinedOverview.includes('Paid inventory'), 'combined stock must include paid section');
 assert(combinedOverview.includes('Trial Store'), 'combined stock must include trial section');
+assert(combinedOverview.includes('/review <id-or-folder>'), 'combined stock must explain review command');
 
 const paidReview = formatInventoryReview('paid', {
   id: 'paid-review-id',
@@ -129,6 +131,27 @@ assert(retryAll.mode === 'all', 'retry all parse failed');
 
 const retryInvalid = parseRetryCommand('/retry');
 assert(retryInvalid.mode === 'invalid', 'retry invalid parse failed');
+
+const reviewAny = parseReviewCommand('/review TRIAL-VLESS-ABC');
+assert(
+  reviewAny.valid && reviewAny.scope === 'any' && reviewAny.query === 'TRIAL-VLESS-ABC',
+  'review command should parse unscoped query',
+);
+
+const reviewTrial = parseReviewCommand('/review trial trial-config-id');
+assert(
+  reviewTrial.valid && reviewTrial.scope === 'trial' && reviewTrial.query === 'trial-config-id',
+  'review command should parse trial scoped query',
+);
+
+const reviewPaid = parseReviewCommand('/review paid MONTH-VLESS-ABC');
+assert(
+  reviewPaid.valid && reviewPaid.scope === 'paid' && reviewPaid.query === 'MONTH-VLESS-ABC',
+  'review command should parse paid scoped query',
+);
+
+const reviewInvalid = parseReviewCommand('/review');
+assert(!reviewInvalid.valid, 'review without query should fail');
 
 const inventoryAction = parseInventoryActionCommand('/quota_reached inv-123 quota consumed');
 assert(inventoryAction.inventoryItemId === 'inv-123', 'inventory action id parse failed');
@@ -235,6 +258,10 @@ assert(
 assert(
   ADMIN_BOT_COMMANDS.some((command) => command.command === 'stock'),
   'telegram command menu must expose stock',
+);
+assert(
+  ADMIN_BOT_COMMANDS.some((command) => command.command === 'review'),
+  'telegram command menu must expose review',
 );
 assert(
   ADMIN_BOT_COMMANDS.some((command) => command.command === 'whoami'),

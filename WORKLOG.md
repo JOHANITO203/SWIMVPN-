@@ -3780,3 +3780,16 @@ pm run build PASSED.
 - Added inline Telegram buttons for Stock, Import, Pending, bucket-specific import wizard entry, and post-import Review actions.
 - Corrected admin bot supplier-capacity copy so Basic, Premium, and Platinum show internal stock capacity units instead of the obsolete universal "2 customer orders" text.
 - Verification: admin bot formatter tests, inventory service policy tests, backend `npm run typecheck`, full backend `npm run test:policy`, and `git diff --check` passed.
+
+# 2026-05-22 - Agent workflow review gates strengthened
+
+- Updated `AGENTS.md` so every task now explicitly requires `AUDIT -> PLAN -> IMPLEMENT -> REVIEW -> CORRECTION -> RE-REVIEW -> VERIFY -> NOTE`.
+- Added required review output, correction rules, re-review gates, and implementation report fields for findings/corrections/re-review results.
+- Purpose: prevent future batches from collapsing implementation, review, and correction into an implicit single step.
+
+# 2026-05-22 - Admin bot direct review for existing stock
+
+- Added `/review <id-or-folder>`, `/review paid <id-or-folder>`, and `/review trial <id-or-folder>` so admins can inspect already-ingested paid or trial configs without importing a new supplier link.
+- Review lookup matches full id, unique id prefix, folder code, or admin label across paid inventory and Trial Store.
+- `/stock` now explains how to review existing items directly.
+- Verification: admin bot formatter tests, backend `npm run typecheck`, full backend `npm run test:policy`, and `git diff --check` passed.

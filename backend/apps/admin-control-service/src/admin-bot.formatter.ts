@@ -59,6 +59,7 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'whoami', description: 'Show your Telegram ids' },
   { command: 'status', description: 'Check admin bot status' },
   { command: 'stock', description: 'Show inventory by plan bucket' },
+  { command: 'review', description: 'Review one paid or trial config' },
   { command: 'add_wizard', description: 'Guided supplier config import' },
   { command: 'import', description: 'Show direct import instructions' },
   { command: 'trial_import', description: 'Show trial config import instructions' },
@@ -150,6 +151,11 @@ export function formatCombinedInventoryOverview(input: {
     formatInventoryOverview(input.paid),
     '',
     formatTrialInventoryOverview(input.trial),
+    '',
+    'Review existing stock:',
+    '/review <id-or-folder>',
+    '/review paid <id-or-folder>',
+    '/review trial <id-or-folder>',
   ].join('\n');
 }
 
@@ -300,6 +306,43 @@ export function parseRetryCommand(text: string): ParsedRetryCommand {
   }
 
   return { mode: 'one', orderRef: target };
+}
+
+export type ParsedReviewCommand =
+  | { valid: true; scope: 'paid' | 'trial' | 'any'; query: string }
+  | { valid: false; reason: string };
+
+export function parseReviewCommand(text: string): ParsedReviewCommand {
+  const match = text.trim().match(/^\/review(?:@\w+)?(?:\s+([\s\S]+))?$/i);
+  const raw = match?.[1]?.trim();
+  if (!raw) {
+    return {
+      valid: false,
+      reason: 'Usage: /review <id-or-folder> or /review paid|trial <id-or-folder>',
+    };
+  }
+
+  const scoped = raw.match(/^(paid|trial)\s+(.+)$/i);
+  if (scoped) {
+    const query = scoped[2].trim();
+    if (!query) {
+      return {
+        valid: false,
+        reason: 'Usage: /review paid|trial <id-or-folder>',
+      };
+    }
+    return {
+      valid: true,
+      scope: scoped[1].toLowerCase() as 'paid' | 'trial',
+      query,
+    };
+  }
+
+  return {
+    valid: true,
+    scope: 'any',
+    query: raw,
+  };
 }
 
 export function parseInventoryActionCommand(text: string) {
