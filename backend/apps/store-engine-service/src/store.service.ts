@@ -393,8 +393,8 @@ export class StoreService {
       try {
         const nodes = await firstValueFrom(
           this.vpnConfigClient
-            .send<ManagedRuntimeNode[]>({ cmd: 'parse_managed_nodes' }, { rawConfig })
-            .pipe(timeout(1500)),
+            .send<ManagedRuntimeNode[]>({ cmd: 'resolve_managed_nodes' }, { rawConfig })
+            .pipe(timeout(4500)),
         );
         if (Array.isArray(nodes) && nodes.length > 0) {
           return nodes.filter((node) => this.isRuntimeNode(node));

@@ -1290,3 +1290,11 @@ Decision: Public plan device allowance and internal supplier config resale capac
 Reason: `device allowance` is customer-facing copy, while supplier stock capacity is a private inventory strategy. Reusing one helper for both made Basic/Premium/Platinum display rules look like backend resale limits and created confusion around whether users were becoming resellers.
 
 Impact: Public profile/subscription copy can say Basic 1, Premium 2, Platinum 3 devices. Paid inventory can still default to two SWIMVPN customers per supplier config by multiplying the plan capacity unit weight into Basic 2, Premium 4, Platinum 6 stock units. Legacy helpers remain compatibility aliases, but new backend code should prefer the explicit public/supplier helper names.
+
+# 2026-05-22 - Backend config resolver separates network fetch from local parse
+
+Decision: `parse_managed_nodes` remains a non-network parser, and `resolve_managed_nodes` is the only backend command allowed to fetch HTTP(S) supplier subscriptions before parsing runtime nodes.
+
+Reason: Raw supplier URLs must be preserved at import time, but fulfillment and admin preview need backend-side runtime nodes for Premium Servers. Separating parse from resolve keeps local parsing deterministic while making remote subscription fetching explicit and easier to secure.
+
+Impact: Store and inventory preview surfaces now use the resolver. The resolver blocks localhost/private/reserved hosts, follows only bounded redirects, limits payload size, and normalizes supported Android-equivalent config formats before exposing location-level runtime nodes. Future hardening should prefer supplier allowlists or a dedicated egress policy if production network boundaries require it.

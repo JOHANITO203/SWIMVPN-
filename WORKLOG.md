@@ -3763,3 +3763,12 @@ pm run build PASSED.
 - Updated paid config imports through inventory service, admin API logging, and Telegram admin bot import defaults to use category-specific supplier capacity defaults.
 - Updated Prisma seed values for new databases so plan `slot_count` reflects the public 1/2/3 display truth.
 - Verification: targeted supplier-capacity, inventory, and backend-security tests passed; full backend `npm run test:policy` passed; backend `npm run typecheck` passed.
+
+# 2026-05-22 - Subscription fulfillment Step 2 backend parser parity
+
+- Added a backend `resolve_managed_nodes` VPN config engine command for fulfillment-time supplier subscription resolution while keeping `parse_managed_nodes` non-network and safe for local parsing.
+- Extended backend managed node parsing toward Android parity for direct VLESS, VMess, Trojan, Shadowsocks, URL-encoded payloads, base64 subscriptions, Happ wrappers, Xray/V2Ray JSON outbounds, sing-box JSON outbounds, and Clash YAML `proxies`.
+- Added HTTP(S) supplier subscription fetching with timeout, size limit, redirect limit, and localhost/private/reserved host blocking before parsing fetched runtime payloads.
+- Wired paid server exposure and inventory admin preview surfaces to the resolver so raw supplier HTTP(S) links can hydrate runtime nodes only at backend-controlled resolution time.
+- Fixed paid config import validation to allow internal supplier capacity values up to Platinum's six capacity units.
+- Verification: backend parser tests, assigned server policy tests, inventory policy tests, `npm run typecheck`, and full backend `npm run test:policy` passed.

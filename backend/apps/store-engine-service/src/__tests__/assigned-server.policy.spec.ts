@@ -26,28 +26,31 @@ async function main() {
     'vless://uuid-two@assigned-two.example:8443?security=reality#Assigned%20Two',
   ].join('\n');
   const vpnConfigClient = {
-    send: () => of([
-      {
-        id: 'node-1',
-        rawConfig: 'vless://uuid-one@assigned-one.example:443?security=tls#Assigned%20One',
-        protocol: 'VLESS',
-        host: 'assigned-one.example',
-        port: 443,
-        security: 'tls',
-        transport: 'tcp',
-        displayName: 'Assigned One',
-      },
-      {
-        id: 'node-2',
-        rawConfig: 'vless://uuid-two@assigned-two.example:8443?security=reality#Assigned%20Two',
-        protocol: 'VLESS',
-        host: 'assigned-two.example',
-        port: 8443,
-        security: 'reality',
-        transport: 'tcp',
-        displayName: 'Assigned Two',
-      },
-    ]),
+    send: (pattern: any) => {
+      assert(pattern?.cmd === 'resolve_managed_nodes', 'store must ask the backend parser to resolve assigned supplier configs');
+      return of([
+        {
+          id: 'node-1',
+          rawConfig: 'vless://uuid-one@assigned-one.example:443?security=tls#Assigned%20One',
+          protocol: 'VLESS',
+          host: 'assigned-one.example',
+          port: 443,
+          security: 'tls',
+          transport: 'tcp',
+          displayName: 'Assigned One',
+        },
+        {
+          id: 'node-2',
+          rawConfig: 'vless://uuid-two@assigned-two.example:8443?security=reality#Assigned%20Two',
+          protocol: 'VLESS',
+          host: 'assigned-two.example',
+          port: 8443,
+          security: 'reality',
+          transport: 'tcp',
+          displayName: 'Assigned Two',
+        },
+      ]);
+    },
   };
   const service = new StoreService({
     customer: {

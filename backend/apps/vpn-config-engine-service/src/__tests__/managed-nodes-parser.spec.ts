@@ -1,4 +1,5 @@
 import { VpnConfigService } from '../vpn-config.service';
+import { createServer } from 'http';
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -67,8 +68,132 @@ async function main() {
   assert(decodedNodes[0].rawConfig === vlessOne, 'decoded first raw config must be preserved intact');
   assert(decodedNodes[1].host === 'second.example', 'decoded second VLESS host should be parsed');
 
+  const urlEncodedNodes = service.parseManagedRuntimeNodes(encodeURIComponent(`${vlessOne}\n${trojan}`));
+  assert(urlEncodedNodes.length === 2, 'URL-encoded subscription payload should decode into runtime nodes');
+
+  const happNodes = service.parseManagedRuntimeNodes(`happ://add/${encodeURIComponent(vlessTwo)}`);
+  assert(happNodes.length === 1, 'Happ add wrapper should unwrap into a runtime node');
+  assert(happNodes[0].host === 'second.example', 'Happ unwrapped node host should be parsed');
+
+  const xrayJsonNodes = service.parseManagedRuntimeNodes(JSON.stringify({
+    outbounds: [
+      {
+        tag: 'JSON VLESS Reality',
+        protocol: 'vless',
+        settings: {
+          vnext: [
+            {
+              address: 'json-vless.example',
+              port: 443,
+              users: [{ id: '66666666-6666-6666-6666-666666666666', flow: 'xtls-rprx-vision' }],
+            },
+          ],
+        },
+        streamSettings: {
+          network: 'grpc',
+          security: 'reality',
+          grpcSettings: { serviceName: 'grpc-service' },
+          realitySettings: { publicKey: 'PUBLICKEY', shortId: 'ab12', spiderX: '/' },
+        },
+      },
+      {
+        tag: 'JSON Trojan',
+        protocol: 'trojan',
+        settings: {
+          servers: [{ address: 'json-trojan.example', port: 443, password: 'trojan-json-password' }],
+        },
+        streamSettings: { network: 'tcp', security: 'tls', tlsSettings: { serverName: 'sni.example' } },
+      },
+    ],
+  }));
+  assert(xrayJsonNodes.length === 2, 'Xray/V2Ray JSON outbounds should become runtime nodes');
+  assert(xrayJsonNodes[0].protocol === 'VLESS', 'first JSON outbound should be VLESS');
+  assert(xrayJsonNodes[0].host === 'json-vless.example', 'JSON VLESS host should be parsed');
+  assert(xrayJsonNodes[0].transport === 'grpc', 'JSON VLESS transport should be preserved');
+  assert(xrayJsonNodes[0].pbk === 'PUBLICKEY', 'JSON VLESS Reality public key should be preserved');
+  assert(xrayJsonNodes[1].protocol === 'TROJAN', 'second JSON outbound should be Trojan');
+
+  const singBoxNodes = service.parseManagedRuntimeNodes(JSON.stringify({
+    outbounds: [
+      {
+        type: 'vless',
+        tag: 'Sing VLESS',
+        server: 'sing-vless.example',
+        server_port: 443,
+        uuid: '77777777-7777-7777-7777-777777777777',
+        flow: 'xtls-rprx-vision',
+        tls: {
+          enabled: true,
+          server_name: 'sing-sni.example',
+          utls: { fingerprint: 'chrome' },
+          reality: { enabled: true, public_key: 'SINGPUBLICKEY', short_id: 'cd34', spider_x: '/' },
+        },
+        transport: { type: 'grpc', service_name: 'sing-service' },
+      },
+      {
+        type: 'shadowsocks',
+        tag: 'Sing SS',
+        server: 'sing-ss.example',
+        server_port: 8388,
+        method: 'aes-256-gcm',
+        password: 'ss-password',
+      },
+    ],
+  }));
+  assert(singBoxNodes.length === 2, 'sing-box JSON outbounds should become runtime nodes');
+  assert(singBoxNodes[0].host === 'sing-vless.example', 'sing-box VLESS host should be parsed');
+  assert(singBoxNodes[1].protocol === 'SHADOWSOCKS', 'sing-box Shadowsocks node should be parsed');
+
+  const clashNodes = service.parseManagedRuntimeNodes(`
+proxies:
+  - name: Clash VLESS
+    type: vless
+    server: clash-vless.example
+    port: 443
+    uuid: 88888888-8888-8888-8888-888888888888
+    network: ws
+    tls: true
+    sni: clash-sni.example
+    path: /ws
+  - name: Clash Trojan
+    type: trojan
+    server: clash-trojan.example
+    port: 443
+    password: clash-password
+`);
+  assert(clashNodes.length === 2, 'Clash YAML proxies should become runtime nodes');
+  assert(clashNodes[0].host === 'clash-vless.example', 'Clash VLESS host should be parsed');
+
   const subscriptionUrlNodes = service.parseManagedRuntimeNodes('https://wb.routerwb.ru/jtz5386jCHkztYRZ');
   assert(subscriptionUrlNodes.length === 0, 'https subscription URLs must not be exposed as runtime nodes');
+
+  const server = createServer((_request, response) => {
+    response.setHeader('subscription-userinfo', 'upload=10; download=20; total=100; expire=1771200000');
+    response.setHeader('profile-update-interval', '2');
+    response.end(Buffer.from(`${vlessOne}\n${vlessTwo}`, 'utf8').toString('base64'));
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('Unable to allocate local subscription fixture');
+  }
+  try {
+    const resolvedNodes = await service.resolveManagedRuntimeNodes(`http://127.0.0.1:${address.port}/sub`);
+    assert(resolvedNodes.length === 0, 'resolver must block localhost/private subscription URLs');
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+
+  const remoteResolver = new VpnConfigService() as any;
+  remoteResolver.fetchRemoteSubscriptionPayload = async () => Buffer
+    .from(`${vlessOne}\n${trojan}`, 'utf8')
+    .toString('base64');
+  const resolvedRemoteNodes = await remoteResolver.resolveManagedRuntimeNodes('https://supplier.example/sub');
+  assert(resolvedRemoteNodes.length === 2, 'resolver should parse nodes from fetched subscription payload');
+  assert(
+    resolvedRemoteNodes.every((node: any) => !node.rawConfig.startsWith('http')),
+    'resolved runtime nodes must not expose the supplier subscription URL as rawConfig',
+  );
 
   const invalidNodes = service.parseManagedRuntimeNodes('not a vpn config');
   assert(invalidNodes.length === 0, 'unsupported payload should not produce runtime nodes');

@@ -1663,7 +1663,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
   private async parseManagedNodesForPreview(rawConfig: string) {
     try {
       const nodes = await firstValueFrom(
-        this.vpnClient.send({ cmd: 'parse_managed_nodes' }, { rawConfig }),
+        this.vpnClient.send({ cmd: 'resolve_managed_nodes' }, { rawConfig }),
       );
       return {
         nodes: Array.isArray(nodes) ? nodes : [],

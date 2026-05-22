@@ -34,6 +34,11 @@ export class VpnConfigController {
     return this.vpnConfigService.parseManagedRuntimeNodes(data.rawConfig);
   }
 
+  @MessagePattern({ cmd: 'resolve_managed_nodes' })
+  async resolveManagedNodes(@Payload() data: ParseConfigDto): Promise<ManagedRuntimeNode[]> {
+    return this.vpnConfigService.resolveManagedRuntimeNodes(data.rawConfig);
+  }
+
   @MessagePattern({ cmd: 'check_health' })
   async checkHealth(@Payload() data: { rawConfig: string }) {
     return this.vpnConfigService.checkHealth(data.rawConfig);

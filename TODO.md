@@ -1350,3 +1350,9 @@ otification-bot-service event handoff.
 ## 2026-05-22 - Inventory folder identity follow-up
 - [ ] Add an admin/backoffice backfill command for existing `InventoryItem` and `TrialConfig` rows with missing `config_fingerprint`, `folder_code`, `admin_label`, `node_count`, `countries_preview`, or `admin_preview_json`.
 - [ ] The backfill must use the existing VPN config parser instead of SQL-only parsing so raw supplier configs stay preserved and admin previews do not expose host, UUID, port, or supplier internals.
+
+## 2026-05-22 - Subscription fulfillment Step 2 follow-up
+- [ ] Live QA after redeploy: fulfill a paid order whose assigned inventory raw config is an HTTP(S) supplier subscription and confirm `/servers` exposes only derived Premium runtime nodes/locations.
+- [ ] Live QA after redeploy: confirm the delivered email still sends only after fulfillment success and that resolver failures leave the order traceable instead of exposing empty fake access.
+- [ ] Add an admin backfill/refresh action to recompute folder previews for existing URL-based paid and trial stock through `resolve_managed_nodes`.
+- [ ] Consider a production supplier-domain allowlist or isolated resolver egress layer if generic HTTP(S) fetching is too broad for the deployment threat model.

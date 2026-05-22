@@ -161,7 +161,7 @@ async function main() {
     } as any,
     {
       send: (pattern: any) => {
-        if (pattern?.cmd === 'parse_managed_nodes') {
+        if (pattern?.cmd === 'resolve_managed_nodes') {
           return of([
             {
               protocol: 'VLESS',
@@ -298,7 +298,7 @@ async function main() {
     } as any,
     {
       send: (pattern: any) => {
-        if (pattern?.cmd === 'parse_managed_nodes') {
+        if (pattern?.cmd === 'resolve_managed_nodes') {
           return of([
             {
               protocol: 'VLESS',

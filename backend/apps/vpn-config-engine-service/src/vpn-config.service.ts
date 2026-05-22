@@ -4,6 +4,8 @@ import * as crypto from 'crypto';
 import * as zlib from 'zlib';
 import * as net from 'net';
 import { promises as dns } from 'dns';
+import * as http from 'http';
+import * as https from 'https';
 
 export interface ConfigPipelineResult {
   rawConfig: string;
@@ -86,6 +88,9 @@ export interface ManagedRuntimeNode {
 export class VpnConfigService {
   private static readonly CRYPT1_NONCE_BYTES = 12;
   private static readonly CRYPT1_AUTH_TAG_BYTES = 16;
+  private static readonly REMOTE_SUBSCRIPTION_TIMEOUT_MS = 3000;
+  private static readonly REMOTE_SUBSCRIPTION_MAX_BYTES = 512 * 1024;
+  private static readonly REMOTE_SUBSCRIPTION_MAX_REDIRECTS = 3;
 
   parse(raw: string): SwimVpnProfile {
     try {
@@ -171,6 +176,20 @@ export class VpnConfigService {
     }
 
     return nodes;
+  }
+
+  async resolveManagedRuntimeNodes(rawConfig: string): Promise<ManagedRuntimeNode[]> {
+    const ingested = this.ingest(rawConfig || '');
+    if (!this.isRemoteSubscriptionUrl(ingested)) {
+      return this.parseManagedRuntimeNodes(ingested);
+    }
+
+    try {
+      const payload = await this.fetchRemoteSubscriptionPayload(ingested);
+      return this.parseManagedRuntimeNodes(payload);
+    } catch {
+      return [];
+    }
   }
 
   private ingest(raw: string): string {
@@ -611,16 +630,16 @@ export class VpnConfigService {
 
   private parseRuntimeCandidate(raw: string): SwimVpnProfile {
     try {
-      if (raw.startsWith('vless://')) {
+      if (raw.toLowerCase().startsWith('vless://')) {
         return this.parseVless(raw);
       }
-      if (raw.startsWith('vmess://')) {
+      if (raw.toLowerCase().startsWith('vmess://')) {
         return this.parseVmess(raw);
       }
-      if (raw.startsWith('trojan://')) {
+      if (raw.toLowerCase().startsWith('trojan://')) {
         return this.parseTrojan(raw);
       }
-      if (raw.startsWith('ss://')) {
+      if (raw.toLowerCase().startsWith('ss://')) {
         return this.parseShadowsocks(raw);
       }
 
@@ -635,17 +654,26 @@ export class VpnConfigService {
       return [];
     }
 
-    const directCandidates = this.extractRuntimeLines(raw);
-    if (directCandidates.length > 0) {
-      return directCandidates;
+    const candidates: string[] = [];
+    const seen = new Set<string>();
+    for (const carrier of this.expandTextCarriers(raw)) {
+      if (this.isRemoteSubscriptionUrl(carrier)) {
+        continue;
+      }
+
+      for (const candidate of [
+        ...this.extractRuntimeLines(carrier),
+        ...this.extractJsonRuntimeCandidates(carrier),
+        ...this.extractClashYamlRuntimeCandidates(carrier),
+      ]) {
+        if (!seen.has(candidate)) {
+          seen.add(candidate);
+          candidates.push(candidate);
+        }
+      }
     }
 
-    if (/^https?:\/\//i.test(raw)) {
-      return [];
-    }
-
-    const decoded = this.decodeBase64Text(raw.replace(/\s+/g, ''));
-    return decoded ? this.extractRuntimeLines(decoded) : [];
+    return candidates;
   }
 
   private extractRuntimeLines(raw: string): string[] {
@@ -655,8 +683,576 @@ export class VpnConfigService {
       .flatMap((line) =>
         Array.from(line.matchAll(/\b(?:vless|vmess|trojan|ss):\/\/[^\s]+/gi)).map((match) => match[0]),
       )
-      .map((line) => line.trim())
+      .map((line) => this.trimRuntimeDelimiters(line))
       .filter((line) => /^(vless|vmess|trojan|ss):\/\//i.test(line));
+  }
+
+  private trimRuntimeDelimiters(value: string): string {
+    return value.trim().replace(/^[\s"'`,;[\]{}<>()]+|[\s"'`,;[\]{}<>()]+$/g, '');
+  }
+
+  private expandTextCarriers(raw: string): string[] {
+    const initial = raw.trim().replace(/^\uFEFF/, '').trim();
+    if (!initial) {
+      return [];
+    }
+
+    const results: string[] = [];
+    const queue = [initial];
+    const seen = new Set<string>();
+    const maxPasses = 10;
+
+    while (queue.length > 0 && seen.size < maxPasses) {
+      const current = queue.shift()!.trim();
+      if (!current || seen.has(current)) {
+        continue;
+      }
+      seen.add(current);
+      results.push(current);
+
+      if (this.isRemoteSubscriptionUrl(current)) {
+        continue;
+      }
+      if (this.hasImportableCarrierContent(current)) {
+        continue;
+      }
+
+      const happ = this.unwrapHappAdd(current);
+      if (happ && !seen.has(happ)) {
+        queue.push(happ);
+      }
+
+      const percentDecoded = this.decodePercentEncoded(current);
+      if (percentDecoded && !seen.has(percentDecoded)) {
+        queue.push(percentDecoded);
+      }
+
+      const base64Decoded = this.decodeBase64Text(
+        current
+          .replace(/\s+/g, '')
+          .replace(/-/g, '+')
+          .replace(/_/g, '/'),
+      );
+      if (base64Decoded && this.looksLikeTextCarrier(base64Decoded) && !seen.has(base64Decoded)) {
+        queue.push(base64Decoded.trim());
+      }
+    }
+
+    return results;
+  }
+
+  private hasImportableCarrierContent(input: string): boolean {
+    const trimmed = input.trim();
+    return this.extractRuntimeLines(trimmed).length > 0 ||
+      trimmed.startsWith('{') ||
+      trimmed.startsWith('[') ||
+      trimmed.split(/\r?\n/).some((line) => line.trim() === 'proxies:');
+  }
+
+  private unwrapHappAdd(input: string): string | null {
+    if (!input.toLowerCase().startsWith('happ://add/')) {
+      return null;
+    }
+
+    const wrapped = input.slice('happ://add/'.length).trim();
+    if (!wrapped) {
+      return null;
+    }
+
+    return this.decodePercentEncoded(wrapped) || wrapped;
+  }
+
+  private decodePercentEncoded(input: string): string | null {
+    if (!/%[0-9a-f]{2}/i.test(input)) {
+      return null;
+    }
+    try {
+      const decoded = decodeURIComponent(input).trim();
+      return decoded && decoded !== input ? decoded : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private looksLikeTextCarrier(input: string): boolean {
+    const trimmed = input.trim();
+    if (!trimmed || trimmed.includes('\uFFFD')) {
+      return false;
+    }
+    const printable = Array.from(trimmed).filter((char) =>
+      !/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(char),
+    ).length;
+    return printable / trimmed.length >= 0.9;
+  }
+
+  private extractJsonRuntimeCandidates(input: string): string[] {
+    const trimmed = input.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      return [];
+    }
+
+    try {
+      return this.extractRuntimeCandidatesFromJsonValue(JSON.parse(trimmed));
+    } catch {
+      return [];
+    }
+  }
+
+  private extractRuntimeCandidatesFromJsonValue(value: unknown): string[] {
+    if (typeof value === 'string') {
+      return this.extractRuntimeConfigCandidates(value);
+    }
+    if (Array.isArray(value)) {
+      return value.flatMap((item) => this.extractRuntimeCandidatesFromJsonValue(item));
+    }
+    if (!value || typeof value !== 'object') {
+      return [];
+    }
+
+    const objectValue = value as Record<string, unknown>;
+    const outbounds = Array.isArray(objectValue.outbounds) ? objectValue.outbounds : [objectValue];
+    const links: string[] = [];
+    for (const outbound of outbounds) {
+      if (!outbound || typeof outbound !== 'object') {
+        continue;
+      }
+      const link = this.buildRuntimeLinkFromOutbound(outbound as Record<string, unknown>);
+      if (link) {
+        links.push(link);
+      }
+    }
+    return links;
+  }
+
+  private buildRuntimeLinkFromOutbound(outbound: Record<string, unknown>): string | null {
+    const singBoxType = this.stringValue(outbound.type)?.toLowerCase();
+    if (singBoxType) {
+      return this.buildSingBoxRuntimeLink(outbound, singBoxType);
+    }
+
+    const protocol = this.stringValue(outbound.protocol)?.toLowerCase();
+    if (!protocol) {
+      return null;
+    }
+    return this.buildXrayRuntimeLink(outbound, protocol);
+  }
+
+  private buildXrayRuntimeLink(outbound: Record<string, unknown>, protocol: string): string | null {
+    const settings = this.recordValue(outbound.settings);
+    const streamSettings = this.recordValue(outbound.streamSettings);
+    const tag = this.stringValue(outbound.tag);
+
+    if (protocol === 'vless' || protocol === 'vmess') {
+      const vnext = this.firstRecord(settings?.vnext);
+      const user = this.firstRecord(vnext?.users);
+      const address = this.stringValue(vnext?.address);
+      const port = this.safePort(vnext?.port);
+      const uuid = this.stringValue(user?.id) || this.stringValue(user?.uuid);
+      if (!address || !port || !uuid) {
+        return null;
+      }
+      if (protocol === 'vless') {
+        const params = this.commonStreamParams(streamSettings);
+        const flow = this.stringValue(user?.flow) || this.stringValue(outbound.flow) || this.stringValue(settings?.flow);
+        if (flow) {
+          params.flow = flow;
+        }
+        return this.buildVlessLink(uuid, address, port, params, tag || `VLESS: ${address}`);
+      }
+      return this.buildVmessLink({
+        id: uuid,
+        add: address,
+        port,
+        ps: tag || `VMess: ${address}`,
+        ...this.vmessFieldsFromStream(streamSettings),
+      });
+    }
+
+    if (protocol === 'trojan') {
+      const server = this.firstRecord(settings?.servers);
+      const address = this.stringValue(server?.address);
+      const port = this.safePort(server?.port);
+      const password = this.stringValue(server?.password);
+      if (!address || !port || !password) {
+        return null;
+      }
+      return this.buildTrojanLink(password, address, port, this.commonStreamParams(streamSettings), tag || `Trojan: ${address}`);
+    }
+
+    if (protocol === 'shadowsocks') {
+      const server = this.firstRecord(settings?.servers);
+      const address = this.stringValue(server?.address);
+      const port = this.safePort(server?.port);
+      const method = this.stringValue(server?.method) || 'aes-256-gcm';
+      const password = this.stringValue(server?.password);
+      if (!address || !port || !password) {
+        return null;
+      }
+      return this.buildShadowsocksLink(method, password, address, port, tag || `Shadowsocks: ${address}`);
+    }
+
+    return null;
+  }
+
+  private buildSingBoxRuntimeLink(outbound: Record<string, unknown>, type: string): string | null {
+    if (!['vless', 'vmess', 'trojan', 'shadowsocks'].includes(type)) {
+      return null;
+    }
+    const address = this.stringValue(outbound.server);
+    const port = this.safePort(outbound.server_port);
+    const tag = this.stringValue(outbound.tag);
+    if (!address || !port) {
+      return null;
+    }
+
+    const params = this.commonSingBoxParams(outbound);
+    if (type === 'vless') {
+      const uuid = this.stringValue(outbound.uuid);
+      if (!uuid) {
+        return null;
+      }
+      const flow = this.stringValue(outbound.flow);
+      if (flow) {
+        params.flow = flow;
+      }
+      return this.buildVlessLink(uuid, address, port, params, tag || `VLESS: ${address}`);
+    }
+    if (type === 'vmess') {
+      const uuid = this.stringValue(outbound.uuid);
+      if (!uuid) {
+        return null;
+      }
+      return this.buildVmessLink({
+        id: uuid,
+        add: address,
+        port,
+        ps: tag || `VMess: ${address}`,
+        ...this.vmessFieldsFromParams(params),
+      });
+    }
+    if (type === 'trojan') {
+      const password = this.stringValue(outbound.password);
+      if (!password) {
+        return null;
+      }
+      return this.buildTrojanLink(password, address, port, params, tag || `Trojan: ${address}`);
+    }
+
+    const method = this.stringValue(outbound.method);
+    const password = this.stringValue(outbound.password);
+    if (!method || !password) {
+      return null;
+    }
+    return this.buildShadowsocksLink(method, password, address, port, tag || `Shadowsocks: ${address}`);
+  }
+
+  private extractClashYamlRuntimeCandidates(input: string): string[] {
+    if (!input.split(/\r?\n/).some((line) => line.trim() === 'proxies:')) {
+      return [];
+    }
+
+    const entries: Record<string, string>[] = [];
+    let current: Record<string, string> | null = null;
+    const flush = () => {
+      if (current) {
+        entries.push(current);
+        current = null;
+      }
+    };
+
+    for (const rawLine of input.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line === 'proxies:') {
+        continue;
+      }
+      if (line.startsWith('- ')) {
+        flush();
+        current = {};
+        const pair = this.parseYamlPair(line.slice(2));
+        if (pair) {
+          current[pair[0]] = pair[1];
+        }
+        continue;
+      }
+      const pair = this.parseYamlPair(line);
+      if (pair && current) {
+        current[pair[0]] = pair[1];
+      }
+    }
+    flush();
+
+    return entries
+      .map((entry) => this.buildClashRuntimeLink(entry))
+      .filter((link): link is string => Boolean(link));
+  }
+
+  private buildClashRuntimeLink(values: Record<string, string>): string | null {
+    const type = values.type?.toLowerCase();
+    const address = values.server;
+    const port = this.safePort(values.port);
+    if (!type || !address || !port) {
+      return null;
+    }
+    const tag = values.name || `${type}: ${address}`;
+    const params: Record<string, string> = {};
+    if (values.network) {
+      params.type = values.network === 'websocket' ? 'ws' : values.network;
+    }
+    if (values.tls === 'true') {
+      params.security = 'tls';
+    }
+    if (values.servername) {
+      params.sni = values.servername;
+    }
+    if (values.sni) {
+      params.sni = values.sni;
+    }
+    if (values['client-fingerprint']) {
+      params.fp = values['client-fingerprint'];
+    }
+    if (values.path) {
+      params.path = values.path;
+    }
+    if (values.Host || values.host) {
+      params.host = values.Host || values.host;
+    }
+    if (values.flow) {
+      params.flow = values.flow;
+    }
+
+    if (type === 'vless') {
+      return values.uuid ? this.buildVlessLink(values.uuid, address, port, params, tag) : null;
+    }
+    if (type === 'trojan') {
+      return values.password ? this.buildTrojanLink(values.password, address, port, params, tag) : null;
+    }
+    if (type === 'ss' || type === 'shadowsocks') {
+      return values.cipher && values.password
+        ? this.buildShadowsocksLink(values.cipher, values.password, address, port, tag)
+        : null;
+    }
+    return null;
+  }
+
+  private parseYamlPair(line: string): [string, string] | null {
+    const index = line.indexOf(':');
+    if (index <= 0) {
+      return null;
+    }
+    const key = line.slice(0, index).trim();
+    const value = line.slice(index + 1).trim().replace(/^['"]|['"]$/g, '');
+    return key && value ? [key, value] : null;
+  }
+
+  private commonStreamParams(streamSettings?: Record<string, unknown>): Record<string, string> {
+    if (!streamSettings) {
+      return {};
+    }
+    const params: Record<string, string> = {};
+    const network = this.stringValue(streamSettings.network);
+    if (network) {
+      params.type = this.normalizeNetworkName(network);
+    }
+    const security = this.stringValue(streamSettings.security);
+    if (security) {
+      params.security = security;
+    }
+
+    const tlsSettings = this.recordValue(streamSettings.tlsSettings);
+    const realitySettings = this.recordValue(streamSettings.realitySettings);
+    const wsSettings = this.recordValue(streamSettings.wsSettings);
+    const httpSettings = this.recordValue(streamSettings.httpSettings);
+    const grpcSettings = this.recordValue(streamSettings.grpcSettings);
+    const tcpSettings = this.recordValue(streamSettings.tcpSettings);
+
+    this.assignParam(params, 'sni', this.stringValue(tlsSettings?.serverName));
+    this.assignParam(params, 'fp', this.stringValue(tlsSettings?.fingerprint));
+    const alpn = Array.isArray(tlsSettings?.alpn) ? tlsSettings?.alpn.filter((item) => typeof item === 'string').join(',') : undefined;
+    this.assignParam(params, 'alpn', alpn);
+    this.assignParam(params, 'pbk', this.stringValue(realitySettings?.publicKey));
+    this.assignParam(params, 'sid', this.stringValue(realitySettings?.shortId));
+    this.assignParam(params, 'spx', this.stringValue(realitySettings?.spiderX));
+    this.assignParam(params, 'path', this.stringValue(wsSettings?.path) || this.stringValue(httpSettings?.path));
+    this.assignParam(params, 'host', this.extractHostHeader(wsSettings?.headers) || this.extractHostHeader(wsSettings?.host) || this.extractHostHeader(httpSettings?.host));
+    this.assignParam(params, 'serviceName', this.stringValue(grpcSettings?.serviceName));
+    const tcpHeader = this.recordValue(tcpSettings?.header);
+    this.assignParam(params, 'headerType', this.stringValue(tcpHeader?.type));
+    return params;
+  }
+
+  private commonSingBoxParams(outbound: Record<string, unknown>): Record<string, string> {
+    const params: Record<string, string> = {};
+    const transport = this.recordValue(outbound.transport);
+    const tls = this.recordValue(outbound.tls);
+    const reality = this.recordValue(tls?.reality);
+    const utls = this.recordValue(tls?.utls);
+
+    const transportType = this.stringValue(transport?.type);
+    if (transportType) {
+      params.type = this.normalizeNetworkName(transportType);
+    }
+    this.assignParam(params, 'path', this.stringValue(transport?.path));
+    this.assignParam(params, 'host', this.stringValue(transport?.host));
+    this.assignParam(params, 'serviceName', this.stringValue(transport?.service_name));
+
+    if (tls?.enabled === true) {
+      params.security = reality?.enabled === true ? 'reality' : 'tls';
+    }
+    this.assignParam(params, 'sni', this.stringValue(tls?.server_name));
+    this.assignParam(params, 'fp', this.stringValue(utls?.fingerprint));
+    this.assignParam(params, 'pbk', this.stringValue(reality?.public_key));
+    this.assignParam(params, 'sid', this.stringValue(reality?.short_id));
+    this.assignParam(params, 'spx', this.stringValue(reality?.spider_x));
+    return params;
+  }
+
+  private vmessFieldsFromStream(streamSettings?: Record<string, unknown>): Record<string, unknown> {
+    const params = this.commonStreamParams(streamSettings);
+    return this.vmessFieldsFromParams(params);
+  }
+
+  private vmessFieldsFromParams(params: Record<string, string>): Record<string, unknown> {
+    return {
+      net: params.type || 'tcp',
+      tls: params.security || 'none',
+      path: params.path,
+      host: params.host,
+      sni: params.sni,
+      fp: params.fp,
+      alpn: params.alpn,
+      serviceName: params.serviceName,
+      flow: params.flow,
+      pbk: params.pbk,
+      sid: params.sid,
+      spx: params.spx,
+    };
+  }
+
+  private normalizeNetworkName(value: string): string {
+    const normalized = value.toLowerCase();
+    if (normalized === 'websocket') {
+      return 'ws';
+    }
+    if (['http', 'h2', 'httpupgrade', 'xhttp', 'splithttp'].includes(normalized)) {
+      return normalized === 'h2' ? 'httpupgrade' : normalized;
+    }
+    return normalized;
+  }
+
+  private buildVlessLink(uuid: string, host: string, port: number, params: Record<string, string>, tag: string): string {
+    return `vless://${encodeURIComponent(uuid)}@${host}:${port}${this.queryString(params)}#${encodeURIComponent(tag)}`;
+  }
+
+  private buildTrojanLink(password: string, host: string, port: number, params: Record<string, string>, tag: string): string {
+    return `trojan://${encodeURIComponent(password)}@${host}:${port}${this.queryString(params)}#${encodeURIComponent(tag)}`;
+  }
+
+  private buildShadowsocksLink(method: string, password: string, host: string, port: number, tag: string): string {
+    const credentials = this.toBase64Url(Buffer.from(`${method}:${password}`, 'utf8'));
+    return `ss://${credentials}@${host}:${port}#${encodeURIComponent(tag)}`;
+  }
+
+  private buildVmessLink(fields: Record<string, unknown>): string {
+    const compact = Object.fromEntries(
+      Object.entries({
+        v: '2',
+        ...fields,
+      }).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+    );
+    return `vmess://${this.toBase64Url(Buffer.from(JSON.stringify(compact), 'utf8'))}`;
+  }
+
+  private queryString(params: Record<string, string>): string {
+    const entries = Object.entries(params).filter(([, value]) => value !== undefined && value !== '');
+    if (entries.length === 0) {
+      return '';
+    }
+    return `?${entries.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`).join('&')}`;
+  }
+
+  private assignParam(target: Record<string, string>, key: string, value?: string) {
+    if (value && value.trim()) {
+      target[key] = value.trim();
+    }
+  }
+
+  private extractHostHeader(value: unknown): string | undefined {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if (Array.isArray(value)) {
+      return value.find((item) => typeof item === 'string' && item.trim());
+    }
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>;
+      return this.stringValue(record.Host) || this.stringValue(record.host);
+    }
+    return undefined;
+  }
+
+  private recordValue(value: unknown): Record<string, unknown> | undefined {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : undefined;
+  }
+
+  private firstRecord(value: unknown): Record<string, unknown> | undefined {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+    const first = value.find((item) => item && typeof item === 'object' && !Array.isArray(item));
+    return first as Record<string, unknown> | undefined;
+  }
+
+  private isRemoteSubscriptionUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value.trim());
+  }
+
+  private async fetchRemoteSubscriptionPayload(rawUrl: string, redirects = 0): Promise<string> {
+    if (redirects > VpnConfigService.REMOTE_SUBSCRIPTION_MAX_REDIRECTS) {
+      throw new Error('Too many subscription redirects');
+    }
+
+    const url = new URL(rawUrl);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('Unsupported subscription URL protocol');
+    }
+    if (await this.isBlockedHealthcheckHost(url.hostname)) {
+      throw new Error('Blocked subscription URL host');
+    }
+
+    const transport = url.protocol === 'https:' ? https : http;
+    return new Promise((resolve, reject) => {
+      const request = transport.get(url, { timeout: VpnConfigService.REMOTE_SUBSCRIPTION_TIMEOUT_MS }, (response) => {
+        const status = response.statusCode || 0;
+        const location = response.headers.location;
+        if ([301, 302, 303, 307, 308].includes(status) && location) {
+          response.resume();
+          const nextUrl = new URL(location, url).toString();
+          this.fetchRemoteSubscriptionPayload(nextUrl, redirects + 1).then(resolve, reject);
+          return;
+        }
+        if (status < 200 || status >= 300) {
+          response.resume();
+          reject(new Error(`Subscription fetch failed with status ${status}`));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        let received = 0;
+        response.on('data', (chunk: Buffer) => {
+          received += chunk.length;
+          if (received > VpnConfigService.REMOTE_SUBSCRIPTION_MAX_BYTES) {
+            request.destroy(new Error('Subscription payload too large'));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        response.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+      });
+      request.on('timeout', () => request.destroy(new Error('Subscription fetch timed out')));
+      request.on('error', reject);
+    });
   }
 
   private runtimeNodeId(rawConfig: string): string {
