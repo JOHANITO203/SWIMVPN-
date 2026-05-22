@@ -1,12 +1,15 @@
 import {
   ADMIN_BOT_COMMANDS,
   formatAccountingSummary,
+  formatCombinedInventoryOverview,
   formatInventoryOverview,
+  formatInventoryReview,
   formatImportWizardCategoryPrompt,
   formatImportWizardConfigPrompt,
   formatImportWizardConfirmation,
   formatTrialImportInstructions,
   formatTrialImportResult,
+  formatTrialInventoryOverview,
   formatTrialImportWizardConfirmation,
   formatTrialImportWizardConfigPrompt,
   formatPendingFulfillment,
@@ -32,10 +35,16 @@ assert(mapBotPlanInputToCategory('bad') === null, 'invalid plan input must retur
 
 const overview = formatInventoryOverview([
   {
+    id: 'paid-inventory-review-1',
     category: 'WEEK',
+    inventoryStatus: 'AVAILABLE',
     healthStatus: 'HEALTHY',
     usedResaleSlots: 1,
     maxResaleSlots: 2,
+    folderCode: 'WEEK-VLESS-ABC',
+    nodeCount: 2,
+    countriesPreview: ['France', 'Germany'],
+    adminPreview: { previewStatus: 'PARSED', sample: 'must-not-include-secret-host' },
   },
   {
     category: 'WEEK',
@@ -54,6 +63,63 @@ const overview = formatInventoryOverview([
 assert(overview.includes('Basic: 1 allocatable / 2 total'), 'Basic stock summary failed');
 assert(overview.includes('Premium: 1 allocatable / 1 total'), 'Premium stock summary failed');
 assert(overview.includes('Platinum: 0 allocatable / 0 total'), 'Platinum empty summary failed');
+assert(overview.includes('France, Germany'), 'paid stock summary should expose safe country preview');
+
+const trialOverview = formatTrialInventoryOverview([
+  {
+    id: 'trial-config-review-1',
+    campaignCode: 'trial-2026-05',
+    status: 'AVAILABLE',
+    usedDeviceAssignments: 2,
+    maxDeviceAssignments: 5,
+    folderCode: 'TRIAL-VLESS-ABC',
+    nodeCount: 3,
+    countriesPreview: ['France', 'Canada'],
+    adminPreview: { previewStatus: 'PARSED', host: 'secret-host' },
+  },
+] as any);
+assert(trialOverview.includes('Trial Store'), 'trial stock summary must name Trial Store');
+assert(trialOverview.includes('1 allocatable / 1 total'), 'trial stock allocatable summary failed');
+assert(trialOverview.includes('2/5'), 'trial stock capacity summary failed');
+assert(trialOverview.includes('France, Canada'), 'trial stock summary should expose safe country preview');
+
+const combinedOverview = formatCombinedInventoryOverview({ paid: [], trial: [] });
+assert(combinedOverview.includes('Paid inventory'), 'combined stock must include paid section');
+assert(combinedOverview.includes('Trial Store'), 'combined stock must include trial section');
+
+const paidReview = formatInventoryReview('paid', {
+  id: 'paid-review-id',
+  category: 'WEEK',
+  inventoryStatus: 'AVAILABLE',
+  healthStatus: 'HEALTHY',
+  usedResaleSlots: 1,
+  maxResaleSlots: 2,
+  folderCode: 'WEEK-VLESS-REVIEW',
+  displayProtocol: 'VLESS',
+  nodeCount: 2,
+  countriesPreview: ['France'],
+  adminPreview: { previewStatus: 'PARSED', uuid: 'runtime-secret-uuid' },
+} as any);
+assert(paidReview.includes('Paid config review'), 'paid review must have title');
+assert(paidReview.includes('WEEK-VLESS-REVIEW'), 'paid review must expose folder code');
+assert(paidReview.includes('France'), 'paid review must expose countries');
+assert(!paidReview.includes('runtime-secret-uuid'), 'paid review must not expose admin preview secrets');
+
+const trialReview = formatInventoryReview('trial', {
+  id: 'trial-review-id',
+  campaignCode: 'trial-2026-05',
+  status: 'AVAILABLE',
+  usedDeviceAssignments: 1,
+  maxDeviceAssignments: 5,
+  folderCode: 'TRIAL-VLESS-REVIEW',
+  displayProtocol: 'VLESS',
+  nodeCount: 2,
+  countriesPreview: ['Germany'],
+  adminPreview: { previewStatus: 'PARSED', host: 'trial-secret-host' },
+} as any);
+assert(trialReview.includes('Trial config review'), 'trial review must have title');
+assert(trialReview.includes('1/5 devices'), 'trial review must expose trial device capacity');
+assert(!trialReview.includes('trial-secret-host'), 'trial review must not expose admin preview secrets');
 
 const retryOne = parseRetryCommand('/retry ORD-123');
 assert(retryOne.mode === 'one' && retryOne.orderRef === 'ORD-123', 'retry order ref parse failed');
@@ -109,11 +175,12 @@ assert(categoryPrompt.includes('Platinum'), 'wizard category prompt must mention
 
 const configPrompt = formatImportWizardConfigPrompt('MONTH' as any);
 assert(configPrompt.includes('Premium'), 'wizard config prompt must show selected category');
-assert(configPrompt.includes('2 customer orders'), 'wizard config prompt must show resale cap');
+assert(configPrompt.includes('4 internal capacity units'), 'wizard config prompt must show Premium supplier capacity');
 
 const confirmation = formatImportWizardConfirmation('WEEK' as any, 'vless://1234567890abcdefghijklmnopqrstuvwxyz');
 assert(confirmation.includes('Basic'), 'wizard confirmation must show category');
 assert(confirmation.includes('confirm'), 'wizard confirmation must ask for confirm');
+assert(confirmation.includes('2 internal capacity units'), 'wizard confirmation must show Basic supplier capacity');
 assert(!confirmation.includes('abcdefghijklmnopqrstuvwxyz'), 'wizard confirmation must not expose full raw config');
 
 const trialInstructions = formatTrialImportInstructions();

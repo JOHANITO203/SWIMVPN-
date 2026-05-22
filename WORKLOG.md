@@ -3772,3 +3772,11 @@ pm run build PASSED.
 - Wired paid server exposure and inventory admin preview surfaces to the resolver so raw supplier HTTP(S) links can hydrate runtime nodes only at backend-controlled resolution time.
 - Fixed paid config import validation to allow internal supplier capacity values up to Platinum's six capacity units.
 - Verification: backend parser tests, assigned server policy tests, inventory policy tests, `npm run typecheck`, and full backend `npm run test:policy` passed.
+
+# 2026-05-22 - Admin bot inventory review and Trial Store stock
+
+- Added Trial Store stock overview through `list_trial_inventory_overview` so `/stock` now reports paid inventory and trial capacity together.
+- Added safe Telegram review formatting for paid and trial configs using folder code, protocol, status, capacity, countries, node count, preview status, and supplier expiry without exposing raw config, hosts, ports, UUIDs, or supplier internals.
+- Added inline Telegram buttons for Stock, Import, Pending, bucket-specific import wizard entry, and post-import Review actions.
+- Corrected admin bot supplier-capacity copy so Basic, Premium, and Platinum show internal stock capacity units instead of the obsolete universal "2 customer orders" text.
+- Verification: admin bot formatter tests, inventory service policy tests, backend `npm run typecheck`, full backend `npm run test:policy`, and `git diff --check` passed.

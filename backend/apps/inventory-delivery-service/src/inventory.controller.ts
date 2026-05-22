@@ -49,6 +49,11 @@ export class InventoryController {
     return this.inventoryService.listInventoryOverview();
   }
 
+  @MessagePattern({ cmd: 'list_trial_inventory_overview' })
+  async listTrialInventoryOverview() {
+    return this.inventoryService.listTrialInventoryOverview();
+  }
+
   @MessagePattern({ cmd: 'update_inventory_health' })
   async updateInventoryHealth(
     @Payload() data: {

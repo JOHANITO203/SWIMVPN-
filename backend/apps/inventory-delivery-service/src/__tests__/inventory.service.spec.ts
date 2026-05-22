@@ -1,4 +1,4 @@
-import { AssignmentAccessStatus, InventoryHealthStatus, InventoryStatus, OrderStatus, PlanCategory } from '@prisma/client';
+import { AssignmentAccessStatus, InventoryHealthStatus, InventoryStatus, OrderStatus, PlanCategory, TrialConfigStatus } from '@prisma/client';
 import { InventoryService } from '../inventory.service';
 import { of } from 'rxjs';
 import * as crypto from 'crypto';
@@ -400,6 +400,60 @@ async function main() {
       overview[0].countriesPreview?.includes('France') &&
       overview[0].adminPreview?.folderCode === 'MONTH-VLESS-OVERVIEW',
     'inventory overview should expose config folder identity, admin preview, and sale priority',
+  );
+
+  const trialOverviewService = createService({
+    trialConfig: {
+      findMany: async () => [
+        {
+          id: 'trial-config-overview',
+          batch_name: 'trial-overview-batch',
+          display_protocol: 'VLESS',
+          status: TrialConfigStatus.ASSIGNED,
+          used_device_assignments: 2,
+          max_device_assignments: 5,
+          supplier_expires_at: null,
+          supplier_provider_name: 'hidden-trial-provider',
+          config_fingerprint: expectedTrialFingerprint,
+          folder_code: 'TRIAL-VLESS-OVERVIEW',
+          admin_label: 'TRIAL VLESS OVERVIEW',
+          node_count: 2,
+          countries_preview: ['France', 'Canada'],
+          admin_preview_json: {
+            folderCode: 'TRIAL-VLESS-OVERVIEW',
+            nodeCount: 2,
+            countriesPreview: ['France', 'Canada'],
+          },
+          campaign: {
+            code: 'trial-2026-05',
+            title: 'Trial',
+            status: 'ACTIVE',
+          },
+          assignments: [
+            {
+              id: 'trial-assignment-overview',
+              assigned_at: new Date('2026-05-22T00:00:00.000Z'),
+              expires_at: new Date('2026-05-25T00:00:00.000Z'),
+              customer: {
+                public_id: 'SW-TRIAL-OVERVIEW',
+                email: 'trial@example.com',
+                phone: null,
+              },
+            },
+          ],
+        },
+      ],
+    },
+  });
+  const trialOverview = await trialOverviewService.listTrialInventoryOverview();
+  assert(
+    trialOverview[0].folderCode === 'TRIAL-VLESS-OVERVIEW' &&
+      trialOverview[0].campaignCode === 'trial-2026-05' &&
+      trialOverview[0].usedDeviceAssignments === 2 &&
+      trialOverview[0].maxDeviceAssignments === 5 &&
+      trialOverview[0].countriesPreview?.includes('Canada') &&
+      trialOverview[0].assignments[0].customerPublicId === 'SW-TRIAL-OVERVIEW',
+    'trial inventory overview should expose safe Trial Store folder identity, capacity, countries, and assignments',
   );
 
   const sharedTrialAssignments: unknown[] = [];

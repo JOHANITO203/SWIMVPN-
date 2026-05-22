@@ -3,9 +3,33 @@ import { PlanCategory } from '@prisma/client';
 type InventoryOverviewItem = {
   id?: string;
   category: PlanCategory | string;
+  batchName?: string | null;
+  displayProtocol?: string | null;
+  inventoryStatus?: string | null;
   healthStatus: string;
   usedResaleSlots: number;
   maxResaleSlots: number;
+  folderCode?: string | null;
+  adminLabel?: string | null;
+  nodeCount?: number | null;
+  countriesPreview?: unknown;
+  adminPreview?: unknown;
+  supplierExpiresAt?: string | null;
+};
+
+type TrialInventoryOverviewItem = {
+  id?: string;
+  campaignCode?: string | null;
+  batchName?: string | null;
+  displayProtocol?: string | null;
+  status: string;
+  usedDeviceAssignments: number;
+  maxDeviceAssignments: number;
+  folderCode?: string | null;
+  adminLabel?: string | null;
+  nodeCount?: number | null;
+  countriesPreview?: unknown;
+  adminPreview?: unknown;
   supplierExpiresAt?: string | null;
 };
 
@@ -22,6 +46,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   WEEK: 'Basic',
   MONTH: 'Premium',
   QUARTER: 'Platinum',
+};
+
+const CATEGORY_SUPPLIER_CAPACITY: Record<string, number> = {
+  WEEK: 2,
+  MONTH: 4,
+  QUARTER: 6,
 };
 
 export const ADMIN_BOT_COMMANDS = [
@@ -68,7 +98,7 @@ export function mapBotPlanInputToCategory(input: string): PlanCategory | null {
 }
 
 export function formatInventoryOverview(items: InventoryOverviewItem[]) {
-  const lines = ['SWIMVPN+ Inventory'];
+  const lines = ['SWIMVPN+ Paid inventory'];
 
   for (const category of [PlanCategory.WEEK, PlanCategory.MONTH, PlanCategory.QUARTER]) {
     const categoryItems = items.filter((item) => item.category === category);
@@ -81,11 +111,93 @@ export function formatInventoryOverview(items: InventoryOverviewItem[]) {
     for (const item of categoryItems.slice(0, 5)) {
       const id = item.id ? item.id.slice(0, 8) : 'unknown';
       const expiry = item.supplierExpiresAt ? ` expires ${item.supplierExpiresAt.slice(0, 10)}` : '';
-      lines.push(`- ${id}: ${item.healthStatus} ${item.usedResaleSlots}/${item.maxResaleSlots}${expiry}`);
+      const folder = item.folderCode ? ` ${item.folderCode}` : '';
+      const countries = formatCountriesPreview(item.countriesPreview);
+      const preview = countries ? ` ${countries}` : '';
+      lines.push(`- ${id}${folder}: ${item.healthStatus} ${item.usedResaleSlots}/${item.maxResaleSlots}${preview}${expiry}`);
     }
   }
 
   return lines.join('\n');
+}
+
+export function formatTrialInventoryOverview(items: TrialInventoryOverviewItem[]) {
+  const lines = ['SWIMVPN+ Trial Store'];
+  const allocatable = items.filter((item) =>
+    ['AVAILABLE', 'ASSIGNED'].includes(item.status) &&
+    item.usedDeviceAssignments < item.maxDeviceAssignments,
+  ).length;
+
+  lines.push(`Trial configs: ${allocatable} allocatable / ${items.length} total`);
+
+  for (const item of items.slice(0, 8)) {
+    const id = item.id ? item.id.slice(0, 8) : 'unknown';
+    const expiry = item.supplierExpiresAt ? ` expires ${item.supplierExpiresAt.slice(0, 10)}` : '';
+    const folder = item.folderCode ? ` ${item.folderCode}` : '';
+    const countries = formatCountriesPreview(item.countriesPreview);
+    const preview = countries ? ` ${countries}` : '';
+    lines.push(`- ${id}${folder}: ${item.status} ${item.usedDeviceAssignments}/${item.maxDeviceAssignments}${preview}${expiry}`);
+  }
+
+  return lines.join('\n');
+}
+
+export function formatCombinedInventoryOverview(input: {
+  paid: InventoryOverviewItem[];
+  trial: TrialInventoryOverviewItem[];
+}) {
+  return [
+    formatInventoryOverview(input.paid),
+    '',
+    formatTrialInventoryOverview(input.trial),
+  ].join('\n');
+}
+
+export function formatInventoryReview(
+  scope: 'paid' | 'trial',
+  item: InventoryOverviewItem | TrialInventoryOverviewItem | null,
+) {
+  if (!item) {
+    return 'Review unavailable. The item was not found in current inventory.';
+  }
+
+  const countries = formatCountriesPreview(item.countriesPreview) || 'No countries parsed';
+  const previewStatus = extractPreviewStatus(item.adminPreview);
+  const nodeCount = Number(item.nodeCount ?? 0);
+  const folderCode = item.folderCode || item.adminLabel || item.id?.slice(0, 12) || 'unknown';
+  const protocol = item.displayProtocol || 'unknown';
+  const expires = item.supplierExpiresAt ? String(item.supplierExpiresAt).slice(0, 10) : 'none';
+
+  if (scope === 'trial') {
+    const trialItem = item as TrialInventoryOverviewItem;
+    return [
+      'Trial config review',
+      `Folder: ${folderCode}`,
+      `Campaign: ${trialItem.campaignCode || 'trial'}`,
+      `Protocol: ${protocol}`,
+      `Status: ${trialItem.status}`,
+      `Capacity: ${trialItem.usedDeviceAssignments}/${trialItem.maxDeviceAssignments} devices`,
+      `Nodes: ${nodeCount}`,
+      `Countries: ${countries}`,
+      `Preview: ${previewStatus}`,
+      `Supplier expiry: ${expires}`,
+    ].join('\n');
+  }
+
+  const paidItem = item as InventoryOverviewItem;
+  return [
+    'Paid config review',
+    `Folder: ${folderCode}`,
+    `Bucket: ${CATEGORY_LABELS[String(paidItem.category)] || paidItem.category}`,
+    `Protocol: ${protocol}`,
+    `Status: ${paidItem.inventoryStatus || paidItem.healthStatus}`,
+    `Health: ${paidItem.healthStatus}`,
+    `Capacity: ${paidItem.usedResaleSlots}/${paidItem.maxResaleSlots} units`,
+    `Nodes: ${nodeCount}`,
+    `Countries: ${countries}`,
+    `Preview: ${previewStatus}`,
+    `Supplier expiry: ${expires}`,
+  ].join('\n');
 }
 
 export function formatImportResult(category: PlanCategory, result: any) {
@@ -102,7 +214,7 @@ export function formatImportResult(category: PlanCategory, result: any) {
     `Plan bucket: ${CATEGORY_LABELS[category] || category}`,
     `Imported: ${importedCount}`,
     `Failed: ${failures}`,
-    'Resale cap: 2 customer orders per supplier link',
+    `Supplier stock capacity: ${formatSupplierCapacity(category)}`,
   ];
 
   for (const item of importedDetails.slice(0, 3)) {
@@ -270,7 +382,7 @@ export function formatImportWizardConfigPrompt(category: PlanCategory) {
     `Selected bucket: ${CATEGORY_LABELS[category] || category}`,
     '',
     'Send the supplier config or subscription URL now.',
-    'This supplier link will be capped at 2 customer orders.',
+    `This supplier link will be stored with ${formatSupplierCapacity(category)}.`,
     'Raw config will be preserved in PostgreSQL.',
     '',
     'Use /cancel_import to stop.',
@@ -282,7 +394,7 @@ export function formatImportWizardConfirmation(category: PlanCategory, rawConfig
     'Confirm supplier config import',
     `Bucket: ${CATEGORY_LABELS[category] || category}`,
     `Config preview: ${previewSecret(rawConfig)}`,
-    'Resale cap: 2 customer orders',
+    `Supplier stock capacity: ${formatSupplierCapacity(category)}`,
     'Supplier device limit metadata default: 5',
     '',
     'Reply confirm to import, or cancel to stop.',
@@ -343,4 +455,39 @@ function formatBytes(value: string | number | bigint) {
   }
 
   return `${current.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatCountriesPreview(value: unknown) {
+  if (!Array.isArray(value)) {
+    return '';
+  }
+
+  const countries = value
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => item.trim())
+    .slice(0, 4);
+
+  if (countries.length === 0) {
+    return '';
+  }
+
+  return countries.join(', ');
+}
+
+function extractPreviewStatus(value: unknown) {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'previewStatus' in value &&
+    typeof (value as { previewStatus?: unknown }).previewStatus === 'string'
+  ) {
+    return (value as { previewStatus: string }).previewStatus;
+  }
+
+  return 'UNKNOWN';
+}
+
+function formatSupplierCapacity(category: PlanCategory | string) {
+  const capacity = CATEGORY_SUPPLIER_CAPACITY[String(category)] ?? 2;
+  return `${capacity} internal capacity units`;
 }

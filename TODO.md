@@ -1356,3 +1356,9 @@ otification-bot-service event handoff.
 - [ ] Live QA after redeploy: confirm the delivered email still sends only after fulfillment success and that resolver failures leave the order traceable instead of exposing empty fake access.
 - [ ] Add an admin backfill/refresh action to recompute folder previews for existing URL-based paid and trial stock through `resolve_managed_nodes`.
 - [ ] Consider a production supplier-domain allowlist or isolated resolver egress layer if generic HTTP(S) fetching is too broad for the deployment threat model.
+
+## 2026-05-22 - Admin bot UX follow-up
+- [ ] Live QA after redeploy: import paid config through `/add_wizard`, tap Review, and confirm the review shows folder/countries/node count without secrets.
+- [ ] Live QA after redeploy: import trial config through `/trial_wizard`, tap Review, and confirm `/stock` shows Trial Store capacity alongside paid stock.
+- [ ] Add a direct item lookup command such as `/review <id>` if Telegram callback history is insufficient during operations.
+- [ ] Consider paging for `/stock` when paid or trial inventory grows beyond the current compact preview limit.

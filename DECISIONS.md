@@ -1298,3 +1298,11 @@ Decision: `parse_managed_nodes` remains a non-network parser, and `resolve_manag
 Reason: Raw supplier URLs must be preserved at import time, but fulfillment and admin preview need backend-side runtime nodes for Premium Servers. Separating parse from resolve keeps local parsing deterministic while making remote subscription fetching explicit and easier to secure.
 
 Impact: Store and inventory preview surfaces now use the resolver. The resolver blocks localhost/private/reserved hosts, follows only bounded redirects, limits payload size, and normalizes supported Android-equivalent config formats before exposing location-level runtime nodes. Future hardening should prefer supplier allowlists or a dedicated egress policy if production network boundaries require it.
+
+# 2026-05-22 - Admin bot previews are operational summaries only
+
+Decision: Telegram admin review actions expose only safe folder identity, capacity, preview status, node count, and country summaries for paid and trial configs.
+
+Reason: The bot should be interactive enough to operate stock quickly, but Telegram must not become a secret-bearing runtime config viewer. PostgreSQL inventory/trial tables remain the source of truth, and raw supplier configs stay hidden from review messages.
+
+Impact: `/stock` now includes paid inventory and Trial Store stock, and post-import messages can open a Review action. The review intentionally omits hosts, ports, UUIDs, raw links, and supplier internals even when those values exist in `admin_preview_json`.

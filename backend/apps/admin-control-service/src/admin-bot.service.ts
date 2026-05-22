@@ -7,7 +7,7 @@ import {
   getDefaultSupplierCapacityUnits,
 } from '@app/contracts';
 import { AccountingEntrySource, AccountingEntryType } from '@prisma/client';
-import { Telegraf } from 'telegraf';
+import { Markup, Telegraf } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
 import { isAdminBotAuthorized, normalizeTelegramId, parseAdminUserIds } from './admin-bot-auth';
 import {
@@ -17,7 +17,8 @@ import {
   formatImportWizardConfigPrompt,
   formatImportWizardConfirmation,
   formatImportResult,
-  formatInventoryOverview,
+  formatCombinedInventoryOverview,
+  formatInventoryReview,
   formatPendingFulfillment,
   formatTrialImportInstructions,
   formatTrialImportResult,
@@ -101,8 +102,8 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   private setupCommands() {
     if (!this.bot) return;
 
-    this.bot.start(async (ctx) => ctx.reply(this.helpText()));
-    this.bot.command('help', async (ctx) => ctx.reply(this.helpText()));
+    this.bot.start(async (ctx) => ctx.reply(this.helpText(), this.mainKeyboard()));
+    this.bot.command('help', async (ctx) => ctx.reply(this.helpText(), this.mainKeyboard()));
     this.bot.command('whoami', async (ctx) => ctx.reply(this.formatWhoami(ctx)));
 
     this.bot.command('status', async (ctx) => {
@@ -110,16 +111,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('stock', async (ctx) => {
-      await ctx.reply('Reading inventory...');
-      try {
-        const overview = await firstValueFrom(
-          this.inventoryClient.send({ cmd: 'list_inventory_overview' }, {}),
-        );
-        await ctx.reply(formatInventoryOverview(Array.isArray(overview) ? overview : []));
-      } catch (error) {
-        this.logger.error('Failed to read inventory overview', error as Error);
-        await ctx.reply('Unable to read inventory right now.');
-      }
+      await this.replyStockOverview(ctx);
     });
 
     this.bot.command('orders', async (ctx) => {
@@ -355,9 +347,9 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         '/trial_import - trial config import instructions',
         '/add_trial <config-or-subscription-url>',
         '',
-        'Each supplier link is capped at 2 customer orders.',
+        'Supplier stock capacity depends on the bucket: Basic 2, Premium 4, Platinum 6 internal units.',
         'Raw config is preserved in PostgreSQL.',
-      ].join('\n'));
+      ].join('\n'), this.importKeyboard());
     });
 
     this.bot.command('add_wizard', async (ctx) => {
@@ -399,10 +391,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      await ctx.reply('Importing supplier config...');
+        await ctx.reply('Importing supplier config...');
       try {
         const result = await this.importSupplierConfig(category, config, ctx.from?.id?.toString() || null);
-        await ctx.reply(formatImportResult(category, result));
+        await this.replyImportResult(ctx, formatImportResult(category, result), 'paid', result);
       } catch (error) {
         this.logger.error('Failed to import config via admin bot', error as Error);
         await ctx.reply('Inventory service rejected the import. Check parser warnings or service logs.');
@@ -421,7 +413,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await ctx.reply('Importing trial config...');
       try {
         const result = await this.importTrialConfig(config, ctx.from?.id?.toString() || null);
-        await ctx.reply(formatTrialImportResult(result));
+        await this.replyImportResult(ctx, formatTrialImportResult(result), 'trial', result);
       } catch (error) {
         this.logger.error('Failed to import trial config via admin bot', error as Error);
         await ctx.reply('Trial Store rejected the import. Check parser warnings or service logs.');
@@ -493,7 +485,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
             ctx.from?.id?.toString() || null,
           );
           this.importWizardSessions.delete(key);
-          await ctx.reply(formatTrialImportResult(result));
+          await this.replyImportResult(ctx, formatTrialImportResult(result), 'trial', result);
         } catch (error) {
           this.logger.error('Failed to import trial config via admin bot wizard', error as Error);
           await ctx.reply('Trial Store rejected the import. Check parser warnings or service logs.');
@@ -515,7 +507,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
             ctx.from?.id?.toString() || null,
           );
           this.importWizardSessions.delete(key);
-          await ctx.reply(formatImportResult(session.category, result));
+          await this.replyImportResult(ctx, formatImportResult(session.category, result), 'paid', result);
         } catch (error) {
           this.logger.error('Failed to import config via admin bot wizard', error as Error);
           await ctx.reply('Inventory service rejected the import. Check parser warnings or service logs.');
@@ -525,6 +517,52 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.catch((error, ctx) => {
       this.logger.error(`Telegraf error for ${ctx.updateType}:`, error as Error);
+    });
+
+    this.bot.action('stock', async (ctx) => {
+      await ctx.answerCbQuery();
+      await this.replyStockOverview(ctx);
+    });
+
+    this.bot.action('import_menu', async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.reply([
+        'Choose an import flow:',
+        '',
+        'Paid stock is sold through Basic, Premium, and Platinum buckets.',
+        'Trial stock is stored separately and can serve trial grants.',
+      ].join('\n'), this.importKeyboard());
+    });
+
+    this.bot.action(/import_menu:(basic|premium|platinum|trial)/, async (ctx) => {
+      const target = ctx.match[1];
+      await ctx.answerCbQuery();
+      if (target === 'trial') {
+        this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'trial_config' });
+        await ctx.reply(formatTrialImportWizardConfigPrompt());
+        return;
+      }
+
+      const category = mapBotPlanInputToCategory(target);
+      if (!category) {
+        await ctx.reply('Invalid import target.');
+        return;
+      }
+
+      this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'config', category });
+      await ctx.reply(formatImportWizardConfigPrompt(category));
+    });
+
+    this.bot.action('pending', async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.reply('Use /pending to read paid orders waiting for supplier capacity.');
+    });
+
+    this.bot.action(/review:(paid|trial):(.+)/, async (ctx) => {
+      const scope = ctx.match[1] as 'paid' | 'trial';
+      const id = ctx.match[2];
+      await ctx.answerCbQuery();
+      await this.replyInventoryReview(ctx, scope, id);
     });
   }
 
@@ -564,6 +602,94 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       '/whoami - show Telegram ids for ADMIN_USER_IDS setup',
       '/help - show this menu',
     ].join('\n');
+  }
+
+  private mainKeyboard() {
+    return Markup.inlineKeyboard([
+      [
+        Markup.button.callback('Stock', 'stock'),
+        Markup.button.callback('Importer', 'import_menu'),
+      ],
+      [
+        Markup.button.callback('Pending', 'pending'),
+      ],
+    ]);
+  }
+
+  private importKeyboard() {
+    return Markup.inlineKeyboard([
+      [
+        Markup.button.callback('Basic', 'import_menu:basic'),
+        Markup.button.callback('Premium', 'import_menu:premium'),
+        Markup.button.callback('Platinum', 'import_menu:platinum'),
+      ],
+      [
+        Markup.button.callback('Trial Store', 'import_menu:trial'),
+        Markup.button.callback('Stock', 'stock'),
+      ],
+    ]);
+  }
+
+  private postImportKeyboard(scope: 'paid' | 'trial', importedId: string | null) {
+    const rows = [];
+    if (importedId) {
+      rows.push([Markup.button.callback('Review', `review:${scope}:${importedId}`)]);
+    }
+    rows.push([
+      Markup.button.callback('Stock', 'stock'),
+      Markup.button.callback('Aide', 'import_menu'),
+    ]);
+    return Markup.inlineKeyboard(rows);
+  }
+
+  private async replyStockOverview(ctx: any) {
+    await ctx.reply('Reading inventory...');
+    try {
+      const [paidOverview, trialOverview] = await Promise.all([
+        firstValueFrom(this.inventoryClient.send({ cmd: 'list_inventory_overview' }, {})),
+        firstValueFrom(this.inventoryClient.send({ cmd: 'list_trial_inventory_overview' }, {})),
+      ]);
+      await ctx.reply(
+        formatCombinedInventoryOverview({
+          paid: Array.isArray(paidOverview) ? paidOverview : [],
+          trial: Array.isArray(trialOverview) ? trialOverview : [],
+        }),
+        this.mainKeyboard(),
+      );
+    } catch (error) {
+      this.logger.error('Failed to read inventory overview', error as Error);
+      await ctx.reply('Unable to read inventory right now.');
+    }
+  }
+
+  private async replyImportResult(ctx: any, message: string, scope: 'paid' | 'trial', result: any) {
+    const importedId = this.extractFirstImportedId(result);
+    await ctx.reply(message, this.postImportKeyboard(scope, importedId));
+  }
+
+  private async replyInventoryReview(ctx: any, scope: 'paid' | 'trial', id: string) {
+    try {
+      const pattern = scope === 'trial'
+        ? { cmd: 'list_trial_inventory_overview' }
+        : { cmd: 'list_inventory_overview' };
+      const overview = await firstValueFrom(this.inventoryClient.send(pattern, {}));
+      const item = Array.isArray(overview)
+        ? overview.find((entry: any) => entry.id === id)
+        : null;
+      await ctx.reply(formatInventoryReview(scope, item || null), this.mainKeyboard());
+    } catch (error) {
+      this.logger.error('Failed to build inventory review via admin bot', error as Error);
+      await ctx.reply('Review unavailable right now. Check service logs.');
+    }
+  }
+
+  private extractFirstImportedId(result: any) {
+    if (!Array.isArray(result?.details)) {
+      return null;
+    }
+
+    const item = result.details.find((detail: any) => detail?.status === 'IMPORTED' && typeof detail.id === 'string');
+    return item?.id || null;
   }
 
   private isWhoamiCommand(ctx: any) {

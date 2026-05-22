@@ -1073,6 +1073,61 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     }));
   }
 
+  async listTrialInventoryOverview() {
+    const items = await this.prisma.trialConfig.findMany({
+      orderBy: { imported_at: 'asc' },
+      include: {
+        campaign: {
+          select: {
+            code: true,
+            title: true,
+            status: true,
+          },
+        },
+        assignments: {
+          orderBy: { assigned_at: 'desc' },
+          include: {
+            customer: {
+              select: {
+                public_id: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return items.map((item) => ({
+      id: item.id,
+      campaignCode: item.campaign.code,
+      campaignTitle: item.campaign.title,
+      campaignStatus: item.campaign.status,
+      batchName: item.batch_name,
+      displayProtocol: item.display_protocol,
+      status: item.status,
+      usedDeviceAssignments: item.used_device_assignments,
+      maxDeviceAssignments: item.max_device_assignments,
+      supplierExpiresAt: item.supplier_expires_at?.toISOString() ?? null,
+      supplierProviderName: item.supplier_provider_name,
+      configFingerprint: item.config_fingerprint,
+      folderCode: item.folder_code,
+      adminLabel: item.admin_label,
+      nodeCount: item.node_count,
+      countriesPreview: item.countries_preview,
+      adminPreview: item.admin_preview_json,
+      assignments: item.assignments.map((assignment) => ({
+        id: assignment.id,
+        customerPublicId: assignment.customer.public_id,
+        customerEmail: assignment.customer.email,
+        customerPhone: assignment.customer.phone,
+        assignedAt: assignment.assigned_at.toISOString(),
+        expiresAt: assignment.expires_at?.toISOString() ?? null,
+      })),
+    }));
+  }
+
   async updateInventoryHealth(data: {
     inventoryItemId: string;
     healthStatus: InventoryHealthStatus;
