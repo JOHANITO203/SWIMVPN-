@@ -1,4 +1,4 @@
-﻿# 2026-05-22 - Trial supplier config device capacity
+# 2026-05-22 - Trial supplier config device capacity
 
 - Updated the Trial Store backend so one supplier trial config can be assigned to up to five trial devices instead of being consumed after the first assignment.
 - Added Prisma schema fields for trial config assignment capacity and usage, plus a migration that backfills current usage from existing trial assignments and removes the unique `TrialAssignment.trial_config_id` constraint.
@@ -3739,3 +3739,11 @@ pm run build PASSED.
 
 - Moved the `.webmanifest` MIME override from a server-level `types` block into the dedicated `site.webmanifest` location via `default_type`.
 - Preserved inherited Nginx MIME mappings for CSS, JS, SVG, PNG, fonts, and other static assets.
+# 2026-05-22 - Android release version and server selection policy extraction
+
+- Bumped Android release metadata to `versionCode 2` and `versionName 1.0.1` for the next APK iteration.
+- Extracted the pure post-checkout server selection policy out of `MainViewModel` into `com.swimvpn.app.data.server` to reduce central ViewModel responsibility without changing behavior.
+- Moved the existing policy test to the new package and verified the TDD RED state first with unresolved policy references before adding the extracted implementation.
+- Verification: targeted release policy test, full `:app:testReleaseUnitTest`, and `:app:assembleRelease` passed.
+- Warning cleanup: moved Android Java/Kotlin bytecode target from 1.8 to 17 and removed mechanical Kotlin compiler warnings in config parsing/tun2socks process startup without changing dependencies.
+- Preserved premium stale config handling, native runtime packaging, ABI filters, build download behavior, and entitlement logic unchanged.

@@ -415,7 +415,7 @@ object ConfigParserEngine {
             val firstOutbound = extractPrimaryOutbound(root)
                 ?: return ParseResult(null, listOf("No supported outbound found in JSON configuration"), warnings)
 
-            val outbound = gson.fromJson(firstOutbound, Map::class.java) as? Map<*, *>
+            val outbound: Map<*, *> = gson.fromJson(firstOutbound, Map::class.java)
                 ?: return ParseResult(null, listOf("Invalid outbound format"), warnings)
 
             val protocol = outbound["protocol"] as? String ?: return ParseResult(
@@ -481,7 +481,7 @@ object ConfigParserEngine {
                 listOf("Missing user ID in VLESS configuration"), 
                 warnings
             )
-            val flow = extractString(users["flow"]) ?: extractString(outbound["flow"]) ?: extractString(settings?.get("flow"))
+            val flow = extractString(users["flow"]) ?: extractString(outbound["flow"]) ?: extractString(settings.get("flow"))
             
             // Parse transport and security from streamSettings
             val transportStr = streamSettings?.get("network") as? String ?: "tcp"
@@ -890,6 +890,7 @@ object ConfigParserEngine {
     /**
      * Parse Shadowsocks JSON configuration
      */
+    @Suppress("UNUSED_PARAMETER")
     private fun parseShadowsocksJsonConfig(
         outbound: Map<*, *>,
         settings: Map<*, *>?,

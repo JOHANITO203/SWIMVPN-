@@ -64,8 +64,7 @@ class Tun2SocksProcessBridge(
 
     fun start(preparedRuntime: PreparedTun2SocksRuntime): RunningTun2SocksProcess {
         val command = mutableListOf(
-            preparedRuntime.executableFile?.absolutePath
-                ?: throw IllegalStateException("tun2socks executable runtime is missing"),
+            preparedRuntime.executableFile.absolutePath,
             preparedRuntime.configFile.absolutePath,
         )
 

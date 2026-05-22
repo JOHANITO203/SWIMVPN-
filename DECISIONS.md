@@ -1,3 +1,11 @@
+# 2026-05-22 - Android release build targets Java 17 bytecode
+
+Decision: Android release compilation now targets Java/Kotlin bytecode 17 instead of 1.8.
+
+Reason: The project already builds with Android Gradle Plugin 8.9.1 on the Android Studio JBR, and JDK 21 reports Java 8 source/target as obsolete. Targeting 17 removes that local compiler warning without changing app business behavior, native runtime packaging, ABI filters, or dependencies.
+
+Impact: Release unit tests and `assembleRelease` must remain the safety check for this target. Core library desugaring remains enabled. A future Kotlin 2.x/Compose compiler migration is intentionally separate from this build-target cleanup.
+
 # 2026-05-21 - Home VPN core is a single visual stage
 
 Decision: The Home VPN orb and central power button are now composed through `HomeVpnCoreStage` instead of being treated as independent visual elements.

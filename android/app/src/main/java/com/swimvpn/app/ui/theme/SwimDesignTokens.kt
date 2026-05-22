@@ -115,10 +115,10 @@ object SwimDesignTokens {
             purpleEdge = ComposeColor(0xFF8A6AF1).copy(alpha = 0.11f),
         ),
         texture = SwimTextureTokens(
-            rubberVeil = ComposeColor.Transparent,
-            rubberHighlight = ComposeColor.Transparent,
-            starDust = ComposeColor.Transparent,
-            starDustSpark = ComposeColor.Transparent,
+            rubberVeil = ComposeColor.Black.copy(alpha = 0.04f),
+            rubberHighlight = ComposeColor.White.copy(alpha = 0.05f),
+            starDust = ComposeColor.White.copy(alpha = 0.03f),
+            starDustSpark = ComposeColor.White.copy(alpha = 0.12f),
         ),
     )
 
@@ -287,12 +287,12 @@ object SwimDesignTokens {
     }
 
     object Motion {
-        const val PressScale = 0.96f
-        const val DockTransitionMs = 540
-        const val DockBreathingMs = 4200
-        const val DockBreathingScale = 1.01f
-        const val DockGlowIdleAlpha = 0.70f
-        const val DockGlowPeakAlpha = 0.80f
+        const val PressScale = 0.94f
+        const val DockTransitionMs = 650
+        const val DockBreathingMs = 3800
+        const val DockBreathingScale = 1.015f
+        const val DockGlowIdleAlpha = 0.72f
+        const val DockGlowPeakAlpha = 0.88f
         const val ScreenEnterMs = 320
         const val StaggerMs = 30
     }

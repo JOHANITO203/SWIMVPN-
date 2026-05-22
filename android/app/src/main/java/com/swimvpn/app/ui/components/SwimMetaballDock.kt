@@ -242,11 +242,17 @@ fun MetaballNavDock(
             val outerSize = if (selected) DockTokens.ActiveOuterDiameter else DockTokens.InactiveOuterDiameter
             val iconSize = if (selected) DockTokens.ActiveIconSize else DockTokens.InactiveIconSize
             val selectedInk = Color.White
+            
+            // Magnetic effect: icons slightly lean towards the active center
+            val distToActive = abs(DockTokens.Centers[index] - activeCenter.value)
+            val magneticPull = (1f - (distToActive / 60f)).coerceIn(0f, 1f)
+            val magneticOffset = (activeCenter.value - DockTokens.Centers[index]) * 0.12f * magneticPull
+
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .offset(
-                        x = DockTokens.Centers[index].dp - outerSize / 2f,
+                        x = DockTokens.Centers[index].dp - outerSize / 2f + magneticOffset.dp,
                         y = DockTokens.CenterY.dp - outerSize / 2f,
                     )
                     .size(outerSize),
@@ -263,12 +269,12 @@ fun MetaballNavDock(
                         text = item.label,
                         color = selectedInk,
                         fontSize = 7.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Bold, // Bolder for premium feel
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .offset(y = (-12).dp),
+                            .offset(y = (-10).dp),
                     )
                 }
             }
@@ -286,6 +292,9 @@ private fun DockBodyCanvas(
 ) {
     val tokens = LocalSwimVisualTokens.current
     val lightTheme = tokens == SwimDesignTokens.Light
+    val stardustRandom = remember { java.util.Random(42) }
+    val stardustPoints = remember { List(120) { Offset(stardustRandom.nextFloat(), stardustRandom.nextFloat()) } }
+
     Canvas(modifier = modifier) {
         val sx = size.width / DockTokens.Width.value
         val sy = size.height / DockTokens.Height.value
@@ -294,27 +303,43 @@ private fun DockBodyCanvas(
         val activeCenter = activeCenterDp * sx
         val previousCenter = previousCenterDp * sx
         val settling = (1f - transitionProgress).coerceIn(0f, 1f)
+        val moving = (transitionProgress * (1f - transitionProgress) * 4f).coerceIn(0f, 1f)
+        
         val radii = centers.map { center ->
             val distance = abs(center - activeCenter) / (DockTokens.CenterSpacing * sx)
             val previousDistance = abs(center - previousCenter) / (DockTokens.CenterSpacing * sx)
+            
+            // Non-linear influence for "snappier" fluid
             val influence = max(
                 (1f - distance).coerceIn(0f, 1f),
-                (1f - previousDistance).coerceIn(0f, 1f) * settling * 0.72f,
+                (1f - previousDistance).coerceIn(0f, 1f) * settling * 0.85f,
             )
-            (DockTokens.InactiveOuterRadius + (DockTokens.ActiveOuterRadius - DockTokens.InactiveOuterRadius) * influence) * sx
+            
+            val baseRadius = DockTokens.InactiveOuterRadius + (DockTokens.ActiveOuterRadius - DockTokens.InactiveOuterRadius) * influence
+            // Stretch the bridge: reduce radius slightly in the middle of a transition to look like pulling taffy
+            val tension = if (center > minOf(activeCenter, previousCenter) && center < maxOf(activeCenter, previousCenter)) {
+                moving * 4f * sx
+            } else 0f
+            
+            (baseRadius * sx) - tension
         }
-        val body = buildMetaballPath(centers, radii, cy)
+
+        // Dynamic valley depth: deeper during transition to emphasize "separation"
+        val dynamicValley = DockTokens.ValleyDepth * sx + (moving * 8f * sx)
+        val body = buildMetaballPath(centers, radii, cy, dynamicValley)
 
         drawPath(
             path = body,
             color = if (lightTheme) tokens.material.shadowSoft else tokens.material.shadowRaised,
             style = Stroke(width = if (lightTheme) 12.dp.toPx() else 18.dp.toPx()),
         )
+        
+        // Premium Glow
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    tokens.color.homePurplePrimary.copy(alpha = 0.42f * activeGlowAlpha),
-                    tokens.color.homePurplePrimary.copy(alpha = 0.10f * activeGlowAlpha),
+                    tokens.color.homePurplePrimary.copy(alpha = 0.55f * activeGlowAlpha),
+                    tokens.color.homePurplePrimary.copy(alpha = 0.15f * activeGlowAlpha),
                     Color.Transparent,
                 ),
                 center = Offset(activeCenter, cy),
@@ -323,15 +348,13 @@ private fun DockBodyCanvas(
             radius = DockTokens.ActiveGlowRadius * sx,
             center = Offset(activeCenter, cy),
         )
+
+        // Main Body Fill
         drawPath(
             path = body,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    if (lightTheme) {
-                        tokens.color.homeTopHighlight.copy(alpha = 0.54f)
-                    } else {
-                        tokens.material.shellTop.copy(alpha = 0.16f)
-                    },
+                    if (lightTheme) tokens.color.homeTopHighlight.copy(alpha = 0.65f) else tokens.material.shellTop.copy(alpha = 0.22f),
                     tokens.material.shellMid,
                     tokens.material.shellBottom,
                 ),
@@ -339,26 +362,40 @@ private fun DockBodyCanvas(
                 endY = size.height,
             ),
         )
+
+        // StarDust Texture (Micro-details)
+        if (tokens.texture.starDust != Color.Transparent) {
+            stardustPoints.forEach { point ->
+                val rx = point.x * size.width
+                val ry = point.y * size.height
+                val dotAlpha = (0.05f + stardustRandom.nextFloat() * 0.15f) * (if (lightTheme) 0.5f else 1f)
+                drawCircle(
+                    color = tokens.texture.starDustSpark.copy(alpha = dotAlpha),
+                    radius = 0.6.dp.toPx(),
+                    center = Offset(rx, ry),
+                )
+            }
+        }
+
+        // Inner Highlights and Rim Light
         drawPath(
             path = body,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    if (lightTheme) {
-                        tokens.highlight.innerTop.copy(alpha = 0.34f)
-                    } else {
-                        tokens.highlight.purpleEdge.copy(alpha = 0.10f)
-                    },
+                    if (lightTheme) tokens.highlight.innerTop.copy(alpha = 0.45f) else tokens.highlight.purpleEdge.copy(alpha = 0.15f),
                     Color.Transparent,
-                    tokens.material.bowlInnerShadow.copy(alpha = if (lightTheme) 0.22f else SwimDesignTokens.Shadow.InnerBottomAlpha),
+                    tokens.material.bowlInnerShadow.copy(alpha = if (lightTheme) 0.28f else SwimDesignTokens.Shadow.InnerBottomAlpha),
                 ),
                 startY = 0f,
                 endY = size.height,
             ),
         )
+        
+        // Top Rim Sheen
         drawPath(
             path = body,
-            color = tokens.highlight.bodyStroke,
-            style = Stroke(width = 0.8.dp.toPx()),
+            color = tokens.highlight.bodyStroke.copy(alpha = 0.3f),
+            style = Stroke(width = 1.2.dp.toPx()),
         )
     }
 }
@@ -380,50 +417,73 @@ private fun ActiveCoreLayer(
         val progress = transitionProgress.coerceIn(0f, 1f)
         val radius = DockTokens.ActiveCoreDiameter.toPx() / 2f * breathScale
 
+        // Premium Core Glow
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    tokens.color.homePurplePrimary.copy(alpha = 0.22f * glowAlpha),
-                    tokens.color.homePurplePrimary.copy(alpha = 0.08f * glowAlpha),
+                    tokens.color.homePurplePrimary.copy(alpha = 0.35f * glowAlpha),
+                    tokens.color.homePurplePrimary.copy(alpha = 0.12f * glowAlpha),
                     Color.Transparent,
                 ),
                 center = activeCenter,
-                radius = radius * 1.62f,
+                radius = radius * 2.2f,
             ),
-            radius = radius * 1.62f,
+            radius = radius * 2.2f,
             center = activeCenter,
         )
+        
         val fillRadius = radius * (0.72f + progress * 0.28f)
+        
+        // Deep Core Material
         drawCircle(
-            brush = Brush.radialGradient(
+            brush = Brush.verticalGradient(
                 colors = listOf(
                     tokens.material.purpleCoreTop,
                     tokens.material.purpleCoreMid,
                     tokens.material.purpleCoreBottom,
                 ),
-                center = Offset(activeCenter.x - radius * 0.22f, activeCenter.y - radius * 0.28f),
-                radius = radius * 1.18f,
+                startY = activeCenter.y - fillRadius,
+                endY = activeCenter.y + fillRadius,
             ),
             radius = fillRadius,
             center = activeCenter,
         )
-        drawCircle(
-            color = tokens.color.homeStrokeActive.copy(alpha = 0.56f),
-            radius = fillRadius,
-            center = activeCenter,
-            style = Stroke(width = 0.8.dp.toPx()),
-        )
+
+        // Sharp Lens Flare (Dynamic)
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(
-                    tokens.highlight.skinSheen,
+                    Color.White.copy(alpha = 0.45f * glowAlpha),
+                    Color.White.copy(alpha = 0.10f * glowAlpha),
                     Color.Transparent,
                 ),
-                center = Offset(activeCenter.x - radius * 0.28f, activeCenter.y - radius * 0.34f),
-                radius = radius * 0.74f,
+                center = Offset(activeCenter.x - radius * 0.20f, activeCenter.y - radius * 0.25f),
+                radius = radius * 0.65f,
             ),
-            radius = radius * 0.74f,
-            center = Offset(activeCenter.x - radius * 0.10f, activeCenter.y - radius * 0.16f),
+            radius = radius * 0.65f,
+            center = Offset(activeCenter.x - radius * 0.20f, activeCenter.y - radius * 0.25f),
+        )
+
+        // Internal Sheen
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    tokens.highlight.skinSheen.copy(alpha = 0.6f),
+                    Color.Transparent,
+                ),
+                center = Offset(activeCenter.x - radius * 0.35f, activeCenter.y - radius * 0.40f),
+                radius = radius * 0.8f,
+            ),
+            radius = radius * 0.8f,
+            center = Offset(activeCenter.x - radius * 0.15f, activeCenter.y - radius * 0.20f),
+        )
+
+        // Outer Rim Stroke
+        drawCircle(
+            color = tokens.color.homeStrokeActive.copy(alpha = 0.65f),
+            radius = fillRadius,
+            center = activeCenter,
+            style = Stroke(width = 1.2.dp.toPx()),
         )
     }
 }
@@ -476,6 +536,7 @@ private fun DockNodeButton(
                 radius = outerRadius * 0.88f,
                 center = Offset(center.x, center.y + outerRadius * 0.10f),
             )
+            // Glass Bowl Depth
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -483,39 +544,55 @@ private fun DockNodeButton(
                         tokens.material.bowlMid,
                         tokens.material.bowlBottom,
                     ),
-                    center = Offset(center.x, center.y + bowlRadius * 0.24f),
-                    radius = bowlRadius * 1.08f,
+                    center = Offset(center.x, center.y + bowlRadius * 0.28f),
+                    radius = bowlRadius * 1.15f,
                 ),
                 radius = bowlRadius,
                 center = center,
             )
+            
+            // Internal Depth Shadow
+            drawCircle(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Black.copy(alpha = if (lightTheme) 0.08f else 0.4f),
+                        Color.Transparent,
+                        Color.Transparent,
+                    ),
+                    startY = center.y - bowlRadius,
+                    endY = center.y + bowlRadius,
+                ),
+                radius = bowlRadius * 0.95f,
+                center = center,
+            )
+
             drawCircle(
                 color = tokens.material.bowlInnerShadow,
                 radius = bowlRadius,
                 center = center,
-                style = Stroke(width = if (lightTheme) 1.6.dp.toPx() else 3.dp.toPx()),
+                style = Stroke(width = if (lightTheme) 2.dp.toPx() else 4.dp.toPx()),
             )
+            
+            // Sharp Rim Highlight
             drawCircle(
-                color = tokens.highlight.bowlRim,
+                color = tokens.highlight.bowlRim.copy(alpha = if (selected) 0.4f else 0.15f),
                 radius = bowlRadius,
                 center = center,
-                style = Stroke(width = 0.8.dp.toPx()),
+                style = Stroke(width = 1.dp.toPx()),
             )
+            
+            // Specular Reflection
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        if (lightTheme) {
-                            tokens.highlight.skinSheen.copy(alpha = 0.20f)
-                        } else {
-                            tokens.highlight.purpleEdge.copy(alpha = 0.12f)
-                        },
+                        if (lightTheme) tokens.highlight.skinSheen.copy(alpha = 0.35f) else tokens.highlight.purpleEdge.copy(alpha = 0.25f),
                         Color.Transparent,
                     ),
-                    center = Offset(center.x - bowlRadius * 0.30f, center.y - bowlRadius * 0.44f),
-                    radius = bowlRadius * 0.76f,
+                    center = Offset(center.x - bowlRadius * 0.35f, center.y - bowlRadius * 0.50f),
+                    radius = bowlRadius * 0.85f,
                 ),
-                radius = bowlRadius * 0.76f,
-                center = Offset(center.x - bowlRadius * 0.10f, center.y - bowlRadius * 0.20f),
+                radius = bowlRadius * 0.85f,
+                center = Offset(center.x - bowlRadius * 0.15f, center.y - bowlRadius * 0.25f),
             )
         }
         if (renderContent) {
@@ -547,6 +624,7 @@ private fun buildMetaballPath(
     centers: List<Float>,
     radii: List<Float>,
     cy: Float,
+    valleyDepth: Float,
 ): Path {
     val firstX = centers.first()
     val lastX = centers.last()
@@ -563,7 +641,7 @@ private fun buildMetaballPath(
             val r2 = radii[i + 1]
             val d = cx2 - cx1
             val wx = (cx1 + cx2) / 2f
-            val valley = minOf(r1, r2) - DockTokens.ValleyDepth
+            val valley = minOf(r1, r2) - valleyDepth
             cubicTo(cx1 + r1 * 0.54f, cy - r1, wx - d * 0.16f, cy - valley, wx, cy - valley)
             cubicTo(wx + d * 0.16f, cy - valley, cx2 - r2 * 0.54f, cy - r2, cx2, cy - r2)
         }
@@ -576,7 +654,7 @@ private fun buildMetaballPath(
             val r2 = radii[i - 1]
             val d = cx1 - cx2
             val wx = (cx1 + cx2) / 2f
-            val valley = minOf(r1, r2) - DockTokens.ValleyDepth
+            val valley = minOf(r1, r2) - valleyDepth
             cubicTo(cx1 - r1 * 0.54f, cy + r1, wx + d * 0.16f, cy + valley, wx, cy + valley)
             cubicTo(wx - d * 0.16f, cy + valley, cx2 + r2 * 0.54f, cy + r2, cx2, cy + r2)
         }

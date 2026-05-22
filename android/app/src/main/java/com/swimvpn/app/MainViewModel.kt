@@ -31,6 +31,7 @@ import com.swimvpn.app.data.network.RetrofitClient
 import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerLatencyEvaluator
 import com.swimvpn.app.data.network.ServerNode
+import com.swimvpn.app.data.server.PostCheckoutServerSelectionPolicy
 import com.swimvpn.app.config.ConfigRepository
 import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.config.ImportedProfileGroup
@@ -91,35 +92,6 @@ sealed class AppState {
 sealed class AppSideEffect {
     data class OpenUrl(val url: String) : AppSideEffect()
     data class ShowToast(val message: String) : AppSideEffect()
-}
-
-object PostCheckoutServerSelectionPolicy {
-    fun chooseActiveServerId(
-        previousActiveId: String?,
-        previousActiveSource: String?,
-        savedSelectedId: String?,
-        rebuiltActiveId: String?,
-        firstBackendId: String?,
-        previousImportedStillAvailable: Boolean,
-    ): String? {
-        if (previousActiveSource == "imported" && previousImportedStillAvailable) {
-            return previousActiveId
-        }
-
-        if (!savedSelectedId.isNullOrBlank() && rebuiltActiveId != null) {
-            return rebuiltActiveId
-        }
-
-        if (previousActiveSource == "backend" && rebuiltActiveId != null) {
-            return rebuiltActiveId
-        }
-
-        if (previousActiveId == null && savedSelectedId == null && firstBackendId != null) {
-            return firstBackendId
-        }
-
-        return rebuiltActiveId ?: firstBackendId ?: previousActiveId
-    }
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {

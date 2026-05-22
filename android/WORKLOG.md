@@ -1,5 +1,20 @@
 # Work Log - SWIMVPN Project
 
+## 2026-05-22 [Android Release Version And Policy Extraction]
+- **Status**: DONE
+- **Changes**:
+  - Bumped release metadata to `versionCode 2` and `versionName 1.0.1`.
+  - Moved `PostCheckoutServerSelectionPolicy` from `MainViewModel.kt` into `com.swimvpn.app.data.server`.
+  - Moved the existing policy test into the matching package.
+  - Moved Java/Kotlin bytecode target from 1.8 to 17 to address the JDK 21 obsolete source/target warning.
+  - Removed mechanical Kotlin compiler warnings in config parsing and tun2socks process startup.
+  - Left premium stale config fallback, runtime VPN, ABI filters, and build artifact download behavior untouched.
+- **Verification**:
+  - Confirmed the moved test failed first because the extracted policy did not exist yet.
+  - Targeted release unit test passed after extraction.
+  - Full `:app:testReleaseUnitTest` passed.
+  - `:app:assembleRelease` passed.
+
 ## 2024 Update - Gradle Settings Fix
 
 **Date:** [Current Date]
