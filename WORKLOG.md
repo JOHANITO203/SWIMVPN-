@@ -3716,3 +3716,9 @@ pm run build PASSED.
 - Created Google Play preparation docs for RU/FR store listing drafts, Data Safety review, VpnService declaration, and release asset checklist.
 - Added a repo cleanup audit that classifies generated/local artifacts and tracked QA screenshots without deleting anything.
 - Documented the current Agent IA implementation as a deterministic adaptive recommendation layer, plus a future PR plan for explainability, probe freshness, backend-safe health signals, tests, and copy alignment.
+
+# 2026-05-22 - Landing metadata review fixes
+
+- Trimmed the RU and FR Google Play short-description drafts to stay within the Play Store 80-character limit.
+- Added a `512x512` web app icon and updated the manifest to expose `192x192` and `512x512` PNG icons.
+- Removed the generic `maskable` purpose from the existing launcher-derived icon until a dedicated safe-area maskable asset is produced.

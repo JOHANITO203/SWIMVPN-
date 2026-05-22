@@ -2,7 +2,7 @@
 
 ## Description Courte
 
-SWIMVPN - VPN Android avec trial, achat in-app et import de configs personnelles.
+SWIMVPN - VPN Android avec trial, achat intégré et import de configs.
 
 ## Description Longue
 

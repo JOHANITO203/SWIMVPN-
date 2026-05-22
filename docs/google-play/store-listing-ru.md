@@ -2,7 +2,7 @@
 
 ## Short Description
 
-SWIMVPN - VPN для Android с trial, покупкой доступа в приложении и импортом своих конфигов.
+SWIMVPN - VPN Android с trial, покупкой доступа и импортом конфигов.
 
 ## Full Description
 
