@@ -3703,3 +3703,9 @@ pm run build PASSED.
 - Replaced the landing SwimPay payment mark with the provided transparent PNG asset while keeping it framed at the same visual size as the Crypto icon.
 - Made the RU/FR language selector visible on mobile and hid the navbar APK CTA on narrow screens to avoid header crowding.
 - Rebalanced the final APK download section and footer so stat cards no longer squeeze text such as `Xray/V2Ray`, and the footer no longer appears as a detached narrow side rail.
+
+# 2026-05-22 - Landing responsive review fixes
+
+- Optimized the SwimPay transparent PNG from a full-resolution source to a `192x192` icon asset suitable for the landing payment card.
+- Added `aria-pressed` to the mobile-visible RU/FR selector.
+- Tightened the landing header, hero spacing, CTA sizing, and final APK stat grid for small portrait screens while preserving broader desktop and landscape layouts.

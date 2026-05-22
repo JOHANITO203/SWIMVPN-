@@ -26,7 +26,7 @@ import {
 const ui = {
   page:
     'min-h-screen overflow-hidden bg-[#050505] text-[#0A0A0D] selection:bg-[#8A6AF1]/30 selection:text-white',
-  shell: 'relative z-10 mx-auto w-full max-w-[1600px] px-3 pb-3 pt-3 sm:px-4 sm:pb-4 lg:px-6 lg:pb-6',
+  shell: 'relative z-10 mx-auto w-[calc(100vw-1.25rem)] max-w-[1600px] pb-3 pt-3 sm:w-auto sm:px-4 sm:pb-4 lg:px-6 lg:pb-6',
   lightCard:
     'relative overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[linear-gradient(135deg,#FFFFFF_0%,#F4F2FA_48%,#ECE8F7_100%)] text-[#0A0A0D] shadow-[0_24px_90px_rgba(10,10,18,0.18)] sm:rounded-[2rem]',
   darkCard:
@@ -104,12 +104,12 @@ const LandingPage = () => {
       </div>
 
       <div className={ui.shell}>
-        <nav className="relative z-30 mb-3 flex items-center justify-between rounded-[1.5rem] border border-black/[0.08] bg-white/70 px-4 py-3 shadow-[0_18px_60px_rgba(24,20,38,0.16)] backdrop-blur-2xl sm:mb-4 sm:rounded-[2rem] sm:px-6">
-          <a href="#" className="flex items-center gap-3" aria-label={copy.nav.ariaHome}>
-            <span className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-black shadow-[0_14px_34px_rgba(0,0,0,0.24)]">
-              <img src="/brand/swimvpn-shark-mark.svg" alt="" className="h-7 w-7 object-contain" />
+        <nav className="relative z-30 mb-3 flex items-center justify-between gap-2 rounded-[1.5rem] border border-black/[0.08] bg-white/70 px-3 py-2.5 shadow-[0_18px_60px_rgba(24,20,38,0.16)] backdrop-blur-2xl sm:mb-4 sm:rounded-[2rem] sm:px-6 sm:py-3">
+          <a href="#" className="flex min-w-0 items-center gap-2.5 sm:gap-3" aria-label={copy.nav.ariaHome}>
+            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-black shadow-[0_14px_34px_rgba(0,0,0,0.24)] sm:h-10 sm:w-10">
+              <img src="/brand/swimvpn-shark-mark.svg" alt="" className="h-6 w-6 object-contain sm:h-7 sm:w-7" />
             </span>
-            <span className="text-xl font-black tracking-[-0.04em] text-black">SWIMVPN</span>
+            <span className="hidden truncate text-lg font-black tracking-[-0.04em] text-black min-[520px]:inline min-[520px]:text-xl lg:inline">SWIMVPN</span>
           </a>
 
           <div className="hidden items-center gap-8 text-sm font-black text-black/70 lg:flex">
@@ -119,14 +119,15 @@ const LandingPage = () => {
             <a href="#download-apk" className="transition hover:text-black">{copy.nav.apk}</a>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <div className="flex rounded-2xl border border-black/[0.08] bg-white/54 p-1 shadow-[0_10px_28px_rgba(35,29,58,0.08)] backdrop-blur-xl" aria-label={copy.nav.language}>
               {LANDING_LOCALES.map((item) => (
                 <button
                   key={item}
                   type="button"
+                  aria-pressed={item === locale}
                   onClick={() => setLanguage(item)}
-                  className={`min-h-9 rounded-xl px-2.5 text-[0.68rem] font-black transition sm:px-3 sm:text-xs ${
+                  className={`min-h-8 rounded-xl px-2.5 text-[0.68rem] font-black transition sm:min-h-9 sm:px-3 sm:text-xs ${
                     item === locale ? 'bg-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)]' : 'text-black/54 hover:text-black'
                   }`}
                 >
@@ -146,41 +147,41 @@ const LandingPage = () => {
         </nav>
 
         <main className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-12 lg:auto-rows-[minmax(150px,auto)]">
-          <motion.section {...motionProps} className={`${ui.lightCard} min-h-[620px] p-7 sm:p-10 lg:col-span-7 lg:row-span-3 lg:p-12`}>
+          <motion.section {...motionProps} className={`${ui.lightCard} min-h-[540px] p-6 sm:min-h-[620px] sm:p-10 max-lg:landscape:min-h-[360px] max-lg:landscape:p-8 lg:col-span-7 lg:row-span-3 lg:p-12`}>
             <div className="absolute right-[-12%] top-[9%] hidden h-[72%] w-[55%] rounded-[3rem] bg-[linear-gradient(145deg,rgba(255,255,255,0.58),rgba(17,17,24,0.22)_48%,rgba(138,106,241,0.28))] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_28px_90px_rgba(74,62,113,0.28)] backdrop-blur-xl lg:block" />
             <GlassStackVisual />
 
-            <div className="relative flex h-full flex-col justify-between gap-16">
+            <div className="relative flex h-full flex-col justify-between gap-12 sm:gap-16">
               <div>
-                <div className="mb-8 flex flex-wrap items-center gap-3">
+                <div className="mb-7 flex flex-wrap items-center gap-2.5 sm:mb-8 sm:gap-3">
                   <span className={ui.chipDark}>{copy.hero.chip}</span>
-                  <span className="rounded-full border border-black/[0.08] bg-white/55 px-4 py-2 text-sm font-bold text-[#363240] backdrop-blur-xl">
+                  <span className="rounded-full border border-black/[0.08] bg-white/55 px-3.5 py-2 text-xs font-bold text-[#363240] backdrop-blur-xl sm:px-4 sm:text-sm">
                     {copy.hero.announcement}
                     <ArrowUpRight className="ml-2 inline" size={15} />
                   </span>
                 </div>
-                <h1 className="max-w-[760px] text-[clamp(3.7rem,10vw,9.2rem)] font-black leading-[0.84] tracking-[-0.08em] text-black">
+                <h1 className="max-w-[760px] text-[clamp(3rem,14vw,9.2rem)] font-black leading-[0.86] tracking-[-0.08em] text-black max-lg:landscape:text-[clamp(2.7rem,10vw,5.4rem)] sm:leading-[0.84]">
                   {copy.hero.title}
                 </h1>
-                <p className="mt-7 max-w-xl text-lg font-medium leading-relaxed text-[#5E5A68] sm:text-xl">{copy.hero.body}</p>
+                <p className="mt-6 max-w-xl text-base font-medium leading-relaxed text-[#5E5A68] sm:mt-7 sm:text-xl">{copy.hero.body}</p>
               </div>
 
               <div>
-                <div className="mb-9 flex flex-col gap-3 sm:flex-row">
+                <div className="mb-8 flex flex-col gap-3 sm:mb-9 sm:flex-row">
                   <motion.a
                     href="/downloads/swimvpn.apk"
                     download="SwimVPN.apk"
                     aria-label={copy.hero.primaryCta}
                     whileHover={shouldReduceMotion ? undefined : { scale: 1.025, y: -2 }}
                     whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
-                    className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-black px-8 text-base font-black text-white shadow-[0_22px_50px_rgba(0,0,0,0.24)] transition hover:bg-[#17171C]"
+                    className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-2xl bg-black px-7 text-sm font-black text-white shadow-[0_22px_50px_rgba(0,0,0,0.24)] transition hover:bg-[#17171C] sm:min-h-14 sm:px-8 sm:text-base"
                   >
                     {copy.hero.primaryCta}
                     <Download size={21} strokeWidth={3} />
                   </motion.a>
                   <a
                     href="#product"
-                    className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl border border-black/[0.08] bg-white/58 px-8 text-base font-black text-black shadow-[0_16px_34px_rgba(35,29,58,0.08)] backdrop-blur-xl transition hover:bg-white"
+                    className="inline-flex min-h-[3.25rem] items-center justify-center gap-3 rounded-2xl border border-black/[0.08] bg-white/58 px-7 text-sm font-black text-black shadow-[0_16px_34px_rgba(35,29,58,0.08)] backdrop-blur-xl transition hover:bg-white sm:min-h-14 sm:px-8 sm:text-base"
                   >
                     {copy.hero.secondaryCta}
                     <CheckCircle2 size={19} />
@@ -305,7 +306,7 @@ const LandingPage = () => {
             </div>
           </motion.article>
 
-          <motion.section {...motionProps} id="download-apk" className={`${ui.lightCard} p-7 sm:p-10 lg:col-span-12`}>
+          <motion.section {...motionProps} id="download-apk" className={`${ui.lightCard} p-6 sm:p-10 lg:col-span-12`}>
             <div className="grid gap-8 xl:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.6fr)] xl:items-center">
               <div>
                 <h2 className="max-w-md text-3xl font-black leading-tight tracking-[-0.05em] sm:text-4xl">{copy.finalCta.title}</h2>
@@ -318,11 +319,11 @@ const LandingPage = () => {
                   <Download size={18} />
                 </a>
               </div>
-              <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                 {copy.finalCta.stats.map(([value, label]) => (
-                  <div key={value} className="min-w-0 rounded-3xl border border-black/[0.06] bg-white/62 p-5 shadow-[0_14px_34px_rgba(35,29,58,0.08)] backdrop-blur-xl sm:p-6">
-                    <div className="break-words text-2xl font-black tracking-[-0.05em]">{value}</div>
-                    <div className="mt-2 text-sm font-semibold leading-snug text-[#625B70]">{label}</div>
+                  <div key={value} className="min-w-0 rounded-3xl border border-black/[0.06] bg-white/62 p-4 shadow-[0_14px_34px_rgba(35,29,58,0.08)] backdrop-blur-xl sm:p-6">
+                    <div className="break-words text-[clamp(1.15rem,5vw,1.5rem)] font-black tracking-[-0.05em]">{value}</div>
+                    <div className="mt-2 text-xs font-semibold leading-snug text-[#625B70] sm:text-sm">{label}</div>
                   </div>
                 ))}
               </div>
