@@ -1,3 +1,11 @@
+# 2026-05-22 - Public plan allowance is separate from supplier capacity
+
+Decision: Customer-facing plan device allowance and internal supplier inventory capacity must be modeled as separate concepts.
+
+Reason: The public offer is Basic 1 device, Premium 2 devices, and Platinum 3 devices, while SWIMVPN may internally sell one supplier config to multiple customers according to supplier capacity. Reusing `deviceAllowance` for both concepts makes the code read like private resale strategy is part of the public offer.
+
+Impact: Future implementation should use names such as `publicDeviceAllowance`, `supplierUserCapacity`, `supplierCapacityUnitsPerUser`, `usedSupplierCapacityUnits`, and `maxSupplierCapacityUnits`. Android should display only the public plan allowance from backend truth. Inventory fulfillment should consume internal supplier capacity units and keep supplier strategy out of user-facing copy.
+
 # 2026-05-22 - Android release build targets Java 17 bytecode
 
 Decision: Android release compilation now targets Java/Kotlin bytecode 17 instead of 1.8.

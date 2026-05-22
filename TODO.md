@@ -1257,6 +1257,17 @@ otification-bot-service event handoff.
 - [ ] Live QA: cancel after multiple historical purchases and confirm the app returns to freemium with no premium servers from older assignments.
 - [ ] Decide later whether product UX needs explicit prorata/refund messaging; backend currently treats upgrade/downgrade as replacement after successful new purchase.
 
+## 2026-05-22 - Subscription fulfillment surface implementation
+- [ ] Step 1 audit: inspect paid checkout, fulfillment, inventory capacity, profile badge, subscription card state, and Premium Servers exposure before code.
+- [ ] Step 1 implement: separate public plan allowance from supplier capacity naming and behavior.
+- [ ] Step 1 review: verify no private supplier strategy leaks into Android subscription/profile UI.
+- [ ] Step 2 implement: backend-safe HTTP(S) supplier subscription resolver through the VPN config engine.
+- [ ] Step 2 review: verify anti-SSRF, timeout, response size, metadata filtering, and raw config preservation.
+- [ ] Step 3 implement: same-plan active purchase lock plus upgrade-to-higher-plan flow.
+- [ ] Step 3 review: verify upgrade becomes new profile truth only after paid fulfillment.
+- [ ] Step 4 implement: enforce five-device capacity per trial supplier config and out-of-stock behavior for the sixth device.
+- [ ] Step 4 review: verify expired/freemium users are not blocked from the app shell.
+
 ## 2026-05-19 - Access contract review QA follow-up
 - [ ] Live QA: activate trial on an account with active paid access should not revoke the paid assignment.
 - [ ] Live QA: cancel on an account with more than one active historical assignment should leave no premium servers exposed.

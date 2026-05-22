@@ -3668,6 +3668,13 @@ pm run build PASSED.
 - Added `public/robots.txt` and `public/sitemap.xml` with RU/FR alternate URLs.
 - Verification: `npm run build` passed. `npm run lint` still fails on existing root TypeScript backend alias/dependency errors unrelated to the landing i18n/SEO pass.
 
+# 2026-05-22 - Subscription fulfillment surface design
+
+- Captured the validated purchase fulfillment surface in `docs/superpowers/specs/2026-05-22-subscription-fulfillment-surface-design.md`.
+- Defined the separation between public plan device allowance and internal supplier capacity economics to avoid future `deviceAllowance` ambiguity.
+- Locked the step-by-step implementation workflow for this surface: audit, implementation, review, source correction, corrected review, test, validation, then next step.
+- No backend or Android runtime code was changed in this documentation pass.
+
 # 2026-05-22 - Landing production domain SEO alignment
 
 - Corrected landing canonical, hreflang, Open Graph, Twitter image, JSON-LD, robots, and sitemap URLs from `swimvpn.pro` to the confirmed production domain `app.swimvpn.pro`.
