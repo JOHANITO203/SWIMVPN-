@@ -3653,3 +3653,42 @@ pm run build PASSED.
 - Kept the product message focused on APK pre-release, current trial, in-app VPN config purchase, and free manual/QR import for VLESS/Trojan configs.
 - Reused the existing SwimVPN shark mark asset and cleaned the visible landing copy so accented French text no longer appears mojibake in the rebuilt page.
 - Verification: `npm run build` passed. `npm run lint` still fails on existing root TypeScript backend alias/dependency errors unrelated to the landing page.
+
+# 2026-05-22 - Android GradleException IDE resolution fix
+
+- Added the explicit `org.gradle.api.GradleException` import to `android/app/build.gradle` so Gradle/IDE script analysis can resolve the custom build failures used by the native runtime asset tasks.
+- Preserved the existing NDK, Xray, tun2socks, JNI, VPN runtime, and dependency behavior.
+- Verification: `:app:compileDebugKotlin` passed.
+
+# 2026-05-22 - Landing Russian default and SEO metadata pass
+
+- Audited the landing metadata and found the HTML defaulted to English while the landing copy was French and not centralized.
+- Added centralized landing copy for Russian and French with Russian as the default locale, plus a RU/FR switcher using query/localStorage resolution instead of hardcoded component text.
+- Updated static SEO metadata to Russian default: `<html lang="ru">`, title, description, Open Graph, Twitter card, `hreflang` alternates, and SoftwareApplication JSON-LD.
+- Added `public/robots.txt` and `public/sitemap.xml` with RU/FR alternate URLs.
+- Verification: `npm run build` passed. `npm run lint` still fails on existing root TypeScript backend alias/dependency errors unrelated to the landing i18n/SEO pass.
+
+# 2026-05-22 - Landing production domain SEO alignment
+
+- Corrected landing canonical, hreflang, Open Graph, Twitter image, JSON-LD, robots, and sitemap URLs from `swimvpn.pro` to the confirmed production domain `app.swimvpn.pro`.
+- Preserved `support@swimvpn.pro` email links because they are contact addresses, not canonical page URLs.
+
+# 2026-05-22 - Landing product narrative and payment modules
+
+- Reworked the landing content strategy to reduce repeated APK/trial/import messaging and give each bento section a distinct sales role: product definition, easy setup, in-app purchase, compatibility, AI guidance, trial, payments, and final download.
+- Expanded the public compatibility language beyond VLESS/Trojan to include the broader Xray/V2Ray ecosystem: VLESS Reality, VMess, Shadowsocks, Xray JSON, and V2Ray JSON.
+- Clarified the AI Agent positioning as guidance and live node indices, not automatic decision-making.
+- Added SwimPay and Crypto SVG assets to the landing from the Android payment mark vectors and used them in the payment section.
+- Updated Russian and French SEO copy to reflect in-app purchase, trial, and Xray/V2Ray import support.
+- Verification: `npm run build` passed and UTF-8 content was checked with Node.
+
+# 2026-05-22 - Landing SEO review fixes
+
+- Replaced SVG social preview metadata with a generated `1200x630` PNG Open Graph image at `public/brand/swimvpn-og.png`.
+- Added landing SEO URL helpers so runtime language switching now updates canonical URL, Open Graph URL/image, Twitter image, hreflang links, and JSON-LD content.
+- Simplified the sitemap so Russian default is represented by the root URL and French remains available at `?lang=fr`, reducing duplicate RU URL ambiguity.
+
+# 2026-05-22 - Root frontend lint scope fix
+
+- Fixed the root `npm run lint` blocker by scoping the root Vite/React `tsconfig.json` to frontend files instead of letting it typecheck backend and Android sources with the wrong compiler options.
+- Preserved backend typechecking through `backend/tsconfig.json` and backend npm scripts.

@@ -28,5 +28,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true
-  }
+  },
+  "include": ["src", "vite.config.ts"],
+  "exclude": ["android", "backend", "dist", "node_modules", "swimvpnbrain"]
 }
