@@ -312,6 +312,9 @@
     <string name="subscription_feature_data">%1$s включено</string>
     <string name="subscription_feature_devices">До %1$d устройств</string>
     <string name="subscription_feature_ai">AI Agent: лучшие узлы в реальном времени</string>
+    <string name="subscription_current_plan">Активен</string>
+    <string name="subscription_cancel_plan">Отменить подписку</string>
+    <string name="subscription_included_in_current_plan">Включено в текущий план</string>
     <string name="subscription_content_basic">Базовый план</string>
     <string name="subscription_content_premium">Premium план</string>
     <string name="subscription_content_platinum">Платиновый план</string>

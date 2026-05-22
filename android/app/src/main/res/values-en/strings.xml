@@ -312,6 +312,9 @@
     <string name="subscription_feature_data">%1$s included</string>
     <string name="subscription_feature_devices">Up to %1$d devices</string>
     <string name="subscription_feature_ai">AI Agent: best nodes in real time</string>
+    <string name="subscription_current_plan">Current</string>
+    <string name="subscription_cancel_plan">Cancel subscription</string>
+    <string name="subscription_included_in_current_plan">Included in current plan</string>
     <string name="subscription_content_basic">Basic plan</string>
     <string name="subscription_content_premium">Premium plan</string>
     <string name="subscription_content_platinum">Platinum plan</string>

@@ -1130,7 +1130,8 @@ private fun profileBadgeText(profile: AccessProfileResponse, context: android.co
         "PENDING_FULFILLMENT" -> context.getString(R.string.profile_status_pending_fulfillment)
         "FREEMIUM", "EXPIRED_TRIAL", "EXPIRED_SUBSCRIPTION" -> context.getString(R.string.profile_status_standard)
         "ACTIVE_TRIAL" -> context.getString(R.string.profile_status_trial_active)
-        "ACTIVE_SUBSCRIPTION" -> context.getString(R.string.profile_status_paid_active)
+        "ACTIVE_SUBSCRIPTION" -> profileLocalizedPlanName(profile, context)?.takeIf { it.isNotBlank() }
+            ?: context.getString(R.string.profile_status_paid_active)
         else -> context.getString(R.string.profile_status_standard)
     }
 

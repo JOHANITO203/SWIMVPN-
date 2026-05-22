@@ -102,7 +102,14 @@ data class SubscriptionPlanUi(
     val badgeLabel: String? = null,
     val isHighlighted: Boolean = false,
     val isCurrentPlan: Boolean = false,
+    val purchaseState: SubscriptionPurchaseState = SubscriptionPurchaseState.PURCHASABLE,
 )
+
+enum class SubscriptionPurchaseState {
+    PURCHASABLE,
+    CURRENT,
+    INCLUDED,
+}
 
 data class SubscriptionScreenUiState(
     val plans: List<SubscriptionPlanUi>,
@@ -116,6 +123,7 @@ fun SubscriptionScreen(
     plans: List<Plan>,
     paymentEmail: String?,
     onCheckoutClick: (planId: String, paymentMethod: String) -> Unit,
+    onCancelSubscription: () -> Unit = {},
     onBack: () -> Unit = {},
     activeOfferCode: String? = null,
     onProfileClick: () -> Unit = onBack,
@@ -144,7 +152,16 @@ fun SubscriptionScreen(
         ),
         selectedPaymentMethod = selectedPaymentMethod,
         onPaymentMethodSelected = { selectedPaymentMethod = it },
-        onPlanSelected = { tier -> pendingPlan = uiPlans.firstOrNull { it.tier == tier } },
+        onPlanSelected = { tier ->
+            val plan = uiPlans.firstOrNull { it.tier == tier }
+            if (plan != null) {
+                when (plan.purchaseState) {
+                    SubscriptionPurchaseState.PURCHASABLE -> pendingPlan = plan
+                    SubscriptionPurchaseState.CURRENT -> onCancelSubscription()
+                    SubscriptionPurchaseState.INCLUDED -> Unit
+                }
+            }
+        },
         onProfileClick = onProfileClick,
         onDockNavigate = { item ->
             when (item) {
@@ -331,7 +348,12 @@ private fun SubscriptionPlanCard(
                 },
                 shape = shape,
             )
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = plan.purchaseState != SubscriptionPurchaseState.INCLUDED,
+                onClick = onClick,
+            )
             .drawBehind {
                 drawSwimDarkMaterialSkin(tokens)
                 drawSwimLightCardTexture(tokens)
@@ -408,8 +430,9 @@ private fun SubscriptionPlanCard(
                 Spacer(modifier = Modifier.weight(1f))
 
                 PlanCtaButton(
-                    text = plan.ctaLabel,
-                    highlighted = plan.isHighlighted,
+                    text = plan.purchaseState.ctaLabel(plan),
+                    highlighted = plan.isHighlighted && plan.purchaseState == SubscriptionPurchaseState.PURCHASABLE,
+                    enabled = plan.purchaseState != SubscriptionPurchaseState.INCLUDED,
                     onClick = onClick,
                 )
             }
@@ -425,7 +448,7 @@ private fun PriceBlock(plan: SubscriptionPlanUi, compact: Boolean) {
         }
         if (plan.isCurrentPlan) {
             Text(
-                text = "Actuel",
+                text = stringResource(R.string.subscription_current_plan),
                 color = SwimDesignTokens.Color.PurpleActive,
                 fontSize = fixedSp(10),
                 fontWeight = FontWeight.Bold,
@@ -566,12 +589,14 @@ private fun FeatureRow(text: String, compact: Boolean) {
 private fun PlanCtaButton(
     text: String,
     highlighted: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     PressablePill(
         text = text,
         highlighted = highlighted,
         contentDescription = text,
+        enabled = enabled,
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -706,6 +731,7 @@ private fun PressablePill(
     text: String,
     highlighted: Boolean,
     contentDescription: String,
+    enabled: Boolean = true,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -731,7 +757,12 @@ private fun PressablePill(
             .clip(shape)
             .background(if (highlighted) purpleCtaBrush() else secondaryCtaBrush())
             .border(1.dp, if (highlighted) SwimDesignTokens.Color.StrokeActive else SwimDesignTokens.Color.StrokeSubtle, shape)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            )
             .drawBehind {
                 val tokens = SwimDesignTokens.Current
                 val topGlow = if (tokens == SwimDesignTokens.Dark) {
@@ -755,7 +786,11 @@ private fun PressablePill(
     ) {
         Text(
             text = text,
-            color = if (highlighted) Color.White else SwimDesignTokens.Color.TextPrimary,
+            color = when {
+                highlighted -> Color.White
+                enabled -> SwimDesignTokens.Color.TextPrimary
+                else -> SwimDesignTokens.Color.TextMuted
+            },
             fontSize = fixedSp(12),
             fontWeight = FontWeight.Black,
             maxLines = 1,
@@ -902,6 +937,7 @@ private fun StaggeredEnter(
 
 private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?, resources: Resources): SubscriptionPlanUi {
     val tier = code.toSubscriptionTier()
+    val activeTier = activeOfferCode?.toSubscriptionTierOrNull()
     val planTitle = name.ifBlank { tier.displayName(resources) }.toLocalizedPlanTitle(tier, resources)
     return SubscriptionPlanUi(
         id = id,
@@ -914,9 +950,26 @@ private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?, resources: Resou
         ctaLabel = resources.getString(R.string.subscription_choose_plan, planTitle),
         badgeLabel = if (tier == SubscriptionPlanTier.PREMIUM) resources.getString(R.string.subscription_most_chosen) else null,
         isHighlighted = tier == SubscriptionPlanTier.PREMIUM,
-        isCurrentPlan = activeOfferCode?.toSubscriptionTierOrNull() == tier,
+        isCurrentPlan = activeTier == tier,
+        purchaseState = tier.purchaseStateFor(activeTier),
     )
 }
+
+@Composable
+private fun SubscriptionPurchaseState.ctaLabel(plan: SubscriptionPlanUi): String =
+    when (this) {
+        SubscriptionPurchaseState.PURCHASABLE -> plan.ctaLabel
+        SubscriptionPurchaseState.CURRENT -> stringResource(R.string.subscription_cancel_plan)
+        SubscriptionPurchaseState.INCLUDED -> stringResource(R.string.subscription_included_in_current_plan)
+    }
+
+private fun SubscriptionPlanTier.purchaseStateFor(activeTier: SubscriptionPlanTier?): SubscriptionPurchaseState =
+    when {
+        activeTier == null -> SubscriptionPurchaseState.PURCHASABLE
+        this == activeTier -> SubscriptionPurchaseState.CURRENT
+        order > activeTier.order -> SubscriptionPurchaseState.PURCHASABLE
+        else -> SubscriptionPurchaseState.INCLUDED
+    }
 
 private fun SubscriptionPlanUi.cardHeight(compact: Boolean): Dp =
     when {

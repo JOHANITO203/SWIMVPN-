@@ -299,6 +299,7 @@ fun AppNavigation(
                 plans = data.plans,
                 paymentEmail = data.profile.email,
                 activeOfferCode = data.profile.offerCode,
+                onCancelSubscription = { viewModel.cancelCurrentSubscription(context) },
                 onCheckoutClick = { planId, paymentMethod ->
                     viewModel.createCheckout(
                         planId = planId,

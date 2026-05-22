@@ -3801,3 +3801,12 @@ pm run build PASSED.
 - Remote supplier URLs that resolve to zero runtime nodes are now rejected instead of entering paid/trial stock as `UNKNOWN`.
 - Added parser coverage for 302 + `Set-Cookie` supplier redirects, VPN subscription user-agent headers, base64 VLESS payload resolution, and invalid empty remote subscriptions.
 - Verification: supplier resource parser tests, managed nodes parser tests, backend `npm run typecheck`, and full backend `npm run test:policy` passed.
+
+# 2026-05-22 - Subscription active plan UI guard
+
+- Updated Android Subscription screen so the active paid plan no longer opens checkout again.
+- Higher plans remain purchasable as upgrades, while lower plans are displayed as included in the current plan rather than normal purchase actions.
+- Routed the active plan card action to the existing backend-backed cancellation flow.
+- Updated Profile badge text to show the purchased plan name for active paid access instead of a generic active access label.
+- Added localized strings for current plan, cancellation, and included-plan states in French, English, and Russian.
+- Verification: `:app:compileDebugKotlin`, `:app:assembleDebug`, and `git diff --check` passed. ADB install was skipped because no device was listed.
