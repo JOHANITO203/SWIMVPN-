@@ -3692,3 +3692,14 @@ pm run build PASSED.
 
 - Fixed the root `npm run lint` blocker by scoping the root Vite/React `tsconfig.json` to frontend files instead of letting it typecheck backend and Android sources with the wrong compiler options.
 - Preserved backend typechecking through `backend/tsconfig.json` and backend npm scripts.
+
+# 2026-05-22 - Android Gradle exception diagnostic cleanup
+
+- Removed the explicit `org.gradle.api.GradleException` import from `android/app/build.gradle` after IDE/Gradle script analysis reported it as unresolved.
+- Replaced the three custom build failure throws with standard `IllegalStateException`, preserving the same failure behavior without requiring a Gradle API import in the Groovy script.
+
+# 2026-05-22 - Landing payment asset and mobile layout polish
+
+- Replaced the landing SwimPay payment mark with the provided transparent PNG asset while keeping it framed at the same visual size as the Crypto icon.
+- Made the RU/FR language selector visible on mobile and hid the navbar APK CTA on narrow screens to avoid header crowding.
+- Rebalanced the final APK download section and footer so stat cards no longer squeeze text such as `Xray/V2Ray`, and the footer no longer appears as a detached narrow side rail.

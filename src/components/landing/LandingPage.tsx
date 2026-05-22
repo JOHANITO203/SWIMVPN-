@@ -39,6 +39,11 @@ const ui = {
     'inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-xs font-black text-white shadow-[0_12px_30px_rgba(0,0,0,0.18)]',
 };
 
+const paymentIconSrc = {
+  swimpay: '/payments/swimpay.png',
+  crypto: '/payments/crypto.svg',
+} as const;
+
 function getInitialLocale(): LandingLocale {
   if (typeof window === 'undefined') return LANDING_DEFAULT_LOCALE;
 
@@ -115,13 +120,13 @@ const LandingPage = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="hidden rounded-2xl border border-black/[0.08] bg-white/54 p-1 shadow-[0_10px_28px_rgba(35,29,58,0.08)] backdrop-blur-xl sm:flex" aria-label={copy.nav.language}>
+            <div className="flex rounded-2xl border border-black/[0.08] bg-white/54 p-1 shadow-[0_10px_28px_rgba(35,29,58,0.08)] backdrop-blur-xl" aria-label={copy.nav.language}>
               {LANDING_LOCALES.map((item) => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => setLanguage(item)}
-                  className={`min-h-9 rounded-xl px-3 text-xs font-black transition ${
+                  className={`min-h-9 rounded-xl px-2.5 text-[0.68rem] font-black transition sm:px-3 sm:text-xs ${
                     item === locale ? 'bg-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.18)]' : 'text-black/54 hover:text-black'
                   }`}
                 >
@@ -132,7 +137,7 @@ const LandingPage = () => {
             <a
               href="/downloads/swimvpn.apk"
               download="SwimVPN.apk"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-black px-5 text-sm font-black text-white shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition hover:-translate-y-0.5 hover:bg-[#17171C]"
+              className="hidden min-h-11 items-center justify-center gap-2 rounded-2xl bg-black px-5 text-sm font-black text-white shadow-[0_16px_38px_rgba(0,0,0,0.28)] transition hover:-translate-y-0.5 hover:bg-[#17171C] sm:inline-flex"
             >
               {copy.nav.install}
               <ArrowUpRight size={16} strokeWidth={2.5} />
@@ -290,7 +295,9 @@ const LandingPage = () => {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {copy.payments.methods.map((method) => (
                 <div key={method.name} className="rounded-2xl bg-white p-5 shadow-[0_14px_34px_rgba(35,29,58,0.10)]">
-                  <img src={`/payments/${method.icon}.svg`} alt="" className="mb-5 h-11 w-11" />
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-black/[0.05] bg-[#F7F5FC] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_24px_rgba(35,29,58,0.08)]">
+                    <img src={paymentIconSrc[method.icon]} alt="" className="h-10 w-10 object-contain" />
+                  </div>
                   <div className="font-black">{method.name}</div>
                   <p className="mt-2 text-xs font-semibold leading-relaxed text-[#625B70]">{method.text}</p>
                 </div>
@@ -298,8 +305,8 @@ const LandingPage = () => {
             </div>
           </motion.article>
 
-          <motion.section {...motionProps} id="download-apk" className={`${ui.lightCard} p-7 sm:p-10 lg:col-span-10`}>
-            <div className="grid gap-8 lg:grid-cols-[1.2fr_2fr] lg:items-center">
+          <motion.section {...motionProps} id="download-apk" className={`${ui.lightCard} p-7 sm:p-10 lg:col-span-12`}>
+            <div className="grid gap-8 xl:grid-cols-[minmax(280px,0.95fr)_minmax(0,1.6fr)] xl:items-center">
               <div>
                 <h2 className="max-w-md text-3xl font-black leading-tight tracking-[-0.05em] sm:text-4xl">{copy.finalCta.title}</h2>
                 <a
@@ -311,18 +318,18 @@ const LandingPage = () => {
                   <Download size={18} />
                 </a>
               </div>
-              <div className="grid gap-4 sm:grid-cols-4">
+              <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {copy.finalCta.stats.map(([value, label]) => (
-                  <div key={value} className="rounded-3xl border border-black/[0.06] bg-white/62 p-6 shadow-[0_14px_34px_rgba(35,29,58,0.08)] backdrop-blur-xl">
-                    <div className="text-2xl font-black tracking-[-0.05em]">{value}</div>
-                    <div className="mt-2 text-sm font-semibold text-[#625B70]">{label}</div>
+                  <div key={value} className="min-w-0 rounded-3xl border border-black/[0.06] bg-white/62 p-5 shadow-[0_14px_34px_rgba(35,29,58,0.08)] backdrop-blur-xl sm:p-6">
+                    <div className="break-words text-2xl font-black tracking-[-0.05em]">{value}</div>
+                    <div className="mt-2 text-sm font-semibold leading-snug text-[#625B70]">{label}</div>
                   </div>
                 ))}
               </div>
             </div>
           </motion.section>
 
-          <motion.footer {...motionProps} className={`${ui.darkCard} flex min-h-[160px] flex-col justify-between p-7 lg:col-span-2`}>
+          <motion.footer {...motionProps} className={`${ui.darkCard} flex min-h-[160px] flex-col justify-between gap-10 p-7 sm:flex-row sm:items-center lg:col-span-12`}>
             <div className="flex items-center gap-3">
               <img src="/brand/swimvpn-shark-mark.svg" alt="" className="h-9 w-9 object-contain" />
               <div className="text-xl font-black tracking-[-0.04em]">SWIMVPN</div>

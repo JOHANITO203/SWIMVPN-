@@ -1,5 +1,3 @@
-import org.gradle.api.GradleException
-
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -71,7 +69,7 @@ def repairTun2SocksWindowsSymlinks = { File repoDir ->
 def buildTun2SocksSharedLibraries = { File repoDir, List<String> abis ->
     def ndkDir = file("${android.sdkDirectory}/ndk/${android.ndkVersion}")
     if (!ndkDir.exists()) {
-        throw new GradleException("Android NDK ${android.ndkVersion} is not installed under ${android.sdkDirectory}/ndk")
+        throw new IllegalStateException("Android NDK ${android.ndkVersion} is not installed under ${android.sdkDirectory}/ndk")
     }
 
     exec {
@@ -218,7 +216,7 @@ tasks.register("prepareXrayRuntimeAssets") {
             }.files.find { it.isFile() }
 
             if (extractedBinary == null) {
-                throw new GradleException("Official Xray archive ${archiveName} did not contain an xray executable")
+                throw new IllegalStateException("Official Xray archive ${archiveName} did not contain an xray executable")
             }
 
             def targetDir = file("${generatedRuntimeJniLibsDir}/${abi}")
@@ -307,7 +305,7 @@ tasks.register("prepareTun2SocksRuntimeAssets") {
             missingSharedLibraryAbis.unique().each { abi ->
                 def builtFile = locateTun2SocksSharedLibrary(abi)
                 if (builtFile == null || !builtFile.exists()) {
-                    throw new GradleException("tun2socks source build did not produce ${tun2SocksSharedLibraryName} for ${abi}")
+                    throw new IllegalStateException("tun2socks source build did not produce ${tun2SocksSharedLibraryName} for ${abi}")
                 }
                 def jniTargetDir = file("${generatedRuntimeJniLibsDir}/${abi}")
                 jniTargetDir.mkdirs()
