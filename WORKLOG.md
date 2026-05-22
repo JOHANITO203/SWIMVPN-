@@ -3728,3 +3728,9 @@ pm run build PASSED.
 - Added Traefik routers for `swimvpn.pro` on HTTP and HTTPS in `landing-service`.
 - Configured `swimvpn.pro` to redirect permanently to the canonical `https://app.swimvpn.pro/` host while keeping `app.swimvpn.pro` as the landing service route.
 - Verified the compose file with `docker compose config --quiet`.
+
+# 2026-05-22 - Search verification and landing SEO headers
+
+- Added Google Search Console and Yandex Webmaster verification meta tags to the landing HTML.
+- Switched Twitter preview metadata from `summary` to `summary_large_image` for the existing `1200x630` OG image.
+- Hardened the landing Nginx config with UTF-8 charset, `.webmanifest` MIME type, no-cache rules for crawl metadata, and long-lived cache headers for static assets.
