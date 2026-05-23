@@ -47,6 +47,7 @@ enum TrialConfigStatus {
   AVAILABLE
   ASSIGNED
   DEAD
+  EXPIRED
   DISABLED
 }
 
