@@ -808,13 +808,20 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         : { cmd: 'list_inventory_overview' };
       const overview = await firstValueFrom(this.inventoryClient.send(pattern, {}));
       const item = Array.isArray(overview)
-        ? overview.find((entry: any) => entry.id === id)
+        ? overview.find((entry: any) =>
+            entry.id === id ||
+            (entry.folderCode && entry.folderCode.toLowerCase() === id.toLowerCase()) ||
+            (entry.adminLabel && entry.adminLabel.toLowerCase() === id.toLowerCase()),
+          )
         : null;
+
+      const resolvedId = item?.id || id;
+
       await ctx.reply(
         formatInventoryReview(scope, item || null),
         {
           parse_mode: 'Markdown',
-          ...getInventoryActionKeyboard(scope, id),
+          ...getInventoryActionKeyboard(scope, resolvedId),
         },
       );
     } catch (error) {
@@ -1039,33 +1046,63 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
   private async executeDirectDelete(ctx: any, scope: 'paid' | 'trial', id: string) {
     try {
+      let targetId: string;
+
       if (scope === 'paid') {
-        await this.prisma.inventoryItem.delete({ where: { id } });
+        const item = await this.prisma.inventoryItem.findFirst({
+          where: {
+            OR: [
+              { id },
+              { folder_code: { equals: id, mode: 'insensitive' } },
+              { admin_label: { equals: id, mode: 'insensitive' } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (!item) throw new Error(`Item \`${id}\` introuvable dans l'inventaire payant.`);
+        targetId = item.id;
+        await this.prisma.inventoryItem.delete({ where: { id: targetId } });
       } else {
-        await this.prisma.trialConfig.delete({ where: { id } });
+        const item = await this.prisma.trialConfig.findFirst({
+          where: {
+            OR: [
+              { id },
+              { folder_code: { equals: id, mode: 'insensitive' } },
+              { admin_label: { equals: id, mode: 'insensitive' } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (!item) throw new Error(`Item \`${id}\` introuvable dans le Trial Store.`);
+        targetId = item.id;
+        await this.prisma.trialConfig.delete({ where: { id: targetId } });
       }
 
       await this.prisma.adminEvent.create({
         data: {
           event_type: scope === 'paid' ? 'ADMIN_BOT_INVENTORY_DELETE_SUCCESS' : 'ADMIN_BOT_TRIAL_DELETE_SUCCESS',
           entity_type: scope === 'paid' ? 'INVENTORY' : 'TRIAL_CONFIG',
-          entity_id: id,
+          entity_id: targetId,
           payload_json: {
+            inputQuery: id,
             telegramUserId: ctx.from?.id?.toString() || null,
             timestamp: new Date().toISOString(),
           } as any,
         },
       });
 
-      await ctx.reply(`🗑️ Item ${id} supprimé définitivement.`);
+      await ctx.reply(`🗑️ Item \`${id}\` supprimé avec succès.`);
       await this.replyStockOverview(ctx);
     } catch (error: any) {
       if (error.code === 'P2003') {
         await ctx.reply(
-          `❌ *Suppression impossible*\n\nL'item \`${id}\` est lié à des commandes existantes. Désactivez-le à la place.`,
+          `❌ *Suppression impossible*\n\nL'item \`${id}\` est lié à des commandes ou attributions existantes. Désactivez-le à la place (\`/disable\`).`,
           { parse_mode: 'Markdown' },
         );
+      } else if (error.message.includes('introuvable')) {
+        await ctx.reply(`❓ *ID Inconnu* :\n${error.message}`, { parse_mode: 'Markdown' });
       } else {
+        this.logger.error(`Delete failed for ${id}`, error);
         await ctx.reply(`❌ Erreur technique : ${error.message}`);
       }
     }
@@ -1078,11 +1115,32 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   ) {
     const parsed = parseInventoryActionCommand(ctx.message?.text || '');
     if (!parsed.inventoryItemId) {
-      await ctx.reply(`Usage: ${ctx.message?.text?.split(/\s+/)[0] || '/command'} <inventoryId> [reason]`);
+      await ctx.reply(`Usage: ${ctx.message?.text?.split(/\s+/)[0] || '/command'} <id-ou-code> [raison]`);
       return;
     }
 
-    await this.executeInventoryHealthUpdate(ctx, parsed.inventoryItemId, healthStatus, parsed.reason || defaultReason);
+    let targetId = parsed.inventoryItemId;
+    try {
+      // Resolve ID first
+      const item = await this.prisma.inventoryItem.findFirst({
+        where: {
+          OR: [
+            { id: targetId },
+            { folder_code: { equals: targetId, mode: 'insensitive' } },
+            { admin_label: { equals: targetId, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (item) {
+        targetId = item.id;
+      }
+    } catch (e) {
+      // Fallback to original ID if search fails
+    }
+
+    await this.executeInventoryHealthUpdate(ctx, targetId, healthStatus, parsed.reason || defaultReason);
   }
 
   private async handleDelete(ctx: any, scope: 'paid' | 'trial') {
