@@ -141,7 +141,7 @@ export function formatInventoryOverview(items: InventoryOverviewItem[]) {
 
     for (const item of categoryItems.slice(0, 5)) {
       const id = item.id ? item.id.slice(0, 8) : 'unknown';
-      const folder = item.folderCode ? ` \`${item.folderCode}\`` : ` \`${id}\``;
+      const folder = item.folderCode ? ` \`${item.folderCode}\`` : ` \`${item.id}\``;
       const countries = formatCountriesPreview(item.countriesPreview);
       const preview = countries ? ` ${countries}` : '';
       const emoji = getStatusEmoji(item.healthStatus);
@@ -165,7 +165,7 @@ export function formatTrialInventoryOverview(items: TrialInventoryOverviewItem[]
 
   for (const item of items.slice(0, 8)) {
     const id = item.id ? item.id.slice(0, 8) : 'unknown';
-    const folder = item.folderCode ? ` \`${item.folderCode}\`` : ` \`${id}\``;
+    const folder = item.folderCode ? ` \`${item.folderCode}\`` : ` \`${item.id}\``;
     const countries = formatCountriesPreview(item.countriesPreview);
     const preview = countries ? ` ${countries}` : '';
     const emoji = getStatusEmoji(item.status);
@@ -225,7 +225,8 @@ export function formatInventoryReview(
       `👁️ *Preview:* ${previewStatus}`,
       `📅 *Supplier expiry:* ${expires}`,
       '',
-      `ID: \`${item.id}\``,
+      `🆔 *ID (cliquez pour copier) :*`,
+      `\`${item.id}\``,
     ].join('\n');
   }
 
@@ -245,7 +246,8 @@ export function formatInventoryReview(
     `👁️ *Preview:* ${previewStatus}`,
     `📅 *Supplier expiry:* ${expires}`,
     '',
-    `ID: \`${item.id}\``,
+    `🆔 *ID (cliquez pour copier) :*`,
+    `\`${item.id}\``,
   ].join('\n');
 }
 
@@ -343,8 +345,8 @@ export function formatImportResult(category: PlanCategory, result: any) {
     const provider = item.supplierProviderName ? `Provider: ${item.supplierProviderName}` : null;
     lines.push([
       '',
-      `Inventory: ${String(item.id || 'unknown').slice(0, 8)}`,
-      `Protocol: ${item.configType || item.displayProtocol || 'unknown'}`,
+      `🆔 *ID:* \`${item.id}\``,
+      `🔌 *Protocol:* \`${item.configType || item.displayProtocol || 'unknown'}\``,
       provider,
       quota,
       used,
@@ -391,9 +393,9 @@ export function formatTrialImportResult(result: any) {
     const provider = item.supplierProviderName ? `Provider: ${item.supplierProviderName}` : null;
     lines.push([
       '',
-      `Trial config: ${String(item.id || 'unknown').slice(0, 12)}`,
-      `Campaign: ${item.campaignCode || 'trial-2026-05'}`,
-      `Protocol: ${item.configType || item.displayProtocol || 'unknown'}`,
+      `🆔 *ID:* \`${item.id}\``,
+      `📍 *Campaign:* \`${item.campaignCode || 'trial-2026-05'}\``,
+      `🔌 *Protocol:* \`${item.configType || item.displayProtocol || 'unknown'}\``,
       provider,
       expires,
     ].filter(Boolean).join('\n'));
@@ -490,9 +492,9 @@ export function formatAccountingSummary(input: {
   amountRub: string;
 }) {
   return [
-    input.title,
-    `Orders: ${input.orderCount}`,
-    `Revenue: ${input.amountRub} RUB`,
+    `📊 *${input.title}*`,
+    `📦 Orders: ${input.orderCount}`,
+    `💰 Revenue: ${input.amountRub} RUB`,
   ].join('\n');
 }
 

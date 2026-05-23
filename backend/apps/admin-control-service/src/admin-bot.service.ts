@@ -110,7 +110,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.start(async (ctx) => ctx.reply(this.helpText(), this.mainKeyboard()));
     this.bot.command('help', async (ctx) => ctx.reply(this.helpText(), this.mainKeyboard()));
-    this.bot.command('whoami', async (ctx) => ctx.reply(this.formatWhoami(ctx)));
+    this.bot.command('whoami', async (ctx) => ctx.reply(this.formatWhoami(ctx), { parse_mode: 'Markdown' }));
 
     this.bot.command('status', async (ctx) => {
       await ctx.reply('SWIMVPN+ Admin Operations Bot is online.');
@@ -145,14 +145,14 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         }
 
         const message = recentOrders.map((order) => [
-          `Order: ${order.order_ref}`,
-          `Customer: ${order.customer.public_id}`,
-          `Plan: ${order.plan.name}`,
-          `Amount: ${order.amount_rub.toString()} RUB`,
-          `Status: ${order.status}`,
+          `📦 *Order:* \`${order.order_ref}\``,
+          `👤 *Customer:* \`${order.customer.public_id}\``,
+          `🏷️ *Plan:* ${order.plan.name}`,
+          `💰 *Amount:* ${order.amount_rub.toString()} RUB`,
+          `🚦 *Status:* ${order.status}`,
         ].join('\n')).join('\n\n');
 
-        await ctx.reply(message);
+        await ctx.reply(message, { parse_mode: 'Markdown' });
       } catch (error) {
         this.logger.error('Failed to fetch recent orders', error as Error);
         await ctx.reply('Unable to fetch orders right now.');
@@ -228,10 +228,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           const result = await firstValueFrom(
             this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
           );
-          results.push(`${order.order_ref}: ${result?.pendingFulfillment ? 'pending capacity' : 'processed'}`);
+          results.push(`\`${order.order_ref}\`: ${result?.pendingFulfillment ? '⏳ pending' : '✅ processed'}`);
         }
 
-        await ctx.reply(['Retry finished', ...results].join('\n'));
+        await ctx.reply(['*Retry finished*', ...results].join('\n'), { parse_mode: 'Markdown' });
       } catch (error) {
         this.logger.error('Failed to retry fulfillment', error as Error);
         await ctx.reply('Retry failed. Check inventory capacity and service logs.');
@@ -322,11 +322,11 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         });
 
         await ctx.reply([
-          'Expense recorded',
-          `Amount: ${parsed.amount} ${parsed.currency}`,
-          `Note: ${parsed.note}`,
-          `Entry: ${entry.id}`,
-        ].join('\n'));
+          '✅ *Expense recorded*',
+          `💰 *Amount:* ${parsed.amount} ${parsed.currency}`,
+          `📝 *Note:* ${parsed.note}`,
+          `🆔 *Entry ID:* \`${entry.id}\``,
+        ].join('\n'), { parse_mode: 'Markdown' });
       } catch (error) {
         this.logger.error('Failed to record manual expense', error as Error);
         await ctx.reply('Unable to record expense right now.');
@@ -788,7 +788,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           paid: Array.isArray(paidOverview) ? paidOverview : [],
           trial: Array.isArray(trialOverview) ? trialOverview : [],
         }),
-        this.mainKeyboard(),
+        {
+          parse_mode: 'Markdown',
+          ...this.mainKeyboard(),
+        },
       );
     } catch (error) {
       this.logger.error('Failed to read inventory overview', error as Error);
@@ -798,7 +801,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
   private async replyImportResult(ctx: any, message: string, scope: 'paid' | 'trial', result: any) {
     const importedId = this.extractFirstImportedId(result);
-    await ctx.reply(message, this.postImportKeyboard(scope, importedId));
+    await ctx.reply(message, {
+      parse_mode: 'Markdown',
+      ...this.postImportKeyboard(scope, importedId),
+    });
   }
 
   private async replyInventoryReview(ctx: any, scope: 'paid' | 'trial', id: string) {
@@ -864,13 +870,15 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
       if (matches.length > 1) {
         await ctx.reply([
-          'Review query is ambiguous. Use a longer id or folder code.',
+          '⚠️ *Query ambiguous. Match multiple items:*',
           '',
           ...matches.slice(0, 8).map((match) => {
             const label = match.item.folderCode || match.item.adminLabel || match.item.id || 'unknown';
-            return `- ${match.scope}: ${label}`;
+            return `- ${match.scope}: \`${label}\``;
           }),
-        ].join('\n'), this.mainKeyboard());
+          '',
+          'Use a full UUID or exact folder code.',
+        ].join('\n'), { parse_mode: 'Markdown', ...this.mainKeyboard() });
         return;
       }
 
@@ -929,15 +937,15 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     const userInAllowList = !!fromId && this.adminUserIds.includes(fromId);
 
     return [
-      'Telegram identity',
-      `User id: ${ctx.from?.id || '-'}`,
-      `Chat id: ${ctx.chat?.id || '-'}`,
-      `Username: ${ctx.from?.username ? `@${ctx.from.username}` : '-'}`,
-      `Authorized: ${authorized ? 'yes' : 'no'}`,
-      `Configured admin ids: ${this.adminUserIds.length}`,
-      `Current user in ADMIN_USER_IDS: ${userInAllowList ? 'yes' : 'no'}`,
+      '*Telegram identity*',
+      `👤 User id: \`${ctx.from?.id || '-'}\``,
+      `💬 Chat id: \`${ctx.chat?.id || '-'}\``,
+      `🏷️ Username: ${ctx.from?.username ? `@${ctx.from.username}` : '-'}`,
+      `🛡️ Authorized: ${authorized ? '✅' : '❌'}`,
+      `👥 Configured admin ids: ${this.adminUserIds.length}`,
+      `🔑 Current user in allow-list: ${userInAllowList ? '✅' : '❌'}`,
       '',
-      'Add the User id to ADMIN_USER_IDS for private admin commands.',
+      '_Add the User id to ADMIN_USER_IDS for private admin commands._',
     ].join('\n');
   }
 
@@ -1037,7 +1045,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      await ctx.reply(`✅ Item ${inventoryItemId} mis à jour : ${healthStatus}.`);
+      await ctx.reply(`✅ Item \`${inventoryItemId}\` mis à jour : *${healthStatus}*.`, { parse_mode: 'Markdown' });
     } catch (error) {
       this.logger.error('Failed to update health via button', error as Error);
       await ctx.reply('❌ Échec de la mise à jour.');
@@ -1091,7 +1099,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      await ctx.reply(`🗑️ Item \`${id}\` supprimé avec succès.`);
+      await ctx.reply(`🗑️ Item \`${id}\` supprimé avec succès.`, { parse_mode: 'Markdown' });
       await this.replyStockOverview(ctx);
     } catch (error: any) {
       if (error.code === 'P2003') {
@@ -1173,7 +1181,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         title,
         orderCount: orders.length,
         amountRub: total.toFixed(2),
-      }));
+      }), { parse_mode: 'Markdown' });
     } catch (error) {
       this.logger.error('Failed to build accounting summary', error as Error);
       await ctx.reply('Unable to build accounting summary right now.');
@@ -1260,7 +1268,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       );
 
       const status = result?.pendingFulfillment ? '⏳ Toujours en attente (manque de stock)' : '✅ Traitée avec succès';
-      await ctx.reply(`Relance ${orderRef} : ${status}`);
+      await ctx.reply(`Relance \`${orderRef}\` : ${status}`, { parse_mode: 'Markdown' });
     } catch (error) {
       this.logger.error('Order retry failed', error as Error);
       await ctx.reply(`❌ Échec de la relance pour ${orderRef}.`);
