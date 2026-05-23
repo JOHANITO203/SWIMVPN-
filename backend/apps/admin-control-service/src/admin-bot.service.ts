@@ -643,7 +643,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       if (scope === 'paid') {
         await this.executeInventoryHealthUpdate(ctx, id, InventoryHealthStatus.EXPIRED, 'ADMIN_UI_EXPIRE');
       } else {
-        await this.prisma.trialConfig.update({ where: { id }, data: { status: TrialConfigStatus.EXPIRED } });
+        await this.prisma.trialConfig.update({ where: { id }, data: { status: 'EXPIRED' } });
         await ctx.reply(`Trial ${id} marqué expiré.`);
       }
       await this.replyInventoryReview(ctx, scope, id);
