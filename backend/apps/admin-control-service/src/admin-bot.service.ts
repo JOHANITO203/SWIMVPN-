@@ -267,6 +267,14 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await this.updateInventoryHealthFromCommand(ctx, 'DISABLED', 'SUPPLIER_QUOTA_REACHED');
     });
 
+    this.bot.command('delete', async (ctx) => {
+      await this.handleDelete(ctx, 'paid');
+    });
+
+    this.bot.command('delete_trial', async (ctx) => {
+      await this.handleDelete(ctx, 'trial');
+    });
+
     this.bot.command('orders_today', async (ctx) => {
       await this.replyAccountingSummary(ctx, 'Orders today');
     });
@@ -605,6 +613,8 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       '/expire <inventoryId> - mark supplier config expired',
       '/disable <inventoryId> - disable supplier config',
       '/quota_reached <inventoryId> - mark supplier quota exhausted',
+      '/delete <inventoryId> - delete a paid config',
+      '/delete_trial <trialConfigId> - delete a trial config',
       '/orders_today - today paid/fulfilled order count',
       '/revenue_today - today paid/fulfilled revenue',
       '/add_expense <amount> <currency> <note> - record supplier/business expense',
@@ -915,6 +925,65 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error('Failed to update inventory health via admin bot', error as Error);
       await ctx.reply('Unable to update inventory health. Check the inventory id and service logs.');
+    }
+  }
+
+  private async handleDelete(ctx: any, scope: 'paid' | 'trial') {
+    const parsed = parseInventoryActionCommand(ctx.message?.text || '');
+    const id = parsed.inventoryItemId;
+
+    if (!id) {
+      await ctx.reply(`Usage: ${scope === 'paid' ? '/delete' : '/delete_trial'} <id>`);
+      return;
+    }
+
+    try {
+      if (scope === 'paid') {
+        await this.prisma.inventoryItem.delete({ where: { id } });
+        await ctx.reply(`Item ${id} supprimé avec succès.`);
+      } else {
+        await this.prisma.trialConfig.delete({ where: { id } });
+        await ctx.reply(`Trial config ${id} supprimé avec succès.`);
+      }
+
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: scope === 'paid' ? 'ADMIN_BOT_INVENTORY_DELETE_SUCCESS' : 'ADMIN_BOT_TRIAL_DELETE_SUCCESS',
+          entity_type: scope === 'paid' ? 'INVENTORY' : 'TRIAL_CONFIG',
+          entity_id: id,
+          payload_json: {
+            telegramUserId: ctx.from?.id?.toString() || null,
+            timestamp: new Date().toISOString(),
+          } as any,
+        },
+      });
+    } catch (error: any) {
+      // P2003 is Prisma's code for "Foreign key constraint failed"
+      if (error.code === 'P2003') {
+        const alternative = scope === 'paid' ? '/disable' : 'le marquage manuel (DEAD/DISABLED)';
+        await ctx.reply(
+          `Suppression impossible : l'item ${id} est lié à des données existantes (commandes/historique).\n\nUtilisez ${alternative} pour le retirer de la vente sans casser l'intégrité de la base de données.`,
+        );
+      } else if (error.code === 'P2525' || error.code === 'P2025') {
+        await ctx.reply(`Erreur : L'item ${id} n'existe pas.`);
+      } else {
+        this.logger.error(`Delete failed for ${scope} ${id}`, error as Error);
+        await ctx.reply(`Échec technique de la suppression : ${error.message}`);
+      }
+
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: scope === 'paid' ? 'ADMIN_BOT_INVENTORY_DELETE_FAILED' : 'ADMIN_BOT_TRIAL_DELETE_FAILED',
+          entity_type: scope === 'paid' ? 'INVENTORY' : 'TRIAL_CONFIG',
+          entity_id: id,
+          payload_json: {
+            telegramUserId: ctx.from?.id?.toString() || null,
+            errorCode: error.code,
+            errorMessage: error.message,
+            timestamp: new Date().toISOString(),
+          } as any,
+        },
+      });
     }
   }
 

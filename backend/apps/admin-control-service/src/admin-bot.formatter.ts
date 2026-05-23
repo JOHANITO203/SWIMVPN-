@@ -74,6 +74,8 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'expire', description: 'Mark supplier config expired' },
   { command: 'disable', description: 'Disable supplier config' },
   { command: 'quota_reached', description: 'Mark supplier quota exhausted' },
+  { command: 'delete', description: 'Delete a paid config' },
+  { command: 'delete_trial', description: 'Delete a trial config' },
   { command: 'healthcheck', description: 'Run inventory health check' },
   { command: 'cancel_import', description: 'Cancel guided config import' },
   { command: 'users', description: 'Show customer statistics' },
