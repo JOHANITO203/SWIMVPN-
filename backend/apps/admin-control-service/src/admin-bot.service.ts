@@ -580,8 +580,51 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     this.bot.action(/review:(paid|trial):(.+)/, async (ctx) => {
       const scope = ctx.match[1] as 'paid' | 'trial';
       const id = ctx.match[2];
-      await ctx.answerCbQuery();
+      await ctx.answerCbQuery('Chargement...');
       await this.replyInventoryReview(ctx, scope, id);
+    });
+
+    this.bot.action(/disable:(paid|trial):(.+)/, async (ctx) => {
+      const scope = ctx.match[1] as 'paid' | 'trial';
+      const id = ctx.match[2];
+      await ctx.answerCbQuery('Désactivation...');
+      if (scope === 'paid') {
+        await this.executeInventoryHealthUpdate(ctx, id, 'DISABLED', 'ADMIN_UI_DISABLE');
+      } else {
+        await this.prisma.trialConfig.update({ where: { id }, data: { status: 'DISABLED' } });
+        await ctx.reply(`Trial ${id} désactivé.`);
+      }
+      await this.replyInventoryReview(ctx, scope, id);
+    });
+
+    this.bot.action(/expire:(paid|trial):(.+)/, async (ctx) => {
+      const scope = ctx.match[1] as 'paid' | 'trial';
+      const id = ctx.match[2];
+      await ctx.answerCbQuery('Marquage expiré...');
+      if (scope === 'paid') {
+        await this.executeInventoryHealthUpdate(ctx, id, 'EXPIRED', 'ADMIN_UI_EXPIRE');
+      } else {
+        await this.prisma.trialConfig.update({ where: { id }, data: { status: 'EXPIRED' } });
+        await ctx.reply(`Trial ${id} marqué expiré.`);
+      }
+      await this.replyInventoryReview(ctx, scope, id);
+    });
+
+    this.bot.action(/delete_confirm:(paid|trial):(.+)/, async (ctx) => {
+      const scope = ctx.match[1] as 'paid' | 'trial';
+      const id = ctx.match[2];
+      await ctx.answerCbQuery();
+      await ctx.reply(
+        `⚠️ *CONFIRMATION DE SUPPRESSION*\n\nVoulez-vous vraiment supprimer définitivement l'item \`${id}\` ? Cette action est irréversible si l'item n'a aucune commande liée.`,
+        { parse_mode: 'Markdown', ...getDeleteConfirmationKeyboard(scope, id) },
+      );
+    });
+
+    this.bot.action(/delete_execute:(paid|trial):(.+)/, async (ctx) => {
+      const scope = ctx.match[1] as 'paid' | 'trial';
+      const id = ctx.match[2];
+      await ctx.answerCbQuery('Suppression en cours...');
+      await this.executeDirectDelete(ctx, scope, id);
     });
   }
 
@@ -698,7 +741,13 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       const item = Array.isArray(overview)
         ? overview.find((entry: any) => entry.id === id)
         : null;
-      await ctx.reply(formatInventoryReview(scope, item || null), this.mainKeyboard());
+      await ctx.reply(
+        formatInventoryReview(scope, item || null),
+        {
+          parse_mode: 'Markdown',
+          ...getInventoryActionKeyboard(scope, id),
+        },
+      );
     } catch (error) {
       this.logger.error('Failed to build inventory review via admin bot', error as Error);
       await ctx.reply('Review unavailable right now. Check service logs.');
@@ -750,7 +799,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       }
 
       const [match] = matches;
-      await ctx.reply(formatInventoryReview(match.scope, match.item), this.mainKeyboard());
+      await this.replyInventoryReview(ctx, match.scope, match.item.id);
     } catch (error) {
       this.logger.error('Failed to search inventory review via admin bot', error as Error);
       await ctx.reply('Review unavailable right now. Check service logs.');
@@ -882,26 +931,17 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     return result;
   }
 
-  private async updateInventoryHealthFromCommand(
+  private async executeInventoryHealthUpdate(
     ctx: any,
+    inventoryItemId: string,
     healthStatus: 'EXPIRED' | 'DISABLED',
-    defaultReason: string,
+    reason: string,
   ) {
-    const parsed = parseInventoryActionCommand(ctx.message?.text || '');
-    if (!parsed.inventoryItemId) {
-      await ctx.reply(`Usage: ${ctx.message?.text?.split(/\s+/)[0] || '/command'} <inventoryId> [reason]`);
-      return;
-    }
-
     try {
       const result = await firstValueFrom(
         this.inventoryClient.send(
           { cmd: 'update_inventory_health' },
-          {
-            inventoryItemId: parsed.inventoryItemId,
-            healthStatus,
-            reason: parsed.reason || defaultReason,
-          },
+          { inventoryItemId, healthStatus, reason },
         ),
       );
 
@@ -909,41 +949,31 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         data: {
           event_type: 'ADMIN_BOT_INVENTORY_HEALTH_UPDATED',
           entity_type: 'INVENTORY',
-          entity_id: parsed.inventoryItemId,
+          entity_id: inventoryItemId,
           payload_json: {
             telegramUserId: ctx.from?.id?.toString() || null,
-            inventoryItemId: parsed.inventoryItemId,
+            inventoryItemId,
             healthStatus,
-            reason: parsed.reason || defaultReason,
+            reason,
             result,
             updatedAt: new Date().toISOString(),
           } as any,
         },
       });
 
-      await ctx.reply(`Inventory ${parsed.inventoryItemId} marked ${healthStatus}.`);
+      await ctx.reply(`✅ Item ${inventoryItemId} mis à jour : ${healthStatus}.`);
     } catch (error) {
-      this.logger.error('Failed to update inventory health via admin bot', error as Error);
-      await ctx.reply('Unable to update inventory health. Check the inventory id and service logs.');
+      this.logger.error('Failed to update health via button', error as Error);
+      await ctx.reply('❌ Échec de la mise à jour.');
     }
   }
 
-  private async handleDelete(ctx: any, scope: 'paid' | 'trial') {
-    const parsed = parseInventoryActionCommand(ctx.message?.text || '');
-    const id = parsed.inventoryItemId;
-
-    if (!id) {
-      await ctx.reply(`Usage: ${scope === 'paid' ? '/delete' : '/delete_trial'} <id>`);
-      return;
-    }
-
+  private async executeDirectDelete(ctx: any, scope: 'paid' | 'trial', id: string) {
     try {
       if (scope === 'paid') {
         await this.prisma.inventoryItem.delete({ where: { id } });
-        await ctx.reply(`Item ${id} supprimé avec succès.`);
       } else {
         await this.prisma.trialConfig.delete({ where: { id } });
-        await ctx.reply(`Trial config ${id} supprimé avec succès.`);
       }
 
       await this.prisma.adminEvent.create({
@@ -957,34 +987,45 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           } as any,
         },
       });
-    } catch (error: any) {
-      // P2003 is Prisma's code for "Foreign key constraint failed"
-      if (error.code === 'P2003') {
-        const alternative = scope === 'paid' ? '/disable' : 'le marquage manuel (DEAD/DISABLED)';
-        await ctx.reply(
-          `Suppression impossible : l'item ${id} est lié à des données existantes (commandes/historique).\n\nUtilisez ${alternative} pour le retirer de la vente sans casser l'intégrité de la base de données.`,
-        );
-      } else if (error.code === 'P2525' || error.code === 'P2025') {
-        await ctx.reply(`Erreur : L'item ${id} n'existe pas.`);
-      } else {
-        this.logger.error(`Delete failed for ${scope} ${id}`, error as Error);
-        await ctx.reply(`Échec technique de la suppression : ${error.message}`);
-      }
 
-      await this.prisma.adminEvent.create({
-        data: {
-          event_type: scope === 'paid' ? 'ADMIN_BOT_INVENTORY_DELETE_FAILED' : 'ADMIN_BOT_TRIAL_DELETE_FAILED',
-          entity_type: scope === 'paid' ? 'INVENTORY' : 'TRIAL_CONFIG',
-          entity_id: id,
-          payload_json: {
-            telegramUserId: ctx.from?.id?.toString() || null,
-            errorCode: error.code,
-            errorMessage: error.message,
-            timestamp: new Date().toISOString(),
-          } as any,
-        },
-      });
+      await ctx.reply(`🗑️ Item ${id} supprimé définitivement.`);
+      await this.replyStockOverview(ctx);
+    } catch (error: any) {
+      if (error.code === 'P2003') {
+        await ctx.reply(
+          `❌ *Suppression impossible*\n\nL'item \`${id}\` est lié à des commandes existantes. Désactivez-le à la place.`,
+          { parse_mode: 'Markdown' },
+        );
+      } else {
+        await ctx.reply(`❌ Erreur technique : ${error.message}`);
+      }
     }
+  }
+
+  private async updateInventoryHealthFromCommand(
+    ctx: any,
+    healthStatus: 'EXPIRED' | 'DISABLED',
+    defaultReason: string,
+  ) {
+    const parsed = parseInventoryActionCommand(ctx.message?.text || '');
+    if (!parsed.inventoryItemId) {
+      await ctx.reply(`Usage: ${ctx.message?.text?.split(/\s+/)[0] || '/command'} <inventoryId> [reason]`);
+      return;
+    }
+
+    await this.executeInventoryHealthUpdate(ctx, parsed.inventoryItemId, healthStatus, parsed.reason || defaultReason);
+  }
+
+  private async handleDelete(ctx: any, scope: 'paid' | 'trial') {
+    const parsed = parseInventoryActionCommand(ctx.message?.text || '');
+    const id = parsed.inventoryItemId;
+
+    if (!id) {
+      await ctx.reply(`Usage: ${scope === 'paid' ? '/delete' : '/delete_trial'} <id>`);
+      return;
+    }
+
+    await this.executeDirectDelete(ctx, scope, id);
   }
 
   private async replyAccountingSummary(ctx: any, title: string) {

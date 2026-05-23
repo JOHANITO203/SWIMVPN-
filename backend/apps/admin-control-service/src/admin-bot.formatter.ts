@@ -1,4 +1,5 @@
 import { PlanCategory } from '@prisma/client';
+import { Markup } from 'telegraf';
 
 type InventoryOverviewItem = {
   id?: string;
@@ -43,10 +44,34 @@ type PendingFulfillmentItem = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  WEEK: 'Basic',
-  MONTH: 'Premium',
-  QUARTER: 'Platinum',
+  WEEK: 'Basic 🟢',
+  MONTH: 'Premium 💎',
+  QUARTER: 'Platinum 🏆',
 };
+
+const STATUS_EMOJIS: Record<string, string> = {
+  HEALTHY: '✅',
+  AVAILABLE: '✅',
+  ASSIGNED: '👤',
+  DISABLED: '🛑',
+  EXPIRED: '⏳',
+  DEAD: '💀',
+  QUOTA_REACHED: '⚠️',
+  UNKNOWN: '❓',
+};
+
+function getStatusEmoji(status?: string | null): string {
+  if (!status) return STATUS_EMOJIS.UNKNOWN;
+  return STATUS_EMOJIS[status] || STATUS_EMOJIS.UNKNOWN;
+}
+
+function formatProgressBar(current: number, max: number): string {
+  const size = 5;
+  const progress = Math.min(Math.max(Math.round((current / max) * size), 0), size);
+  const filled = '🔵'.repeat(progress);
+  const empty = '⚪'.repeat(size - progress);
+  return `${filled}${empty}`;
+}
 
 const CATEGORY_SUPPLIER_CAPACITY: Record<string, number> = {
   WEEK: 2,
@@ -101,7 +126,7 @@ export function mapBotPlanInputToCategory(input: string): PlanCategory | null {
 }
 
 export function formatInventoryOverview(items: InventoryOverviewItem[]) {
-  const lines = ['SWIMVPN+ Paid inventory'];
+  const lines = ['📦 *SWIMVPN+ Paid Inventory*'];
 
   for (const category of [PlanCategory.WEEK, PlanCategory.MONTH, PlanCategory.QUARTER]) {
     const categoryItems = items.filter((item) => item.category === category);
@@ -109,15 +134,19 @@ export function formatInventoryOverview(items: InventoryOverviewItem[]) {
       item.healthStatus === 'HEALTHY' &&
       item.usedResaleSlots < item.maxResaleSlots,
     ).length;
-    lines.push(`${CATEGORY_LABELS[category]}: ${allocatable} allocatable / ${categoryItems.length} total`);
+
+    lines.push(`\n*${CATEGORY_LABELS[category]}*`);
+    lines.push(`${allocatable} allocatable / ${categoryItems.length} total`);
 
     for (const item of categoryItems.slice(0, 5)) {
       const id = item.id ? item.id.slice(0, 8) : 'unknown';
-      const expiry = item.supplierExpiresAt ? ` expires ${item.supplierExpiresAt.slice(0, 10)}` : '';
-      const folder = item.folderCode ? ` ${item.folderCode}` : '';
+      const folder = item.folderCode ? ` \`${item.folderCode}\`` : ` \`${id}\``;
       const countries = formatCountriesPreview(item.countriesPreview);
       const preview = countries ? ` ${countries}` : '';
-      lines.push(`- ${id}${folder}: ${item.healthStatus} ${item.usedResaleSlots}/${item.maxResaleSlots}${preview}${expiry}`);
+      const emoji = getStatusEmoji(item.healthStatus);
+      const bar = formatProgressBar(item.usedResaleSlots, item.maxResaleSlots);
+
+      lines.push(`${emoji}${folder} ${bar} (${item.usedResaleSlots}/${item.maxResaleSlots})${preview}`);
     }
   }
 
@@ -125,21 +154,23 @@ export function formatInventoryOverview(items: InventoryOverviewItem[]) {
 }
 
 export function formatTrialInventoryOverview(items: TrialInventoryOverviewItem[]) {
-  const lines = ['SWIMVPN+ Trial Store'];
+  const lines = ['🧪 *SWIMVPN+ Trial Store*'];
   const allocatable = items.filter((item) =>
     ['AVAILABLE', 'ASSIGNED'].includes(item.status) &&
     item.usedDeviceAssignments < item.maxDeviceAssignments,
   ).length;
 
-  lines.push(`Trial configs: ${allocatable} allocatable / ${items.length} total`);
+  lines.push(`${allocatable} allocatable / ${items.length} total`);
 
   for (const item of items.slice(0, 8)) {
     const id = item.id ? item.id.slice(0, 8) : 'unknown';
-    const expiry = item.supplierExpiresAt ? ` expires ${item.supplierExpiresAt.slice(0, 10)}` : '';
-    const folder = item.folderCode ? ` ${item.folderCode}` : '';
+    const folder = item.folderCode ? ` \`${item.folderCode}\`` : ` \`${id}\``;
     const countries = formatCountriesPreview(item.countriesPreview);
     const preview = countries ? ` ${countries}` : '';
-    lines.push(`- ${id}${folder}: ${item.status} ${item.usedDeviceAssignments}/${item.maxDeviceAssignments}${preview}${expiry}`);
+    const emoji = getStatusEmoji(item.status);
+    const bar = formatProgressBar(item.usedDeviceAssignments, item.maxDeviceAssignments);
+
+    lines.push(`${emoji}${folder} ${bar} (${item.usedDeviceAssignments}/${item.maxDeviceAssignments})${preview}`);
   }
 
   return lines.join('\n');
@@ -166,46 +197,81 @@ export function formatInventoryReview(
   item: InventoryOverviewItem | TrialInventoryOverviewItem | null,
 ) {
   if (!item) {
-    return 'Review unavailable. The item was not found in current inventory.';
+    return '❌ *Review unavailable.*\nThe item was not found or has been deleted.';
   }
 
-  const countries = formatCountriesPreview(item.countriesPreview) || 'No countries parsed';
+  const countries = formatCountriesPreview(item.countriesPreview) || 'None';
   const previewStatus = extractPreviewStatus(item.adminPreview);
   const nodeCount = Number(item.nodeCount ?? 0);
   const folderCode = item.folderCode || item.adminLabel || item.id?.slice(0, 12) || 'unknown';
   const protocol = item.displayProtocol || 'unknown';
-  const expires = item.supplierExpiresAt ? String(item.supplierExpiresAt).slice(0, 10) : 'none';
+  const expires = item.supplierExpiresAt ? String(item.supplierExpiresAt).slice(0, 10) : 'never';
 
   if (scope === 'trial') {
     const trialItem = item as TrialInventoryOverviewItem;
+    const emoji = getStatusEmoji(trialItem.status);
+    const bar = formatProgressBar(trialItem.usedDeviceAssignments, trialItem.maxDeviceAssignments);
+
     return [
-      'Trial config review',
-      `Folder: ${folderCode}`,
-      `Campaign: ${trialItem.campaignCode || 'trial'}`,
-      `Protocol: ${protocol}`,
-      `Status: ${trialItem.status}`,
-      `Capacity: ${trialItem.usedDeviceAssignments}/${trialItem.maxDeviceAssignments} devices`,
-      `Nodes: ${nodeCount}`,
-      `Countries: ${countries}`,
-      `Preview: ${previewStatus}`,
-      `Supplier expiry: ${expires}`,
+      `🧪 *Trial Config: ${folderCode}*`,
+      '',
+      `📍 *Campaign:* \`${trialItem.campaignCode || 'trial'}\``,
+      `🔌 *Protocol:* \`${protocol}\``,
+      `🛡️ *Status:* ${emoji} ${trialItem.status}`,
+      `📊 *Capacity:* ${bar} (${trialItem.usedDeviceAssignments}/${trialItem.maxDeviceAssignments})`,
+      `🗺️ *Countries:* ${countries}`,
+      `📉 *Nodes:* ${nodeCount}`,
+      `👁️ *Preview:* ${previewStatus}`,
+      `📅 *Supplier expiry:* ${expires}`,
+      '',
+      `ID: \`${item.id}\``,
     ].join('\n');
   }
 
   const paidItem = item as InventoryOverviewItem;
+  const emoji = getStatusEmoji(paidItem.healthStatus);
+  const bar = formatProgressBar(paidItem.usedResaleSlots, paidItem.maxResaleSlots);
+
   return [
-    'Paid config review',
-    `Folder: ${folderCode}`,
-    `Bucket: ${CATEGORY_LABELS[String(paidItem.category)] || paidItem.category}`,
-    `Protocol: ${protocol}`,
-    `Status: ${paidItem.inventoryStatus || paidItem.healthStatus}`,
-    `Health: ${paidItem.healthStatus}`,
-    `Capacity: ${paidItem.usedResaleSlots}/${paidItem.maxResaleSlots} units`,
-    `Nodes: ${nodeCount}`,
-    `Countries: ${countries}`,
-    `Preview: ${previewStatus}`,
-    `Supplier expiry: ${expires}`,
+    `💎 *Paid Config: ${folderCode}*`,
+    '',
+    `🏷️ *Bucket:* ${CATEGORY_LABELS[String(paidItem.category)] || paidItem.category}`,
+    `🔌 *Protocol:* \`${protocol}\``,
+    `🛡️ *Status:* ${emoji} ${paidItem.inventoryStatus || paidItem.healthStatus}`,
+    `📊 *Capacity:* ${bar} (${paidItem.usedResaleSlots}/${paidItem.maxResaleSlots})`,
+    `🗺️ *Countries:* ${countries}`,
+    `📉 *Nodes:* ${nodeCount}`,
+    `👁️ *Preview:* ${previewStatus}`,
+    `📅 *Supplier expiry:* ${expires}`,
+    '',
+    `ID: \`${item.id}\``,
   ].join('\n');
+}
+
+export function getInventoryActionKeyboard(scope: 'paid' | 'trial', id: string) {
+  const buttons = [
+    [
+      Markup.button.callback('🛑 Disable', `disable:${scope}:${id}`),
+      Markup.button.callback('⏳ Expire', `expire:${scope}:${id}`),
+    ],
+    [
+      Markup.button.callback('🗑️ Delete', `delete_confirm:${scope}:${id}`),
+      Markup.button.callback('🔄 Refresh', `review:${scope}:${id}`),
+    ],
+    [
+      Markup.button.callback('🔙 Back to Stock', 'stock'),
+    ],
+  ];
+  return Markup.inlineKeyboard(buttons);
+}
+
+export function getDeleteConfirmationKeyboard(scope: 'paid' | 'trial', id: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('✅ Yes, Delete', `delete_execute:${scope}:${id}`),
+      Markup.button.callback('❌ No, Cancel', `review:${scope}:${id}`),
+    ],
+  ]);
 }
 
 export function formatImportResult(category: PlanCategory, result: any) {
