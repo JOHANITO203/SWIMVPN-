@@ -54,6 +54,21 @@ export class InventoryController {
     return this.inventoryService.listTrialInventoryOverview();
   }
 
+  @MessagePattern({ cmd: 'get_inventory_stats' })
+  async getInventoryStats() {
+    return this.inventoryService.getInventoryStats();
+  }
+
+  @MessagePattern({ cmd: 'clear_available_configs' })
+  async clearAvailableConfigs(@Payload() data: { category: any }) {
+    return this.inventoryService.clearAvailableConfigs(data.category);
+  }
+
+  @MessagePattern({ cmd: 'clear_available_trial_configs' })
+  async clearAvailableTrialConfigs() {
+    return this.inventoryService.clearAvailableTrialConfigs();
+  }
+
   @MessagePattern({ cmd: 'update_inventory_health' })
   async updateInventoryHealth(
     @Payload() data: {

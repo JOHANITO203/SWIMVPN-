@@ -319,10 +319,9 @@ export class CustomerService {
         return grant;
       }
 
-      const campaignExpiresAt = new Date(
+      const expiresAt = new Date(
         now.getTime() + Math.max(campaign.duration_days, 1) * 24 * 60 * 60 * 1000,
       );
-      const expiresAt = this.pickEarlierDate(campaignExpiresAt, candidate.supplier_expires_at);
 
       await tx.trialAssignment.create({
         data: {
@@ -756,7 +755,7 @@ export class CustomerService {
       inventoryItem?.supplier_expires_at?.toISOString() ||
       null;
     const subscriptionExpiresAt = isTrialOrder
-      ? this.pickEarlierIsoDate(orderExpiresAt, providerExpiresAt)
+      ? (orderExpiresAt || providerExpiresAt)
       : providerExpiresAt;
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
     const measuredDataLimitGb =
@@ -930,7 +929,7 @@ export class CustomerService {
           inventoryItem.supplier_expires_at?.toISOString() ||
           null;
         const subscriptionExpiresAt = isTrialOrder
-          ? this.pickEarlierIsoDate(orderExpiresAt, providerExpiresAt)
+          ? (orderExpiresAt || providerExpiresAt)
           : providerExpiresAt;
 
         return !subscriptionExpiresAt || new Date(subscriptionExpiresAt).getTime() >= now;
@@ -1513,10 +1512,7 @@ export class CustomerService {
         ? assignment.trial_config
         : null;
     const now = Date.now();
-    let expiresAt = grant.expires_at?.toISOString?.() || null;
-    expiresAt = this.pickEarlierIsoDate(expiresAt, assignment?.expires_at?.toISOString?.() || null);
-    expiresAt = this.pickEarlierIsoDate(expiresAt, trialConfig?.supplier_expires_at?.toISOString?.() || null);
-    expiresAt = this.pickEarlierIsoDate(expiresAt, grant.campaign?.ends_at?.toISOString?.() || null);
+    const expiresAt = grant.expires_at?.toISOString?.() || assignment?.expires_at?.toISOString?.() || null;
     const isExpired = !!expiresAt && new Date(expiresAt).getTime() < now;
     if (isExpired && grant.status !== TrialGrantStatus.EXPIRED) {
       await this.persistExpiredTrialGrant(grant, customer.public_id, expiresAt);

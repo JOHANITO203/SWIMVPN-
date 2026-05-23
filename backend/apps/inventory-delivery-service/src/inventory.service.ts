@@ -1128,6 +1128,55 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     }));
   }
 
+  async getInventoryStats() {
+    const paidStats = await this.prisma.inventoryItem.groupBy({
+      by: ['category', 'status'],
+      _count: { _all: true },
+    });
+
+    const trialStats = await this.prisma.trialConfig.groupBy({
+      by: ['status'],
+      _count: { _all: true },
+    });
+
+    return {
+      paid: paidStats.map((s) => ({
+        category: s.category,
+        status: s.status,
+        count: s._count._all,
+      })),
+      trial: trialStats.map((s) => ({
+        status: s.status,
+        count: s._count._all,
+      })),
+    };
+  }
+
+  async clearAvailableConfigs(category: PlanCategory) {
+    const result = await this.prisma.inventoryItem.deleteMany({
+      where: {
+        category,
+        status: InventoryStatus.AVAILABLE,
+        used_resale_slots: 0,
+      },
+    });
+
+    this.logger.log(`Cleared ${result.count} available configs for category ${category}`);
+    return { count: result.count };
+  }
+
+  async clearAvailableTrialConfigs() {
+    const result = await this.prisma.trialConfig.deleteMany({
+      where: {
+        status: TrialConfigStatus.AVAILABLE,
+        used_device_assignments: 0,
+      },
+    });
+
+    this.logger.log(`Cleared ${result.count} available trial configs`);
+    return { count: result.count };
+  }
+
   async updateInventoryHealth(data: {
     inventoryItemId: string;
     healthStatus: InventoryHealthStatus;

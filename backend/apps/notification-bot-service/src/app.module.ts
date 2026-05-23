@@ -25,6 +25,14 @@ import { TelegramCommandService } from './telegram-command.service';
           port: Number(process.env.CUSTOMER_SERVICE_PORT || 3001),
         },
       },
+      {
+        name: 'INVENTORY_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.INVENTORY_SERVICE_HOST || '127.0.0.1',
+          port: Number(process.env.INVENTORY_SERVICE_PORT || 3002),
+        },
+      },
     ]),
   ],
   controllers: [NotificationController],

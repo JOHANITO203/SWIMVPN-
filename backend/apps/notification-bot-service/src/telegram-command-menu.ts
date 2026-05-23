@@ -4,6 +4,7 @@ export const NOTIFICATION_BOT_COMMANDS = [
   { command: 'order', description: 'Admin: show order delivery status' },
   { command: 'status', description: 'Admin: show delivery status' },
   { command: 'resend', description: 'Admin: resend delivery email' },
+  { command: 'inventory', description: 'Admin: manage available stock' },
 ];
 
 export function formatTelegramCommandHelp() {
@@ -11,6 +12,7 @@ export function formatTelegramCommandHelp() {
     '/order SW12345',
     '/status SW12345',
     '/resend SW12345',
+    '/inventory',
     '/whoami',
     '/help',
   ].join('\n');

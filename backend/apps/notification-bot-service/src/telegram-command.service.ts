@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@app/database';
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import { NotificationService } from './notification.service';
 import {
   buildActiveDeliverableAssignmentInclude,
@@ -83,6 +83,11 @@ export class TelegramCommandService implements OnModuleInit {
       await ctx.reply(JSON.stringify(status, null, 2));
     });
 
+    this.bot.command('inventory', async (ctx) => {
+      if (!this.isAdmin(ctx)) return;
+      await this.sendInventoryOverview(ctx);
+    });
+
     this.bot.command('resend', async (ctx) => {
       if (!this.isSensitiveAdminAction(ctx)) return;
       const orderRef = this.extractOrderRef(ctx.message.text);
@@ -159,6 +164,51 @@ export class TelegramCommandService implements OnModuleInit {
       await ctx.answerCbQuery('Marked as delivered');
     });
 
+    this.bot.action(/clear_stock:(.+)/, async (ctx) => {
+      if (!this.isSensitiveAdminAction(ctx)) {
+        await ctx.answerCbQuery('Access denied');
+        return;
+      }
+
+      const category = ctx.match[1];
+      const label = this.getCategoryLabel(category);
+
+      await ctx.reply(`⚠️ Are you sure you want to clear ALL available ${label} stock?`,
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback('✅ Yes, delete available', `confirm_clear:${category}`),
+            Markup.button.callback('❌ Cancel', 'inventory_refresh'),
+          ]
+        ])
+      );
+      await ctx.answerCbQuery();
+    });
+
+    this.bot.action(/confirm_clear:(.+)/, async (ctx) => {
+      if (!this.isSensitiveAdminAction(ctx)) {
+        await ctx.answerCbQuery('Access denied');
+        return;
+      }
+
+      const category = ctx.match[1];
+      let result;
+      if (category === 'TRIAL') {
+        result = await this.notificationService.clearAvailableTrialConfigs();
+      } else {
+        result = await this.notificationService.clearAvailableConfigs(category);
+      }
+
+      await ctx.reply(`Done! Cleared ${result.count} items.`);
+      await this.sendInventoryOverview(ctx);
+      await ctx.answerCbQuery();
+    });
+
+    this.bot.action('inventory_refresh', async (ctx) => {
+      if (!this.isAdmin(ctx)) return;
+      await this.sendInventoryOverview(ctx);
+      await ctx.answerCbQuery('Refreshed');
+    });
+
     this.bot.catch((error) => {
       this.logger.warn(`Telegram command handler error: ${(error as Error).message}`);
     });
@@ -196,6 +246,53 @@ export class TelegramCommandService implements OnModuleInit {
   private extractOrderRef(text: string): string | null {
     const parts = text.trim().split(/\s+/);
     return parts.length >= 2 ? parts[1] : null;
+  }
+
+  private async sendInventoryOverview(ctx: any) {
+    const stats = await this.notificationService.getInventoryStats();
+    const lines = ['<b>📦 SWIMVPN Inventory Stock</b>', ''];
+
+    const categories = ['TRIAL', 'WEEK', 'MONTH', 'QUARTER'];
+    const buttons = [];
+
+    for (const cat of categories) {
+      let count = 0;
+      if (cat === 'TRIAL') {
+        count = stats.trial.find((s: any) => s.status === 'AVAILABLE')?.count || 0;
+      } else {
+        count = stats.paid.find((s: any) => s.category === cat && s.status === 'AVAILABLE')?.count || 0;
+      }
+
+      const label = this.getCategoryLabel(cat);
+      lines.push(`${label}: <b>${count}</b> available`);
+
+      if (count > 0) {
+        buttons.push([Markup.button.callback(`🗑️ Clear ${cat}`, `clear_stock:${cat}`)]);
+      }
+    }
+
+    buttons.push([Markup.button.callback('🔄 Refresh', 'inventory_refresh')]);
+
+    const messageOptions = {
+      parse_mode: 'HTML' as const,
+      ...Markup.inlineKeyboard(buttons),
+    };
+
+    if (ctx.callbackQuery) {
+      await ctx.editMessageText(lines.join('\n'), messageOptions);
+    } else {
+      await ctx.reply(lines.join('\n'), messageOptions);
+    }
+  }
+
+  private getCategoryLabel(category: string): string {
+    const labels: Record<string, string> = {
+      'WEEK': 'Basic (Week)',
+      'MONTH': 'Premium (Month)',
+      'QUARTER': 'Platinum (Quarter)',
+      'TRIAL': 'Trial (3-Day)',
+    };
+    return labels[category] || category;
   }
 
   private async registerTelegramCommandMenu() {

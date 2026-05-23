@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
+import { firstValueFrom } from 'rxjs';
 import { DeliveryPayloadDto, DeliveryLanguage } from './dto/delivery-payload.dto';
 import { DeliveryTemplateService } from './templates/delivery-template.service';
 import { TelegramSenderService } from './telegram-sender.service';
@@ -17,7 +19,36 @@ export class NotificationService {
     private readonly templateService: DeliveryTemplateService,
     private readonly telegramSender: TelegramSenderService,
     private readonly emailSender: EmailSenderService,
+    @Inject('INVENTORY_SERVICE') private readonly inventoryClient: ClientProxy,
   ) {}
+
+  async getInventoryStats() {
+    try {
+      return await firstValueFrom(this.inventoryClient.send({ cmd: 'get_inventory_stats' }, {}));
+    } catch (error) {
+      return { paid: [], trial: [] };
+    }
+  }
+
+  async clearAvailableConfigs(category: string) {
+    try {
+      return await firstValueFrom(
+        this.inventoryClient.send({ cmd: 'clear_available_configs' }, { category }),
+      );
+    } catch (error) {
+      return { count: 0, error: (error as Error).message };
+    }
+  }
+
+  async clearAvailableTrialConfigs() {
+    try {
+      return await firstValueFrom(
+        this.inventoryClient.send({ cmd: 'clear_available_trial_configs' }, {}),
+      );
+    } catch (error) {
+      return { count: 0, error: (error as Error).message };
+    }
+  }
 
   async processPostPurchaseDelivery(payload: DeliveryPayloadDto) {
     const delivery = await this.ensureDeliveryRecord(payload.orderRef, payload.customerEmail);
