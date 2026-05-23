@@ -18,7 +18,12 @@ import {
   formatImportWizardConfirmation,
   formatImportResult,
   formatCombinedInventoryOverview,
+  formatFinanceDashboard,
   formatInventoryReview,
+  getFinanceDashboardKeyboard,
+  getInventoryActionKeyboard,
+  getOrderActionKeyboard,
+  getDeleteConfirmationKeyboard,
   formatPendingFulfillment,
   formatTrialImportInstructions,
   formatTrialImportResult,
@@ -164,14 +169,24 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           include: { customer: true, plan: true },
         });
 
-        await ctx.reply(formatPendingFulfillment(pendingOrders.map((order) => ({
-          orderRef: order.order_ref,
-          planName: order.plan.name,
-          planCode: order.plan.code,
-          amountRub: order.amount_rub.toString(),
-          customerEmail: order.customer.email,
-          createdAt: order.created_at.toISOString(),
-        }))));
+        if (pendingOrders.length === 0) {
+          await ctx.reply('No pending fulfillment orders.');
+          return;
+        }
+
+        for (const order of pendingOrders) {
+          const text = [
+            `📦 *Order:* \`${order.order_ref}\``,
+            `Plan: ${order.plan.name} (${order.plan.code})`,
+            `Amount: ${order.amount_rub.toString()} RUB`,
+            `Customer: ${order.customer.email}`,
+            `Created: ${order.created_at.toISOString()}`,
+          ].join('\n');
+          await ctx.reply(text, {
+            parse_mode: 'Markdown',
+            ...getOrderActionKeyboard(order.order_ref),
+          });
+        }
       } catch (error) {
         this.logger.error('Failed to fetch pending fulfillment orders', error as Error);
         await ctx.reply('Unable to fetch pending fulfillment orders right now.');
@@ -273,6 +288,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.command('delete_trial', async (ctx) => {
       await this.handleDelete(ctx, 'trial');
+    });
+
+    this.bot.command('finance', async (ctx) => {
+      await this.replyFinanceDashboard(ctx);
     });
 
     this.bot.command('orders_today', async (ctx) => {
@@ -625,6 +644,56 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       const id = ctx.match[2];
       await ctx.answerCbQuery('Suppression en cours...');
       await this.executeDirectDelete(ctx, scope, id);
+    });
+
+    this.bot.action(/retry_order:(.+)/, async (ctx) => {
+      const orderRef = ctx.match[1];
+      await ctx.answerCbQuery('Relance de la commande...');
+      await this.executeOrderRetry(ctx, orderRef);
+    });
+
+    this.bot.action('finance_refresh', async (ctx) => {
+      await ctx.answerCbQuery('Mise à jour...');
+      await this.replyFinanceDashboard(ctx, true);
+    });
+
+    this.bot.action('profit_month_action', async (ctx) => {
+      await ctx.answerCbQuery();
+      // Logic from profit_month command but as action
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      try {
+        const entries = await this.prisma.accountingEntry.findMany({
+          where: { created_at: { gte: startOfMonth }, currency: 'RUB' },
+          select: { type: true, amount: true },
+        });
+        const totals = entries.reduce(
+          (acc, entry) => {
+            const amount = Number(entry.amount);
+            if (entry.type === AccountingEntryType.REVENUE) acc.revenue += amount;
+            if (entry.type === AccountingEntryType.EXPENSE) acc.expense += amount;
+            if (entry.type === AccountingEntryType.ADJUSTMENT) acc.adjustment += amount;
+            return acc;
+          },
+          { revenue: 0, expense: 0, adjustment: 0 },
+        );
+        await ctx.reply([
+          'Profit this month',
+          `Revenue: ${totals.revenue.toFixed(2)} RUB`,
+          `Expenses: ${totals.expense.toFixed(2)} RUB`,
+          `Adjustments: ${totals.adjustment.toFixed(2)} RUB`,
+          `Profit: ${(totals.revenue - totals.expense + totals.adjustment).toFixed(2)} RUB`,
+          `Entries: ${entries.length}`,
+        ].join('\n'), getFinanceDashboardKeyboard());
+      } catch (error) {
+        await ctx.reply('Erreur lors du calcul du profit.');
+      }
+    });
+
+    this.bot.action('add_expense_start', async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.reply('Utilisez la commande: /add_expense <montant> <devise> <note>\nExemple: `/add_expense 5000 RUB Serveurs Mai`', { parse_mode: 'Markdown' });
     });
   }
 
@@ -1050,6 +1119,93 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error('Failed to build accounting summary', error as Error);
       await ctx.reply('Unable to build accounting summary right now.');
+    }
+  }
+
+  private async replyFinanceDashboard(ctx: any, isUpdate = false) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    try {
+      const [todayOrders, monthEntries] = await Promise.all([
+        this.prisma.order.findMany({
+          where: {
+            status: { in: ['PAID', 'PENDING_FULFILLMENT', 'FULFILLED'] as any },
+            paid_at: { gte: startOfDay },
+          },
+          select: { amount_rub: true },
+        }),
+        this.prisma.accountingEntry.findMany({
+          where: { created_at: { gte: startOfMonth }, currency: 'RUB' },
+          select: { type: true, amount: true },
+        }),
+      ]);
+
+      const todayRevenue = todayOrders.reduce((sum, o) => sum + Number(o.amount_rub), 0);
+      const totals = monthEntries.reduce(
+        (acc, entry) => {
+          const amount = Number(entry.amount);
+          if (entry.type === AccountingEntryType.REVENUE) acc.revenue += amount;
+          if (entry.type === AccountingEntryType.EXPENSE) acc.expense += amount;
+          if (entry.type === AccountingEntryType.ADJUSTMENT) acc.adjustment += amount;
+          return acc;
+        },
+        { revenue: 0, expense: 0, adjustment: 0 },
+      );
+
+      const message = formatFinanceDashboard({
+        todayOrders: todayOrders.length,
+        todayRevenue: todayRevenue.toFixed(2),
+        monthRevenue: totals.revenue.toFixed(2),
+        monthExpense: totals.expense.toFixed(2),
+        monthProfit: (totals.revenue - totals.expense + totals.adjustment).toFixed(2),
+      });
+
+      if (isUpdate && ctx.callbackQuery) {
+        await ctx.editMessageText(message, {
+          parse_mode: 'Markdown',
+          ...getFinanceDashboardKeyboard(),
+        });
+      } else {
+        await ctx.reply(message, {
+          parse_mode: 'Markdown',
+          ...getFinanceDashboardKeyboard(),
+        });
+      }
+    } catch (error) {
+      this.logger.error('Failed to build finance dashboard', error as Error);
+      await ctx.reply('Dashboard inaccessible pour le moment.');
+    }
+  }
+
+  private async executeOrderRetry(ctx: any, orderRef: string) {
+    try {
+      const order = await this.prisma.order.findFirst({
+        where: {
+          order_ref: orderRef,
+          status: { in: ['PAID', 'PENDING_FULFILLMENT'] as any },
+        },
+        select: { id: true, order_ref: true },
+      });
+
+      if (!order) {
+        await ctx.reply(`Commande ${orderRef} introuvable ou déjà traitée.`);
+        return;
+      }
+
+      const result = await firstValueFrom(
+        this.inventoryClient.send({ cmd: 'fulfill_order' }, { orderId: order.id }),
+      );
+
+      const status = result?.pendingFulfillment ? '⏳ Toujours en attente (manque de stock)' : '✅ Traitée avec succès';
+      await ctx.reply(`Relance ${orderRef} : ${status}`);
+    } catch (error) {
+      this.logger.error('Order retry failed', error as Error);
+      await ctx.reply(`❌ Échec de la relance pour ${orderRef}.`);
     }
   }
 

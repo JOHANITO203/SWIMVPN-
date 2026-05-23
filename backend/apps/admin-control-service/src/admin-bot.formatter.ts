@@ -94,7 +94,8 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'orders', description: 'Show recent orders' },
   { command: 'orders_today', description: 'Show today order count' },
   { command: 'revenue_today', description: 'Show today revenue' },
-  { command: 'add_expense', description: 'Record a manual business expense' },
+  { command: 'finance', description: 'Unified financial dashboard' },
+  { command: 'add_expense', description: 'Record business expense' },
   { command: 'profit_month', description: 'Show current month profit' },
   { command: 'expire', description: 'Mark supplier config expired' },
   { command: 'disable', description: 'Disable supplier config' },
@@ -272,6 +273,50 @@ export function getDeleteConfirmationKeyboard(scope: 'paid' | 'trial', id: strin
       Markup.button.callback('❌ No, Cancel', `review:${scope}:${id}`),
     ],
   ]);
+}
+
+export function getOrderActionKeyboard(orderRef: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('🔄 Retry Fulfillment', `retry_order:${orderRef}`),
+    ],
+  ]);
+}
+
+export function getFinanceDashboardKeyboard() {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('📈 Refresh', 'finance_refresh'),
+      Markup.button.callback('💸 Add Expense', 'add_expense_start'),
+    ],
+    [
+      Markup.button.callback('📅 Month Profit', 'profit_month_action'),
+      Markup.button.callback('🔙 Back', 'stock'),
+    ],
+  ]);
+}
+
+export function formatFinanceDashboard(data: {
+  todayOrders: number;
+  todayRevenue: string;
+  monthRevenue: string;
+  monthExpense: string;
+  monthProfit: string;
+}) {
+  return [
+    '📊 *SWIMVPN+ Financial Dashboard*',
+    '',
+    '*Today Activity*',
+    `✅ Orders: ${data.todayOrders}`,
+    `💰 Revenue: ${data.todayRevenue} RUB`,
+    '',
+    '*Monthly Overview*',
+    `💎 Revenue: ${data.monthRevenue} RUB`,
+    `📉 Expenses: ${data.monthExpense} RUB`,
+    `📈 Profit: ${data.monthProfit} RUB`,
+    '',
+    `_Updated: ${new Date().toLocaleTimeString()}_`,
+  ].join('\n');
 }
 
 export function formatImportResult(category: PlanCategory, result: any) {
