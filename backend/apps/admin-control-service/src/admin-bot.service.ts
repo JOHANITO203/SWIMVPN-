@@ -290,6 +290,25 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await this.handleDelete(ctx, 'trial');
     });
 
+    this.bot.command('superdelete', async (ctx) => {
+      const parsed = parseInventoryActionCommand(ctx.message?.text || '');
+      const id = parsed.inventoryItemId;
+
+      if (!id) {
+        await ctx.reply('Usage: /superdelete <id-ou-code>');
+        return;
+      }
+
+      await ctx.reply(
+        `🛑 *ALERTE SUPERDELETE*\n\nCette action va :\n1. Révoquer l'accès de TOUS les utilisateurs sur cet item.\n2. Détacher les commandes/trials en cours.\n3. Supprimer définitivement l'item.\n\nItem: \`${id}\``,
+        {
+          parse_mode: 'Markdown',
+          // Note: We need to know if it's paid or trial, we try to detect
+          ...await this.getSuperDeleteKeyboard(id),
+        }
+      );
+    });
+
     this.bot.command('finance', async (ctx) => {
       await this.replyFinanceDashboard(ctx);
     });
@@ -644,6 +663,13 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       const id = ctx.match[2];
       await ctx.answerCbQuery('Suppression en cours...');
       await this.executeDirectDelete(ctx, scope, id);
+    });
+
+    this.bot.action(/superdelete_execute:(paid|trial):(.+)/, async (ctx) => {
+      const scope = ctx.match[1] as 'paid' | 'trial';
+      const id = ctx.match[2];
+      await ctx.answerCbQuery('💀 SUPERDELETE EN COURS...');
+      await this.executeSuperDelete(ctx, scope, id);
     });
 
     this.bot.action(/retry_order:(.+)/, async (ctx) => {
@@ -1013,6 +1039,71 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     return result;
+  }
+
+  private async getSuperDeleteKeyboard(query: string) {
+    const [paid, trial] = await Promise.all([
+      this.prisma.inventoryItem.findFirst({
+        where: { OR: [{ id: query }, { folder_code: { equals: query, mode: 'insensitive' } }, { admin_label: { equals: query, mode: 'insensitive' } }] },
+        select: { id: true }
+      }),
+      this.prisma.trialConfig.findFirst({
+        where: { OR: [{ id: query }, { folder_code: { equals: query, mode: 'insensitive' } }, { admin_label: { equals: query, mode: 'insensitive' } }] },
+        select: { id: true }
+      })
+    ]);
+
+    if (paid) return getSuperDeleteConfirmationKeyboard('paid', paid.id);
+    if (trial) return getSuperDeleteConfirmationKeyboard('trial', trial.id);
+    return Markup.inlineKeyboard([Markup.button.callback('❌ Item introuvable', 'stock')]);
+  }
+
+  private async executeSuperDelete(ctx: any, scope: 'paid' | 'trial', id: string) {
+    try {
+      if (scope === 'paid') {
+        await this.prisma.$transaction(async (tx) => {
+          // 1. Force remove assignments for active sessions (detach but keep history)
+          await tx.orderAssignment.deleteMany({
+            where: { inventory_item_id: id }
+          });
+          // 2. Clear reference from orders to allow deletion
+          await tx.order.updateMany({
+            where: { inventory_item_id: id },
+            data: { inventory_item_id: null }
+          });
+          // 3. Physical delete
+          await tx.inventoryItem.delete({ where: { id } });
+        });
+      } else {
+        await this.prisma.$transaction(async (tx) => {
+          // 1. Delete assignments
+          await tx.trialAssignment.deleteMany({
+            where: { trial_config_id: id }
+          });
+          // 2. Physical delete
+          await tx.trialConfig.delete({ where: { id } });
+        });
+      }
+
+      await this.prisma.adminEvent.create({
+        data: {
+          event_type: 'ADMIN_SUPERDELETE_EXECUTED',
+          entity_type: scope === 'paid' ? 'INVENTORY' : 'TRIAL_CONFIG',
+          entity_id: id,
+          payload_json: {
+            scope,
+            telegramUserId: ctx.from?.id?.toString() || null,
+            timestamp: new Date().toISOString(),
+          } as any,
+        },
+      });
+
+      await ctx.reply(`💀 *SUPERDELETE TERMINÉ*\n\nL'item \`${id}\` et tous ses accès utilisateurs ont été pulvérisés.`, { parse_mode: 'Markdown' });
+      await this.replyStockOverview(ctx);
+    } catch (error: any) {
+      this.logger.error(`Superdelete failed for ${id}`, error);
+      await ctx.reply(`❌ Échec du superdelete : ${error.message}`);
+    }
   }
 
   private async executeInventoryHealthUpdate(

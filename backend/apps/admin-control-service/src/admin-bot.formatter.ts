@@ -102,6 +102,7 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'quota_reached', description: 'Mark supplier quota exhausted' },
   { command: 'delete', description: 'Delete a paid config' },
   { command: 'delete_trial', description: 'Delete a trial config' },
+  { command: 'superdelete', description: 'FORCE delete item & revoke user access' },
   { command: 'healthcheck', description: 'Run inventory health check' },
   { command: 'cancel_import', description: 'Cancel guided config import' },
   { command: 'users', description: 'Show customer statistics' },
@@ -273,6 +274,17 @@ export function getDeleteConfirmationKeyboard(scope: 'paid' | 'trial', id: strin
     [
       Markup.button.callback('✅ Yes, Delete', `delete_execute:${scope}:${id}`),
       Markup.button.callback('❌ No, Cancel', `review:${scope}:${id}`),
+    ],
+  ]);
+}
+
+export function getSuperDeleteConfirmationKeyboard(scope: 'paid' | 'trial', id: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('💀 FORCE SUPER DELETE', `superdelete_execute:${scope}:${id}`),
+    ],
+    [
+      Markup.button.callback('❌ Cancel', `review:${scope}:${id}`),
     ],
   ]);
 }
