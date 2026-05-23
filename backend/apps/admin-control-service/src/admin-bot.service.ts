@@ -24,6 +24,7 @@ import {
   getInventoryActionKeyboard,
   getOrderActionKeyboard,
   getDeleteConfirmationKeyboard,
+  getSuperDeleteConfirmationKeyboard,
   formatPendingFulfillment,
   formatTrialImportInstructions,
   formatTrialImportResult,
@@ -1062,25 +1063,24 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     try {
       if (scope === 'paid') {
         await this.prisma.$transaction(async (tx) => {
-          // 1. Force remove assignments for active sessions (detach but keep history)
+          // 1. Force remove assignments (this revokes VPN access immediately)
           await tx.orderAssignment.deleteMany({
             where: { inventory_item_id: id }
           });
-          // 2. Clear reference from orders to allow deletion
-          await tx.order.updateMany({
-            where: { inventory_item_id: id },
-            data: { inventory_item_id: null }
-          });
-          // 3. Physical delete
+
+          // 2. Clear references in accounting if any (optional, depends on if you want to keep trace)
+          // AccountingEntry refers to inventory_item_id but it's not a hard relation usually
+
+          // 3. Physical delete of the item
           await tx.inventoryItem.delete({ where: { id } });
         });
       } else {
         await this.prisma.$transaction(async (tx) => {
-          // 1. Delete assignments
+          // 1. Delete trial assignments
           await tx.trialAssignment.deleteMany({
             where: { trial_config_id: id }
           });
-          // 2. Physical delete
+          // 2. Physical delete of the config
           await tx.trialConfig.delete({ where: { id } });
         });
       }
