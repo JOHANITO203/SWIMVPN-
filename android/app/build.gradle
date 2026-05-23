@@ -72,10 +72,14 @@ def buildTun2SocksSharedLibraries = { File repoDir, List<String> abis ->
         throw new IllegalStateException("Android NDK ${android.ndkVersion} is not installed under ${android.sdkDirectory}/ndk")
     }
 
+    def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
+    def ndkBuildExecutable = isWindows ? "ndk-build.cmd" : "ndk-build"
+    def ndkBuildPath = new File(ndkDir, ndkBuildExecutable).absolutePath
+
     exec {
         workingDir(repoDir)
         commandLine(
-            new File(ndkDir, "ndk-build.cmd").absolutePath,
+            ndkBuildPath,
             "-j2",
             "NDK_PROJECT_PATH=.",
             "APP_BUILD_SCRIPT=Android.mk",

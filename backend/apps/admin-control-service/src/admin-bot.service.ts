@@ -6,7 +6,7 @@ import {
   DEFAULT_SUPPLIER_DEVICE_LIMIT,
   getDefaultSupplierCapacityUnits,
 } from '@app/contracts';
-import { AccountingEntrySource, AccountingEntryType } from '@prisma/client';
+import { AccountingEntrySource, AccountingEntryType, InventoryHealthStatus, TrialConfigStatus } from '@prisma/client';
 import { Markup, Telegraf } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
 import { isAdminBotAuthorized, normalizeTelegramId, parseAdminUserIds } from './admin-bot-auth';
@@ -621,9 +621,9 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       const id = ctx.match[2];
       await ctx.answerCbQuery('Marquage expiré...');
       if (scope === 'paid') {
-        await this.executeInventoryHealthUpdate(ctx, id, 'EXPIRED', 'ADMIN_UI_EXPIRE');
+        await this.executeInventoryHealthUpdate(ctx, id, InventoryHealthStatus.EXPIRED, 'ADMIN_UI_EXPIRE');
       } else {
-        await this.prisma.trialConfig.update({ where: { id }, data: { status: 'EXPIRED' } });
+        await this.prisma.trialConfig.update({ where: { id }, data: { status: TrialConfigStatus.EXPIRED } });
         await ctx.reply(`Trial ${id} marqué expiré.`);
       }
       await this.replyInventoryReview(ctx, scope, id);
