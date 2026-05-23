@@ -260,9 +260,10 @@ export function getInventoryActionKeyboard(scope: 'paid' | 'trial', id: string) 
     ],
     [
       Markup.button.callback('🗑️ Delete', `delete_confirm:${scope}:${id}`),
-      Markup.button.callback('🔄 Refresh', `review:${scope}:${id}`),
+      Markup.button.callback('💀 SUPER DELETE', `superdelete_confirm:${scope}:${id}`),
     ],
     [
+      Markup.button.callback('🔄 Refresh', `review:${scope}:${id}`),
       Markup.button.callback('🔙 Back to Stock', 'stock'),
     ],
   ];
