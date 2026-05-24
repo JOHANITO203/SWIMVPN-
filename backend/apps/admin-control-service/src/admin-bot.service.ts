@@ -578,12 +578,12 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Telegraf error for ${ctx.updateType}:`, error as Error);
     });
 
-    this.bot.action('stock', async (ctx) => {
+    this.bot.action(/^stock$/, async (ctx) => {
       await ctx.answerCbQuery();
       await this.replyStockOverview(ctx);
     });
 
-    this.bot.action('import_menu', async (ctx) => {
+    this.bot.action(/^import_menu$/, async (ctx) => {
       await ctx.answerCbQuery();
       await ctx.reply([
         'Choose an import flow:',
@@ -593,7 +593,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       ].join('\n'), this.importKeyboard());
     });
 
-    this.bot.action(/import_menu:(basic|premium|platinum|trial)/, async (ctx) => {
+    this.bot.action(/^import_menu:(basic|premium|platinum|trial)/, async (ctx) => {
       const target = ctx.match[1];
       await ctx.answerCbQuery();
       if (target === 'trial') {
@@ -612,19 +612,19 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await ctx.reply(formatImportWizardConfigPrompt(category));
     });
 
-    this.bot.action('pending', async (ctx) => {
+    this.bot.action(/^pending$/, async (ctx) => {
       await ctx.answerCbQuery();
       await ctx.reply('Use /pending to read paid orders waiting for supplier capacity.');
     });
 
-    this.bot.action(/review:(paid|trial):(.+)/, async (ctx) => {
+    this.bot.action(/^review:(paid|trial):(.+)/, async (ctx) => {
       const scope = ctx.match[1] as 'paid' | 'trial';
       const id = ctx.match[2];
       await ctx.answerCbQuery('Chargement...');
       await this.replyInventoryReview(ctx, scope, id);
     });
 
-    this.bot.action(/disable:(paid|trial):(.+)/, async (ctx) => {
+    this.bot.action(/^disable:(paid|trial):(.+)/, async (ctx) => {
       const scope = ctx.match[1] as 'paid' | 'trial';
       const id = ctx.match[2];
       await ctx.answerCbQuery('Désactivation...');
@@ -637,7 +637,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await this.replyInventoryReview(ctx, scope, id);
     });
 
-    this.bot.action(/expire:(paid|trial):(.+)/, async (ctx) => {
+    this.bot.action(/^expire:(paid|trial):(.+)/, async (ctx) => {
       const scope = ctx.match[1] as 'paid' | 'trial';
       const id = ctx.match[2];
       await ctx.answerCbQuery('Marquage expiré...');
@@ -650,7 +650,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await this.replyInventoryReview(ctx, scope, id);
     });
 
-    this.bot.action(/delete_confirm:(paid|trial):(.+)/, async (ctx) => {
+    this.bot.action(/^delete_confirm:(paid|trial):(.+)/, async (ctx) => {
       const scope = ctx.match[1] as 'paid' | 'trial';
       const id = ctx.match[2];
       await ctx.answerCbQuery();
@@ -660,45 +660,46 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       );
     });
 
-    this.bot.action(/delete_execute:(paid|trial):(.+)/, async (ctx) => {
+    this.bot.action(/^delete_execute:(paid|trial):(.+)/, async (ctx) => {
       const scope = ctx.match[1] as 'paid' | 'trial';
       const id = ctx.match[2];
       await ctx.answerCbQuery('Suppression en cours...');
       await this.executeDirectDelete(ctx, scope, id);
     });
 
-    this.bot.action(/superdelete_confirm:(paid|trial):(.+)/, async (ctx) => {
+    this.bot.action(/^superdelete_confirm:(paid|trial):(.+)/, async (ctx) => {
       const scope = ctx.match[1] as 'paid' | 'trial';
       const id = ctx.match[2];
       await ctx.answerCbQuery();
+      const keyboard = await this.getSuperDeleteKeyboard(id);
       await ctx.reply(
         `🛑 *ALERTE SUPERDELETE*\n\nCette action va :\n1. Révoquer l'accès de TOUS les utilisateurs sur cet item.\n2. Détacher les commandes/trials en cours.\n3. Supprimer définitivement l'item.\n\nItem: \`${id}\``,
         {
           parse_mode: 'Markdown',
-          ...await this.getSuperDeleteKeyboard(id),
+          ...keyboard,
         }
       );
     });
 
-    this.bot.action(/superdelete_execute:(paid|trial):(.+)/, async (ctx) => {
+    this.bot.action(/^superdelete_execute:(paid|trial):(.+)/, async (ctx) => {
       const scope = ctx.match[1] as 'paid' | 'trial';
       const id = ctx.match[2];
       await ctx.answerCbQuery('💀 SUPERDELETE EN COURS...');
       await this.executeSuperDelete(ctx, scope, id);
     });
 
-    this.bot.action(/retry_order:(.+)/, async (ctx) => {
+    this.bot.action(/^retry_order:(.+)/, async (ctx) => {
       const orderRef = ctx.match[1];
       await ctx.answerCbQuery('Relance de la commande...');
       await this.executeOrderRetry(ctx, orderRef);
     });
 
-    this.bot.action('finance_refresh', async (ctx) => {
+    this.bot.action(/^finance_refresh$/, async (ctx) => {
       await ctx.answerCbQuery('Mise à jour...');
       await this.replyFinanceDashboard(ctx, true);
     });
 
-    this.bot.action('profit_month_action', async (ctx) => {
+    this.bot.action(/^profit_month_action$/, async (ctx) => {
       await ctx.answerCbQuery();
       // Logic from profit_month command but as action
       const startOfMonth = new Date();
@@ -709,7 +710,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           where: { created_at: { gte: startOfMonth }, currency: 'RUB' },
           select: { type: true, amount: true },
         });
-        const totals = entries.reduce(
+        const totals = monthEntries.reduce(
           (acc, entry) => {
             const amount = Number(entry.amount);
             if (entry.type === AccountingEntryType.REVENUE) acc.revenue += amount;
@@ -732,7 +733,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
-    this.bot.action('add_expense_start', async (ctx) => {
+    this.bot.action(/^add_expense_start$/, async (ctx) => {
       await ctx.answerCbQuery();
       await ctx.reply('Utilisez la commande: /add_expense <montant> <devise> <note>\nExemple: `/add_expense 5000 RUB Serveurs Mai`', { parse_mode: 'Markdown' });
     });
@@ -1092,12 +1093,15 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           // 3. Revert Orders to PENDING_FULFILLMENT so they can be re-fulfilled
           if (orderIds.length > 0) {
             await tx.order.updateMany({
-              where: { id: { in: orderIds }, status: 'FULFILLED' },
+              where: {
+                id: { in: orderIds },
+                status: { in: ['FULFILLED', 'PAID'] as any },
+              },
               data: { status: 'PENDING_FULFILLMENT', fulfilled_at: null },
             });
           }
 
-          // 4. Detach from accounting records to avoid FK violations
+          // 4. Detach from accounting records
           await tx.accountingEntry.updateMany({
             where: { inventory_item_id: id },
             data: { inventory_item_id: null },
@@ -1218,11 +1222,36 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
               { admin_label: { equals: id, mode: 'insensitive' } },
             ],
           },
-          select: { id: true },
+          include: {
+            assignments: {
+              include: { order: { select: { status: true } } },
+            },
+          },
         });
+
         if (!item) throw new Error(`Item \`${id}\` introuvable dans l'inventaire payant.`);
         targetId = item.id;
-        await this.prisma.inventoryItem.delete({ where: { id: targetId } });
+
+        const activeAssignments = item.assignments.filter((a) =>
+          ['PAID', 'PENDING_FULFILLMENT', 'FULFILLED'].includes(a.order.status),
+        );
+
+        if (activeAssignments.length > 0) {
+          const error = new Error(`Cet item est lié à ${activeAssignments.length} commande(s) active(s).`);
+          (error as any).code = 'P2003';
+          throw error;
+        }
+
+        // Smart Delete for non-active items
+        await this.prisma.$transaction(async (tx) => {
+          await tx.orderAssignment.deleteMany({ where: { inventory_item_id: targetId } });
+          await tx.configEvent.deleteMany({ where: { config_id: targetId, config_scope: 'PAID' } });
+          await tx.accountingEntry.updateMany({
+            where: { inventory_item_id: targetId },
+            data: { inventory_item_id: null },
+          });
+          await tx.inventoryItem.delete({ where: { id: targetId } });
+        });
       } else {
         const item = await this.prisma.trialConfig.findFirst({
           where: {
@@ -1232,11 +1261,31 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
               { admin_label: { equals: id, mode: 'insensitive' } },
             ],
           },
-          select: { id: true },
+          include: {
+            assignments: {
+              include: { grant: { select: { status: true } } },
+            },
+          },
         });
+
         if (!item) throw new Error(`Item \`${id}\` introuvable dans le Trial Store.`);
         targetId = item.id;
-        await this.prisma.trialConfig.delete({ where: { id: targetId } });
+
+        const activeAssignments = item.assignments.filter((a) =>
+          ['PENDING', 'ACTIVE'].includes(a.grant.status),
+        );
+
+        if (activeAssignments.length > 0) {
+          const error = new Error(`Ce trial est utilisé par ${activeAssignments.length} grant(s) actif(s).`);
+          (error as any).code = 'P2003';
+          throw error;
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.trialAssignment.deleteMany({ where: { trial_config_id: targetId } });
+          await tx.configEvent.deleteMany({ where: { config_id: targetId, config_scope: 'TRIAL' } });
+          await tx.trialConfig.delete({ where: { id: targetId } });
+        });
       }
 
       await this.prisma.adminEvent.create({
@@ -1256,8 +1305,12 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await this.replyStockOverview(ctx);
     } catch (error: any) {
       if (error.code === 'P2003') {
+        const detail = error.message.includes('lié à') || error.message.includes('utilisé par')
+          ? error.message
+          : "L'item est lié à des commandes ou attributions existantes.";
+
         await ctx.reply(
-          `❌ *Suppression impossible*\n\nL'item \`${id}\` est lié à des commandes ou attributions existantes.\n\nSouhaitez-vous forcer la suppression (Super Delete) ? Cela réinitialisera les commandes liées en attente de stock.`,
+          `❌ *Suppression impossible*\n\n${detail}\n\nSouhaitez-vous forcer la suppression (Super Delete) ? Cela réinitialisera les commandes liées en attente de stock.`,
           { parse_mode: 'Markdown', ...getDeleteFailedKeyboard(scope, id) },
         );
       } else if (error.message.includes('introuvable')) {
