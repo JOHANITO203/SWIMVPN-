@@ -6,7 +6,7 @@ import {
   DEFAULT_SUPPLIER_DEVICE_LIMIT,
   getDefaultSupplierCapacityUnits,
 } from '@app/contracts';
-import { AccountingEntrySource, AccountingEntryType, InventoryHealthStatus, TrialConfigStatus } from '@prisma/client';
+import { AccountingEntrySource, AccountingEntryType, InventoryHealthStatus, PlanCategory, TrialConfigStatus } from '@prisma/client';
 import { Markup, Telegraf } from 'telegraf';
 import { firstValueFrom } from 'rxjs';
 import { isAdminBotAuthorized, normalizeTelegramId, parseAdminUserIds } from './admin-bot-auth';
@@ -24,6 +24,7 @@ import {
   getInventoryActionKeyboard,
   getOrderActionKeyboard,
   getDeleteConfirmationKeyboard,
+  getDeleteFailedKeyboard,
   getSuperDeleteConfirmationKeyboard,
   formatPendingFulfillment,
   formatTrialImportInstructions,
@@ -664,6 +665,19 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       const id = ctx.match[2];
       await ctx.answerCbQuery('Suppression en cours...');
       await this.executeDirectDelete(ctx, scope, id);
+    });
+
+    this.bot.action(/superdelete_confirm:(paid|trial):(.+)/, async (ctx) => {
+      const scope = ctx.match[1] as 'paid' | 'trial';
+      const id = ctx.match[2];
+      await ctx.answerCbQuery();
+      await ctx.reply(
+        `🛑 *ALERTE SUPERDELETE*\n\nCette action va :\n1. Révoquer l'accès de TOUS les utilisateurs sur cet item.\n2. Détacher les commandes/trials en cours.\n3. Supprimer définitivement l'item.\n\nItem: \`${id}\``,
+        {
+          parse_mode: 'Markdown',
+          ...await this.getSuperDeleteKeyboard(id),
+        }
+      );
     });
 
     this.bot.action(/superdelete_execute:(paid|trial):(.+)/, async (ctx) => {

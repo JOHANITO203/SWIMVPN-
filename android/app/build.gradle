@@ -258,8 +258,8 @@ tasks.register("prepareXrayRuntimeAssets") {
 
 tasks.register("prepareTun2SocksRuntimeAssets") {
     inputs.property("tun2SocksUpstreamTag", tun2SocksUpstreamTag)
-    inputs.property("tun2SocksBinaryByAbi", tun2SocksBinaryByAbi.toString())
-    inputs.property("tun2SocksSharedLibraryByAbi", tun2SocksSharedLibraryByAbi.toString())
+    inputs.property("tun2SocksBinaryByAbi", tun2SocksBinaryByAbi.collectEntries { k, v -> [k, v?.toString()] })
+    inputs.property("tun2SocksSharedLibraryByAbi", tun2SocksSharedLibraryByAbi.collectEntries { k, v -> [k, v?.toString()] })
     inputs.property("ndkVersion", android.ndkVersion)
     inputs.property("abis", android.defaultConfig.ndk.abiFilters.toString())
     outputs.dir(generatedRuntimeAssetsDir)
