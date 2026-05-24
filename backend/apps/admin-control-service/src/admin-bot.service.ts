@@ -710,7 +710,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
           where: { created_at: { gte: startOfMonth }, currency: 'RUB' },
           select: { type: true, amount: true },
         });
-        const totals = monthEntries.reduce(
+        const totals = entries.reduce(
           (acc, entry) => {
             const amount = Number(entry.amount);
             if (entry.type === AccountingEntryType.REVENUE) acc.revenue += amount;
