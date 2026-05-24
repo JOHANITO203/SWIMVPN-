@@ -75,15 +75,22 @@ def buildTun2SocksSharedLibraries = { File repoDir, List<String> abis ->
     def isWindows = System.getProperty("os.name").toLowerCase().contains("windows")
     def ndkBuildExecutable = isWindows ? "ndk-build.cmd" : "ndk-build"
     def ndkBuildPath = new File(ndkDir, ndkBuildExecutable).absolutePath
+    
+    if (!file(ndkBuildPath).exists()) {
+        throw new IllegalStateException("ndk-build executable not found at ${ndkBuildPath}")
+    }
+
+    logger.lifecycle("Building tun2socks shared libraries for ABIs: ${abis} using NDK at ${ndkDir}")
 
     exec {
-        workingDir(repoDir)
+        // Run ndk-build from the parent of the jni folder, which is the standard project root for ndk-build
+        workingDir(repoDir.parentFile)
         commandLine(
             ndkBuildPath,
-            "-j2",
+            "-j${Runtime.getRuntime().availableProcessors()}",
             "NDK_PROJECT_PATH=.",
-            "APP_BUILD_SCRIPT=Android.mk",
-            "NDK_APPLICATION_MK=Application.mk",
+            "APP_BUILD_SCRIPT=jni/Android.mk",
+            "NDK_APPLICATION_MK=jni/Application.mk",
             "APP_ABI=${abis.join(' ')}",
             "APP_LDFLAGS=-Wl,-z,max-page-size=16384"
         )
@@ -181,6 +188,8 @@ android {
 
 tasks.register("prepareXrayRuntimeAssets") {
     inputs.property("xrayCoreVersion", xrayCoreVersion)
+    inputs.property("xrayArtifactByAbi", xrayArtifactByAbi.toString())
+    inputs.property("abis", android.defaultConfig.ndk.abiFilters.toString())
     outputs.dir(generatedRuntimeAssetsDir)
     outputs.dir(generatedRuntimeJniLibsDir)
 
@@ -248,6 +257,11 @@ tasks.register("prepareXrayRuntimeAssets") {
 }
 
 tasks.register("prepareTun2SocksRuntimeAssets") {
+    inputs.property("tun2SocksUpstreamTag", tun2SocksUpstreamTag)
+    inputs.property("tun2SocksBinaryByAbi", tun2SocksBinaryByAbi.toString())
+    inputs.property("tun2SocksSharedLibraryByAbi", tun2SocksSharedLibraryByAbi.toString())
+    inputs.property("ndkVersion", android.ndkVersion)
+    inputs.property("abis", android.defaultConfig.ndk.abiFilters.toString())
     outputs.dir(generatedRuntimeAssetsDir)
     outputs.dir(generatedRuntimeJniLibsDir)
 

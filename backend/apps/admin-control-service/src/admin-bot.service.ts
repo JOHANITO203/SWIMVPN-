@@ -1063,27 +1063,72 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     try {
       if (scope === 'paid') {
         await this.prisma.$transaction(async (tx) => {
-          // 1. Force remove assignments (this revokes VPN access immediately)
+          // 1. Find all affected order IDs before deleting assignments
+          const assignments = await tx.orderAssignment.findMany({
+            where: { inventory_item_id: id },
+            select: { order_id: true },
+          });
+          const orderIds = [...new Set(assignments.map((a) => a.order_id))];
+
+          // 2. Force remove assignments (this revokes VPN access immediately)
           await tx.orderAssignment.deleteMany({
-            where: { inventory_item_id: id }
+            where: { inventory_item_id: id },
           });
 
-          // 2. Detach from accounting records to avoid FK violations
+          // 3. Revert Orders to PENDING_FULFILLMENT so they can be re-fulfilled
+          if (orderIds.length > 0) {
+            await tx.order.updateMany({
+              where: { id: { in: orderIds }, status: 'FULFILLED' },
+              data: { status: 'PENDING_FULFILLMENT', fulfilled_at: null },
+            });
+          }
+
+          // 4. Detach from accounting records to avoid FK violations
           await tx.accountingEntry.updateMany({
             where: { inventory_item_id: id },
-            data: { inventory_item_id: null }
+            data: { inventory_item_id: null },
           });
 
-          // 3. Physical delete of the item
+          // 5. Delete config events
+          await tx.configEvent.deleteMany({
+            where: { config_id: id, config_scope: 'PAID' },
+          });
+
+          // 6. Physical delete of the item
           await tx.inventoryItem.delete({ where: { id } });
         });
       } else {
         await this.prisma.$transaction(async (tx) => {
-          // 1. Delete trial assignments
-          await tx.trialAssignment.deleteMany({
-            where: { trial_config_id: id }
+          // 1. Find all affected trial grant IDs
+          const assignments = await tx.trialAssignment.findMany({
+            where: { trial_config_id: id },
+            select: { grant_id: true },
           });
-          // 2. Physical delete of the config
+          const grantIds = [...new Set(assignments.map((a) => a.grant_id))];
+
+          // 2. Delete trial assignments
+          await tx.trialAssignment.deleteMany({
+            where: { trial_config_id: id },
+          });
+
+          // 3. Mark TrialGrants as REVOKED/FAILED
+          if (grantIds.length > 0) {
+            await tx.trialGrant.updateMany({
+              where: { id: { in: grantIds } },
+              data: {
+                status: 'REVOKED',
+                status_reason: 'Config deleted by admin',
+                revoked_at: new Date(),
+              },
+            });
+          }
+
+          // 4. Delete config events
+          await tx.configEvent.deleteMany({
+            where: { config_id: id, config_scope: 'TRIAL' },
+          });
+
+          // 5. Physical delete of the config
           await tx.trialConfig.delete({ where: { id } });
         });
       }
@@ -1198,8 +1243,8 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     } catch (error: any) {
       if (error.code === 'P2003') {
         await ctx.reply(
-          `❌ *Suppression impossible*\n\nL'item \`${id}\` est lié à des commandes ou attributions existantes. Désactivez-le à la place (\`/disable\`).`,
-          { parse_mode: 'Markdown' },
+          `❌ *Suppression impossible*\n\nL'item \`${id}\` est lié à des commandes ou attributions existantes.\n\nSouhaitez-vous forcer la suppression (Super Delete) ? Cela réinitialisera les commandes liées en attente de stock.`,
+          { parse_mode: 'Markdown', ...getDeleteFailedKeyboard(scope, id) },
         );
       } else if (error.message.includes('introuvable')) {
         await ctx.reply(`❓ *ID Inconnu* :\n${error.message}`, { parse_mode: 'Markdown' });

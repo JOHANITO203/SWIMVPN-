@@ -279,6 +279,17 @@ export function getDeleteConfirmationKeyboard(scope: 'paid' | 'trial', id: strin
   ]);
 }
 
+export function getDeleteFailedKeyboard(scope: 'paid' | 'trial', id: string) {
+  return Markup.inlineKeyboard([
+    [
+      Markup.button.callback('💀 USE SUPER DELETE', `superdelete_confirm:${scope}:${id}`),
+    ],
+    [
+      Markup.button.callback('🔙 Back to Review', `review:${scope}:${id}`),
+    ],
+  ]);
+}
+
 export function getSuperDeleteConfirmationKeyboard(scope: 'paid' | 'trial', id: string) {
   return Markup.inlineKeyboard([
     [
