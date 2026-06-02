@@ -44,6 +44,7 @@ import com.swimvpn.app.vpn.RuntimeStartupFailurePolicy
 import com.swimvpn.app.vpn.RuntimeStartupHealthPolicy
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.TunnelFallbackPolicy
+import com.swimvpn.app.diagnostics.CrashReporter
 import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.StickyReconnectPolicy
 import com.swimvpn.app.vpn.VpnManager
@@ -472,6 +473,7 @@ class SwimVpnService : VpnService() {
                     ),
                 )
                 logRuntimeEvent("reconnect_failed", mapOf("error" to (e.localizedMessage ?: "unknown")))
+                CrashReporter.recordVpnFailure(stage = "startup", cause = cause.name, throwable = e)
 
                 // OEM hardening: if the full-tunnel data plane failed for a tunnel-infrastructure
                 // reason (establish()/tun2socks), degrade once to LOCAL_PROXY instead of leaving the
@@ -601,6 +603,7 @@ class SwimVpnService : VpnService() {
                         preparedRuntime.stderrLogFile.appendText("${error.message ?: "tun2socks native bridge failure"}\n")
                         preparedRuntime.exitStateFile.writeText("FAILED")
                         Log.e("SwimVpnService", "tun2socks native bridge failed", error)
+                        CrashReporter.recordVpnFailure(stage = "tun2socks_bridge", cause = "ENGINE_CRASH", throwable = error)
                         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
                             setRuntimeError("tun2socks failed: ${error.localizedMessage}", DisconnectCause.ENGINE_CRASH)
                             scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_failure")
