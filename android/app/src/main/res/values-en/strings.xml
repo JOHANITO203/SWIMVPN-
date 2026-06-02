@@ -162,6 +162,8 @@
     <string name="servers_agent_ready">Agent ready</string>
     <string name="servers_agent_subtitle">Best servers\nfor your connection</string>
     <string name="servers_recommended_badge">Recommended</string>
+    <string name="servers_better_on_wifi">Better on Wi-Fi</string>
+    <string name="servers_better_on_mobile">Better on mobile</string>
     <string name="servers_import_required">Import required</string>
     <string name="servers_no_config">No config</string>
     <string name="servers_unlimited">Unlimited</string>
@@ -269,6 +271,7 @@
     <string name="adaptive_reconnecting">Network unstable. Reconnecting...</string>
     <string name="adaptive_switching_route">Network unstable. Switching route...</string>
     <string name="adaptive_reconnect_give_up">Connection unstable. Choose another server or try again later.</string>
+    <string name="imported_server_failing_refresh_hint">This imported server keeps failing. Try refreshing your subscription.</string>
     <string name="subscription_cancel_dialog_title">Cancel this access?</string>
     <string name="subscription_cancel_dialog_body">This will remove the premium configuration from this device. If this premium config is selected, VPN and auto-connect will be stopped. Imported configurations will remain available.</string>
     <string name="subscription_cancel_confirm">Cancel access</string>

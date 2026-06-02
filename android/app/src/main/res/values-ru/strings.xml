@@ -162,6 +162,8 @@
     <string name="servers_agent_ready">Агент готов</string>
     <string name="servers_agent_subtitle">Лучшие серверы\nдля вашего подключения</string>
     <string name="servers_recommended_badge">Рекомендуется</string>
+    <string name="servers_better_on_wifi">Лучше по Wi-Fi</string>
+    <string name="servers_better_on_mobile">Лучше по мобильной сети</string>
     <string name="servers_import_required">Нужен импорт</string>
     <string name="servers_no_config">Нет конфигурации</string>
     <string name="servers_unlimited">Безлимитно</string>
@@ -269,6 +271,7 @@
     <string name="adaptive_reconnecting">Сеть нестабильна. Переподключаемся...</string>
     <string name="adaptive_switching_route">Сеть нестабильна. Меняем маршрут...</string>
     <string name="adaptive_reconnect_give_up">Соединение нестабильно. Выберите другой сервер или повторите позже.</string>
+    <string name="imported_server_failing_refresh_hint">Этот импортированный сервер постоянно даёт сбой. Попробуйте обновить подписку.</string>
     <string name="subscription_cancel_dialog_title">Отменить этот доступ?</string>
     <string name="subscription_cancel_dialog_body">Это удалит premium-конфигурацию с этого устройства. Если выбрана эта premium-конфигурация, VPN и автоподключение будут остановлены. Импортированные конфигурации останутся доступны.</string>
     <string name="subscription_cancel_confirm">Отменить доступ</string>

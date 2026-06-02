@@ -162,6 +162,8 @@
     <string name="servers_agent_ready">Agent prêt</string>
     <string name="servers_agent_subtitle">Meilleurs serveurs\npour votre connexion</string>
     <string name="servers_recommended_badge">Recommandé</string>
+    <string name="servers_better_on_wifi">Mieux en Wi-Fi</string>
+    <string name="servers_better_on_mobile">Mieux en mobile</string>
     <string name="servers_import_required">Import requis</string>
     <string name="servers_no_config">Aucune config</string>
     <string name="servers_unlimited">Illimité</string>
@@ -269,6 +271,7 @@
     <string name="adaptive_reconnecting">Réseau instable. Reconnexion...</string>
     <string name="adaptive_switching_route">Réseau instable. Changement de route...</string>
     <string name="adaptive_reconnect_give_up">Connexion instable. Choisissez un autre serveur ou réessayez plus tard.</string>
+    <string name="imported_server_failing_refresh_hint">Ce serveur importé échoue à répétition. Essayez d\'actualiser votre abonnement.</string>
     <string name="subscription_cancel_dialog_title">Résilier cet accès ?</string>
     <string name="subscription_cancel_dialog_body">Cette action supprimera la configuration premium de cet appareil. Si cette config premium est sélectionnée, le VPN et l’auto-connexion seront arrêtés. Les configurations importées resteront disponibles.</string>
     <string name="subscription_cancel_confirm">Résilier l’accès</string>

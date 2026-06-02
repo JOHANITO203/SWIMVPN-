@@ -36,6 +36,8 @@ import com.swimvpn.app.data.network.ServerLatencyEvaluator
 import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.data.server.PostCheckoutServerSelectionPolicy
 import com.swimvpn.app.config.ConfigRepository
+import com.swimvpn.app.config.FailingServerAlertPolicy
+import com.swimvpn.app.config.RefreshOutcome
 import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.config.ImportedProfileGroup
 import com.swimvpn.app.config.SecurityMode
@@ -60,6 +62,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 sealed class AppState {
     object Loading : AppState()
@@ -91,6 +94,8 @@ sealed class AppState {
         val activeServer: ServerNode? = null,
         val recommendedServerId: String? = null,
         val isRecommendedServerValidated: Boolean = false,
+        val preferredNetworkByServerId: Map<String, NetworkType?> = emptyMap(),
+        val currentNetworkType: NetworkType = NetworkType.UNKNOWN,
     ) : AppState()
 
     data class Error(val message: String) : AppState()
@@ -127,6 +132,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     @Volatile
     private var latencyRefreshInFlight = false
     private var externalCheckoutRefreshRetryJob: Job? = null
+    @Volatile
+    private var subscriptionRefreshInFlight = false
+    // Process-scoped set of imported server ids we have already nudged about. An entry is removed
+    // on that server's next recorded success so a later failure streak can alert again.
+    private val alertedFailingServerIds = mutableSetOf<String>()
 
     private companion object {
         private const val PREMIUM_USAGE_REPORT_INTERVAL_MS = 30_000L
@@ -176,7 +186,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun onAdaptiveRuntimeRunning() {
         val serverId = adaptiveActiveServerId ?: (_state.value as? AppState.Success)?.activeServer?.id
         if (serverId != null) {
-            serverScoreStore.recordSuccess(serverId)
+            serverScoreStore.recordSuccess(
+                serverId,
+                networkType = currentNetworkType(),
+                hourOfDay = currentHourOfDay(),
+            )
+            // A successful handshake resets the failing-server alert gate so a future streak can
+            // alert again without spamming during the current healthy session.
+            alertedFailingServerIds.remove(serverId)
             AdaptiveEventLogger.log(
                 event = if (adaptiveReconnectAttempt > 0) "reconnect_success" else "handshake_success",
                 details = mapOf(
@@ -205,7 +222,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val now = System.currentTimeMillis()
-            serverScoreStore.recordFailure(activeServer.id, now, networkType = currentNetworkType())
+            val updatedScore = serverScoreStore.recordFailure(
+                activeServer.id,
+                now,
+                networkType = currentNetworkType(),
+                hourOfDay = currentHourOfDay(),
+            )
+            maybeAlertFailingImportedServer(activeServer, updatedScore.consecutiveFailures)
             val scores = serverScoreStore.loadScores()
             val plannedAction = AdaptiveDecisionAgent.planAfterFailure(
                 currentServerId = activeServer.id,
@@ -1415,20 +1438,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun applyAdaptiveRecommendation(state: AppState.Success): AppState.Success {
+        // Load scores once and reuse for both the recommendation and the per-network hint map,
+        // so recomputation incurs a single read instead of one per concern.
+        val scores = serverScoreStore.loadScores()
+        val networkType = currentNetworkType()
+        // Wi-Fi/mobile hint is purely presentational and independent of the agent toggle: derive
+        // it for every visible server from the already-loaded scores (no extra disk reads).
+        val preferredNetworkByServerId = state.servers.associate { server ->
+            server.id to AdaptiveDecisionAgent.preferredNetwork(scores[server.id])
+        }
+
         if (!state.agentEnabled) {
             // AI agent disabled: respect the user's manual selection, surface no recommendation/badge.
             return state.copy(
                 recommendedServerId = null,
                 isRecommendedServerValidated = false,
+                preferredNetworkByServerId = preferredNetworkByServerId,
+                currentNetworkType = networkType,
             )
         }
         val now = System.currentTimeMillis()
         val recommendation = AdaptiveDecisionAgent.recommendServer(
             candidates = state.servers.map { it.toDecisionCandidate(state.profile) },
-            scores = serverScoreStore.loadScores(),
+            scores = scores,
             currentServerId = null,
             nowMs = now,
-            networkType = currentNetworkType(),
+            networkType = networkType,
+            hourOfDay = currentHourOfDay(),
         )
         val recommendedId = recommendation?.candidate?.serverId
         val isRecommendedServerValidated = recommendation?.qualityState == ServerRuntimeQualityState.FRESH
@@ -1436,6 +1472,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return state.copy(
             recommendedServerId = recommendedId,
             isRecommendedServerValidated = isRecommendedServerValidated,
+            preferredNetworkByServerId = preferredNetworkByServerId,
+            currentNetworkType = networkType,
         )
     }
 
@@ -1462,6 +1500,61 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             Log.w("MainViewModel", "Unable to resolve current network type", e)
             NetworkType.UNKNOWN
+        }
+    }
+
+    /**
+     * Local hour-of-day (0..23) used as a bounded, secondary signal for hourly server scoring.
+     * Any failure yields -1, which the adaptive agent treats as "bucket nothing / zero nudge",
+     * so recommendation ranking is unchanged when the hour cannot be resolved.
+     */
+    private fun currentHourOfDay(): Int =
+        try {
+            Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "Unable to resolve current hour of day", e)
+            -1
+        }
+
+    /**
+     * Emits a one-shot, non-spammy nudge to refresh the subscription when an IMPORTED server keeps
+     * failing. The decision is delegated to [FailingServerAlertPolicy]; this method only owns the
+     * process-scoped already-alerted set (cleared on that server's next success).
+     */
+    private suspend fun maybeAlertFailingImportedServer(server: ServerNode, consecutiveFailures: Int) {
+        val shouldAlert = FailingServerAlertPolicy.shouldAlert(
+            source = server.source,
+            consecutiveFailures = consecutiveFailures,
+            alreadyAlertedForServer = server.id in alertedFailingServerIds,
+        )
+        if (!shouldAlert) return
+        alertedFailingServerIds.add(server.id)
+        _effect.emit(AppSideEffect.ShowToast(s(R.string.imported_server_failing_refresh_hint)))
+    }
+
+    /**
+     * Foreground trigger for the conservative, non-destructive subscription auto-refresh. Runs off
+     * the main thread, is cheap when nothing is due, and is guarded so at most one pass runs per
+     * trigger. On a pass that imported new servers it rebuilds the in-memory server list via the
+     * existing refresh path WITHOUT changing the user's active selection.
+     */
+    fun refreshSubscriptionsOnForeground() {
+        if (subscriptionRefreshInFlight) return
+        subscriptionRefreshInFlight = true
+        viewModelScope.launch {
+            try {
+                val outcome = configRepository.refreshSubscriptionsIfDue()
+                val changed = (outcome as? RefreshOutcome.Completed)?.newlyImported ?: 0
+                if (changed > 0) {
+                    val current = _state.value as? AppState.Success ?: return@launch
+                    _state.value = refreshSuccessState(current)
+                    refreshServerLatency()
+                }
+            } catch (e: Exception) {
+                Log.w("MainViewModel", "Subscription auto-refresh failed", e)
+            } finally {
+                subscriptionRefreshInFlight = false
+            }
         }
     }
 

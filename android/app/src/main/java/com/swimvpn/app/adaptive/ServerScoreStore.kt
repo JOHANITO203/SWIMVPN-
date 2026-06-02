@@ -16,10 +16,11 @@ class ServerScoreStore(context: Context) {
         serverId: String,
         nowMs: Long = System.currentTimeMillis(),
         networkType: NetworkType = NetworkType.UNKNOWN,
+        hourOfDay: Int = -1,
     ): ServerQualityScore {
         val scores = loadScores().toMutableMap()
         val current = scores[serverId] ?: ServerQualityScore(serverId = serverId)
-        val updated = AdaptiveDecisionAgent.recordFailure(current, nowMs, networkType)
+        val updated = AdaptiveDecisionAgent.recordFailure(current, nowMs, networkType, hourOfDay)
         scores[serverId] = updated
         saveScores(scores)
         return updated
@@ -34,10 +35,15 @@ class ServerScoreStore(context: Context) {
         return updated
     }
 
-    fun recordSuccess(serverId: String, nowMs: Long = System.currentTimeMillis()): ServerQualityScore {
+    fun recordSuccess(
+        serverId: String,
+        nowMs: Long = System.currentTimeMillis(),
+        networkType: NetworkType = NetworkType.UNKNOWN,
+        hourOfDay: Int = -1,
+    ): ServerQualityScore {
         val scores = loadScores().toMutableMap()
         val current = scores[serverId] ?: ServerQualityScore(serverId = serverId)
-        val updated = AdaptiveDecisionAgent.recordSuccess(current, nowMs)
+        val updated = AdaptiveDecisionAgent.recordSuccess(current, nowMs, networkType, hourOfDay)
         scores[serverId] = updated
         saveScores(scores)
         return updated
@@ -67,7 +73,7 @@ class ServerScoreStore(context: Context) {
  */
 object ServerScoreCodec {
     const val SEPARATOR = ""
-    const val VERSION = "v3"
+    const val VERSION = "v5"
     private const val LEGACY_FIELD_COUNT = 7
     // Sub-separators for the networkFailures field. Distinct from SEPARATOR () so they cannot
     // collide with the field framing: "WIFI:2;CELLULAR:1".
@@ -85,15 +91,28 @@ object ServerScoreCodec {
         score.avoidUntilMs,
         score.manualSelectionCount,
         score.lastManualSelectionAtMs,
-        encodeNetworkFailures(score.networkFailures),
+        encodeNetworkMap(score.networkFailures),
+        // v4: networkSuccesses appended after networkFailures, same compact format.
+        encodeNetworkMap(score.networkSuccesses),
+        // v5: hour-of-day maps appended after networkSuccesses, compact int-keyed format "9:2;18:5".
+        encodeHourMap(score.successByHour),
+        encodeHourMap(score.failureByHour),
     ).joinToString(SEPARATOR)
 
     // Omit zero/negative entries; empty map -> "". Stable order for deterministic encoding/tests.
-    private fun encodeNetworkFailures(networkFailures: Map<NetworkType, Int>): String =
-        networkFailures.entries
+    private fun encodeNetworkMap(networkMap: Map<NetworkType, Int>): String =
+        networkMap.entries
             .filter { it.value > 0 }
             .sortedBy { it.key.name }
             .joinToString(NETWORK_ENTRY_SEPARATOR) { "${it.key.name}$NETWORK_KV_SEPARATOR${it.value}" }
+
+    // v5: compact int-keyed hour map. Omit zero/negative entries; empty map -> "". Sorted by hour
+    // for deterministic encoding/tests.
+    private fun encodeHourMap(hourMap: Map<Int, Int>): String =
+        hourMap.entries
+            .filter { it.value > 0 }
+            .sortedBy { it.key }
+            .joinToString(NETWORK_ENTRY_SEPARATOR) { "${it.key}$NETWORK_KV_SEPARATOR${it.value}" }
 
     fun decode(raw: String): ServerQualityScore? {
         val parts = raw.split(SEPARATOR)
@@ -122,12 +141,17 @@ object ServerScoreCodec {
             // v3 fields; absent in v2 rows -> defaults so older rows upgrade losslessly.
             manualSelectionCount = parts.intAt(8),
             lastManualSelectionAtMs = parts.longAt(9),
-            networkFailures = decodeNetworkFailures(parts.getOrNull(10)),
+            networkFailures = decodeNetworkMap(parts.getOrNull(10)),
+            // v4 field; absent in v2/v3 rows -> emptyMap so older rows upgrade losslessly.
+            networkSuccesses = decodeNetworkMap(parts.getOrNull(11)),
+            // v5 fields; absent in v2/v3/v4 rows -> emptyMap so older rows upgrade losslessly.
+            successByHour = decodeHourMap(parts.getOrNull(12)),
+            failureByHour = decodeHourMap(parts.getOrNull(13)),
         )
     }
 
     // Defensive: unknown NetworkType names and malformed entries are skipped without throwing.
-    private fun decodeNetworkFailures(raw: String?): Map<NetworkType, Int> {
+    private fun decodeNetworkMap(raw: String?): Map<NetworkType, Int> {
         if (raw.isNullOrEmpty()) return emptyMap()
         val result = mutableMapOf<NetworkType, Int>()
         raw.split(NETWORK_ENTRY_SEPARATOR).forEach { entry ->
@@ -136,6 +160,21 @@ object ServerScoreCodec {
             val type = runCatching { NetworkType.valueOf(kv[0]) }.getOrNull() ?: return@forEach
             val count = kv[1].toIntOrNull()?.takeIf { it > 0 } ?: return@forEach
             result[type] = count
+        }
+        return result
+    }
+
+    // Defensive: non-numeric keys/values and out-of-range hours (outside 0..23) are skipped without
+    // throwing. Mirrors decodeNetworkMap's tolerance for malformed rows.
+    private fun decodeHourMap(raw: String?): Map<Int, Int> {
+        if (raw.isNullOrEmpty()) return emptyMap()
+        val result = mutableMapOf<Int, Int>()
+        raw.split(NETWORK_ENTRY_SEPARATOR).forEach { entry ->
+            val kv = entry.split(NETWORK_KV_SEPARATOR)
+            if (kv.size != 2) return@forEach
+            val hour = kv[0].toIntOrNull()?.takeIf { it in 0..23 } ?: return@forEach
+            val count = kv[1].toIntOrNull()?.takeIf { it > 0 } ?: return@forEach
+            result[hour] = count
         }
         return result
     }

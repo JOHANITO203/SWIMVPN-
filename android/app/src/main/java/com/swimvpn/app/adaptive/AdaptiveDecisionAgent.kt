@@ -33,6 +33,14 @@ data class ServerQualityScore(
     // Stage 2: per-network failure history. Count of failures observed per concrete transport.
     // Only concrete transports (WIFI/CELLULAR/ETHERNET) are bucketed; UNKNOWN/NONE/OTHER are not.
     val networkFailures: Map<NetworkType, Int> = emptyMap(),
+    // Stage 3: per-network success history ("works here"). Count of successes observed per concrete
+    // transport. Only WIFI/CELLULAR/ETHERNET are bucketed; UNKNOWN/NONE/OTHER are not.
+    val networkSuccesses: Map<NetworkType, Int> = emptyMap(),
+    // Stage 4: hour-of-day outcome history. Counts of successes/failures bucketed by local hour
+    // (keys 0..23). This is the WEAKEST signal and only nudges ranking very lightly; out-of-range
+    // hours (e.g. -1) are never bucketed.
+    val successByHour: Map<Int, Int> = emptyMap(),
+    val failureByHour: Map<Int, Int> = emptyMap(),
 ) {
     fun isAvoided(nowMs: Long): Boolean = avoidUntilMs > nowMs
 }
@@ -99,6 +107,21 @@ object AdaptiveDecisionAgent {
     // network without affecting it on other networks. Capped below MISSING_PING (300).
     private const val NETWORK_FAILURE_PENALTY_STEP = 50
     private const val NETWORK_FAILURE_PENALTY_CAP = 250
+    // Stage 3: bounded "works-here" reward for a server PROVEN to succeed on the current concrete
+    // network. Applied as a negative penalty, comparable to latency/penalty magnitudes but never
+    // large enough on its own to resurrect a filtered (avoided / probe-failed / blocked) server.
+    private const val NETWORK_SUCCESS_REWARD_STEP = 30
+    private const val NETWORK_SUCCESS_REWARD_CAP = 120
+    // Stage 3: preferredNetwork helper thresholds. A transport is "clearly better" only with a
+    // minimum proven sample AND a margin that beats the runner-up by at least the gap threshold.
+    private const val PREFERRED_NETWORK_MIN_SAMPLES = 3
+    private const val PREFERRED_NETWORK_MARGIN_GAP = 2
+    // Stage 4: hour-of-day nudge. The WEAKEST signal: a small bounded adjustment applied only when a
+    // server has enough samples at the current hour. Magnitudes are comparable to the pinned/manual
+    // reward (cap 30) and strictly smaller than the per-network penalty/reward, so latency and
+    // per-network signals always dominate. Suppressed under a global outage; applied after filters.
+    private const val HOURLY_NUDGE_MIN_SAMPLES = 3
+    private const val HOURLY_NUDGE_CAP = 30
     private const val LOAD_PENALTY_DIVISOR = 2
     private const val UNKNOWN_LOAD_PENALTY = 20
     private const val CONGESTED_AVAILABILITY_PENALTY = 50
@@ -108,6 +131,7 @@ object AdaptiveDecisionAgent {
         score: ServerQualityScore,
         nowMs: Long,
         networkType: NetworkType = NetworkType.UNKNOWN,
+        hourOfDay: Int = -1,
     ): ServerQualityScore {
         val nextConsecutiveFailures = score.consecutiveFailures + 1
         val avoidUntil = if (nextConsecutiveFailures >= AVOID_AFTER_CONSECUTIVE_FAILURES) {
@@ -129,6 +153,7 @@ object AdaptiveDecisionAgent {
             lastFailureAtMs = nowMs,
             avoidUntilMs = avoidUntil,
             networkFailures = nextNetworkFailures,
+            failureByHour = incrementHour(score.failureByHour, hourOfDay),
         )
     }
 
@@ -149,15 +174,53 @@ object AdaptiveDecisionAgent {
         else -> false
     }
 
+    // Increment the hour bucket only for a valid local hour (0..23). Any other value (e.g. -1)
+    // leaves the map untouched.
+    private fun incrementHour(byHour: Map<Int, Int>, hourOfDay: Int): Map<Int, Int> =
+        if (hourOfDay in 0..23) {
+            byHour + (hourOfDay to ((byHour[hourOfDay] ?: 0) + 1))
+        } else {
+            byHour
+        }
+
     fun recordSuccess(
         score: ServerQualityScore,
         nowMs: Long,
-    ): ServerQualityScore = score.copy(
-        successCount = score.successCount + 1,
-        consecutiveFailures = 0,
-        lastSuccessAtMs = nowMs,
-        avoidUntilMs = 0L,
-    )
+        networkType: NetworkType = NetworkType.UNKNOWN,
+        hourOfDay: Int = -1,
+    ): ServerQualityScore {
+        // On concrete transports: credit a per-network success AND shed one accumulated failure on
+        // that same network (recovery — a server that starts working again here sheds a failure,
+        // floored at 0). UNKNOWN/NONE/OTHER leave both maps untouched.
+        val (nextNetworkSuccesses, nextNetworkFailures) = if (isBucketedNetwork(networkType)) {
+            val successes = score.networkSuccesses +
+                (networkType to ((score.networkSuccesses[networkType] ?: 0) + 1))
+            val priorFailures = score.networkFailures[networkType] ?: 0
+            val failures = if (priorFailures > 0) {
+                val decremented = priorFailures - 1
+                if (decremented > 0) {
+                    score.networkFailures + (networkType to decremented)
+                } else {
+                    score.networkFailures - networkType
+                }
+            } else {
+                score.networkFailures
+            }
+            successes to failures
+        } else {
+            score.networkSuccesses to score.networkFailures
+        }
+
+        return score.copy(
+            successCount = score.successCount + 1,
+            consecutiveFailures = 0,
+            lastSuccessAtMs = nowMs,
+            avoidUntilMs = 0L,
+            networkSuccesses = nextNetworkSuccesses,
+            networkFailures = nextNetworkFailures,
+            successByHour = incrementHour(score.successByHour, hourOfDay),
+        )
+    }
 
     fun planAfterFailure(
         currentServerId: String?,
@@ -247,6 +310,9 @@ object AdaptiveDecisionAgent {
         // Stage 2: bounded contextual scoring. networkType nudges ranking via the manual-override
         // reward and a per-network failure penalty; UNKNOWN/NONE leave outcomes unchanged.
         networkType: NetworkType = NetworkType.UNKNOWN,
+        // Stage 4: weakest signal. A small bounded hour-of-day nudge; -1 (default) leaves ranking
+        // byte-for-byte unchanged.
+        hourOfDay: Int = -1,
     ): ServerRecommendationResult? {
         val globalOutage = isLikelyGlobalOutage(candidates)
         return candidates
@@ -254,7 +320,7 @@ object AdaptiveDecisionAgent {
             .filter { it.serverId != currentServerId }
             .filter { it.hasRuntimeConfig && !it.premiumBlocked }
             .filter { candidate -> globalOutage || !scores[candidate.serverId].isAvoided(nowMs) }
-            .map { candidate -> recommendationFor(candidate, scores[candidate.serverId], nowMs, globalOutage, networkType) }
+            .map { candidate -> recommendationFor(candidate, scores[candidate.serverId], nowMs, globalOutage, networkType, hourOfDay) }
             .filter { globalOutage || it.qualityState != ServerRuntimeQualityState.FRESH_PROBE_FAILED }
             .minWithOrNull(
                 compareBy<ServerRecommendationResult> { it.score }
@@ -272,6 +338,7 @@ object AdaptiveDecisionAgent {
         nowMs: Long,
         globalOutage: Boolean = false,
         networkType: NetworkType = NetworkType.UNKNOWN,
+        hourOfDay: Int = -1,
     ): ServerRecommendationResult {
         val qualityState = qualityState(candidate, nowMs)
         // During a likely global outage the failures are not the servers' fault, so neither the
@@ -280,17 +347,29 @@ object AdaptiveDecisionAgent {
         val historyPenalty = if (globalOutage) 0 else historyPenalty(score, nowMs)
         // Per-network penalty is suppressed under a global outage like the other failure penalties.
         val networkPenalty = if (globalOutage) 0 else networkFailurePenalty(score, networkType)
+        // "Works-here" reward: prefer a server proven to succeed on the current network. Suppressed
+        // under a global outage like the per-network penalty (the successes are not informative when
+        // the whole transport is down). Applied after avoidance/probe filtering, so it can never
+        // resurrect a filtered server on its own.
+        val networkSuccessReward = if (globalOutage) 0 else networkSuccessReward(score, networkType)
         // Bounded manual-override reward only nudges ranking among otherwise-eligible servers; it is
         // applied after avoidance/probe filtering above, so it can never resurrect a filtered server.
         val manualReward = manualOverrideReward(score, nowMs)
+        // Stage 4 (weakest signal): hour-of-day nudge. A small bounded +penalty / -reward applied
+        // only with sufficient samples at this hour. Suppressed under a global outage like the other
+        // history-derived signals, and applied after filtering so it can never resurrect a filtered
+        // server. hourOfDay = -1 yields 0 (ranking unchanged).
+        val hourlyNudge = if (globalOutage) 0 else hourlyNudge(score, hourOfDay)
         val totalScore = normalizedPing(candidate.pingMs) +
             qualityPenalty +
             loadPenalty(candidate.load) +
             availabilityPenalty(candidate.availabilityStatus) +
             historyPenalty +
-            networkPenalty -
+            networkPenalty +
+            hourlyNudge -
             (if (candidate.isPinned) PINNED_REWARD else 0) -
-            manualReward
+            manualReward -
+            networkSuccessReward
 
         return ServerRecommendationResult(
             candidate = candidate,
@@ -322,6 +401,64 @@ object AdaptiveDecisionAgent {
         val failures = score.networkFailures[networkType] ?: return 0
         if (failures <= 0) return 0
         return minOf(NETWORK_FAILURE_PENALTY_CAP, failures * NETWORK_FAILURE_PENALTY_STEP)
+    }
+
+    /**
+     * Bounded "works-here" reward for a server with PROVEN successes on the CURRENT concrete network.
+     * Grows with [ServerQualityScore.networkSuccesses] up to [NETWORK_SUCCESS_REWARD_CAP].
+     * UNKNOWN/NONE/OTHER carry no reward.
+     */
+    private fun networkSuccessReward(score: ServerQualityScore?, networkType: NetworkType): Int {
+        if (score == null || !isBucketedNetwork(networkType)) return 0
+        val successes = score.networkSuccesses[networkType] ?: return 0
+        if (successes <= 0) return 0
+        return minOf(NETWORK_SUCCESS_REWARD_CAP, successes * NETWORK_SUCCESS_REWARD_STEP)
+    }
+
+    /**
+     * Stage 4 (WEAKEST signal): bounded hour-of-day nudge returned as a signed score delta
+     * (positive = light penalty, negative = light reward). Active only when [hourOfDay] is a valid
+     * local hour (0..23) AND the server has at least [HOURLY_NUDGE_MIN_SAMPLES] total events at that
+     * hour. The magnitude is the (failure - success) margin at that hour, capped at
+     * [HOURLY_NUDGE_CAP] in each direction — comparable to the pinned/manual reward and strictly
+     * smaller than the per-network penalty/reward, so latency and per-network signals dominate.
+     * Returns 0 for a null score, an out-of-range hour, or an insufficient sample.
+     */
+    private fun hourlyNudge(score: ServerQualityScore?, hourOfDay: Int): Int {
+        if (score == null || hourOfDay !in 0..23) return 0
+        val successes = score.successByHour[hourOfDay] ?: 0
+        val failures = score.failureByHour[hourOfDay] ?: 0
+        if (successes + failures < HOURLY_NUDGE_MIN_SAMPLES) return 0
+        // Positive when failures dominate (light penalty); negative when successes dominate (light
+        // reward). Bounded symmetrically by the cap.
+        return (failures - successes).coerceIn(-HOURLY_NUDGE_CAP, HOURLY_NUDGE_CAP)
+    }
+
+    /**
+     * Pure, side-effect-free helper for the UI "works better on Wi-Fi / mobile" hint.
+     *
+     * Returns the concrete transport (WIFI/CELLULAR/ETHERNET) on which this server has CLEARLY better
+     * outcomes than every other concrete transport, or null when the data is insufficient or
+     * ambiguous. "Clearly better" is defined conservatively and deterministically:
+     *  - the winner has at least [PREFERRED_NETWORK_MIN_SAMPLES] successes on that transport, AND
+     *  - the winner's (successes - failures) margin exceeds the runner-up transport's margin by at
+     *    least [PREFERRED_NETWORK_MARGIN_GAP].
+     * Ties, missing data, or a too-small sample all return null.
+     */
+    fun preferredNetwork(score: ServerQualityScore?): NetworkType? {
+        if (score == null) return null
+        val transports = listOf(NetworkType.WIFI, NetworkType.CELLULAR, NetworkType.ETHERNET)
+        val margins = transports.map { type ->
+            val successes = score.networkSuccesses[type] ?: 0
+            val failures = score.networkFailures[type] ?: 0
+            Triple(type, successes, successes - failures)
+        }
+        val ranked = margins.sortedByDescending { it.third }
+        val winner = ranked[0]
+        val runnerUp = ranked[1]
+        if (winner.second < PREFERRED_NETWORK_MIN_SAMPLES) return null
+        if (winner.third - runnerUp.third < PREFERRED_NETWORK_MARGIN_GAP) return null
+        return winner.first
     }
 
     private fun historyPenalty(score: ServerQualityScore?, nowMs: Long): Int {

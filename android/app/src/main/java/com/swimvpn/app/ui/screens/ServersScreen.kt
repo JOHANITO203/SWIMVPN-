@@ -82,6 +82,7 @@ import com.swimvpn.app.ui.components.SwimDockDestination
 import com.swimvpn.app.ui.components.SwimMetaballDock
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.theme.SwimDesignTokens
+import com.swimvpn.app.vpn.NetworkType
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -123,6 +124,7 @@ data class ServerNodeUi(
     val loadLabel: String?,
     val isSelected: Boolean,
     val isRecommended: Boolean = false,
+    val networkHint: NetworkType? = null,
 )
 
 data class ServerScreenUiState(
@@ -150,6 +152,8 @@ fun ServersScreen(
     onPeriodicRefresh: () -> Unit = {},
     recommendedServerId: String? = null,
     isRecommendedServerValidated: Boolean = false,
+    preferredNetworkByServerId: Map<String, NetworkType?> = emptyMap(),
+    currentNetworkType: NetworkType = NetworkType.UNKNOWN,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -193,6 +197,8 @@ fun ServersScreen(
         profile,
         recommendedServerId,
         isRecommendedServerValidated,
+        preferredNetworkByServerId,
+        currentNetworkType,
         resources,
     ) {
         // Only surface the recommended row when the recommendation is validated.
@@ -202,8 +208,8 @@ fun ServersScreen(
             aiActive = isRecommendedServerValidated && recommendedServerId != null,
             importedConfig = activeConfigMetadata.toImportedConfigSummaryUi(resources),
             premiumAccess = profile.toPremiumAccessSummaryUi(premiumServers, resources),
-            importedNodes = importedServers.toNodeUi(activeServerId, validatedRecommendedId, resources),
-            premiumNodes = premiumServers.toNodeUi(activeServerId, validatedRecommendedId, resources),
+            importedNodes = importedServers.toNodeUi(activeServerId, validatedRecommendedId, preferredNetworkByServerId, currentNetworkType, resources),
+            premiumNodes = premiumServers.toNodeUi(activeServerId, validatedRecommendedId, preferredNetworkByServerId, currentNetworkType, resources),
             selectedNodeId = activeServerId,
         )
     }
@@ -913,6 +919,10 @@ private fun ServerNodeRow(node: ServerNodeUi, onClick: () -> Unit, modifier: Mod
                 Spacer(modifier = Modifier.height(4.dp))
                 RecommendedTag()
             }
+            if (node.networkHint != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                NetworkHintTag(networkHint = node.networkHint)
+            }
         }
         PingBadge(node = node)
         Spacer(modifier = Modifier.width(10.dp))
@@ -943,6 +953,34 @@ private fun RecommendedTag(modifier: Modifier = Modifier) {
             color = accent,
             fontSize = fixedSp(9),
             fontWeight = FontWeight.Black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun NetworkHintTag(networkHint: NetworkType, modifier: Modifier = Modifier) {
+    // Secondary, deliberately lighter than RecommendedTag so it never competes with the
+    // recommended badge: muted outline, no accent fill, no leading dot.
+    val label = when (networkHint) {
+        NetworkType.WIFI -> stringResource(R.string.servers_better_on_wifi)
+        NetworkType.CELLULAR -> stringResource(R.string.servers_better_on_mobile)
+        else -> return
+    }
+    val muted = SwimDesignTokens.Color.TextMuted
+    Row(
+        modifier = modifier
+            .clip(SwimDesignTokens.Shape.Pill)
+            .border(1.dp, muted.copy(alpha = 0.28f), SwimDesignTokens.Shape.Pill)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            color = muted,
+            fontSize = fixedSp(8),
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -1050,6 +1088,8 @@ private fun MotionReveal(
 private fun List<ServerNode>.toNodeUi(
     activeServerId: String?,
     recommendedServerId: String?,
+    preferredNetworkByServerId: Map<String, NetworkType?>,
+    currentNetworkType: NetworkType,
     resources: Resources,
 ): List<ServerNodeUi> =
     map { server ->
@@ -1065,8 +1105,25 @@ private fun List<ServerNode>.toNodeUi(
             loadLabel = server.load?.let { resources.getString(R.string.servers_load_percent, it) },
             isSelected = server.id == activeServerId,
             isRecommended = recommendedServerId != null && server.id == recommendedServerId,
+            networkHint = resolveNetworkHint(preferredNetworkByServerId[server.id], currentNetworkType),
         )
     }
+
+/**
+ * Computes the purely-presentational "better on another network" hint for a server row.
+ *
+ * Returns a concrete transport (WIFI/CELLULAR) only when the server's known-preferred network is a
+ * concrete transport, the user's current network is itself a concrete transport, and the two differ.
+ * No hint is shown for UNKNOWN/NONE/ETHERNET/OTHER on either side, so the tag never appears when we
+ * lack reliable per-network signal.
+ */
+private fun resolveNetworkHint(preferred: NetworkType?, current: NetworkType): NetworkType? {
+    val concretePreferred = preferred?.takeIf { it == NetworkType.WIFI || it == NetworkType.CELLULAR }
+        ?: return null
+    val concreteCurrent = current == NetworkType.WIFI || current == NetworkType.CELLULAR
+    if (!concreteCurrent) return null
+    return concretePreferred.takeIf { it != current }
+}
 
 private fun ServerNode.buildPingLabel(resources: Resources): String =
     when {

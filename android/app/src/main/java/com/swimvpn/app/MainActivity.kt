@@ -135,6 +135,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshAfterExternalCheckoutIfNeeded()
+        viewModel.refreshSubscriptionsOnForeground()
     }
 
     private fun applyLocale(langCode: String) {
@@ -222,6 +223,8 @@ fun AppNavigation(
                 profile = data.profile,
                 recommendedServerId = data.recommendedServerId,
                 isRecommendedServerValidated = data.isRecommendedServerValidated,
+                preferredNetworkByServerId = data.preferredNetworkByServerId,
+                currentNetworkType = data.currentNetworkType,
                 onSelectServer = { server ->
                     viewModel.selectServer(server)
                 },

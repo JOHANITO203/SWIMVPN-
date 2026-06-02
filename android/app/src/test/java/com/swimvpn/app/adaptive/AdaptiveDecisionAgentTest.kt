@@ -858,6 +858,396 @@ class AdaptiveDecisionAgentTest {
         assertEquals("cell-bad", onUnknown.targetServerId)
     }
 
+    @Test
+    fun `recordSuccess on cellular increments network success and sheds one cellular failure`() {
+        val base = ServerQualityScore(
+            serverId = "s",
+            networkFailures = mapOf(
+                NetworkType.CELLULAR to 2,
+                NetworkType.WIFI to 1,
+            ),
+        )
+
+        val updated = AdaptiveDecisionAgent.recordSuccess(base, 1_000L, NetworkType.CELLULAR)
+
+        assertEquals(mapOf(NetworkType.CELLULAR to 1), updated.networkSuccesses)
+        // CELLULAR failure decremented 2 -> 1; WIFI failure untouched.
+        assertEquals(
+            mapOf(NetworkType.CELLULAR to 1, NetworkType.WIFI to 1),
+            updated.networkFailures,
+        )
+        assertEquals(1, updated.successCount)
+        assertEquals(0, updated.consecutiveFailures)
+        assertEquals(1_000L, updated.lastSuccessAtMs)
+    }
+
+    @Test
+    fun `recordSuccess sheds the last cellular failure entry down to floor zero`() {
+        val base = ServerQualityScore(
+            serverId = "s",
+            networkFailures = mapOf(NetworkType.CELLULAR to 1),
+        )
+
+        val updated = AdaptiveDecisionAgent.recordSuccess(base, 2_000L, NetworkType.CELLULAR)
+
+        // 1 -> 0 removes the entry entirely (floor 0, no negative counts).
+        assertEquals(emptyMap<NetworkType, Int>(), updated.networkFailures)
+        assertEquals(mapOf(NetworkType.CELLULAR to 1), updated.networkSuccesses)
+    }
+
+    @Test
+    fun `recordSuccess on unknown network buckets nothing and preserves legacy behavior`() {
+        val base = ServerQualityScore(
+            serverId = "s",
+            consecutiveFailures = 3,
+            avoidUntilMs = 9_999L,
+            networkFailures = mapOf(NetworkType.WIFI to 2),
+        )
+
+        val viaUnknown = AdaptiveDecisionAgent.recordSuccess(base, 3_000L, NetworkType.UNKNOWN)
+        val viaDefault = AdaptiveDecisionAgent.recordSuccess(base, 3_000L)
+
+        assertEquals(emptyMap<NetworkType, Int>(), viaUnknown.networkSuccesses)
+        assertEquals(mapOf(NetworkType.WIFI to 2), viaUnknown.networkFailures)
+        assertEquals(0, viaUnknown.consecutiveFailures)
+        assertEquals(0L, viaUnknown.avoidUntilMs)
+        // Default param equals explicit UNKNOWN: existing behavior unchanged.
+        assertEquals(viaDefault, viaUnknown)
+    }
+
+    @Test
+    fun `works-here reward prefers the server proven on the current wifi network`() {
+        val now = 800_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(id = "plain", ping = 50, latencyMeasuredAtMs = now - 2_000L),
+                candidate(id = "works-here", ping = 50, latencyMeasuredAtMs = now - 2_000L),
+            ),
+            scores = mapOf(
+                "works-here" to ServerQualityScore(
+                    serverId = "works-here",
+                    networkSuccesses = mapOf(NetworkType.WIFI to 3),
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            networkType = NetworkType.WIFI,
+        )
+
+        assertEquals("works-here", selected?.serverId)
+    }
+
+    @Test
+    fun `works-here reward does not resurrect an avoided server`() {
+        val now = 810_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(id = "works-but-avoided", ping = 10, latencyMeasuredAtMs = now - 1_000L),
+                candidate(id = "healthy", ping = 90, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = mapOf(
+                "works-but-avoided" to ServerQualityScore(
+                    serverId = "works-but-avoided",
+                    networkSuccesses = mapOf(NetworkType.WIFI to 999),
+                    avoidUntilMs = now + 600_000L,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            networkType = NetworkType.WIFI,
+        )
+
+        assertEquals("healthy", selected?.serverId)
+    }
+
+    @Test
+    fun `works-here reward does not resurrect a fresh probe failed server`() {
+        val now = 820_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "works-but-refused",
+                    ping = 10,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.CONNECTION_REFUSED,
+                ),
+                candidate(id = "healthy", ping = 90, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = mapOf(
+                "works-but-refused" to ServerQualityScore(
+                    serverId = "works-but-refused",
+                    networkSuccesses = mapOf(NetworkType.WIFI to 999),
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            networkType = NetworkType.WIFI,
+        )
+
+        assertEquals("healthy", selected?.serverId)
+    }
+
+    @Test
+    fun `works-here reward is suppressed under global outage`() {
+        val now = 830_000L
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(
+                    id = "slow-works-here",
+                    ping = 100,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.TIMEOUT,
+                ),
+                candidate(
+                    id = "fast-plain",
+                    ping = 20,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.NETWORK_UNREACHABLE,
+                ),
+            ),
+            scores = mapOf(
+                "slow-works-here" to ServerQualityScore(
+                    serverId = "slow-works-here",
+                    // 4 WIFI successes -> max reward 120; ping gap is only 80, so WITHOUT outage
+                    // suppression the works-here reward would flip the ranking. The outage must
+                    // suppress it so the faster plain server still wins on ping.
+                    networkSuccesses = mapOf(NetworkType.WIFI to 4),
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            networkType = NetworkType.WIFI,
+        )
+        // Global outage suppresses the works-here reward, so the faster plain server wins on ping.
+        assertEquals("fast-plain", selected?.candidate?.serverId)
+    }
+
+    @Test
+    fun `preferredNetwork returns wifi when clearly better`() {
+        val score = ServerQualityScore(
+            serverId = "s",
+            networkSuccesses = mapOf(NetworkType.WIFI to 5, NetworkType.CELLULAR to 1),
+            networkFailures = mapOf(NetworkType.CELLULAR to 2),
+        )
+
+        assertEquals(NetworkType.WIFI, AdaptiveDecisionAgent.preferredNetwork(score))
+    }
+
+    @Test
+    fun `preferredNetwork returns null on insufficient sample`() {
+        val score = ServerQualityScore(
+            serverId = "s",
+            networkSuccesses = mapOf(NetworkType.WIFI to 2),
+        )
+
+        assertNull(AdaptiveDecisionAgent.preferredNetwork(score))
+    }
+
+    @Test
+    fun `preferredNetwork returns null on ambiguous near-tie`() {
+        val score = ServerQualityScore(
+            serverId = "s",
+            networkSuccesses = mapOf(NetworkType.WIFI to 4, NetworkType.CELLULAR to 4),
+        )
+
+        assertNull(AdaptiveDecisionAgent.preferredNetwork(score))
+    }
+
+    @Test
+    fun `preferredNetwork returns null for null score`() {
+        assertNull(AdaptiveDecisionAgent.preferredNetwork(null))
+    }
+
+    @Test
+    fun `recordFailure and recordSuccess bucket by hour only for valid hours`() {
+        val base = ServerQualityScore(serverId = "s")
+
+        val failAt9 = AdaptiveDecisionAgent.recordFailure(base, 1_000L, NetworkType.UNKNOWN, hourOfDay = 9)
+        assertEquals(mapOf(9 to 1), failAt9.failureByHour)
+        assertEquals(emptyMap<Int, Int>(), failAt9.successByHour)
+
+        val succAt9 = AdaptiveDecisionAgent.recordSuccess(failAt9, 2_000L, NetworkType.UNKNOWN, hourOfDay = 9)
+        assertEquals(mapOf(9 to 1), succAt9.successByHour)
+        // Failure-by-hour is independent of the network failure-shedding recovery.
+        assertEquals(mapOf(9 to 1), succAt9.failureByHour)
+
+        // Out-of-range hours bucket nothing but preserve all other logic.
+        val failNoHour = AdaptiveDecisionAgent.recordFailure(succAt9, 3_000L, NetworkType.UNKNOWN, hourOfDay = -1)
+        assertEquals(mapOf(9 to 1), failNoHour.failureByHour)
+        assertEquals(2, failNoHour.failureCount)
+
+        val failOob = AdaptiveDecisionAgent.recordFailure(succAt9, 4_000L, NetworkType.UNKNOWN, hourOfDay = 24)
+        assertEquals(mapOf(9 to 1), failOob.failureByHour)
+
+        // Default (no hour arg) buckets nothing and matches explicit -1.
+        val failDefault = AdaptiveDecisionAgent.recordFailure(succAt9, 3_000L, NetworkType.UNKNOWN)
+        assertEquals(failNoHour, failDefault)
+    }
+
+    @Test
+    fun `hourly nudge prefers the server proven at this hour with sufficient samples`() {
+        val now = 900_000L
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(id = "plain", ping = 50, latencyMeasuredAtMs = now - 2_000L),
+                candidate(id = "good-at-hour", ping = 55, latencyMeasuredAtMs = now - 2_000L),
+            ),
+            scores = mapOf(
+                "good-at-hour" to ServerQualityScore(
+                    serverId = "good-at-hour",
+                    successByHour = mapOf(14 to 8),
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            hourOfDay = 14,
+        )
+        // -8 reward (capped at 30) on a 5ms ping gap flips ranking toward the proven server.
+        assertEquals("good-at-hour", selected?.candidate?.serverId)
+    }
+
+    @Test
+    fun `hourly nudge does nothing below the minimum sample`() {
+        val now = 910_000L
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(id = "plain", ping = 50, latencyMeasuredAtMs = now - 2_000L),
+                candidate(id = "thin-history", ping = 55, latencyMeasuredAtMs = now - 2_000L),
+            ),
+            scores = mapOf(
+                "thin-history" to ServerQualityScore(
+                    serverId = "thin-history",
+                    // Only 2 events at this hour: below the min sample, so no nudge applies.
+                    successByHour = mapOf(14 to 2),
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            hourOfDay = 14,
+        )
+        // No nudge -> the faster plain server wins on ping.
+        assertEquals("plain", selected?.candidate?.serverId)
+    }
+
+    @Test
+    fun `hourly nudge magnitude is small and cannot overpower the per-network signal`() {
+        val now = 920_000L
+        // A server bad at this hour (failures dominate) AND bad on the current network. The hourly
+        // penalty is capped at 30, far smaller than the per-network penalty, so it stays secondary.
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(id = "bad-hour-net", ping = 40, latencyMeasuredAtMs = now - 1_000L),
+                candidate(id = "neutral", ping = 60, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = mapOf(
+                "bad-hour-net" to ServerQualityScore(
+                    serverId = "bad-hour-net",
+                    networkFailures = mapOf(NetworkType.CELLULAR to 3),
+                    failureByHour = mapOf(14 to 100),
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            networkType = NetworkType.CELLULAR,
+            hourOfDay = 14,
+        )
+        // Both signals push bad-hour-net behind neutral; verify it loses (and the +30 cap means the
+        // hourly penalty alone, 20ms gap, would NOT have been enough — the per-network signal leads).
+        assertEquals("neutral", selected?.candidate?.serverId)
+    }
+
+    @Test
+    fun `hourly nudge does not resurrect an avoided server`() {
+        val now = 930_000L
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(id = "good-hour-avoided", ping = 10, latencyMeasuredAtMs = now - 1_000L),
+                candidate(id = "healthy", ping = 90, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = mapOf(
+                "good-hour-avoided" to ServerQualityScore(
+                    serverId = "good-hour-avoided",
+                    successByHour = mapOf(14 to 999),
+                    avoidUntilMs = now + 600_000L,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            hourOfDay = 14,
+        )
+        assertEquals("healthy", selected?.candidate?.serverId)
+    }
+
+    @Test
+    fun `hourly nudge is suppressed under global outage`() {
+        val now = 940_000L
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(
+                    id = "slow-good-hour",
+                    ping = 100,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.TIMEOUT,
+                ),
+                candidate(
+                    id = "fast-plain",
+                    ping = 90,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.NETWORK_UNREACHABLE,
+                ),
+            ),
+            scores = mapOf(
+                "slow-good-hour" to ServerQualityScore(
+                    serverId = "slow-good-hour",
+                    successByHour = mapOf(14 to 50),
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            hourOfDay = 14,
+        )
+        // Outage suppresses the hourly reward, so the faster plain server wins on ping.
+        assertEquals("fast-plain", selected?.candidate?.serverId)
+    }
+
+    @Test
+    fun `hourOfDay default leaves recommendation byte-for-byte unchanged`() {
+        val now = 950_000L
+        val candidates = listOf(
+            candidate(id = "a", ping = 45, latencyMeasuredAtMs = now - 1_000L),
+            candidate(id = "b", ping = 80, latencyMeasuredAtMs = now - 1_000L),
+        )
+        val scores = mapOf(
+            "a" to ServerQualityScore(
+                serverId = "a",
+                successByHour = mapOf(14 to 10),
+                failureByHour = mapOf(14 to 1),
+            ),
+        )
+
+        val omitted = AdaptiveDecisionAgent.recommendServer(
+            candidates = candidates,
+            scores = scores,
+            currentServerId = null,
+            nowMs = now,
+        )
+        val explicitDefault = AdaptiveDecisionAgent.recommendServer(
+            candidates = candidates,
+            scores = scores,
+            currentServerId = null,
+            nowMs = now,
+            hourOfDay = -1,
+        )
+
+        assertEquals(omitted?.candidate?.serverId, explicitDefault?.candidate?.serverId)
+        assertEquals(omitted?.score, explicitDefault?.score)
+    }
+
     private fun candidate(
         id: String,
         ping: Int = 50,

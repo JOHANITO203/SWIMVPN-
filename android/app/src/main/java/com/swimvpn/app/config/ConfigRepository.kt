@@ -18,6 +18,8 @@ import com.swimvpn.app.data.network.ResolveCryptSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.net.URLDecoder
 import java.util.UUID
@@ -38,7 +40,11 @@ class ConfigRepository(private val context: Context) {
     private val api = RetrofitClient.apiService
     private val prefs = PreferencesManager(context)
     private val subscriptionFetcher = SubscriptionFetcher()
-    
+
+    // Guards the whole due-subscription refresh pass so concurrent triggers
+    // (app foreground + Servers screen open) cannot run overlapping refreshes.
+    private val refreshMutex = Mutex()
+
     companion object {
         private const val IMPORTED_SERVER_ID_PREFIX = "imported:"
         private const val DATA_STORE_NAME = "vpn_configs"
@@ -48,6 +54,12 @@ class ConfigRepository(private val context: Context) {
         private val IMPORTED_PROFILES_KEY = stringPreferencesKey("imported_profiles")
         private val ACTIVE_PROFILE_ID_KEY = stringPreferencesKey("active_profile_id")
         private val LAST_USED_PROFILE_ID_KEY = stringPreferencesKey("last_used_profile_id")
+
+        // Per-subscription auto-refresh registry. Stores, keyed by the original
+        // subscription URL, the provider-declared interval and the last successful
+        // refresh timestamp. Kept in this DataStore so it lives next to the
+        // imported profiles it describes (no extra store, no Gradle deps).
+        private val SUBSCRIPTION_REFRESH_REGISTRY_KEY = stringPreferencesKey("subscription_refresh_registry")
 
         internal fun activeConfigSourceFor(sourceType: SourceType): ActiveConfigSource {
             return when (sourceType) {
@@ -84,7 +96,7 @@ class ConfigRepository(private val context: Context) {
                         )
                     }
 
-                    processResolvedImport(
+                    val result = processResolvedImport(
                         resolution = ResolvedImportInput.DirectConfig(
                             payload = fetched.payload,
                             warnings = resolution.warnings + fetched.warnings,
@@ -93,6 +105,21 @@ class ConfigRepository(private val context: Context) {
                         ),
                         sourceType = SourceType.SUBSCRIPTION_URL,
                     )
+                    // Track this subscription URL so it can be auto-refreshed later.
+                    // Only meaningful when the provider declared an update interval.
+                    if (result is ImportResult.Success) {
+                        val intervalHours = result.importedProfiles
+                            .firstNotNullOfOrNull { it.subscriptionAutoUpdateIntervalHours }
+                            ?: 0
+                        if (intervalHours > 0) {
+                            trackSubscriptionForRefresh(
+                                url = resolution.url,
+                                intervalHours = intervalHours,
+                                lastRefreshedAtMs = System.currentTimeMillis(),
+                            )
+                        }
+                    }
+                    result
                 }
                 is ResolvedImportInput.HappEncryptedSubscription -> {
                     return ImportResult.Error(
@@ -727,6 +754,136 @@ class ConfigRepository(private val context: Context) {
 
     private suspend fun fetchSubscriptionPayload(url: String): SubscriptionFetchResult = subscriptionFetcher.fetch(url)
 
+    // region Subscription auto-refresh
+
+    /**
+     * Conservatively re-fetch + re-import every subscription whose declared
+     * auto-update interval has elapsed (per [SubscriptionRefreshPolicy]).
+     *
+     * Non-destructive guarantees:
+     *  - Existing imported profiles are NEVER wiped. Refresh reuses the normal
+     *    [importConfig] path, which only APPENDS de-duplicated new profiles and
+     *    leaves existing entries (including the active server's config) untouched.
+     *  - If a fetch fails / returns empty / yields no importable server, the
+     *    existing configs stay exactly as they were and the per-subscription
+     *    timestamp is NOT advanced (so it retries on the next trigger).
+     *  - The active selection is never cleared here; selection lives in separate
+     *    keys and is not mutated by import.
+     *
+     * Idempotent + race-safe: the whole pass is guarded by [refreshMutex]; a
+     * concurrent trigger returns [RefreshOutcome.Skipped] instead of racing.
+     *
+     * @param nowMs current epoch millis (injectable for testing/determinism).
+     */
+    suspend fun refreshSubscriptionsIfDue(nowMs: Long = System.currentTimeMillis()): RefreshOutcome {
+        if (!refreshMutex.tryLock()) {
+            return RefreshOutcome.Skipped
+        }
+        try {
+            val registry = readRefreshRegistry()
+            if (registry.isEmpty()) {
+                return RefreshOutcome.Completed(emptyList())
+            }
+
+            val due = registry.values.filter { entry ->
+                SubscriptionRefreshPolicy.shouldRefresh(
+                    intervalHours = entry.intervalHours,
+                    lastRefreshedAtMs = entry.lastRefreshedAtMs,
+                    nowMs = nowMs,
+                )
+            }
+            if (due.isEmpty()) {
+                return RefreshOutcome.Completed(emptyList())
+            }
+
+            val results = mutableListOf<SubscriptionRefreshResult>()
+            for (entry in due) {
+                val result = runCatching { importConfig(entry.url, SourceType.SUBSCRIPTION_URL) }
+                    .getOrElse { error ->
+                        ImportResult.Error(errors = listOf(error.localizedMessage ?: "refresh failed"))
+                    }
+
+                when (result) {
+                    is ImportResult.Success -> {
+                        // Success path advances the timestamp. Note importConfig already
+                        // re-registered the URL with a fresh timestamp; we still write here
+                        // to cover the (rare) case where the interval was dropped to 0.
+                        updateRefreshTimestamp(entry.url, nowMs)
+                        results += SubscriptionRefreshResult(
+                            url = entry.url,
+                            succeeded = true,
+                            importedCount = result.importedCount,
+                        )
+                    }
+                    is ImportResult.Duplicate -> {
+                        // Nothing new, but the fetch succeeded => advance timestamp so we
+                        // do not hammer the provider every trigger. Existing configs intact.
+                        updateRefreshTimestamp(entry.url, nowMs)
+                        results += SubscriptionRefreshResult(
+                            url = entry.url,
+                            succeeded = true,
+                            importedCount = 0,
+                        )
+                    }
+                    is ImportResult.Error -> {
+                        // Non-destructive: keep configs AND keep the old timestamp so the
+                        // subscription stays "due" and retries on the next trigger.
+                        results += SubscriptionRefreshResult(
+                            url = entry.url,
+                            succeeded = false,
+                            importedCount = 0,
+                        )
+                    }
+                }
+            }
+            return RefreshOutcome.Completed(results)
+        } finally {
+            refreshMutex.unlock()
+        }
+    }
+
+    private suspend fun trackSubscriptionForRefresh(url: String, intervalHours: Int, lastRefreshedAtMs: Long) {
+        val registry = readRefreshRegistry().toMutableMap()
+        registry[url] = SubscriptionRefreshEntry(url, intervalHours, lastRefreshedAtMs)
+        writeRefreshRegistry(registry)
+    }
+
+    private suspend fun updateRefreshTimestamp(url: String, nowMs: Long) {
+        val registry = readRefreshRegistry().toMutableMap()
+        val existing = registry[url] ?: return
+        registry[url] = existing.copy(lastRefreshedAtMs = nowMs)
+        writeRefreshRegistry(registry)
+    }
+
+    private suspend fun readRefreshRegistry(): Map<String, SubscriptionRefreshEntry> {
+        return try {
+            val json = context.dataStore.data.first()[SUBSCRIPTION_REFRESH_REGISTRY_KEY]
+            if (json.isNullOrEmpty()) {
+                emptyMap()
+            } else {
+                val typeToken = object : TypeToken<List<SubscriptionRefreshEntry>>() {}.type
+                val entries: List<SubscriptionRefreshEntry> = gson.fromJson(json, typeToken) ?: emptyList()
+                entries.filter { it.url.isNotBlank() }.associateBy { it.url }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading subscription refresh registry", e)
+            emptyMap()
+        }
+    }
+
+    private suspend fun writeRefreshRegistry(registry: Map<String, SubscriptionRefreshEntry>) {
+        try {
+            val json = gson.toJson(registry.values.toList())
+            context.dataStore.edit { preferences ->
+                preferences[SUBSCRIPTION_REFRESH_REGISTRY_KEY] = json
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error writing subscription refresh registry", e)
+        }
+    }
+
+    // endregion
+
     private fun containsSupportedEntry(input: String): Boolean {
         return VpnConfigLinkExtractor.containsRecognizedLink(input)
     }
@@ -846,6 +1003,37 @@ data class RuntimeConfigResolution(
     val displayName: String? = null,
     val warnings: List<String> = emptyList(),
 )
+
+/**
+ * Persisted per-subscription refresh tracking record.
+ * Keyed by [url] inside the refresh registry.
+ */
+data class SubscriptionRefreshEntry(
+    val url: String,
+    val intervalHours: Int,
+    val lastRefreshedAtMs: Long,
+)
+
+/** Per-subscription outcome of a single refresh attempt. */
+data class SubscriptionRefreshResult(
+    val url: String,
+    val succeeded: Boolean,
+    val importedCount: Int,
+)
+
+/** Summary returned by [ConfigRepository.refreshSubscriptionsIfDue]. */
+sealed class RefreshOutcome {
+    /** A concurrent refresh pass was already running; nothing was done. */
+    object Skipped : RefreshOutcome()
+
+    /** The pass ran. [results] is empty when nothing was due. */
+    data class Completed(val results: List<SubscriptionRefreshResult>) : RefreshOutcome() {
+        val attempted: Int get() = results.size
+        val succeeded: Int get() = results.count { it.succeeded }
+        val failed: Int get() = results.count { !it.succeeded }
+        val newlyImported: Int get() = results.sumOf { it.importedCount }
+    }
+}
 
 private sealed class ResolvedImportInput {
     data class DirectConfig(
