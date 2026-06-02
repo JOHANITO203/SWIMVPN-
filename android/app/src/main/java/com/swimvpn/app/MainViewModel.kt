@@ -527,7 +527,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             prefs.setAiAgentEnabled(enabled)
             when (val currentState = _state.value) {
-                is AppState.Success -> _state.value = currentState.copy(agentEnabled = enabled)
+                // Re-apply the recommendation immediately so the toggle takes effect at once
+                // (clears/restores the "Recommended" badge) instead of only on the next reconnect.
+                is AppState.Success ->
+                    _state.value = applyAdaptiveRecommendation(currentState.copy(agentEnabled = enabled))
                 is AppState.TrialSetup -> _state.value = currentState.copy(agentEnabled = enabled)
                 else -> {}
             }

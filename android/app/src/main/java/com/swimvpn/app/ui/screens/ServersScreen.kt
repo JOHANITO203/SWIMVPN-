@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -860,7 +861,7 @@ private fun ServerNodeRow(node: ServerNodeUi, onClick: () -> Unit, modifier: Mod
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(SwimDesignTokens.Servers.NodeRowHeight)
+            .heightIn(min = SwimDesignTokens.Servers.NodeRowHeight)
             .scale(scale)
             .shadow(if (node.isSelected) 12.dp else 6.dp, SwimDesignTokens.Shape.Pill, spotColor = SwimDesignTokens.Color.PurplePrimary.copy(alpha = if (node.isSelected) 0.18f else 0f))
             .clip(SwimDesignTokens.Shape.Pill)
@@ -878,7 +879,7 @@ private fun ServerNodeRow(node: ServerNodeUi, onClick: () -> Unit, modifier: Mod
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
