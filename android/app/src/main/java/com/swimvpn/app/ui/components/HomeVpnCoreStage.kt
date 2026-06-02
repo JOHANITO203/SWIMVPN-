@@ -32,6 +32,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.rotate
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -95,11 +102,13 @@ fun HomeVpnCoreStage(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center,
     ) {
-        // Ambient halo behind the state-aware power button. The 3D GL/Vulkan orb was removed
-        // because it crashed/was too expensive on mid-range Xiaomi/Redmi GPUs; this lightweight
-        // Compose halo is accent-driven by the VPN state and runs everywhere without GL.
-        VpnOrbPlaceholder(
+        // Ambient "Halo Pulse" aurora behind the state-aware power button. Replaces the removed
+        // 3D GL/Vulkan orb with a premium, pure-Compose backdrop (drifting blurred color blobs +
+        // a breathing bloom + a rotating accent ring while connecting). Runs on every device, no GL.
+        VpnAuroraStage(
+            state = state,
             accent = accent,
+            reducedMotion = isReducedMotionEnabled,
             modifier = Modifier
                 .matchParentSize()
                 .scale(stageBreath),
@@ -131,38 +140,147 @@ fun HomeVpnCoreStage(
 }
 
 @Composable
-private fun VpnOrbPlaceholder(
+private fun VpnAuroraStage(
+    state: VpnOrbState,
     accent: Color,
+    reducedMotion: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier = modifier) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.minDimension * 0.43f
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    accent.copy(alpha = 0.18f),
-                    accent.copy(alpha = 0.055f),
-                    Color.Transparent,
-                ),
-                center = center,
-                radius = radius * 1.55f,
+    val transition = rememberInfiniteTransition(label = "vpnAurora")
+    val driftARaw by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "auroraDriftA",
+    )
+    val driftBRaw by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "auroraDriftB",
+    )
+    val bloomRaw by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(
+                durationMillis = when (state) {
+                    VpnOrbState.CONNECTED -> 2600
+                    VpnOrbState.CONNECTING -> 1500
+                    VpnOrbState.UNSTABLE -> 1100
+                    else -> 4200
+                },
+                easing = FastOutSlowInEasing,
             ),
-            radius = radius * 1.55f,
-            center = center,
-        )
-        drawCircle(
-            color = accent.copy(alpha = 0.14f),
-            radius = radius,
-            center = center,
-            style = Stroke(width = 0.9.dp.toPx()),
-        )
-        drawCircle(
-            color = Color.White.copy(alpha = 0.045f),
-            radius = radius * 0.73f,
-            center = center,
-            style = Stroke(width = 0.75.dp.toPx()),
-        )
+            RepeatMode.Reverse,
+        ),
+        label = "auroraBloom",
+    )
+    val spinRaw by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            tween(if (state == VpnOrbState.CONNECTING) 2400 else 9000, easing = LinearEasing),
+            RepeatMode.Restart,
+        ),
+        label = "auroraSpin",
+    )
+
+    // Respect reduced motion: keep the composition but freeze drift/spin and hold a mid bloom.
+    val driftA = if (reducedMotion) 0.5f else driftARaw
+    val driftB = if (reducedMotion) 0.5f else driftBRaw
+    val bloom = if (reducedMotion) 0.5f else bloomRaw
+    val spin = if (reducedMotion) 0f else spinRaw
+
+    val coolHue = Color(0xFF4DA3FF)
+    val warmHue = if (state == VpnOrbState.UNSTABLE) Color(0xFFFF9A5E) else Color(0xFFC86BFF)
+    val showRing = state == VpnOrbState.CONNECTING || state == VpnOrbState.CONNECTED
+    val ringStrength = if (state == VpnOrbState.CONNECTING) 0.85f else 0.42f
+    val twoPi = 6.2831855f
+
+    Box(modifier = modifier) {
+        // Soft drifting aurora blobs — blurred on API 31+, gracefully soft (radial-only) below.
+        Canvas(
+            modifier = Modifier
+                .matchParentSize()
+                .blur(30.dp, BlurredEdgeTreatment.Unbounded),
+        ) {
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val s = size.minDimension
+            fun blob(color: Color, dx: Float, dy: Float, rad: Float, a: Float) {
+                val center = Offset(cx + s * dx, cy + s * dy)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(color.copy(alpha = a), Color.Transparent),
+                        center = center,
+                        radius = s * rad,
+                    ),
+                    radius = s * rad,
+                    center = center,
+                )
+            }
+            val ax = sin(driftA * twoPi) * 0.16f
+            val ay = cos(driftA * twoPi) * 0.11f
+            val bx = cos(driftB * twoPi) * 0.19f
+            val by = sin(driftA * twoPi + 1.3f) * 0.15f
+            blob(accent, ax, ay, 0.52f, 0.26f)
+            blob(coolHue, bx, by, 0.46f, 0.18f)
+            blob(warmHue, -bx * 0.8f, -ay * 1.1f, 0.44f, 0.16f)
+        }
+
+        // Sharper layer: breathing bloom, faint structural rings, rotating accent ring.
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val radius = size.minDimension * 0.43f
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        accent.copy(alpha = 0.20f + bloom * 0.16f),
+                        accent.copy(alpha = 0.05f),
+                        Color.Transparent,
+                    ),
+                    center = center,
+                    radius = radius * (1.42f + bloom * 0.12f),
+                ),
+                radius = radius * (1.42f + bloom * 0.12f),
+                center = center,
+            )
+            drawCircle(
+                color = accent.copy(alpha = 0.12f),
+                radius = radius,
+                center = center,
+                style = Stroke(width = 0.9.dp.toPx()),
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = 0.045f),
+                radius = radius * 0.73f,
+                center = center,
+                style = Stroke(width = 0.75.dp.toPx()),
+            )
+
+            if (showRing) {
+                rotate(degrees = spin, pivot = center) {
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                accent.copy(alpha = ringStrength),
+                                Color.Transparent,
+                            ),
+                            center = center,
+                        ),
+                        startAngle = 0f,
+                        sweepAngle = 150f,
+                        useCenter = false,
+                        topLeft = Offset(center.x - radius * 1.05f, center.y - radius * 1.05f),
+                        size = Size(radius * 2.1f, radius * 2.1f),
+                        style = Stroke(width = 2.4.dp.toPx()),
+                    )
+                }
+            }
+        }
     }
 }
 
