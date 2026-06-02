@@ -58,7 +58,7 @@ class StickyReconnectPolicyTest {
             updatedAt = 10_000L,
         )
 
-        assertFalse(snapshot.isFresh(now = 70_000L))
+        assertFalse(snapshot.isFresh())
     }
 
     @Test
@@ -95,6 +95,21 @@ class StickyReconnectPolicyTest {
                 ),
             )
         }
+    }
+
+    @Test
+    fun `allows fresh no-network snapshot for kill recovery`() {
+        val snapshot = snapshot(
+            status = RuntimeStatus.NO_NETWORK,
+            updatedAt = 10_000L,
+        )
+
+        assertTrue(
+            StickyReconnectPolicy.shouldRestoreStickySession(
+                snapshot = snapshot,
+                nowMs = 20_000L,
+            ),
+        )
     }
 
     private fun snapshot(

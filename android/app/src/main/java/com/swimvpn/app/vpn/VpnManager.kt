@@ -8,6 +8,8 @@ enum class VpnState {
     DISCONNECTED,
     CONNECTING,
     CONNECTED,
+    UNSTABLE,
+    NO_NETWORK,
     DISCONNECTING,
     ERROR
 }
@@ -49,7 +51,8 @@ object VpnManager {
             RuntimeStatus.STARTING -> VpnState.CONNECTING
             RuntimeStatus.RUNNING -> VpnState.CONNECTED
             RuntimeStatus.RECONNECTING -> VpnState.CONNECTING
-            RuntimeStatus.DEGRADED -> VpnState.CONNECTED
+            RuntimeStatus.DEGRADED -> VpnState.UNSTABLE
+            RuntimeStatus.NO_NETWORK -> VpnState.NO_NETWORK
             RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
             RuntimeStatus.FAILED -> VpnState.ERROR
             RuntimeStatus.STOPPED_BY_USER -> VpnState.DISCONNECTED
@@ -58,6 +61,7 @@ object VpnManager {
             newStatus == RuntimeStatus.RUNNING ||
             newStatus == RuntimeStatus.RECONNECTING ||
             newStatus == RuntimeStatus.DEGRADED ||
+            newStatus == RuntimeStatus.NO_NETWORK ||
             newStatus == RuntimeStatus.STOPPING ||
             newStatus == RuntimeStatus.STOPPED_BY_USER
         ) {
@@ -66,6 +70,8 @@ object VpnManager {
     }
 
     fun reconcileRuntimeSnapshot(snapshot: RuntimeStateSnapshot) {
+        // A stale persisted snapshot is only meaningful at cold start: a stale active
+        // status must collapse to DISCONNECTED, never resurface as a fake "Connected".
         val effectiveStatus = if (snapshot.isFresh()) {
             snapshot.status
         } else {
@@ -73,7 +79,18 @@ object VpnManager {
         }
         val expectedState = stateForRuntimeStatus(effectiveStatus)
         _runtimeMode.value = snapshot.mode
-        if (_runtimeStatus.value != effectiveStatus || _state.value != expectedState) {
+        // The live in-memory authority (set by SwimVpnService) wins. Only adopt the
+        // persisted snapshot when in-memory is still at its cold-start default, or when
+        // the snapshot itself reports an inactive/terminal state worth reflecting.
+        // Same-process: the live in-memory authority (set by SwimVpnService) owns the
+        // status while the process is alive. Only adopt the persisted snapshot at COLD
+        // START (in-memory still at the IDLE default). Never let a stale snapshot
+        // downgrade a live active status — that made a genuinely-RUNNING service display
+        // as Disconnected.
+        val shouldAdoptSnapshot = _runtimeStatus.value == RuntimeStatus.IDLE
+        if (shouldAdoptSnapshot &&
+            (_runtimeStatus.value != effectiveStatus || _state.value != expectedState)
+        ) {
             updateRuntimeStatus(effectiveStatus)
         }
         _metrics.value = _metrics.value.copy(
@@ -95,7 +112,8 @@ object VpnManager {
             RuntimeStatus.STARTING -> VpnState.CONNECTING
             RuntimeStatus.RUNNING -> VpnState.CONNECTED
             RuntimeStatus.RECONNECTING -> VpnState.CONNECTING
-            RuntimeStatus.DEGRADED -> VpnState.CONNECTED
+            RuntimeStatus.DEGRADED -> VpnState.UNSTABLE
+            RuntimeStatus.NO_NETWORK -> VpnState.NO_NETWORK
             RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
             RuntimeStatus.FAILED -> VpnState.ERROR
             RuntimeStatus.STOPPED_BY_USER -> VpnState.DISCONNECTED
@@ -111,6 +129,8 @@ object VpnManager {
             VpnState.DISCONNECTED -> RuntimeStatus.IDLE
             VpnState.CONNECTING -> RuntimeStatus.STARTING
             VpnState.CONNECTED -> RuntimeStatus.RUNNING
+            VpnState.UNSTABLE -> RuntimeStatus.DEGRADED
+            VpnState.NO_NETWORK -> RuntimeStatus.NO_NETWORK
             VpnState.DISCONNECTING -> RuntimeStatus.STOPPING
             VpnState.ERROR -> RuntimeStatus.FAILED
         }

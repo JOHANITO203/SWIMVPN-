@@ -17,6 +17,7 @@ enum class RuntimeStatus {
     RUNNING,
     RECONNECTING,
     DEGRADED,
+    NO_NETWORK,
     STOPPING,
     FAILED,
     STOPPED_BY_USER
@@ -25,11 +26,14 @@ enum class RuntimeStatus {
 enum class DisconnectCause {
     USER_STOPPED,
     NETWORK_LOST,
+    NETWORK_NOT_VALIDATED,
     SERVER_UNREACHABLE,
+    NO_TRAFFIC,
     DNS_FAILURE,
     HANDSHAKE_FAILURE,
     ENGINE_CRASH,
     SERVICE_KILLED,
+    PERMISSION_REVOKED,
     BATTERY_RESTRICTION,
     CONFIG_INVALID,
     UNKNOWN;

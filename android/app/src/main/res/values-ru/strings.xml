@@ -19,6 +19,11 @@
     <string name="btn_connect_on">ВКЛ</string>
     <string name="status_connected">Подключено</string>
     <string name="status_disconnected">Отключено</string>
+    <string name="status_no_network">Нет интернета</string>
+    <string name="status_unstable">Нестабильно</string>
+    <string name="home_no_network">Нет подключения к интернету. Проверьте сеть.</string>
+    <string name="home_unstable">Соединение нестабильно, восстановление.</string>
+    <string name="vpn_notification_no_network">Нет сети. Защита возобновится при появлении интернета.</string>
     <string name="status_connecting">Подключение...</string>
     <string name="status_disconnecting">Отключение...</string>
     <string name="status_error">Ошибка подключения</string>

@@ -19,6 +19,11 @@
     <string name="btn_connect_on">ON</string>
     <string name="status_connected">Connected</string>
     <string name="status_disconnected">Disconnected</string>
+    <string name="status_no_network">No internet</string>
+    <string name="status_unstable">Unstable</string>
+    <string name="home_no_network">No internet connection. Check your network.</string>
+    <string name="home_unstable">Connection unstable, recovering.</string>
+    <string name="vpn_notification_no_network">No network. Protection resumes when internet returns.</string>
     <string name="status_connecting">Connecting...</string>
     <string name="status_disconnecting">Disconnecting...</string>
     <string name="status_error">Connection error</string>

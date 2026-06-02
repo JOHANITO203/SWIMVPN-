@@ -13,14 +13,29 @@ data class RuntimeStateSnapshot(
     val xrayLogPath: String? = null,
     val tun2SocksLogPath: String? = null,
 ) {
-    fun isFresh(now: Long = System.currentTimeMillis(), maxAgeMs: Long = ACTIVE_STATE_MAX_AGE_MS): Boolean {
-        return status == RuntimeStatus.IDLE ||
-            status == RuntimeStatus.FAILED ||
-            now - updatedAt <= maxAgeMs
+    /**
+     * Reflects reality instead of fabricating it. Inactive/terminal statuses
+     * (IDLE, FAILED, STOPPED_BY_USER) describe a settled fact and are always trustworthy.
+     * Active statuses (RUNNING, DEGRADED, ...) are only valid while a live writer keeps
+     * the snapshot current; a persisted active status is therefore NOT treated as fresh,
+     * so the UI collapses it to DISCONNECTED rather than showing a phantom "Connected".
+     */
+    fun isFresh(nowMs: Long = System.currentTimeMillis()): Boolean {
+        return when (status) {
+            // Settled facts: always trustworthy regardless of age.
+            RuntimeStatus.IDLE,
+            RuntimeStatus.FAILED,
+            RuntimeStatus.STOPPED_BY_USER -> true
+            // Active statuses are valid only while a live writer keeps the snapshot
+            // current (SwimVpnService rewrites it every ~2s while RUNNING). Recent ->
+            // trust it (real active state); stale -> dead service, collapse to
+            // DISCONNECTED (no phantom "Connected").
+            else -> nowMs - updatedAt <= ACTIVE_STATE_MAX_AGE_MS
+        }
     }
 
     companion object {
-        const val ACTIVE_STATE_MAX_AGE_MS = 15_000L
+        const val ACTIVE_STATE_MAX_AGE_MS = 6_000L
     }
 }
 

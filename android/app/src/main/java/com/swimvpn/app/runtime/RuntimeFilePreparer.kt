@@ -5,6 +5,19 @@ import android.content.pm.ApplicationInfo
 import java.io.File
 import java.util.zip.ZipFile
 
+/**
+ * Catchable failure raised when no packaged Xray artifact matches the device ABI.
+ * Extends [Exception] (not a raw process-killing path) so the service maps it to a
+ * visible FAILED state with a clear UNSUPPORTED-ARCH message.
+ */
+class UnsupportedDeviceAbiException(message: String) : Exception(message)
+
+/**
+ * Catchable failure raised when the packaged Xray binary for a supported ABI is missing
+ * from the APK (extraction failed). Mapped to a visible FAILED state, never a process crash.
+ */
+class PackagedRuntimeMissingException(message: String) : Exception(message)
+
 data class PreparedXrayRuntime(
     val sessionId: String,
     val workingDirectory: File,
@@ -26,7 +39,9 @@ class RuntimeFilePreparer(
         sessionId: String = defaultSessionId(),
     ): PreparedXrayRuntime {
         val descriptor = RuntimeAssetCatalog.preferredXrayDescriptor()
-            ?: error("No packaged Xray artifact matches this device ABI")
+            ?: throw UnsupportedDeviceAbiException(
+                "No packaged Xray artifact matches this device ABI; the VPN runtime cannot start on this device architecture",
+            )
 
         val rootDir = File(context.noBackupFilesDir, "runtime")
         val sessionsDir = File(rootDir, "sessions/$sessionId")
@@ -107,7 +122,7 @@ class RuntimeFilePreparer(
         val executableDir = File(targetDirectory, "bin").apply { mkdirs() }
         val targetFile = File(executableDir, RuntimeAssetCatalog.XRAY_EXECUTABLE_NAME)
         if (!extractBundledLibraryFromApk(descriptor, targetFile)) {
-            error("Packaged Xray runtime is missing for ABI ${descriptor.abi}")
+            throw PackagedRuntimeMissingException("Packaged Xray runtime is missing for ABI ${descriptor.abi}")
         }
         targetFile.setReadable(true, true)
         targetFile.setWritable(true, true)

@@ -2,10 +2,17 @@ package com.swimvpn.app.runtime
 
 import android.content.Context
 import java.io.File
+import java.io.IOException
 import java.lang.IllegalThreadStateException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+
+/**
+ * Catchable failure raised when the Xray process cannot be launched.
+ * Extends [Exception] so the service maps it to a visible FAILED state instead of crashing.
+ */
+class XrayRuntimeLaunchException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 data class NativeProcessSnapshot(
     val sessionId: String,
@@ -81,7 +88,15 @@ class XrayProcessBridge(
             .redirectOutput(ProcessBuilder.Redirect.appendTo(preparedRuntime.stdoutLogFile))
             .redirectError(ProcessBuilder.Redirect.appendTo(preparedRuntime.stderrLogFile))
 
-        val process = processBuilder.start()
+        val process = try {
+            processBuilder.start()
+        } catch (e: Exception) {
+            throw XrayRuntimeLaunchException(
+                "Failed to start Xray process at ${preparedRuntime.executableFile.absolutePath}: " +
+                    (e.message ?: e::class.java.simpleName),
+                e,
+            )
+        }
         val exitCodeRef = AtomicReference<Int?>(null)
         val handle = RunningXrayProcess(preparedRuntime, process, exitCodeRef)
         activeProcesses[preparedRuntime.sessionId] = handle

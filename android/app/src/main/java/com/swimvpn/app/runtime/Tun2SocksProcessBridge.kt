@@ -1,10 +1,17 @@
 package com.swimvpn.app.runtime
 
 import android.content.Context
+import java.io.IOException
 import java.lang.IllegalThreadStateException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+
+/**
+ * Catchable failure raised when the tun2socks process cannot be launched.
+ * Extends [Exception] so the service maps it to a visible FAILED state instead of crashing.
+ */
+class Tun2SocksRuntimeLaunchException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 class RunningTun2SocksProcess internal constructor(
     private val preparedRuntime: PreparedTun2SocksRuntime,
@@ -73,7 +80,15 @@ class Tun2SocksProcessBridge(
             .redirectOutput(ProcessBuilder.Redirect.appendTo(preparedRuntime.stdoutLogFile))
             .redirectError(ProcessBuilder.Redirect.appendTo(preparedRuntime.stderrLogFile))
 
-        val process = processBuilder.start()
+        val process = try {
+            processBuilder.start()
+        } catch (e: Exception) {
+            throw Tun2SocksRuntimeLaunchException(
+                "Failed to start tun2socks process at ${preparedRuntime.executableFile.absolutePath}: " +
+                    (e.message ?: e::class.java.simpleName),
+                e,
+            )
+        }
         val exitCodeRef = AtomicReference<Int?>(null)
         val handle = RunningTun2SocksProcess(preparedRuntime, process, exitCodeRef)
         activeProcesses[preparedRuntime.sessionId] = handle

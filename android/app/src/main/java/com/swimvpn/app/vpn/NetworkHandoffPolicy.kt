@@ -29,6 +29,7 @@ object NetworkHandoffPolicy {
             RuntimeStatus.RUNNING,
             RuntimeStatus.RECONNECTING,
             RuntimeStatus.DEGRADED,
+            RuntimeStatus.NO_NETWORK,
             -> NetworkHandoffDecision(
                 action = NetworkHandoffAction.DEBOUNCE_RECONNECT,
                 delayMs = NETWORK_HANDOFF_GRACE_MS,

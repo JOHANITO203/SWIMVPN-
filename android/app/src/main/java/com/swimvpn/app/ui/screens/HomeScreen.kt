@@ -102,14 +102,14 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         while (true) {
+            // Cold-start reconciliation only feeds the persisted snapshot into the single
+            // authority (VpnManager); a stale active snapshot collapses to DISCONNECTED there.
             val snapshot = RuntimeStateStore.read(context)
             VpnManager.reconcileRuntimeSnapshot(snapshot)
-            runtimeStatus = if (snapshot.isFresh()) snapshot.status else RuntimeStatus.IDLE
-            vpnState = if (snapshot.isFresh()) {
-                vpnStateForRuntimeStatus(snapshot.status)
-            } else {
-                VpnState.DISCONNECTED
-            }
+            // Read back from the single authority instead of trusting the raw snapshot,
+            // so the live service status (incl. UNSTABLE / NO_NETWORK) is what the UI shows.
+            runtimeStatus = VpnManager.runtimeStatus.value
+            vpnState = VpnManager.state.value
             delay(1_000)
         }
     }
@@ -143,6 +143,10 @@ fun HomeScreen(
         } else {
             stringResource(R.string.home_starting_tunnel)
         }
+        // UNSTABLE / NO_NETWORK are honestly "not protected" states; surface the
+        // diagnostic hint instead of the misleading "tap to connect" idle copy.
+        VpnState.UNSTABLE -> errorMessage ?: stringResource(R.string.home_unstable)
+        VpnState.NO_NETWORK -> stringResource(R.string.home_no_network)
         VpnState.DISCONNECTING -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
             stringResource(R.string.home_stopping_proxy)
         } else {
@@ -183,6 +187,11 @@ fun HomeScreen(
     val statusText = when (vpnState) {
         VpnState.CONNECTED -> stringResource(R.string.status_connected)
         VpnState.CONNECTING -> stringResource(R.string.status_connecting)
+        // UNSTABLE/DEGRADED must read distinctly and NEVER as "Connected". Until dedicated
+        // localized strings (status_unstable / status_no_network) exist, fall back to the
+        // honest non-connected "disconnected" label rather than faking connectivity.
+        VpnState.UNSTABLE -> stringResource(R.string.status_unstable)
+        VpnState.NO_NETWORK -> stringResource(R.string.status_no_network)
         VpnState.DISCONNECTING -> stringResource(R.string.status_disconnecting)
         VpnState.ERROR -> errorMessage ?: stringResource(R.string.status_error)
         else -> stringResource(R.string.status_disconnected)
@@ -521,7 +530,8 @@ private fun vpnStateForRuntimeStatus(status: RuntimeStatus): VpnState {
         RuntimeStatus.STARTING -> VpnState.CONNECTING
         RuntimeStatus.RUNNING -> VpnState.CONNECTED
         RuntimeStatus.RECONNECTING -> VpnState.CONNECTING
-        RuntimeStatus.DEGRADED -> VpnState.CONNECTED
+        RuntimeStatus.DEGRADED -> VpnState.UNSTABLE
+        RuntimeStatus.NO_NETWORK -> VpnState.NO_NETWORK
         RuntimeStatus.STOPPING -> VpnState.DISCONNECTING
         RuntimeStatus.FAILED -> VpnState.ERROR
         RuntimeStatus.STOPPED_BY_USER -> VpnState.DISCONNECTED
@@ -531,8 +541,10 @@ private fun vpnStateForRuntimeStatus(status: RuntimeStatus): VpnState {
 private fun mapVpnConnectionStateToOrbState(vpnState: VpnState, runtimeStatus: RuntimeStatus): VpnOrbState {
     return when {
         runtimeStatus == RuntimeStatus.RECONNECTING || runtimeStatus == RuntimeStatus.DEGRADED -> VpnOrbState.UNSTABLE
+        vpnState == VpnState.UNSTABLE -> VpnOrbState.UNSTABLE
         vpnState == VpnState.CONNECTED -> VpnOrbState.CONNECTED
         vpnState == VpnState.CONNECTING || vpnState == VpnState.DISCONNECTING -> VpnOrbState.CONNECTING
+        vpnState == VpnState.NO_NETWORK -> VpnOrbState.DISCONNECTED
         vpnState == VpnState.ERROR -> VpnOrbState.UNSTABLE
         else -> VpnOrbState.DISCONNECTED
     }

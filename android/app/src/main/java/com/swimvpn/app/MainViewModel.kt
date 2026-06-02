@@ -143,6 +143,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     when (status) {
                         RuntimeStatus.RUNNING -> onAdaptiveRuntimeRunning()
                         RuntimeStatus.DEGRADED -> Unit
+                        RuntimeStatus.NO_NETWORK -> Unit
                         RuntimeStatus.RECONNECTING -> Unit
                         RuntimeStatus.FAILED -> {
                             stopPremiumUsageReporting()

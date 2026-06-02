@@ -7,7 +7,9 @@ object StickyReconnectPolicy {
         snapshot: RuntimeStateSnapshot,
         nowMs: Long = System.currentTimeMillis(),
     ): Boolean {
-        if (!snapshot.isFresh(now = nowMs, maxAgeMs = STICKY_RESTORE_MAX_AGE_MS)) {
+        // Kill-recovery uses its own time window (decoupled from RuntimeStateSnapshot.isFresh(),
+        // which is now status-based and intentionally treats active statuses as not-fresh for the UI).
+        if (nowMs - snapshot.updatedAt > STICKY_RESTORE_MAX_AGE_MS) {
             return false
         }
 
@@ -15,7 +17,8 @@ object StickyReconnectPolicy {
             RuntimeStatus.STARTING,
             RuntimeStatus.RUNNING,
             RuntimeStatus.RECONNECTING,
-            RuntimeStatus.DEGRADED -> true
+            RuntimeStatus.DEGRADED,
+            RuntimeStatus.NO_NETWORK -> true
             RuntimeStatus.IDLE,
             RuntimeStatus.STOPPING,
             RuntimeStatus.FAILED,

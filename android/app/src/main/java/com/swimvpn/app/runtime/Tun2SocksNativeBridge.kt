@@ -102,7 +102,7 @@ object Tun2SocksNativeBridge {
                 append(" is unavailable for ")
                 append(contract.sharedLibraryName)
                 append(": ")
-                append(shimFailure?.message ?: shimFailure!!::class.java.simpleName)
+                append(shimFailure?.message ?: shimFailure?.let { it::class.java.simpleName } ?: "unknown error")
             }
         }
     }

@@ -48,4 +48,16 @@ class NetworkHandoffPolicyTest {
 
         assertEquals(NetworkHandoffAction.IGNORE, decision.action)
     }
+
+    @Test
+    fun `on lost during no-network schedules debounced reconnect`() {
+        val decision = NetworkHandoffPolicy.onLost(
+            isActiveUnderlyingNetwork = true,
+            stoppedByUser = false,
+            currentStatus = RuntimeStatus.NO_NETWORK,
+        )
+
+        assertEquals(NetworkHandoffAction.DEBOUNCE_RECONNECT, decision.action)
+        assertEquals(NetworkHandoffPolicy.NETWORK_HANDOFF_GRACE_MS, decision.delayMs)
+    }
 }

@@ -19,6 +19,7 @@ object RuntimeServiceDestroyPolicy {
             RuntimeStatus.RUNNING,
             RuntimeStatus.RECONNECTING,
             RuntimeStatus.DEGRADED,
+            RuntimeStatus.NO_NETWORK,
             -> RuntimeServiceDestroyDecision(
                 status = RuntimeStatus.RECONNECTING,
                 cause = DisconnectCause.SERVICE_KILLED,

@@ -13,6 +13,7 @@ class RuntimeServiceDestroyPolicyTest {
             RuntimeStatus.RUNNING,
             RuntimeStatus.RECONNECTING,
             RuntimeStatus.DEGRADED,
+            RuntimeStatus.NO_NETWORK,
         ).forEach { status ->
             val decision = RuntimeServiceDestroyPolicy.recoveryDecision(
                 currentStatus = status,

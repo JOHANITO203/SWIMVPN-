@@ -33,6 +33,7 @@ import com.swimvpn.app.runtime.Tun2SocksNativeBridgeContract
 import com.swimvpn.app.runtime.Tun2SocksRuntimeFilePreparer
 import com.swimvpn.app.runtime.XrayProcessBridge
 import com.swimvpn.app.vpn.DisconnectCause
+import com.swimvpn.app.vpn.NetworkClassifier
 import com.swimvpn.app.vpn.NetworkHandoffAction
 import com.swimvpn.app.vpn.NetworkHandoffPolicy
 import com.swimvpn.app.vpn.RuntimeMode
@@ -47,9 +48,11 @@ import com.swimvpn.app.vpn.StickyReconnectPolicy
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnNotificationLanguage
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -76,9 +79,30 @@ class SwimVpnService : VpnService() {
     private var reconnectAttempt = 0
     private var sessionStartedAt: Long? = null
     private var stoppedByUser = false
+    private var startedOnUnvalidatedNetwork = false
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    private val serviceJob = Job()
-    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+    // One-shot callback that re-triggers the connect once a usable network appears
+    // after a NO_NETWORK pre-flight refusal (R2). Self-unregisters after firing.
+    private var pendingConnectNetworkCallback: ConnectivityManager.NetworkCallback? = null
+    private val serviceJob = SupervisorJob()
+    // Any uncaught coroutine exception must become a clean, visible FAILED state
+    // (logged) rather than crashing the whole process. A crash must never be
+    // silently swallowed nor surface as a fake "Connected".
+    private val serviceExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        if (throwable is CancellationException) return@CoroutineExceptionHandler
+        Log.e("SwimVpnService", "Uncaught coroutine failure; forcing FAILED state", throwable)
+        val cause = RuntimeStartupFailurePolicy.classify(throwable).cause
+        runCatching {
+            setRuntimeError(
+                "Runtime failed: ${throwable.localizedMessage ?: throwable.javaClass.simpleName}",
+                cause,
+            )
+            stopVpn(clearRuntimeState = false, reason = "uncaught_coroutine_failure", cause = cause)
+        }.onFailure { cleanupError ->
+            Log.e("SwimVpnService", "Failed to surface uncaught coroutine failure", cleanupError)
+        }
+    }
+    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob + serviceExceptionHandler)
     private val xrayBridge by lazy { XrayProcessBridge(applicationContext) }
     private val tun2SocksFilePreparer by lazy { Tun2SocksRuntimeFilePreparer(applicationContext) }
 
@@ -102,7 +126,20 @@ class SwimVpnService : VpnService() {
         private val SERVICE_RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
         private const val MAX_SERVICE_RECONNECT_ATTEMPTS = 5
         private const val STARTUP_HEALTH_PROOF_DELAY_MS = 1_000L
+        private const val LIVENESS_POLL_INTERVAL_MS = 500L
+        private const val TRAFFIC_PROBE_TIMEOUT_MS = 1_200
+        private const val TRAFFIC_PROBE_RETRY_DELAY_MS = 300L
+        // Passive watchdog: how long a confirmed-running session may show outbound
+        // bytes with zero inbound bytes before being demoted to DEGRADED (NO_TRAFFIC).
+        private const val TRAFFIC_STALL_THRESHOLD_MS = 15_000L
     }
+
+    // Distinct startup failure that already carries an explicit DisconnectCause, so
+    // the startup catch does not fall back to keyword classification for it.
+    private class StartupHealthException(
+        message: String,
+        val disconnectCause: DisconnectCause,
+    ) : IllegalStateException(message)
 
     private data class ActiveSession(
         val host: String,
@@ -125,10 +162,16 @@ class SwimVpnService : VpnService() {
                 val port = intent.getIntExtra(EXTRA_SERVER_PORT, 443)
                 val requestedMode = RuntimeMode.fromPersisted(intent.getStringExtra(EXTRA_RUNTIME_MODE))
 
+                // startAsForeground() first (anti-ANR): promote to foreground before
+                // any heavy work so the system does not ANR/kill the service.
                 startAsForeground()
                 refreshNotificationLanguage()
                 logBatteryOptimizationState()
                 logRuntimeEvent("vpn_connect_requested", mapOf("mode" to requestedMode.name))
+                // A manual connect must take precedence over any pending auto-reconnect:
+                // cancel it so the explicit user request proceeds instead of being
+                // silently ignored or racing the backoff job.
+                cancelPendingAutoReconnect("manual_connect")
                 startVpn(
                     host = host,
                     port = port,
@@ -322,6 +365,9 @@ class SwimVpnService : VpnService() {
             return
         }
 
+        // A fresh connect attempt supersedes any pending one-shot
+        // network-availability retry (R2): cancel it so it cannot double-fire.
+        cancelPendingConnectOnUsableNetwork("connect_started")
         VpnManager.setRuntimeMode(requestedMode)
         VpnManager.resetUsage()
         VpnManager.clearError()
@@ -341,6 +387,35 @@ class SwimVpnService : VpnService() {
         activeStartupJob?.cancel()
         activeStartupJob = serviceScope.launch {
             try {
+                // Pre-flight network gate: classify the active network and surface a
+                // visible state WITHOUT starting the engine when it is unusable. This
+                // prevents both the offline crash and the native SIGSEGV from launching
+                // Xray/tun2socks against a dead underlying network, and refuses to start
+                // on a captive/unvalidated network (which cannot carry real traffic).
+                // R3: only NONE blocks the connect. NOT_VALIDATED no longer blocks —
+                // the probe decides. We remember it was unvalidated so a probe failure
+                // surfaces the captive (NETWORK_NOT_VALIDATED) message instead of
+                // NO_TRAFFIC. A working-but-slow-to-validate network connects fine
+                // (probe succeeds); a captive portal proceeds then fails with the
+                // captive message.
+                when (classifyActiveNetwork()) {
+                    NetworkClassifier.NetworkClass.NONE -> {
+                        startedOnUnvalidatedNetwork = false
+                        logRuntimeEvent("startup_no_network", mapOf("mode" to requestedMode.name))
+                        updateRuntimeStatus(RuntimeStatus.NO_NETWORK, requestedMode, cause = DisconnectCause.NETWORK_LOST)
+                        // R2: re-trigger the connect automatically once a usable network appears.
+                        registerPendingConnectOnUsableNetwork()
+                        return@launch
+                    }
+                    NetworkClassifier.NetworkClass.NOT_VALIDATED -> {
+                        startedOnUnvalidatedNetwork = true
+                        logRuntimeEvent("startup_network_not_validated", mapOf("mode" to requestedMode.name))
+                    }
+                    NetworkClassifier.NetworkClass.USABLE -> {
+                        startedOnUnvalidatedNetwork = false
+                    }
+                }
+
                 val runtime = rawConfig?.takeIf { it.isNotBlank() }?.let {
                     TunnelRuntimeAdapter.prepareRuntimeFromRawConfig(
                         rawConfig = it,
@@ -366,11 +441,16 @@ class SwimVpnService : VpnService() {
                 throw e
             } catch (e: Exception) {
                 Log.e("SwimVpnService", "Error starting VPN", e)
-                val failureDecision = RuntimeStartupFailurePolicy.classify(e)
-                if (!failureDecision.shouldReportFailure) {
-                    throw e
+                // Every startup failure must become a visible state, never a naked
+                // throw. The policy guarantees shouldReportFailure for any
+                // non-cancellation error, so there is no re-throw path here.
+                // A StartupHealthException already carries an explicit cause (e.g.
+                // NO_TRAFFIC) so it bypasses keyword classification entirely.
+                val cause = if (e is StartupHealthException) {
+                    e.disconnectCause
+                } else {
+                    RuntimeStartupFailurePolicy.classify(e).cause
                 }
-                val cause = failureDecision.cause
                 AdaptiveEventLogger.log(
                     event = "runtime_failed",
                     details = mapOf(
@@ -393,6 +473,10 @@ class SwimVpnService : VpnService() {
         host: String,
         port: Int,
     ) {
+        // Register the network callback BEFORE establishing the tunnel so that a
+        // network loss during startup is observed (and not masked by the VPN
+        // interface becoming the active network).
+        registerNetworkCallback()
         val tun2SocksAvailability = Tun2SocksAssetCatalog.availability(applicationContext)
         startValidatedXrayRuntime(
             runtime = runtime,
@@ -419,10 +503,20 @@ class SwimVpnService : VpnService() {
         vpnInterface = builder.establish()
 
         if (vpnInterface == null) {
+            // establish() failed: reap the already-started Xray process so it does
+            // not leak as an orphan, then surface a clean failure. tun2socks has
+            // not been started yet, so there is no native data plane to stop here.
+            activeXraySessionId?.let { sessionId -> runCatching { xrayBridge.stop(sessionId) } }
+            runCatching { xrayBridge.stopAll() }
+            activeXraySessionId = null
             throw IllegalStateException("Failed to establish VPN interface. Permission missing?")
         }
 
-        val tunFd = vpnInterface?.fd ?: throw IllegalStateException("VPN interface fd is unavailable")
+        // Guard the tun fd: never hand an invalid/closed descriptor to native
+        // code (tun2socks) — that path risks a SIGSEGV. Transition to a clean
+        // FAILED state instead. -1 indicates a closed/invalid descriptor.
+        val tunFd = vpnInterface?.fd?.takeIf { it >= 0 }
+            ?: throw IllegalStateException("VPN interface fd is unavailable or invalid")
         val tun2SocksLaunchSpec = Tun2SocksLaunchSpec(
             deviceArgument = "android-vpn",
             proxyUrl = "socks5://127.0.0.1:${runtime.ports.socksPort}",
@@ -500,6 +594,9 @@ class SwimVpnService : VpnService() {
         awaitStartupHealthProof(
             mode = RuntimeMode.FULL_TUNNEL,
             requireTun2Socks = true,
+            socksPort = runtime.ports.socksPort,
+            serverHost = host,
+            serverPort = port,
         )
         VpnManager.markHandshake()
         updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.FULL_TUNNEL)
@@ -522,7 +619,7 @@ class SwimVpnService : VpnService() {
             mode = RuntimeMode.FULL_TUNNEL,
             requireTun2Socks = true,
         )
-        registerNetworkCallback()
+        // Network callback already registered before establish() (see above).
         logRuntimeEvent("tunnel_started", mapOf("mode" to RuntimeMode.FULL_TUNNEL.name))
 
         updateNotification()
@@ -550,6 +647,9 @@ class SwimVpnService : VpnService() {
         host: String,
         port: Int,
     ) {
+        // Register the network callback BEFORE arming the proxy runtime so that a
+        // network loss during startup is observed.
+        registerNetworkCallback()
         startValidatedXrayRuntime(
             runtime = runtime,
             failurePrefix = "Xray local proxy exited before becoming ready",
@@ -559,6 +659,9 @@ class SwimVpnService : VpnService() {
         awaitStartupHealthProof(
             mode = RuntimeMode.LOCAL_PROXY,
             requireTun2Socks = false,
+            socksPort = runtime.ports.socksPort,
+            serverHost = host,
+            serverPort = port,
         )
         VpnManager.markHandshake()
         updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.LOCAL_PROXY)
@@ -578,7 +681,7 @@ class SwimVpnService : VpnService() {
             mode = RuntimeMode.LOCAL_PROXY,
             requireTun2Socks = false,
         )
-        registerNetworkCallback()
+        // Network callback already registered before arming the proxy (see above).
         logRuntimeEvent("tunnel_started", mapOf("mode" to RuntimeMode.LOCAL_PROXY.name))
         updateNotification()
 
@@ -627,6 +730,8 @@ class SwimVpnService : VpnService() {
         try {
             activeStartupJob?.cancel()
             activeStartupJob = null
+            // R2: a teardown supersedes any pending one-shot network-availability retry.
+            cancelPendingConnectOnUsableNetwork("stop_vpn")
             activeNetworkHandoffJob?.cancel()
             activeNetworkHandoffJob = null
             if (stopService) {
@@ -652,15 +757,20 @@ class SwimVpnService : VpnService() {
             activeRuntimeMonitorJob = null
             activeTun2SocksContract = null
             unregisterNetworkCallback()
+            // TEARDOWN ORDER: native engines (Xray + tun2socks) MUST be stopped
+            // BEFORE closing the tun fd. Closing the fd first would leave native
+            // code reading/writing a dead descriptor (SIGSEGV/SIGPIPE).
             activeXraySessionId?.let { sessionId ->
                 xrayBridge.stop(sessionId)
             }
             activeXraySessionId = null
             xrayBridge.stopAll()
-            vpnInterface?.close()
         } catch (e: Exception) {
-            Log.e("SwimVpnService", "Error closing VPN interface", e)
+            Log.e("SwimVpnService", "Error stopping native runtime during teardown", e)
         } finally {
+            // Close the tun fd only after native engines are stopped (above).
+            runCatching { vpnInterface?.close() }
+                .onFailure { error -> Log.e("SwimVpnService", "Error closing VPN interface", error) }
             vpnInterface = null
             VpnManager.clearRuntimeDiagnostics()
             if (clearRuntimeState) {
@@ -740,6 +850,9 @@ class SwimVpnService : VpnService() {
             RuntimeStatus.RUNNING -> localizedContext.getString(R.string.status_connected)
             RuntimeStatus.RECONNECTING -> localizedContext.getString(R.string.vpn_notification_reconnecting_title)
             RuntimeStatus.DEGRADED -> localizedContext.getString(R.string.vpn_notification_degraded_title)
+            // NO_NETWORK is honestly shown as not-connected (no underlying network),
+            // never as Connected. Reuses existing disconnected label (no new asset).
+            RuntimeStatus.NO_NETWORK -> localizedContext.getString(R.string.status_no_network)
             RuntimeStatus.STOPPING -> localizedContext.getString(R.string.status_disconnecting)
             RuntimeStatus.FAILED -> localizedContext.getString(R.string.status_error)
         }
@@ -750,6 +863,9 @@ class SwimVpnService : VpnService() {
             RuntimeStatus.RUNNING -> localizedContext.getString(R.string.vpn_notification_connected, modeLabel)
             RuntimeStatus.RECONNECTING -> localizedContext.getString(R.string.vpn_notification_reconnecting)
             RuntimeStatus.DEGRADED -> localizedContext.getString(R.string.vpn_notification_degraded)
+            // No active network: reuse the degraded body (network unavailable),
+            // making the state visible without inventing a missing string asset.
+            RuntimeStatus.NO_NETWORK -> localizedContext.getString(R.string.vpn_notification_no_network)
             RuntimeStatus.STOPPING -> localizedContext.getString(R.string.vpn_notification_stopping)
             RuntimeStatus.FAILED -> VpnManager.errorMessage.value
                 ?.takeIf { it.isNotBlank() }
@@ -836,6 +952,8 @@ class SwimVpnService : VpnService() {
             try {
                 activeStartupJob?.cancel()
                 activeStartupJob = null
+                // R2: prevent the one-shot retry callback from leaking past destroy.
+                cancelPendingConnectOnUsableNetwork("service_destroyed")
                 activeTun2SocksContract?.let { contract ->
                     runCatching { Tun2SocksNativeBridge.stop(contract) }
                         .onFailure { error ->
@@ -870,8 +988,12 @@ class SwimVpnService : VpnService() {
 
     override fun onRevoke() {
         Log.w("SwimVpnService", "VPN permission was revoked by Android")
-        setRuntimeError("VPN permission was revoked by the system", DisconnectCause.SERVICE_KILLED)
-        stopVpn(clearRuntimeState = false, reason = "vpn_revoked", cause = DisconnectCause.SERVICE_KILLED)
+        // Revoked is a deliberate user/system action, NOT a crash: surface it as a
+        // distinct PERMISSION_REVOKED cause, cancel any pending auto-reconnect so we
+        // do not fight the revocation, then perform a terminal stop (no auto-retry).
+        cancelPendingAutoReconnect("permission_revoked")
+        setRuntimeError("VPN permission was revoked by the system", DisconnectCause.PERMISSION_REVOKED)
+        stopVpn(clearRuntimeState = false, reason = "vpn_revoked", cause = DisconnectCause.PERMISSION_REVOKED)
         super.onRevoke()
     }
 
@@ -915,7 +1037,13 @@ class SwimVpnService : VpnService() {
         }
     }
 
-    private suspend fun awaitStartupHealthProof(mode: RuntimeMode, requireTun2Socks: Boolean) {
+    private suspend fun awaitStartupHealthProof(
+        mode: RuntimeMode,
+        requireTun2Socks: Boolean,
+        socksPort: Int,
+        serverHost: String,
+        serverPort: Int,
+    ) {
         delay(STARTUP_HEALTH_PROOF_DELAY_MS)
 
         val xraySessionId = activeXraySessionId
@@ -923,25 +1051,98 @@ class SwimVpnService : VpnService() {
         val xrayAlive = xraySessionId != null && xraySnapshot?.isAlive == true
         val tun2SocksAlive = activeTun2SocksContract != null && activeTun2SocksJob?.isActive == true
 
+        // ACTIVE PROBE: only after the engine liveness check passes do we confirm the
+        // tunnel actually carries traffic, by opening a short TCP connection THROUGH
+        // the local SOCKS proxy to the VPN server itself. 127.0.0.1 is localhost (not
+        // routed through the tun), so there is no recursion and no protect() needed.
+        val engineLive = xrayAlive && (!requireTun2Socks || tun2SocksAlive)
+        val trafficConfirmed = if (engineLive) {
+            probeTrafficThroughProxy(socksPort, serverHost, serverPort)
+        } else {
+            false
+        }
+
         if (!RuntimeStartupHealthPolicy.canMarkRunning(
                 xrayAlive = xrayAlive,
                 requireTun2Socks = requireTun2Socks,
                 tun2SocksAlive = tun2SocksAlive,
+                trafficConfirmed = trafficConfirmed,
             )
         ) {
             val xrayExit = xraySnapshot?.exitCode?.toString() ?: "unknown"
             val missingDataPlane = requireTun2Socks && !tun2SocksAlive
-            val reason = if (missingDataPlane) {
-                "tun2socks data plane stopped before startup proof completed"
-            } else {
-                "Xray runtime stopped before startup proof completed (exit=$xrayExit)"
+            // No traffic is a distinct failure: the engine is alive but the tunnel
+            // cannot reach the server. Tag it explicitly with NO_TRAFFIC so it never
+            // relies on keyword classification and never surfaces as a fake Connected.
+            if (!engineLive) {
+                val reason = if (missingDataPlane) {
+                    "tun2socks data plane stopped before startup proof completed"
+                } else {
+                    "Xray runtime stopped before startup proof completed (exit=$xrayExit)"
+                }
+                logRuntimeEvent(
+                    "startup_health_failed",
+                    mapOf("mode" to mode.name, "reason" to reason),
+                )
+                throw IllegalStateException(reason)
             }
+
+            // R3: when the connect started on an unvalidated (captive/no-internet)
+            // network, a probe failure is almost certainly the captive portal — surface
+            // the captive cause so the user gets the right message. Otherwise the engine
+            // simply could not carry traffic: keep NO_TRAFFIC.
+            val probeFailureCause = if (startedOnUnvalidatedNetwork) {
+                DisconnectCause.NETWORK_NOT_VALIDATED
+            } else {
+                DisconnectCause.NO_TRAFFIC
+            }
+            val reason = "Tunnel established but no traffic reached the server through the proxy"
             logRuntimeEvent(
                 "startup_health_failed",
-                mapOf("mode" to mode.name, "reason" to reason),
+                mapOf("mode" to mode.name, "reason" to reason, "cause" to probeFailureCause.name),
             )
-            throw IllegalStateException(reason)
+            throw StartupHealthException(reason, probeFailureCause)
         }
+    }
+
+    /**
+     * Performs a short SOCKS-tunneled TCP connect to the VPN server to prove the
+     * data plane carries traffic. Allows one retry within a small total budget.
+     * Returns true only on a successful connect.
+     */
+    private suspend fun probeTrafficThroughProxy(
+        socksPort: Int,
+        serverHost: String,
+        serverPort: Int,
+    ): Boolean {
+        if (serverHost.isBlank() || serverHost == "unknown" || serverPort <= 0) {
+            // R1: a blank/unknown host or non-positive port is a config problem, not a
+            // proof of traffic. Never publish RUNNING without proof — fail startup with a
+            // visible CONFIG_INVALID state instead of silently returning true.
+            val reason = "Cannot prove traffic: server endpoint is missing or invalid ($serverHost:$serverPort)"
+            logRuntimeEvent(
+                "startup_health_failed",
+                mapOf("reason" to reason, "cause" to DisconnectCause.CONFIG_INVALID.name),
+            )
+            throw StartupHealthException(reason, DisconnectCause.CONFIG_INVALID)
+        }
+        val proxy = java.net.Proxy(
+            java.net.Proxy.Type.SOCKS,
+            java.net.InetSocketAddress("127.0.0.1", socksPort),
+        )
+        repeat(2) { attempt ->
+            val success = runCatching {
+                java.net.Socket(proxy).use { socket ->
+                    socket.connect(
+                        java.net.InetSocketAddress(serverHost, serverPort),
+                        TRAFFIC_PROBE_TIMEOUT_MS,
+                    )
+                }
+            }.isSuccess
+            if (success) return true
+            if (attempt == 0) delay(TRAFFIC_PROBE_RETRY_DELAY_MS)
+        }
+        return false
     }
 
     private fun startTrafficStatsPolling() {
@@ -993,6 +1194,8 @@ class SwimVpnService : VpnService() {
     private fun startRuntimeLivenessMonitor(mode: RuntimeMode, requireTun2Socks: Boolean) {
         activeRuntimeMonitorJob?.cancel()
         activeRuntimeMonitorJob = serviceScope.launch {
+            val monitorStartedAt = System.currentTimeMillis()
+            var trafficStallReported = false
             while (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
                 val xraySessionId = activeXraySessionId
                 val xraySnapshot = xraySessionId?.let { xrayBridge.snapshot(it) }
@@ -1017,7 +1220,39 @@ class SwimVpnService : VpnService() {
                     }
                 }
 
-                delay(2_000)
+                // PASSIVE WATCHDOG: a "zombie" tunnel keeps the engine alive and sends
+                // outbound bytes but never receives any. The policy demotes only when
+                // bytesOut > 0 && bytesIn == 0 past the threshold; a genuinely idle
+                // session (0/0) is never demoted. Demote once to DEGRADED (NO_TRAFFIC)
+                // rather than killing the session, so the UI shows UNSTABLE.
+                if (!trafficStallReported &&
+                    RuntimeStartupHealthPolicy.isTrafficStalled(
+                        bytesIn = VpnManager.bytesIn.value,
+                        bytesOut = VpnManager.bytesOut.value,
+                        elapsedMs = System.currentTimeMillis() - monitorStartedAt,
+                        thresholdMs = TRAFFIC_STALL_THRESHOLD_MS,
+                    )
+                ) {
+                    trafficStallReported = true
+                    Log.w("SwimVpnService", "Traffic stalled (outbound only, no inbound) for mode=$mode")
+                    logRuntimeEvent(
+                        "traffic_stalled",
+                        mapOf("mode" to mode.name, "cause" to DisconnectCause.NO_TRAFFIC.name),
+                    )
+                    updateRuntimeStatus(RuntimeStatus.DEGRADED, mode, cause = DisconnectCause.NO_TRAFFIC)
+                    // R5: DEGRADED(NO_TRAFFIC) must not be a dead-end. Engage the existing
+                    // recovery path so the session either recovers or fails cleanly,
+                    // instead of sitting in DEGRADED with this loop exited and nothing
+                    // monitoring. The loop condition above requires RUNNING, so this
+                    // monitor exits on the next iteration; scheduleReconnect takes over.
+                    scheduleReconnect(DisconnectCause.NO_TRAFFIC, "traffic_stalled")
+                    return@launch
+                }
+
+                // Tighter poll interval reduces dead-engine detection latency so a
+                // crashed engine is reflected as a visible state quickly (instead
+                // of lingering up to 2s as "Connected").
+                delay(LIVENESS_POLL_INTERVAL_MS)
             }
         }
     }
@@ -1149,6 +1384,94 @@ class SwimVpnService : VpnService() {
         networkCallback = null
     }
 
+    // R2: after a NO_NETWORK pre-flight refusal, watch for the first usable network and
+    // re-trigger the connect for the last requested session, then self-unregister. A
+    // manual connect or stop cancels it first (see cancelPendingConnectOnUsableNetwork).
+    private fun registerPendingConnectOnUsableNetwork() {
+        if (pendingConnectNetworkCallback != null) return
+        if (activeSession == null) return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                val capabilities = connectivityManager.getNetworkCapabilities(network)
+                if (!isUsableUnderlyingNetwork(capabilities)) return
+                fire(connectivityManager)
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                if (!isUsableUnderlyingNetwork(networkCapabilities)) return
+                fire(connectivityManager)
+            }
+        }
+        pendingConnectNetworkCallback = callback
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        val registered = runCatching { connectivityManager.registerNetworkCallback(request, callback) }
+            .onFailure { error -> Log.w("SwimVpnService", "Unable to register pending-connect network callback", error) }
+            .isSuccess
+        if (!registered) {
+            pendingConnectNetworkCallback = null
+            return
+        }
+        logRuntimeEvent("pending_connect_network_registered")
+    }
+
+    // Fires exactly once: unregisters itself, then re-triggers the connect for the last
+    // requested session. Guards against re-entrancy via the null check on the field.
+    private fun fire(connectivityManager: ConnectivityManager) {
+        val callback = pendingConnectNetworkCallback ?: return
+        runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+        pendingConnectNetworkCallback = null
+        val session = activeSession ?: return
+        if (stoppedByUser || VpnManager.runtimeStatus.value == RuntimeStatus.STOPPED_BY_USER) return
+        logRuntimeEvent("pending_connect_network_available", mapOf("mode" to session.requestedMode.name))
+        startVpn(
+            host = session.host,
+            port = session.port,
+            requestedMode = session.requestedMode,
+            rawConfig = session.rawConfig,
+        )
+    }
+
+    private fun cancelPendingConnectOnUsableNetwork(reason: String) {
+        val callback = pendingConnectNetworkCallback ?: return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+        pendingConnectNetworkCallback = null
+        logRuntimeEvent("pending_connect_network_cancelled", mapOf("reason" to reason))
+    }
+
+    private fun hasActiveNetwork(): Boolean {
+        return runCatching {
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(network)
+            isUsableUnderlyingNetwork(capabilities)
+        }.getOrDefault(false)
+    }
+
+    // Pre-flight classification of the current active network. Used only by the
+    // startVpn gate; network-handoff continues to use isUsableUnderlyingNetwork().
+    private fun classifyActiveNetwork(): NetworkClassifier.NetworkClass {
+        return runCatching {
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = connectivityManager.activeNetwork
+                ?: return NetworkClassifier.NetworkClass.NONE
+            val capabilities = connectivityManager.getNetworkCapabilities(network)
+                ?: return NetworkClassifier.NetworkClass.NONE
+            NetworkClassifier.classify(
+                hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET),
+                notVpn = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN),
+                hasUsableTransport = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET),
+                validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED),
+            )
+        }.getOrDefault(NetworkClassifier.NetworkClass.NONE)
+    }
+
     private fun isUsableUnderlyingNetwork(capabilities: NetworkCapabilities?): Boolean {
         if (capabilities == null) return false
         if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return false
@@ -1168,9 +1491,30 @@ class SwimVpnService : VpnService() {
         }
     }
 
+    private fun cancelPendingAutoReconnect(reason: String) {
+        val hadPending = activeReconnectJob != null || activeNetworkHandoffJob != null
+        activeReconnectJob?.cancel()
+        activeReconnectJob = null
+        activeReconnectCause = null
+        activeReconnectStarted = false
+        activeNetworkHandoffJob?.cancel()
+        activeNetworkHandoffJob = null
+        reconnectAttempt = 0
+        if (hadPending) {
+            logRuntimeEvent("auto_reconnect_cancelled", mapOf("reason" to reason))
+        }
+    }
+
     private fun scheduleReconnect(cause: DisconnectCause, reason: String) {
         if (stoppedByUser || VpnManager.runtimeStatus.value == RuntimeStatus.STOPPED_BY_USER) {
             logRuntimeEvent("stopped_by_user", mapOf("skipReconnectReason" to reason))
+            return
+        }
+
+        // A revoked permission is terminal: never auto-reconnect against it, otherwise
+        // we would loop fighting the system's revocation.
+        if (cause == DisconnectCause.PERMISSION_REVOKED) {
+            logRuntimeEvent("reconnect_skipped", mapOf("reason" to reason, "cause" to cause.name))
             return
         }
 

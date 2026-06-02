@@ -19,6 +19,11 @@
     <string name="btn_connect_on">ACTIF</string>
     <string name="status_connected">Connecté</string>
     <string name="status_disconnected">Déconnecté</string>
+    <string name="status_no_network">Pas d\'Internet</string>
+    <string name="status_unstable">Instable</string>
+    <string name="home_no_network">Aucune connexion Internet. Vérifiez votre réseau.</string>
+    <string name="home_unstable">Connexion instable, récupération en cours.</string>
+    <string name="vpn_notification_no_network">Aucun réseau. La protection reprendra au retour d\'Internet.</string>
     <string name="status_connecting">Connexion...</string>
     <string name="status_disconnecting">Déconnexion...</string>
     <string name="status_error">Erreur de connexion</string>
