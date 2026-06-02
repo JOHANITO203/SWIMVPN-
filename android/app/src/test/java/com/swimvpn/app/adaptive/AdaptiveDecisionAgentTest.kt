@@ -1,6 +1,9 @@
 package com.swimvpn.app.adaptive
 
+import com.swimvpn.app.data.network.ProbeFailureReason
+import com.swimvpn.app.vpn.NetworkType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -359,6 +362,502 @@ class AdaptiveDecisionAgentTest {
         assertEquals(listOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L), delays)
     }
 
+    @Test
+    fun `global outage true when majority probes timeout or unreachable`() {
+        val now = 300_000L
+        val candidates = listOf(
+            candidate(
+                id = "a",
+                ping = 40,
+                latencyMeasuredAtMs = now - 1_000L,
+                latencyProbeFailed = true,
+                latencyProbeFailureReason = ProbeFailureReason.TIMEOUT,
+            ),
+            candidate(
+                id = "b",
+                ping = 50,
+                latencyMeasuredAtMs = now - 1_000L,
+                latencyProbeFailed = true,
+                latencyProbeFailureReason = ProbeFailureReason.NETWORK_UNREACHABLE,
+            ),
+            candidate(
+                id = "c",
+                ping = 60,
+                latencyMeasuredAtMs = now - 1_000L,
+            ),
+        )
+
+        assertTrue(AdaptiveDecisionAgent.isLikelyGlobalOutage(candidates))
+    }
+
+    @Test
+    fun `global outage false for lone timeout among healthy servers`() {
+        val now = 310_000L
+        val candidates = listOf(
+            candidate(
+                id = "a",
+                ping = 40,
+                latencyMeasuredAtMs = now - 1_000L,
+                latencyProbeFailed = true,
+                latencyProbeFailureReason = ProbeFailureReason.TIMEOUT,
+            ),
+            candidate(id = "b", ping = 50, latencyMeasuredAtMs = now - 1_000L),
+            candidate(id = "c", ping = 60, latencyMeasuredAtMs = now - 1_000L),
+        )
+
+        assertFalse(AdaptiveDecisionAgent.isLikelyGlobalOutage(candidates))
+    }
+
+    @Test
+    fun `global outage false when failures are server side refusals`() {
+        val now = 320_000L
+        val candidates = listOf(
+            candidate(
+                id = "a",
+                ping = 40,
+                latencyMeasuredAtMs = now - 1_000L,
+                latencyProbeFailed = true,
+                latencyProbeFailureReason = ProbeFailureReason.CONNECTION_REFUSED,
+            ),
+            candidate(
+                id = "b",
+                ping = 50,
+                latencyMeasuredAtMs = now - 1_000L,
+                latencyProbeFailed = true,
+                latencyProbeFailureReason = ProbeFailureReason.DNS_FAILURE,
+            ),
+        )
+
+        assertFalse(AdaptiveDecisionAgent.isLikelyGlobalOutage(candidates))
+    }
+
+    @Test
+    fun `connection refused server is avoided while healthy server is chosen`() {
+        val now = 330_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "refused-fast",
+                    ping = 10,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.CONNECTION_REFUSED,
+                ),
+                candidate(id = "healthy", ping = 90, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("healthy", selected?.serverId)
+    }
+
+    @Test
+    fun `connection refused server is excluded when it is the only candidate`() {
+        val now = 335_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "refused-only",
+                    ping = 10,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.CONNECTION_REFUSED,
+                ),
+            ),
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertNull(selected)
+    }
+
+    @Test
+    fun `lone timeout server stays selectable and is not blacklisted`() {
+        val now = 340_000L
+        // A single timeout among healthy servers is not a global outage, but the timed-out server
+        // must remain selectable (light penalty), unlike a server-side refusal.
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "timeout-only",
+                    ping = 30,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.TIMEOUT,
+                ),
+            ),
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("timeout-only", selected?.serverId)
+    }
+
+    @Test
+    fun `global outage suppresses avoidance and ranks best available server`() {
+        val now = 350_000L
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(
+                    id = "fast-avoided",
+                    ping = 20,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.TIMEOUT,
+                ),
+                candidate(
+                    id = "slow",
+                    ping = 200,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.NETWORK_UNREACHABLE,
+                ),
+            ),
+            // fast-avoided would normally be blacklisted by its score, but the global outage
+            // suppresses per-server avoidance so it is still rankable and wins on ping.
+            scores = mapOf(
+                "fast-avoided" to ServerQualityScore(
+                    serverId = "fast-avoided",
+                    avoidUntilMs = now + 600_000L,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("fast-avoided", selected?.candidate?.serverId)
+    }
+
+    @Test
+    fun `latency age penalty is zero at and below fresh floor`() {
+        assertEquals(0, AdaptiveDecisionAgent.latencyAgePenalty(0L))
+        assertEquals(0, AdaptiveDecisionAgent.latencyAgePenalty(-5_000L))
+        assertEquals(0, AdaptiveDecisionAgent.latencyAgePenalty(30_000L))
+    }
+
+    @Test
+    fun `latency age penalty matches legacy endpoints and is monotonic non-decreasing`() {
+        val samples = listOf(0L, 30_000L, 60_000L, 120_000L, 300_000L)
+        val penalties = samples.map { AdaptiveDecisionAgent.latencyAgePenalty(it) }
+
+        // ~0 at the fresh floor, ~120 at the legacy 120s fresh/stale boundary.
+        assertEquals(0, penalties[0])
+        assertEquals(0, penalties[1])
+        assertEquals(120, penalties[3])
+
+        // 60s sits on the linear ramp between floor (0) and boundary (120): 120 * 30000 / 90000 = 40.
+        assertEquals(40, penalties[2])
+
+        // Monotonic non-decreasing across the sample ages.
+        penalties.zipWithNext().forEach { (a, b) -> assertTrue(b >= a) }
+
+        // Beyond the boundary it keeps growing modestly but stays well below MISSING_PING (300).
+        assertTrue(penalties[4] > penalties[3])
+        assertTrue(penalties[4] < 300)
+    }
+
+    @Test
+    fun `latency age penalty is capped below missing ping for very stale pings`() {
+        val veryStale = AdaptiveDecisionAgent.latencyAgePenalty(60 * 60 * 1_000L)
+        assertEquals(200, veryStale)
+        assertTrue(veryStale < 300)
+    }
+
+    @Test
+    fun `missing ping path is unchanged and loses to a graded stale ping`() {
+        val now = 1_000_000L
+        // moderately stale (~150 penalty) still beats a missing ping (300 penalty).
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "stale-but-pinged",
+                    ping = 50,
+                    latencyMeasuredAtMs = now - 5 * 60 * 1_000L,
+                ),
+                candidate(id = "no-ping", ping = 0, latencyMeasuredAtMs = 0L),
+            ),
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("stale-but-pinged", selected?.serverId)
+    }
+
+    @Test
+    fun `probe failed path is unchanged by graduated penalty`() {
+        val now = 400_000L
+        // A fresh server-side probe failure must still lose to a moderately stale healthy server,
+        // confirming the graduated penalty did not weaken the probe-failed handling.
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "refused-fast",
+                    ping = 10,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.CONNECTION_REFUSED,
+                ),
+                candidate(
+                    id = "stale-healthy",
+                    ping = 60,
+                    latencyMeasuredAtMs = now - 4 * 60 * 1_000L,
+                ),
+            ),
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("stale-healthy", selected?.serverId)
+    }
+
+    @Test
+    fun `recommend server outcome is unchanged when networkType is omitted versus unknown`() {
+        val now = 100_000L
+        val candidates = listOf(
+            candidate(id = "a", ping = 45, latencyMeasuredAtMs = now - 1_000L),
+            candidate(id = "b", ping = 80, latencyMeasuredAtMs = now - 1_000L),
+        )
+
+        val omitted = AdaptiveDecisionAgent.recommendServer(
+            candidates = candidates,
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+        )
+        val explicitUnknown = AdaptiveDecisionAgent.recommendServer(
+            candidates = candidates,
+            scores = emptyMap(),
+            currentServerId = null,
+            nowMs = now,
+            networkType = com.swimvpn.app.vpn.NetworkType.UNKNOWN,
+        )
+
+        assertEquals(omitted?.candidate?.serverId, explicitUnknown?.candidate?.serverId)
+        assertEquals(omitted?.score, explicitUnknown?.score)
+    }
+
+    @Test
+    fun `manual override reward nudges ranking between two otherwise equal servers`() {
+        val now = 500_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(id = "plain", ping = 50, latencyMeasuredAtMs = now - 2_000L),
+                candidate(id = "preferred", ping = 50, latencyMeasuredAtMs = now - 2_000L),
+            ),
+            scores = mapOf(
+                "preferred" to ServerQualityScore(
+                    serverId = "preferred",
+                    manualSelectionCount = 3,
+                    lastManualSelectionAtMs = now - 1_000L,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("preferred", selected?.serverId)
+    }
+
+    @Test
+    fun `recordManualSelection increments count and stamps time without touching failure or success`() {
+        val updated = AdaptiveDecisionAgent.recordManualSelection(
+            score = ServerQualityScore(
+                serverId = "s",
+                successCount = 2,
+                failureCount = 1,
+                consecutiveFailures = 1,
+            ),
+            nowMs = 700_000L,
+        )
+
+        assertEquals(1, updated.manualSelectionCount)
+        assertEquals(700_000L, updated.lastManualSelectionAtMs)
+        assertEquals(2, updated.successCount)
+        assertEquals(1, updated.failureCount)
+        assertEquals(1, updated.consecutiveFailures)
+    }
+
+    @Test
+    fun `manual override reward does not resurrect an avoided server`() {
+        val now = 510_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(id = "manual-avoided", ping = 10, latencyMeasuredAtMs = now - 1_000L),
+                candidate(id = "healthy", ping = 90, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = mapOf(
+                "manual-avoided" to ServerQualityScore(
+                    serverId = "manual-avoided",
+                    manualSelectionCount = 999,
+                    lastManualSelectionAtMs = now - 1_000L,
+                    avoidUntilMs = now + 600_000L,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("healthy", selected?.serverId)
+    }
+
+    @Test
+    fun `manual override reward does not resurrect a fresh probe failed server`() {
+        val now = 520_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate(
+                    id = "manual-refused",
+                    ping = 10,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.CONNECTION_REFUSED,
+                ),
+                candidate(id = "healthy", ping = 90, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = mapOf(
+                "manual-refused" to ServerQualityScore(
+                    serverId = "manual-refused",
+                    manualSelectionCount = 999,
+                    lastManualSelectionAtMs = now - 1_000L,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("healthy", selected?.serverId)
+    }
+
+    @Test
+    fun `per network penalty loses on the failing network but is unaffected on other networks`() {
+        val now = 600_000L
+        val scores = mapOf(
+            "cell-bad" to ServerQualityScore(
+                serverId = "cell-bad",
+                networkFailures = mapOf(NetworkType.CELLULAR to 3),
+            ),
+        )
+
+        val onCellular = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(id = "cell-bad", ping = 40, latencyMeasuredAtMs = now - 1_000L),
+                candidate(id = "neutral", ping = 60, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = scores,
+            currentServerId = null,
+            nowMs = now,
+            networkType = NetworkType.CELLULAR,
+        )
+        // 3 CELLULAR failures -> +150 penalty pushes cell-bad behind the slower neutral server.
+        assertEquals("neutral", onCellular?.candidate?.serverId)
+
+        val onWifi = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(id = "cell-bad", ping = 40, latencyMeasuredAtMs = now - 1_000L),
+                candidate(id = "neutral", ping = 60, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = scores,
+            currentServerId = null,
+            nowMs = now,
+            networkType = NetworkType.WIFI,
+        )
+        // On WIFI the CELLULAR failures do not apply, so the faster cell-bad wins on ping.
+        assertEquals("cell-bad", onWifi?.candidate?.serverId)
+    }
+
+    @Test
+    fun `per network penalty is suppressed under global outage`() {
+        val now = 610_000L
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = listOf(
+                candidate(
+                    id = "cell-bad-fast",
+                    ping = 20,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.TIMEOUT,
+                ),
+                candidate(
+                    id = "slow",
+                    ping = 200,
+                    latencyMeasuredAtMs = now - 1_000L,
+                    latencyProbeFailed = true,
+                    latencyProbeFailureReason = ProbeFailureReason.NETWORK_UNREACHABLE,
+                ),
+            ),
+            scores = mapOf(
+                "cell-bad-fast" to ServerQualityScore(
+                    serverId = "cell-bad-fast",
+                    networkFailures = mapOf(NetworkType.CELLULAR to 5),
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+            networkType = NetworkType.CELLULAR,
+        )
+        // Global outage suppresses the per-network penalty, so cell-bad-fast still wins on ping.
+        assertEquals("cell-bad-fast", selected?.candidate?.serverId)
+    }
+
+    @Test
+    fun `recordFailure buckets only concrete transports`() {
+        val base = ServerQualityScore(serverId = "s")
+
+        val onCellular = AdaptiveDecisionAgent.recordFailure(base, 1_000L, NetworkType.CELLULAR)
+        assertEquals(mapOf(NetworkType.CELLULAR to 1), onCellular.networkFailures)
+
+        val onUnknown = AdaptiveDecisionAgent.recordFailure(onCellular, 2_000L, NetworkType.UNKNOWN)
+        assertEquals(mapOf(NetworkType.CELLULAR to 1), onUnknown.networkFailures)
+        assertEquals(2, onUnknown.failureCount)
+
+        val onNone = AdaptiveDecisionAgent.recordFailure(onCellular, 3_000L, NetworkType.NONE)
+        assertEquals(mapOf(NetworkType.CELLULAR to 1), onNone.networkFailures)
+    }
+
+    @Test
+    fun `failover fallback is network-aware via planAfterFailure`() {
+        val now = 1_000_000L
+        val candidates = listOf(
+            candidate(id = "cell-bad", ping = 20, latencyMeasuredAtMs = now - 1_000L),
+            candidate(id = "clean", ping = 60, latencyMeasuredAtMs = now - 1_000L),
+        )
+        val scores = mapOf(
+            "cell-bad" to ServerQualityScore(
+                serverId = "cell-bad",
+                networkFailures = mapOf(NetworkType.CELLULAR to 3),
+            ),
+        )
+
+        // On cellular the per-network penalty pushes the fast-but-cellular-bad server below the clean one.
+        val onCellular = AdaptiveDecisionAgent.planAfterFailure(
+            currentServerId = "current-dead",
+            candidates = candidates,
+            scores = scores,
+            reconnectAttempt = 2,
+            nowMs = now,
+            networkType = NetworkType.CELLULAR,
+        )
+        assertEquals(DecisionActionType.SWITCH_SERVER, onCellular.type)
+        assertEquals("clean", onCellular.targetServerId)
+
+        // Without a known network the penalty does not apply, so the faster server wins (legacy behavior).
+        val onUnknown = AdaptiveDecisionAgent.planAfterFailure(
+            currentServerId = "current-dead",
+            candidates = candidates,
+            scores = scores,
+            reconnectAttempt = 2,
+            nowMs = now,
+            networkType = NetworkType.UNKNOWN,
+        )
+        assertEquals("cell-bad", onUnknown.targetServerId)
+    }
+
     private fun candidate(
         id: String,
         ping: Int = 50,
@@ -367,6 +866,7 @@ class AdaptiveDecisionAgentTest {
         premiumBlocked: Boolean = false,
         latencyMeasuredAtMs: Long = 0L,
         latencyProbeFailed: Boolean = false,
+        latencyProbeFailureReason: ProbeFailureReason? = null,
         load: Int? = null,
         availabilityStatus: String? = null,
     ) = ServerDecisionCandidate(
@@ -377,6 +877,7 @@ class AdaptiveDecisionAgentTest {
         premiumBlocked = premiumBlocked,
         latencyMeasuredAtMs = latencyMeasuredAtMs,
         latencyProbeFailed = latencyProbeFailed,
+        latencyProbeFailureReason = latencyProbeFailureReason,
         load = load,
         availabilityStatus = availabilityStatus,
     )

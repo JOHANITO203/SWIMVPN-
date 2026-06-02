@@ -161,6 +161,7 @@
     <string name="servers_agent_active">Agent actif</string>
     <string name="servers_agent_ready">Agent prêt</string>
     <string name="servers_agent_subtitle">Meilleurs serveurs\npour votre connexion</string>
+    <string name="servers_recommended_badge">Recommandé</string>
     <string name="servers_import_required">Import requis</string>
     <string name="servers_no_config">Aucune config</string>
     <string name="servers_unlimited">Illimité</string>

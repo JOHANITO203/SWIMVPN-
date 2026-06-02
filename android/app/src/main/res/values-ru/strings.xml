@@ -161,6 +161,7 @@
     <string name="servers_agent_active">Агент активен</string>
     <string name="servers_agent_ready">Агент готов</string>
     <string name="servers_agent_subtitle">Лучшие серверы\nдля вашего подключения</string>
+    <string name="servers_recommended_badge">Рекомендуется</string>
     <string name="servers_import_required">Нужен импорт</string>
     <string name="servers_no_config">Нет конфигурации</string>
     <string name="servers_unlimited">Безлимитно</string>

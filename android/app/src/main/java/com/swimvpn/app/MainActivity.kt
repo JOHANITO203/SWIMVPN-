@@ -230,7 +230,8 @@ fun AppNavigation(
                 onProfileClick = { navController.navigateProductRoot("profile") },
                 onHomeClick = { navController.navigateProductRoot("home") },
                 onSettingsClick = { navController.navigateProductRoot("profile") },
-            ) 
+                onPeriodicRefresh = { viewModel.refreshServerLatency() },
+            )
         }
         composable("profile") { 
             when (val currentState = state) {
@@ -326,6 +327,11 @@ fun AppNavigation(
                 is AppState.TrialSetup -> currentState.autoConnect
                 else -> return@composable
             }
+            val agentEnabled = when (val currentState = state) {
+                is AppState.Success -> currentState.agentEnabled
+                is AppState.TrialSetup -> currentState.agentEnabled
+                else -> return@composable
+            }
             val language = when (val currentState = state) {
                 is AppState.Success -> currentState.language
                 is AppState.TrialSetup -> currentState.language
@@ -343,9 +349,11 @@ fun AppNavigation(
                     RuntimeMode.SPLIT_TUNNEL -> "SPLIT_TUNNEL"
                 },
                 autoConnect = autoConnect,
+                agentEnabled = agentEnabled,
                 language = language,
                 onRoutingModeChange = { viewModel.setRoutingMode(it) },
                 onAutoConnectChange = { viewModel.setAutoConnect(it) },
+                onAgentEnabledChange = { viewModel.setAiAgentEnabled(it) },
                 onLanguageChange = {
                     viewModel.setLanguage(it)
                     onApplyLocale(it)

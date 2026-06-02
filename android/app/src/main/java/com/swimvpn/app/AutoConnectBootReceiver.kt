@@ -29,7 +29,12 @@ class AutoConnectBootReceiver : BroadcastReceiver() {
                     return@launch
                 }
 
-                Log.i("AutoConnectBootReceiver", "Skipping direct boot restore; app bootstrap must revalidate access first")
+                // Intentional no-op: we never start the VPN foreground service directly at boot.
+                // Direct-boot has no trusted, freshly-revalidated access/entitlement state, so
+                // restoring the tunnel here could connect a user whose access has been revoked.
+                // Auto-connect is instead re-applied during normal app bootstrap, which revalidates
+                // access against the backend (source of truth) before reconnecting.
+                Log.i("AutoConnectBootReceiver", "Auto-connect enabled; deferring tunnel restore to app bootstrap revalidation (no boot-time service start)")
             } catch (error: Exception) {
                 Log.e("AutoConnectBootReceiver", "Unable to restore auto-connect after boot", error)
             } finally {

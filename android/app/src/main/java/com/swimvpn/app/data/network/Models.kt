@@ -184,6 +184,14 @@ data class ReportUsageRequest(
     val deviceId: String? = null
 )
 
+enum class ProbeFailureReason {
+    TIMEOUT,
+    CONNECTION_REFUSED,
+    NETWORK_UNREACHABLE,
+    DNS_FAILURE,
+    UNKNOWN,
+}
+
 data class ServerNode(
     val id: String,
     val country: String,
@@ -198,6 +206,7 @@ data class ServerNode(
     val ping: Int = 0,
     val latencyMeasuredAtMs: Long = 0L,
     val latencyProbeFailed: Boolean = false,
+    val latencyProbeFailureReason: ProbeFailureReason? = null,
     val groupId: String? = null,
     val groupName: String? = null,
     val rawConfig: String? = null,

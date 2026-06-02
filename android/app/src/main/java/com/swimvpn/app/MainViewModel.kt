@@ -3,12 +3,15 @@ package com.swimvpn.app
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import android.net.VpnService
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.adaptive.AdaptiveDecisionAgent
+import com.swimvpn.app.adaptive.AgentDisabledFailurePolicy
 import com.swimvpn.app.adaptive.AdaptiveEventLogger
 import com.swimvpn.app.adaptive.DecisionActionType
 import com.swimvpn.app.adaptive.ServerRuntimeQualityState
@@ -38,6 +41,8 @@ import com.swimvpn.app.config.ImportedProfileGroup
 import com.swimvpn.app.config.SecurityMode
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
+import com.swimvpn.app.vpn.NetworkType
+import com.swimvpn.app.vpn.NetworkTypeClassifier
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeModePreference
 import com.swimvpn.app.vpn.RuntimeStatus
@@ -66,6 +71,7 @@ sealed class AppState {
         val isOnboardingDone: Boolean,
         val routingMode: RuntimeMode,
         val autoConnect: Boolean,
+        val agentEnabled: Boolean,
         val language: String,
         val themeMode: ThemeMode,
     ) : AppState()
@@ -79,6 +85,7 @@ sealed class AppState {
         val isOnboardingDone: Boolean,
         val routingMode: RuntimeMode,
         val autoConnect: Boolean,
+        val agentEnabled: Boolean,
         val language: String,
         val themeMode: ThemeMode,
         val activeServer: ServerNode? = null,
@@ -117,6 +124,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var premiumUsageSessionBaselineBytes = 0L
     private var externalCheckoutRefreshUntilMs = 0L
     private var externalCheckoutRefreshInFlight = false
+    @Volatile
+    private var latencyRefreshInFlight = false
     private var externalCheckoutRefreshRetryJob: Job? = null
 
     private companion object {
@@ -196,14 +205,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val now = System.currentTimeMillis()
-            serverScoreStore.recordFailure(activeServer.id, now)
+            serverScoreStore.recordFailure(activeServer.id, now, networkType = currentNetworkType())
             val scores = serverScoreStore.loadScores()
-            val action = AdaptiveDecisionAgent.planAfterFailure(
+            val plannedAction = AdaptiveDecisionAgent.planAfterFailure(
                 currentServerId = activeServer.id,
                 candidates = current.servers.map { it.toDecisionCandidate(current.profile) },
                 scores = scores,
                 reconnectAttempt = adaptiveReconnectAttempt,
                 nowMs = now,
+                networkType = currentNetworkType(),
+            )
+            // AI agent disabled: never switch servers automatically. Honor the user's manual
+            // selection and only retry the same server (keeping the agent's backoff/give-up bounds).
+            val action = AgentDisabledFailurePolicy.resolve(
+                agentEnabled = current.agentEnabled,
+                currentServerId = activeServer.id,
+                plannedAction = plannedAction,
             )
 
             AdaptiveEventLogger.log(
@@ -260,6 +277,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val isOnboardingDone = prefs.onboardingDoneFlow.first()
                 val routingMode = prefs.runtimeModeFlow.first()
                 val autoConnect = prefs.autoConnectFlow.first()
+                val agentEnabled = prefs.aiAgentEnabledFlow.first()
                 val deviceId = getDeviceId()
                 val language = prefs.languageFlow.first()
                 val themeMode = prefs.themeModeFlow.first()
@@ -315,6 +333,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isOnboardingDone = isOnboardingDone,
                         routingMode = routingMode,
                         autoConnect = autoConnect,
+                        agentEnabled = agentEnabled,
                         language = language,
                         themeMode = themeMode,
                         loadBackendServers = false,
@@ -339,6 +358,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isOnboardingDone = isOnboardingDone,
                         routingMode = routingMode,
                         autoConnect = autoConnect,
+                        agentEnabled = agentEnabled,
                         language = language,
                         themeMode = themeMode,
                     )
@@ -390,6 +410,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 isOnboardingDone = current.isOnboardingDone,
                 routingMode = current.routingMode,
                 autoConnect = current.autoConnect,
+                agentEnabled = current.agentEnabled,
                 language = current.language,
                 themeMode = current.themeMode,
                 plansFallback = current.plans,
@@ -479,6 +500,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setAiAgentEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setAiAgentEnabled(enabled)
+            when (val currentState = _state.value) {
+                is AppState.Success -> _state.value = currentState.copy(agentEnabled = enabled)
+                is AppState.TrialSetup -> _state.value = currentState.copy(agentEnabled = enabled)
+                else -> {}
+            }
+        }
+    }
+
     private fun autoConnectValidationError(): String? {
         val currentState = _state.value as? AppState.Success
             ?: return s(R.string.err_no_server_profile)
@@ -538,6 +570,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             lastAutoConnectSignature = null
             prefs.saveUserNumber("NEW_USER")
             prefs.setOnboardingDone(false)
+            prefs.setAutoConnect(false)
             prefs.clearAutoConnectPayload()
             initApp()
         }
@@ -571,6 +604,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isOnboardingDone = currentState.isOnboardingDone,
                     routingMode = currentState.routingMode,
                     autoConnect = currentState.autoConnect,
+                    agentEnabled = currentState.agentEnabled,
                     language = currentState.language,
                     themeMode = currentState.themeMode,
                 )
@@ -632,6 +666,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isOnboardingDone = currentState.isOnboardingDone,
                     routingMode = currentState.routingMode,
                     autoConnect = currentState.autoConnect,
+                    agentEnabled = currentState.agentEnabled,
                     language = currentState.language,
                     themeMode = currentState.themeMode,
                 )
@@ -700,6 +735,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isOnboardingDone = currentState.isOnboardingDone,
                     routingMode = currentState.routingMode,
                     autoConnect = currentState.autoConnect,
+                    agentEnabled = currentState.agentEnabled,
                     language = currentState.language,
                     themeMode = currentState.themeMode,
                 )
@@ -779,6 +815,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isOnboardingDone = currentState.isOnboardingDone,
                     routingMode = currentState.routingMode,
                     autoConnect = nextAutoConnect,
+                    agentEnabled = currentState.agentEnabled,
                     language = currentState.language,
                     themeMode = currentState.themeMode,
                 )
@@ -891,6 +928,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isOnboardingDone = currentState.isOnboardingDone,
                     routingMode = currentState.routingMode,
                     autoConnect = currentState.autoConnect,
+                    agentEnabled = currentState.agentEnabled,
                     language = currentState.language,
                     themeMode = currentState.themeMode,
                     plansFallback = currentState.plans,
@@ -948,6 +986,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectServer(server: ServerNode) {
         viewModelScope.launch {
+            // Bounded manual-override learning: record the user's genuine, explicit pick so the
+            // adaptive agent can later nudge ranking toward it. Passive write only — it never
+            // auto-acts and does not depend on the agent being enabled.
+            serverScoreStore.recordManualSelection(server.id)
             prefs.setSelectedServerId(server.id)
             when (server.source) {
                 "imported" -> {
@@ -989,22 +1031,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshServerLatency() {
+        // Skip if a probe sweep is already running (e.g. a periodic tick firing while a previous
+        // refresh — manual or periodic — is still in flight) to avoid concurrent probe passes.
+        if (latencyRefreshInFlight) return
+        latencyRefreshInFlight = true
         viewModelScope.launch {
-            val current = _state.value as? AppState.Success ?: return@launch
-            val measuredServers = ServerLatencyEvaluator.enrichWithLatency(current.servers)
-            val byId = measuredServers.associateBy { it.id }
-            val measuredGroups = current.serverGroups.map { group ->
-                group.copy(
-                    servers = group.servers.map { server -> byId[server.id] ?: server }
+            try {
+                val current = _state.value as? AppState.Success ?: return@launch
+                val measuredServers = ServerLatencyEvaluator.enrichWithLatency(
+                    current.servers,
+                    probeSocketFactory = nonVpnProbeSocketFactory(),
                 )
+                val byId = measuredServers.associateBy { it.id }
+                val measuredGroups = current.serverGroups.map { group ->
+                    group.copy(
+                        servers = group.servers.map { server -> byId[server.id] ?: server }
+                    )
+                }
+                val activeServer = current.activeServer?.id?.let(byId::get) ?: current.activeServer
+                val updatedState = current.copy(
+                    servers = measuredServers,
+                    serverGroups = measuredGroups,
+                    activeServer = activeServer,
+                )
+                _state.value = applyAdaptiveRecommendation(updatedState)
+            } finally {
+                latencyRefreshInFlight = false
             }
-            val activeServer = current.activeServer?.id?.let(byId::get) ?: current.activeServer
-            val updatedState = current.copy(
-                servers = measuredServers,
-                serverGroups = measuredGroups,
-                activeServer = activeServer,
-            )
-            _state.value = applyAdaptiveRecommendation(updatedState)
         }
     }
 
@@ -1354,18 +1407,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             premiumBlocked = source == "backend" && !profile.isPremiumAllowed,
             latencyMeasuredAtMs = latencyMeasuredAtMs,
             latencyProbeFailed = latencyProbeFailed,
+            latencyProbeFailureReason = latencyProbeFailureReason,
             load = load,
             availabilityStatus = availabilityStatus,
+            source = source,
         )
     }
 
     private fun applyAdaptiveRecommendation(state: AppState.Success): AppState.Success {
+        if (!state.agentEnabled) {
+            // AI agent disabled: respect the user's manual selection, surface no recommendation/badge.
+            return state.copy(
+                recommendedServerId = null,
+                isRecommendedServerValidated = false,
+            )
+        }
         val now = System.currentTimeMillis()
         val recommendation = AdaptiveDecisionAgent.recommendServer(
             candidates = state.servers.map { it.toDecisionCandidate(state.profile) },
             scores = serverScoreStore.loadScores(),
             currentServerId = null,
             nowMs = now,
+            networkType = currentNetworkType(),
         )
         val recommendedId = recommendation?.candidate?.serverId
         val isRecommendedServerValidated = recommendation?.qualityState == ServerRuntimeQualityState.FRESH
@@ -1376,13 +1439,68 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    /**
+     * Resolves the coarse [NetworkType] of the active (non-VPN-agnostic) network via
+     * ConnectivityManager. Stage 1: carried into [AdaptiveDecisionAgent.recommendServer] only,
+     * not yet used in scoring. Any failure (or missing capabilities) yields [NetworkType.UNKNOWN],
+     * which is the safe default that does not alter recommendation outcomes.
+     */
+    private fun currentNetworkType(): NetworkType {
+        val connectivityManager = app.applicationContext
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return NetworkType.UNKNOWN
+
+        return try {
+            val active = connectivityManager.activeNetwork ?: return NetworkType.UNKNOWN
+            val caps = connectivityManager.getNetworkCapabilities(active) ?: return NetworkType.UNKNOWN
+            NetworkTypeClassifier.classify(
+                hasWifi = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI),
+                hasCellular = caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR),
+                hasEthernet = caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET),
+                hasInternet = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET),
+            )
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "Unable to resolve current network type", e)
+            NetworkType.UNKNOWN
+        }
+    }
+
     private fun getDeviceId(): String? = DeviceIdentityProvider.getDeviceId(app)
+
+    /**
+     * Returns the [javax.net.SocketFactory] of the active non-VPN underlying network so latency
+     * probes bypass the tunnel and report true reachability while the VPN is up. Returns null when
+     * no such network is available (e.g. offline), which preserves the legacy plain-Socket behavior.
+     */
+    private fun nonVpnProbeSocketFactory(): javax.net.SocketFactory? {
+        val connectivityManager = app.applicationContext
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return null
+
+        return try {
+            val networks = connectivityManager.allNetworks
+            fun isUsableNonVpn(network: android.net.Network): Boolean {
+                val caps = connectivityManager.getNetworkCapabilities(network) ?: return false
+                return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            }
+
+            val active = connectivityManager.activeNetwork
+            val chosen = active?.takeIf { isUsableNonVpn(it) }
+                ?: networks.firstOrNull { isUsableNonVpn(it) }
+            chosen?.socketFactory
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "Unable to resolve non-VPN probe network; falling back to default route", e)
+            null
+        }
+    }
 
     private suspend fun buildSuccessState(
         profile: AccessProfileResponse,
         isOnboardingDone: Boolean,
         routingMode: RuntimeMode,
         autoConnect: Boolean,
+        agentEnabled: Boolean,
         language: String,
         themeMode: ThemeMode,
         plansFallback: List<com.swimvpn.app.data.model.Plan> = emptyList(),
@@ -1453,6 +1571,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isOnboardingDone = isOnboardingDone,
             routingMode = routingMode,
             autoConnect = autoConnect,
+            agentEnabled = agentEnabled,
             language = language,
             themeMode = themeMode,
             activeServer = activeServer,

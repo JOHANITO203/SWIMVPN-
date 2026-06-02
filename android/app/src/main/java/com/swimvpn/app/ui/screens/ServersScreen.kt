@@ -1,6 +1,8 @@
 package com.swimvpn.app.ui.screens
 
+import android.content.Context
 import android.content.res.Resources
+import android.os.PowerManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -74,11 +76,13 @@ import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.data.network.AccessProfileResponse
 import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerNode
+import com.swimvpn.app.ui.PeriodicProbeGate
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.SwimDockDestination
 import com.swimvpn.app.ui.components.SwimMetaballDock
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.theme.SwimDesignTokens
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -118,6 +122,7 @@ data class ServerNodeUi(
     val pingFailed: Boolean,
     val loadLabel: String?,
     val isSelected: Boolean,
+    val isRecommended: Boolean = false,
 )
 
 data class ServerScreenUiState(
@@ -142,11 +147,13 @@ fun ServersScreen(
     onProfileClick: () -> Unit,
     onHomeClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onPeriodicRefresh: () -> Unit = {},
     recommendedServerId: String? = null,
     isRecommendedServerValidated: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val resources = LocalContext.current.resources
+    val context = LocalContext.current
+    val resources = context.resources
     var selectedTab by remember { mutableStateOf(ServerSourceTab.IMPORTED) }
     val sourceGroups = remember(serverGroups) {
         serverGroups.groupBy { it.source.lowercase(Locale.ROOT) }
@@ -157,6 +164,23 @@ fun ServersScreen(
     LaunchedEffect(importedServers.isEmpty(), premiumServers.isNotEmpty()) {
         if (importedServers.isEmpty() && premiumServers.isNotEmpty()) {
             selectedTab = ServerSourceTab.PREMIUM
+        }
+    }
+
+    // Battery/screen-aware periodic latency refresh while this screen is composed.
+    // The loop is naturally cancelled when the composable leaves composition (e.g.
+    // navigating away), and each tick is skipped when the device is not interactive
+    // (screen off / display dozing) or in power-save mode so we never probe in the
+    // background. No background service is involved.
+    LaunchedEffect(Unit) {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        while (true) {
+            delay(PERIODIC_REFRESH_INTERVAL_MS)
+            val interactive = powerManager?.isInteractive ?: true
+            val powerSave = powerManager?.isPowerSaveMode ?: false
+            if (PeriodicProbeGate.shouldProbe(isInteractive = interactive, powerSaveMode = powerSave)) {
+                onPeriodicRefresh()
+            }
         }
     }
 
@@ -171,13 +195,15 @@ fun ServersScreen(
         isRecommendedServerValidated,
         resources,
     ) {
+        // Only surface the recommended row when the recommendation is validated.
+        val validatedRecommendedId = recommendedServerId?.takeIf { isRecommendedServerValidated }
         ServerScreenUiState(
             selectedTab = selectedTab,
             aiActive = isRecommendedServerValidated && recommendedServerId != null,
             importedConfig = activeConfigMetadata.toImportedConfigSummaryUi(resources),
             premiumAccess = profile.toPremiumAccessSummaryUi(premiumServers, resources),
-            importedNodes = importedServers.toNodeUi(activeServerId, resources),
-            premiumNodes = premiumServers.toNodeUi(activeServerId, resources),
+            importedNodes = importedServers.toNodeUi(activeServerId, validatedRecommendedId, resources),
+            premiumNodes = premiumServers.toNodeUi(activeServerId, validatedRecommendedId, resources),
             selectedNodeId = activeServerId,
         )
     }
@@ -883,10 +909,43 @@ private fun ServerNodeRow(node: ServerNodeUi, onClick: () -> Unit, modifier: Mod
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (node.isRecommended) {
+                Spacer(modifier = Modifier.height(4.dp))
+                RecommendedTag()
+            }
         }
         PingBadge(node = node)
         Spacer(modifier = Modifier.width(10.dp))
         SelectionCircle(selected = node.isSelected)
+    }
+}
+
+@Composable
+private fun RecommendedTag(modifier: Modifier = Modifier) {
+    val accent = SwimDesignTokens.Color.PurpleActive
+    Row(
+        modifier = modifier
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(accent.copy(alpha = 0.14f))
+            .border(1.dp, accent.copy(alpha = 0.40f), SwimDesignTokens.Shape.Pill)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(4.dp)
+                .clip(CircleShape)
+                .background(accent)
+        )
+        Spacer(modifier = Modifier.width(5.dp))
+        Text(
+            text = stringResource(R.string.servers_recommended_badge),
+            color = accent,
+            fontSize = fixedSp(9),
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -988,7 +1047,11 @@ private fun MotionReveal(
     }
 }
 
-private fun List<ServerNode>.toNodeUi(activeServerId: String?, resources: Resources): List<ServerNodeUi> =
+private fun List<ServerNode>.toNodeUi(
+    activeServerId: String?,
+    recommendedServerId: String?,
+    resources: Resources,
+): List<ServerNodeUi> =
     map { server ->
         ServerNodeUi(
             id = server.id,
@@ -1001,6 +1064,7 @@ private fun List<ServerNode>.toNodeUi(activeServerId: String?, resources: Resour
             pingFailed = server.latencyProbeFailed,
             loadLabel = server.load?.let { resources.getString(R.string.servers_load_percent, it) },
             isSelected = server.id == activeServerId,
+            isRecommended = recommendedServerId != null && server.id == recommendedServerId,
         )
     }
 
@@ -1147,6 +1211,8 @@ private fun formatServerExpiryCaption(value: String): String {
         }
     }.getOrElse { "Expiry set" }
 }
+
+private const val PERIODIC_REFRESH_INTERVAL_MS = 25_000L
 
 private val PremiumEase = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 

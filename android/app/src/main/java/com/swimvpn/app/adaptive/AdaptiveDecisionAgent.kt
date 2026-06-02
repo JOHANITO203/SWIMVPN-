@@ -1,5 +1,7 @@
 package com.swimvpn.app.adaptive
 
+import com.swimvpn.app.data.network.ProbeFailureReason
+import com.swimvpn.app.vpn.NetworkType
 import kotlin.math.max
 
 data class ServerDecisionCandidate(
@@ -10,8 +12,11 @@ data class ServerDecisionCandidate(
     val premiumBlocked: Boolean,
     val latencyMeasuredAtMs: Long = 0L,
     val latencyProbeFailed: Boolean = false,
+    val latencyProbeFailureReason: ProbeFailureReason? = null,
     val load: Int? = null,
     val availabilityStatus: String? = null,
+    // Stage 2: score on networkType/source. Carried only for now; not used in scoring.
+    val source: String? = null,
 )
 
 data class ServerQualityScore(
@@ -22,6 +27,12 @@ data class ServerQualityScore(
     val lastSuccessAtMs: Long = 0L,
     val lastFailureAtMs: Long = 0L,
     val avoidUntilMs: Long = 0L,
+    // Stage 2: bounded manual-override learning. Count of times the user manually picked this server.
+    val manualSelectionCount: Int = 0,
+    val lastManualSelectionAtMs: Long = 0L,
+    // Stage 2: per-network failure history. Count of failures observed per concrete transport.
+    // Only concrete transports (WIFI/CELLULAR/ETHERNET) are bucketed; UNKNOWN/NONE/OTHER are not.
+    val networkFailures: Map<NetworkType, Int> = emptyMap(),
 ) {
     fun isAvoided(nowMs: Long): Boolean = avoidUntilMs > nowMs
 }
@@ -37,6 +48,7 @@ enum class ServerRuntimeQualityState {
     STALE,
     MISSING_PING,
     FRESH_PROBE_FAILED,
+    FRESH_PROBE_FAILED_TRANSIENT,
 }
 
 data class ServerRecommendationResult(
@@ -58,11 +70,35 @@ object AdaptiveDecisionAgent {
     private const val AVOID_AFTER_CONSECUTIVE_FAILURES = 2
     private const val AVOID_DURATION_MS = 10 * 60 * 1000L
     private const val FAILURE_RECOVERY_DECAY_MS = 30 * 60 * 1000L
+    // Discrete freshness window that gates the UI "validated recommendation" badge.
+    // A recommendation within this window reports qualityState == FRESH.
     private const val FRESH_LATENCY_WINDOW_MS = 2 * 60 * 1000L
-    private const val STALE_LATENCY_PENALTY = 120
+    // Graduated latency-age penalty calibration (scoring only, separate from the badge state).
+    // No penalty at/below the fresh floor; ramps linearly to the legacy STALE penalty at the
+    // legacy fresh/stale boundary; then grows modestly toward a cap kept below MISSING_PING.
+    private const val LATENCY_FRESH_FLOOR_MS = 30 * 1000L
+    private const val LATENCY_PENALTY_AT_BOUNDARY = 120
+    private const val LATENCY_PENALTY_CAP = 200
+    private const val LATENCY_AGE_PENALTY_BOUNDARY_MS = 2 * 60 * 1000L
+    // Beyond the boundary the cap (200) is reached at this age, then held flat.
+    private const val LATENCY_AGE_PENALTY_CAP_AT_MS = 10 * 60 * 1000L
     private const val MISSING_PING_PENALTY = 300
     private const val FRESH_PROBE_FAILED_PENALTY = 1_000
+    private const val FRESH_PROBE_FAILED_TRANSIENT_PENALTY = 150
+    private const val GLOBAL_OUTAGE_MIN_CANDIDATES = 2
+    private const val GLOBAL_OUTAGE_FAILURE_RATIO = 0.6
     private const val PINNED_REWARD = 5
+    // Bounded manual-override reward: small nudge comparable to the pinned reward, never large enough
+    // to resurrect a failing/avoided server (those are filtered before scoring anyway).
+    private const val MANUAL_OVERRIDE_REWARD_STEP = 8
+    private const val MANUAL_OVERRIDE_REWARD_CAP = 40
+    // Manual reward fully decays once the last manual selection is older than this window, so a
+    // long-stale preference stops nudging ranking.
+    private const val MANUAL_OVERRIDE_REWARD_DECAY_MS = 30L * 24 * 60 * 60 * 1000L
+    // Bounded per-network failure penalty: penalizes a server that keeps failing ON THE CURRENT
+    // network without affecting it on other networks. Capped below MISSING_PING (300).
+    private const val NETWORK_FAILURE_PENALTY_STEP = 50
+    private const val NETWORK_FAILURE_PENALTY_CAP = 250
     private const val LOAD_PENALTY_DIVISOR = 2
     private const val UNKNOWN_LOAD_PENALTY = 20
     private const val CONGESTED_AVAILABILITY_PENALTY = 50
@@ -71,6 +107,7 @@ object AdaptiveDecisionAgent {
     fun recordFailure(
         score: ServerQualityScore,
         nowMs: Long,
+        networkType: NetworkType = NetworkType.UNKNOWN,
     ): ServerQualityScore {
         val nextConsecutiveFailures = score.consecutiveFailures + 1
         val avoidUntil = if (nextConsecutiveFailures >= AVOID_AFTER_CONSECUTIVE_FAILURES) {
@@ -79,12 +116,37 @@ object AdaptiveDecisionAgent {
             score.avoidUntilMs
         }
 
+        // Only bucket failures on concrete transports; UNKNOWN/NONE/OTHER leave the map unchanged.
+        val nextNetworkFailures = if (isBucketedNetwork(networkType)) {
+            score.networkFailures + (networkType to ((score.networkFailures[networkType] ?: 0) + 1))
+        } else {
+            score.networkFailures
+        }
+
         return score.copy(
             failureCount = score.failureCount + 1,
             consecutiveFailures = nextConsecutiveFailures,
             lastFailureAtMs = nowMs,
             avoidUntilMs = avoidUntil,
+            networkFailures = nextNetworkFailures,
         )
+    }
+
+    /**
+     * Records a manual server selection by the user. Increments [ServerQualityScore.manualSelectionCount]
+     * and stamps [ServerQualityScore.lastManualSelectionAtMs]. Does NOT touch failure/success counters.
+     */
+    fun recordManualSelection(
+        score: ServerQualityScore,
+        nowMs: Long,
+    ): ServerQualityScore = score.copy(
+        manualSelectionCount = score.manualSelectionCount + 1,
+        lastManualSelectionAtMs = nowMs,
+    )
+
+    private fun isBucketedNetwork(networkType: NetworkType): Boolean = when (networkType) {
+        NetworkType.WIFI, NetworkType.CELLULAR, NetworkType.ETHERNET -> true
+        else -> false
     }
 
     fun recordSuccess(
@@ -103,6 +165,7 @@ object AdaptiveDecisionAgent {
         scores: Map<String, ServerQualityScore>,
         reconnectAttempt: Int,
         nowMs: Long,
+        networkType: NetworkType = NetworkType.UNKNOWN,
     ): DecisionAction {
         if (currentServerId == null || reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
             return DecisionAction(
@@ -127,6 +190,7 @@ object AdaptiveDecisionAgent {
             scores = scores,
             currentServerId = currentServerId,
             nowMs = nowMs,
+            networkType = networkType,
         )
 
         return if (fallback != null) {
@@ -151,26 +215,47 @@ object AdaptiveDecisionAgent {
         scores: Map<String, ServerQualityScore>,
         currentServerId: String?,
         nowMs: Long,
+        networkType: NetworkType = NetworkType.UNKNOWN,
     ): ServerDecisionCandidate? = recommendServer(
         candidates = candidates,
         scores = scores,
         currentServerId = currentServerId,
         nowMs = nowMs,
+        networkType = networkType,
     )?.candidate
+
+    /**
+     * Pure heuristic: returns true when a strong majority of candidates report a probe failure
+     * whose reason points at the local/transport network being down (TIMEOUT / NETWORK_UNREACHABLE)
+     * rather than at the individual servers. In that case per-server avoidance/penalty should be
+     * suppressed so the agent does not blacklist healthy servers during a global outage.
+     */
+    fun isLikelyGlobalOutage(candidates: List<ServerDecisionCandidate>): Boolean {
+        if (candidates.size < GLOBAL_OUTAGE_MIN_CANDIDATES) return false
+        val networkFailures = candidates.count { candidate ->
+            candidate.latencyProbeFailed && isOutageReason(candidate.latencyProbeFailureReason)
+        }
+        if (networkFailures < GLOBAL_OUTAGE_MIN_CANDIDATES) return false
+        return networkFailures.toDouble() / candidates.size >= GLOBAL_OUTAGE_FAILURE_RATIO
+    }
 
     fun recommendServer(
         candidates: List<ServerDecisionCandidate>,
         scores: Map<String, ServerQualityScore>,
         currentServerId: String?,
         nowMs: Long,
+        // Stage 2: bounded contextual scoring. networkType nudges ranking via the manual-override
+        // reward and a per-network failure penalty; UNKNOWN/NONE leave outcomes unchanged.
+        networkType: NetworkType = NetworkType.UNKNOWN,
     ): ServerRecommendationResult? {
+        val globalOutage = isLikelyGlobalOutage(candidates)
         return candidates
             .asSequence()
             .filter { it.serverId != currentServerId }
             .filter { it.hasRuntimeConfig && !it.premiumBlocked }
-            .filter { candidate -> !scores[candidate.serverId].isAvoided(nowMs) }
-            .map { candidate -> recommendationFor(candidate, scores[candidate.serverId], nowMs) }
-            .filter { it.qualityState != ServerRuntimeQualityState.FRESH_PROBE_FAILED }
+            .filter { candidate -> globalOutage || !scores[candidate.serverId].isAvoided(nowMs) }
+            .map { candidate -> recommendationFor(candidate, scores[candidate.serverId], nowMs, globalOutage, networkType) }
+            .filter { globalOutage || it.qualityState != ServerRuntimeQualityState.FRESH_PROBE_FAILED }
             .minWithOrNull(
                 compareBy<ServerRecommendationResult> { it.score }
                     .thenBy { normalizedPing(it.candidate.pingMs) }
@@ -185,20 +270,58 @@ object AdaptiveDecisionAgent {
         candidate: ServerDecisionCandidate,
         score: ServerQualityScore?,
         nowMs: Long,
+        globalOutage: Boolean = false,
+        networkType: NetworkType = NetworkType.UNKNOWN,
     ): ServerRecommendationResult {
         val qualityState = qualityState(candidate, nowMs)
+        // During a likely global outage the failures are not the servers' fault, so neither the
+        // heavy probe penalty nor the accumulated failure history is held against them.
+        val qualityPenalty = if (globalOutage) 0 else qualityPenalty(qualityState, candidate, nowMs)
+        val historyPenalty = if (globalOutage) 0 else historyPenalty(score, nowMs)
+        // Per-network penalty is suppressed under a global outage like the other failure penalties.
+        val networkPenalty = if (globalOutage) 0 else networkFailurePenalty(score, networkType)
+        // Bounded manual-override reward only nudges ranking among otherwise-eligible servers; it is
+        // applied after avoidance/probe filtering above, so it can never resurrect a filtered server.
+        val manualReward = manualOverrideReward(score, nowMs)
         val totalScore = normalizedPing(candidate.pingMs) +
-            qualityPenalty(qualityState) +
+            qualityPenalty +
             loadPenalty(candidate.load) +
             availabilityPenalty(candidate.availabilityStatus) +
-            historyPenalty(score, nowMs) -
-            if (candidate.isPinned) PINNED_REWARD else 0
+            historyPenalty +
+            networkPenalty -
+            (if (candidate.isPinned) PINNED_REWARD else 0) -
+            manualReward
 
         return ServerRecommendationResult(
             candidate = candidate,
             qualityState = qualityState,
             score = totalScore,
         )
+    }
+
+    /**
+     * Bounded reward (subtracted from the score) for a manually-preferred server. Grows with
+     * [ServerQualityScore.manualSelectionCount] up to [MANUAL_OVERRIDE_REWARD_CAP], then fully decays
+     * once the last manual selection is older than [MANUAL_OVERRIDE_REWARD_DECAY_MS].
+     */
+    private fun manualOverrideReward(score: ServerQualityScore?, nowMs: Long): Int {
+        if (score == null || score.manualSelectionCount <= 0) return 0
+        val stamped = score.lastManualSelectionAtMs
+        val decayed = stamped > 0L && nowMs - stamped >= MANUAL_OVERRIDE_REWARD_DECAY_MS
+        if (decayed) return 0
+        return minOf(MANUAL_OVERRIDE_REWARD_CAP, score.manualSelectionCount * MANUAL_OVERRIDE_REWARD_STEP)
+    }
+
+    /**
+     * Bounded penalty for a server that keeps failing on the CURRENT concrete network, leaving its
+     * standing on other networks untouched. UNKNOWN/NONE/OTHER carry no per-network penalty. Capped
+     * at [NETWORK_FAILURE_PENALTY_CAP], below MISSING_PING.
+     */
+    private fun networkFailurePenalty(score: ServerQualityScore?, networkType: NetworkType): Int {
+        if (score == null || !isBucketedNetwork(networkType)) return 0
+        val failures = score.networkFailures[networkType] ?: return 0
+        if (failures <= 0) return 0
+        return minOf(NETWORK_FAILURE_PENALTY_CAP, failures * NETWORK_FAILURE_PENALTY_STEP)
     }
 
     private fun historyPenalty(score: ServerQualityScore?, nowMs: Long): Int {
@@ -221,18 +344,79 @@ object AdaptiveDecisionAgent {
         val ageMs = max(0L, nowMs - candidate.latencyMeasuredAtMs)
         val isFresh = ageMs <= FRESH_LATENCY_WINDOW_MS
         return when {
-            candidate.latencyProbeFailed && isFresh -> ServerRuntimeQualityState.FRESH_PROBE_FAILED
+            candidate.latencyProbeFailed && isFresh ->
+                if (isNetworkSideReason(candidate.latencyProbeFailureReason)) {
+                    // TIMEOUT / NETWORK_UNREACHABLE / UNKNOWN usually mean the local network is down,
+                    // not that this specific server is bad: penalize lightly and stay selectable.
+                    ServerRuntimeQualityState.FRESH_PROBE_FAILED_TRANSIENT
+                } else {
+                    // CONNECTION_REFUSED / DNS_FAILURE are server-side: heavy avoid/penalty.
+                    ServerRuntimeQualityState.FRESH_PROBE_FAILED
+                }
             isFresh -> ServerRuntimeQualityState.FRESH
             else -> ServerRuntimeQualityState.STALE
         }
     }
 
-    private fun qualityPenalty(state: ServerRuntimeQualityState): Int {
+    private fun isOutageReason(reason: ProbeFailureReason?): Boolean =
+        reason == ProbeFailureReason.TIMEOUT || reason == ProbeFailureReason.NETWORK_UNREACHABLE
+
+    private fun isNetworkSideReason(reason: ProbeFailureReason?): Boolean = when (reason) {
+        ProbeFailureReason.TIMEOUT,
+        ProbeFailureReason.NETWORK_UNREACHABLE,
+        ProbeFailureReason.UNKNOWN,
+        -> true
+        // CONNECTION_REFUSED / DNS_FAILURE are server-side. null = legacy probe failure with no
+        // recorded reason: keep the historical heavy avoid/penalty for backward compatibility.
+        else -> false
+    }
+
+    private fun qualityPenalty(
+        state: ServerRuntimeQualityState,
+        candidate: ServerDecisionCandidate,
+        nowMs: Long,
+    ): Int {
         return when (state) {
-            ServerRuntimeQualityState.FRESH -> 0
-            ServerRuntimeQualityState.STALE -> STALE_LATENCY_PENALTY
+            // FRESH (badge state) and STALE both score on the graduated latency-age penalty so the
+            // scoring cost of a stale ping grows smoothly with age instead of snapping to a flat
+            // STALE penalty at the 120s boundary. The discrete FRESH state is unchanged and still
+            // gates the UI validated-recommendation badge.
+            ServerRuntimeQualityState.FRESH,
+            ServerRuntimeQualityState.STALE,
+            -> latencyAgePenalty(max(0L, nowMs - candidate.latencyMeasuredAtMs))
             ServerRuntimeQualityState.MISSING_PING -> MISSING_PING_PENALTY
             ServerRuntimeQualityState.FRESH_PROBE_FAILED -> FRESH_PROBE_FAILED_PENALTY
+            ServerRuntimeQualityState.FRESH_PROBE_FAILED_TRANSIENT -> FRESH_PROBE_FAILED_TRANSIENT_PENALTY
+        }
+    }
+
+    /**
+     * Pure graduated penalty for the age of the last latency measurement (scoring only).
+     *
+     * Calibrated to match the legacy binary fresh/stale endpoints so the behavior change is minimal:
+     *  - age <= [LATENCY_FRESH_FLOOR_MS] (30s): penalty 0 (no cost for a recent ping).
+     *  - linear ramp from 0 at the floor to [LATENCY_PENALTY_AT_BOUNDARY] (120) at
+     *    [LATENCY_AGE_PENALTY_BOUNDARY_MS] (120s, the legacy fresh/stale boundary).
+     *  - beyond the boundary it keeps growing linearly to [LATENCY_PENALTY_CAP] (200) at
+     *    [LATENCY_AGE_PENALTY_CAP_AT_MS] and is then held flat — always below MISSING_PING (300),
+     *    so a very stale ping is worse than a moderately stale one but still better than no ping.
+     *
+     * Monotonic non-decreasing in [ageMs].
+     */
+    fun latencyAgePenalty(ageMs: Long): Int {
+        val age = max(0L, ageMs)
+        return when {
+            age <= LATENCY_FRESH_FLOOR_MS -> 0
+            age <= LATENCY_AGE_PENALTY_BOUNDARY_MS -> {
+                val span = LATENCY_AGE_PENALTY_BOUNDARY_MS - LATENCY_FRESH_FLOOR_MS
+                (LATENCY_PENALTY_AT_BOUNDARY * (age - LATENCY_FRESH_FLOOR_MS) / span).toInt()
+            }
+            age >= LATENCY_AGE_PENALTY_CAP_AT_MS -> LATENCY_PENALTY_CAP
+            else -> {
+                val span = LATENCY_AGE_PENALTY_CAP_AT_MS - LATENCY_AGE_PENALTY_BOUNDARY_MS
+                val extra = (LATENCY_PENALTY_CAP - LATENCY_PENALTY_AT_BOUNDARY).toLong()
+                LATENCY_PENALTY_AT_BOUNDARY + (extra * (age - LATENCY_AGE_PENALTY_BOUNDARY_MS) / span).toInt()
+            }
         }
     }
 

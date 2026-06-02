@@ -34,6 +34,7 @@ class PreferencesManager(private val context: Context) {
         // Technical Settings
         val ROUTING_MODE_KEY = stringPreferencesKey("routing_mode")
         val AUTO_CONNECT_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("auto_connect")
+        val AI_AGENT_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("ai_agent_enabled")
         val LANGUAGE_KEY = stringPreferencesKey("language") // "en", "fr", "ru"
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SELECTED_SERVER_ID_KEY = stringPreferencesKey("selected_server_id")
@@ -44,6 +45,12 @@ class PreferencesManager(private val context: Context) {
         val LAST_RUNTIME_CONFIG_KEY = stringPreferencesKey("last_runtime_config")
         val LAST_RUNTIME_MODE_KEY = stringPreferencesKey("last_runtime_mode")
         const val DEFAULT_LANGUAGE = VpnNotificationLanguage.DEFAULT_LANGUAGE
+
+        // AI Agent stays ON by default to preserve the app's pre-existing adaptive behavior.
+        const val DEFAULT_AI_AGENT_ENABLED = true
+
+        /** Resolves the persisted AI-agent flag, defaulting to ON when unset. Pure logic for unit tests. */
+        fun resolveAiAgentEnabled(persisted: Boolean?): Boolean = persisted ?: DEFAULT_AI_AGENT_ENABLED
     }
 
     val userNumberFlow: Flow<String?> = context.dataStore.data
@@ -62,6 +69,9 @@ class PreferencesManager(private val context: Context) {
 
     val autoConnectFlow: Flow<Boolean> = context.dataStore.data
         .map { preferences -> preferences[AUTO_CONNECT_KEY] ?: false }
+
+    val aiAgentEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences -> resolveAiAgentEnabled(preferences[AI_AGENT_ENABLED_KEY]) }
 
     val languageFlow: Flow<String> = context.dataStore.data
         .map { preferences -> preferences[LANGUAGE_KEY] ?: DEFAULT_LANGUAGE }
@@ -94,6 +104,10 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setAutoConnect(enabled: Boolean) {
         context.dataStore.edit { preferences -> preferences[AUTO_CONNECT_KEY] = enabled }
+    }
+
+    suspend fun setAiAgentEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[AI_AGENT_ENABLED_KEY] = enabled }
     }
 
     suspend fun setLanguage(lang: String) {

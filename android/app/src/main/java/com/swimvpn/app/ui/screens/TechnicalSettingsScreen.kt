@@ -42,9 +42,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -58,11 +60,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.swimvpn.app.R
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.theme.AppThemePreference
@@ -95,14 +100,29 @@ fun TechnicalSettingsScreen(
     onThemeModeChange: (String) -> Unit = {},
     runtimeStatus: String = "IDLE",
     activeRuntimeMode: String? = null,
+    agentEnabled: Boolean = true,
+    onAgentEnabledChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
     var externalActionsArmed by rememberSaveable { mutableStateOf(false) }
-    var agentEnabled by rememberSaveable { mutableStateOf(true) }
-    val killSwitchStatus = readKillSwitchStatus(context)
-    val batteryOptimizationRequired = isBatteryOptimizationRequired(context)
+    // Battery-optimization and kill-switch status are read from system settings the user can
+    // change outside the app (battery exemption dialog, VPN settings). Re-read them on every
+    // ON_RESUME so the displayed status reflects reality after the user returns from those screens.
+    var resumeTick by remember { mutableStateOf(0) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                resumeTick++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val killSwitchStatus = remember(resumeTick) { readKillSwitchStatus(context) }
+    val batteryOptimizationRequired = remember(resumeTick) { isBatteryOptimizationRequired(context) }
     val normalizedRoutingMode = normalizeRoutingMode(routingMode)
 
     LaunchedEffect(Unit) {
@@ -202,7 +222,7 @@ fun TechnicalSettingsScreen(
                     title = stringResource(R.string.technical_agent_title),
                     subtitle = if (agentEnabled) stringResource(R.string.technical_agent_on) else stringResource(R.string.technical_agent_off),
                     checked = agentEnabled,
-                    onCheckedChange = { agentEnabled = it },
+                    onCheckedChange = onAgentEnabledChange,
                 )
             }
 
