@@ -43,6 +43,8 @@ import com.swimvpn.app.vpn.RuntimeServiceDestroyPolicy
 import com.swimvpn.app.vpn.RuntimeStartupFailurePolicy
 import com.swimvpn.app.vpn.RuntimeStartupHealthPolicy
 import com.swimvpn.app.vpn.RuntimeStatus
+import com.swimvpn.app.vpn.TunnelFallbackPolicy
+import com.swimvpn.app.diagnostics.CrashReporter
 import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.StickyReconnectPolicy
 import com.swimvpn.app.vpn.VpnManager
@@ -79,6 +81,13 @@ class SwimVpnService : VpnService() {
     private var reconnectAttempt = 0
     private var sessionStartedAt: Long? = null
     private var stoppedByUser = false
+    // OEM hardening: when a FULL_TUNNEL data-plane failure (establish()/tun2socks) occurs on a
+    // device where the tunnel cannot run, we degrade once to LOCAL_PROXY so the user keeps working
+    // connectivity. fellBackToProxy guards against repeated fallback within one connect chain;
+    // pendingProxyFallback carries the retry payload so it is launched from finally (after the
+    // failed startup job's handle is cleared), never overwriting activeStartupJob.
+    private var fellBackToProxy = false
+    private var pendingProxyFallback: Triple<String, Int, String?>? = null
     private var startedOnUnvalidatedNetwork = false
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     // One-shot callback that re-triggers the connect once a usable network appears
@@ -373,6 +382,10 @@ class SwimVpnService : VpnService() {
         VpnManager.clearError()
         VpnManager.clearRuntimeDiagnostics()
         stoppedByUser = false
+        // A fresh user-initiated full-tunnel attempt is allowed one proxy fallback again.
+        if (requestedMode == RuntimeMode.FULL_TUNNEL) {
+            fellBackToProxy = false
+        }
         activeSession = ActiveSession(host, port, requestedMode, rawConfig)
         if (sessionStartedAt == null) {
             sessionStartedAt = System.currentTimeMillis()
@@ -460,10 +473,47 @@ class SwimVpnService : VpnService() {
                     ),
                 )
                 logRuntimeEvent("reconnect_failed", mapOf("error" to (e.localizedMessage ?: "unknown")))
-                setRuntimeError("Connection failed: ${e.localizedMessage}", cause)
-                stopVpn(clearRuntimeState = false, reason = "startup_failure", cause = cause)
+                CrashReporter.recordVpnFailure(stage = "startup", cause = cause.name, throwable = e)
+
+                // OEM hardening: if the full-tunnel data plane failed for a tunnel-infrastructure
+                // reason (establish()/tun2socks), degrade once to LOCAL_PROXY instead of leaving the
+                // user with nothing. Network/server/config/user causes are excluded by the policy.
+                // The retry is deferred to finally so it is launched after this job's handle is
+                // cleared (never overwriting activeStartupJob).
+                if (TunnelFallbackPolicy.shouldFallbackToProxy(
+                        requestedMode = requestedMode,
+                        cause = cause,
+                        stoppedByUser = stoppedByUser,
+                        alreadyFellBack = fellBackToProxy,
+                    )
+                ) {
+                    fellBackToProxy = true
+                    pendingProxyFallback = Triple(host, port, rawConfig)
+                    logRuntimeEvent("tunnel_fallback_to_proxy", mapOf("from_cause" to cause.name))
+                    AdaptiveEventLogger.log(
+                        event = "tunnel_fallback_to_proxy",
+                        details = mapOf("from_cause" to cause.name),
+                    )
+                } else {
+                    setRuntimeError("Connection failed: ${e.localizedMessage}", cause)
+                    stopVpn(clearRuntimeState = false, reason = "startup_failure", cause = cause)
+                }
             } finally {
                 activeStartupJob = null
+                // Launch the proxy fallback (if armed) only after the failed startup job's handle
+                // is cleared, so the fresh attempt owns activeStartupJob cleanly.
+                pendingProxyFallback?.let { (fallbackHost, fallbackPort, fallbackConfig) ->
+                    pendingProxyFallback = null
+                    updateRuntimeStatus(RuntimeStatus.RECONNECTING, RuntimeMode.LOCAL_PROXY)
+                    serviceScope.launch {
+                        startVpn(
+                            host = fallbackHost,
+                            port = fallbackPort,
+                            requestedMode = RuntimeMode.LOCAL_PROXY,
+                            rawConfig = fallbackConfig,
+                        )
+                    }
+                }
             }
         }
     }
@@ -553,6 +603,7 @@ class SwimVpnService : VpnService() {
                         preparedRuntime.stderrLogFile.appendText("${error.message ?: "tun2socks native bridge failure"}\n")
                         preparedRuntime.exitStateFile.writeText("FAILED")
                         Log.e("SwimVpnService", "tun2socks native bridge failed", error)
+                        CrashReporter.recordVpnFailure(stage = "tun2socks_bridge", cause = "ENGINE_CRASH", throwable = error)
                         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
                             setRuntimeError("tun2socks failed: ${error.localizedMessage}", DisconnectCause.ENGINE_CRASH)
                             scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_failure")
@@ -699,6 +750,8 @@ class SwimVpnService : VpnService() {
         stopService: Boolean = true,
     ) {
         Log.i("SwimVpnService", "Stopping VPN runtime reason=$reason clearRuntimeState=$clearRuntimeState")
+        // A teardown cancels any armed proxy fallback so a stopped session never auto-restarts.
+        pendingProxyFallback = null
         logRuntimeEvent(
             event = if (cause == DisconnectCause.USER_STOPPED) "stopped_by_user" else "stopped_by_system",
             details = mapOf("reason" to reason, "cause" to cause.name),

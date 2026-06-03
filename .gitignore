@@ -28,6 +28,13 @@ build/
 dist/
 coverage/
 
+# Signing / secrets (NEVER commit keystores or signing credentials)
+*.jks
+*.keystore
+keystore.properties
+**/keystore.properties
+swimsignature
+
 # Misc
 .DS_Store
 *.log
