@@ -1,7 +1,10 @@
 ﻿package com.swimvpn.app.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -89,6 +92,17 @@ fun HomeScreen(
     val bytesOut by VpnManager.bytesOut.collectAsState()
     val errorMessage by VpnManager.errorMessage.collectAsState()
     val context = LocalContext.current
+    // Honor OS battery-saver / "remove animations" so the Halo Pulse aurora doesn't burn GPU and
+    // battery on low-end devices: the reduced-motion path freezes drift/spin and holds a mid bloom.
+    val reducedMotion = remember(context) {
+        val powerSave = (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
+        val animatorScale = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        )
+        powerSave || animatorScale == 0f
+    }
 
     LaunchedEffect(inMemoryVpnState, activeServer?.id) {
         val staleErrorWithoutServer = inMemoryVpnState == VpnState.ERROR && activeServer == null
@@ -237,6 +251,7 @@ fun HomeScreen(
                     state = orbState,
                     onClick = ::toggleVpnFromHome,
                     size = orbSize,
+                    isReducedMotionEnabled = reducedMotion,
                     modifier = Modifier.size(orbSize),
                 )
 

@@ -4,6 +4,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.net.ConnectException
 import java.net.InetSocketAddress
@@ -15,6 +17,10 @@ import kotlin.system.measureTimeMillis
 
 object ServerLatencyEvaluator {
 
+    // Bound concurrent TCP probes so a large server list can't exhaust file descriptors / starve
+    // the IO dispatcher (shared with the VPN runtime bridges) on low-end devices.
+    private const val MAX_CONCURRENT_PROBES = 10
+
     data class ProbeResult(
         val latencyMs: Int?,
         val failureReason: ProbeFailureReason?,
@@ -25,20 +31,23 @@ object ServerLatencyEvaluator {
         connectTimeoutMs: Int = 1500,
         probeSocketFactory: SocketFactory? = null,
     ): List<ServerNode> = coroutineScope {
+        val probeGate = Semaphore(MAX_CONCURRENT_PROBES)
         servers.map { server ->
             async {
-                val result = measureTcpLatency(
-                    host = server.host,
-                    port = server.port,
-                    connectTimeoutMs = connectTimeoutMs,
-                    probeSocketFactory = probeSocketFactory,
-                )
-                server.copy(
-                    ping = result.latencyMs ?: server.ping,
-                    latencyMeasuredAtMs = System.currentTimeMillis(),
-                    latencyProbeFailed = result.latencyMs == null,
-                    latencyProbeFailureReason = result.failureReason,
-                )
+                probeGate.withPermit {
+                    val result = measureTcpLatency(
+                        host = server.host,
+                        port = server.port,
+                        connectTimeoutMs = connectTimeoutMs,
+                        probeSocketFactory = probeSocketFactory,
+                    )
+                    server.copy(
+                        ping = result.latencyMs ?: server.ping,
+                        latencyMeasuredAtMs = System.currentTimeMillis(),
+                        latencyProbeFailed = result.latencyMs == null,
+                        latencyProbeFailureReason = result.failureReason,
+                    )
+                }
             }
         }.awaitAll()
     }
