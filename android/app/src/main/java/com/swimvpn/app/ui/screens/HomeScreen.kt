@@ -87,7 +87,7 @@ fun HomeScreen(
     val selectedRuntimeMode = data.routingMode
     val inMemoryVpnState by VpnManager.state.collectAsState()
     var vpnState by remember { mutableStateOf(inMemoryVpnState) }
-    var runtimeStatus by remember { mutableStateOf(RuntimeStatus.IDLE) }
+    val runtimeStatus by VpnManager.runtimeStatus.collectAsState()
     val bytesIn by VpnManager.bytesIn.collectAsState()
     val bytesOut by VpnManager.bytesOut.collectAsState()
     val errorMessage by VpnManager.errorMessage.collectAsState()
@@ -115,17 +115,10 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        while (true) {
-            // Cold-start reconciliation only feeds the persisted snapshot into the single
-            // authority (VpnManager); a stale active snapshot collapses to DISCONNECTED there.
-            val snapshot = RuntimeStateStore.read(context)
-            VpnManager.reconcileRuntimeSnapshot(snapshot)
-            // Read back from the single authority instead of trusting the raw snapshot,
-            // so the live service status (incl. UNSTABLE / NO_NETWORK) is what the UI shows.
-            runtimeStatus = VpnManager.runtimeStatus.value
-            vpnState = VpnManager.state.value
-            delay(1_000)
-        }
+        // Cold-start reconciliation: feed the persisted snapshot into the single authority ONCE
+        // (a stale active snapshot collapses to DISCONNECTED there). After this, the live StateFlows
+        // collected above drive the UI — no 1Hz polling loop burning CPU/battery while idle.
+        VpnManager.reconcileRuntimeSnapshot(RuntimeStateStore.read(context))
     }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
