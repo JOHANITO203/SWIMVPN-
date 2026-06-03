@@ -108,6 +108,26 @@ def locateTun2SocksSharedLibrary = { String abi ->
     return candidatePaths.find { it.exists() }
 }
 
+// --- Release signing -------------------------------------------------------
+// Credentials are read from a file OUTSIDE the repo so no secret is ever committed:
+//   <user.home>/.swimvpn-signing/keystore.properties  (storeFile/storePassword/keyAlias/keyPassword)
+// If the file is absent or incomplete, the release build falls back to UNSIGNED.
+def swimvpnKeystorePropsFile = file("${System.getProperty('user.home')}/.swimvpn-signing/keystore.properties")
+def swimvpnKeystoreProps = new Properties()
+def swimvpnHasReleaseSigning = false
+if (swimvpnKeystorePropsFile.exists()) {
+    swimvpnKeystorePropsFile.withInputStream { swimvpnKeystoreProps.load(it) }
+    def sp = swimvpnKeystoreProps.getProperty('storePassword', '').trim()
+    def sf = swimvpnKeystoreProps.getProperty('storeFile', '').trim()
+    def ka = swimvpnKeystoreProps.getProperty('keyAlias', '').trim()
+    swimvpnHasReleaseSigning = !sp.isEmpty() && !sf.isEmpty() && !ka.isEmpty() && file(sf).exists()
+    if (!swimvpnHasReleaseSigning) {
+        logger.warn("SWIMVPN release signing: ${swimvpnKeystorePropsFile} is present but incomplete -> release will be UNSIGNED")
+    }
+} else {
+    logger.warn("SWIMVPN release signing: ${swimvpnKeystorePropsFile} not found -> release will be UNSIGNED")
+}
+
 android {
     namespace 'com.swimvpn.app'
     compileSdk 34
@@ -117,8 +137,8 @@ android {
         applicationId "com.swimvpn.app"
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName "1.0.1"
+        versionCode 3
+        versionName "1.0.2"
         ndk {
             abiFilters "arm64-v8a", "x86_64"
         }
@@ -142,8 +162,22 @@ android {
         buildConfigField "String", "TUN2SOCKS_SHARED_LIBRARY_NAME", "\"${tun2SocksSharedLibraryName}\""
     }
 
+    signingConfigs {
+        release {
+            if (swimvpnHasReleaseSigning) {
+                storeFile file(swimvpnKeystoreProps.getProperty('storeFile').trim())
+                storePassword swimvpnKeystoreProps.getProperty('storePassword').trim()
+                keyAlias swimvpnKeystoreProps.getProperty('keyAlias').trim()
+                def kp = swimvpnKeystoreProps.getProperty('keyPassword', '').trim()
+                keyPassword (kp.isEmpty() ? swimvpnKeystoreProps.getProperty('storePassword').trim() : kp)
+            }
+        }
+    }
     buildTypes {
         release {
+            if (swimvpnHasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
