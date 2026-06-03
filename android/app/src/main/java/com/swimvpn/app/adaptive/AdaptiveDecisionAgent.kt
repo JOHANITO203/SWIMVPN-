@@ -263,6 +263,17 @@ object AdaptiveDecisionAgent {
                 delayMs = backoffFor(reconnectAttempt),
                 reason = "current_server_unstable_switching_to_best_available",
             )
+        } else if (!scores[currentServerId].isAvoided(nowMs)) {
+            // H11: no alternative server (e.g. a 1-2 server account whose other servers are
+            // transiently avoided/probe-failed) and the current one isn't in an avoid window.
+            // Don't give up before the ceiling — keep retrying the only server we have, with
+            // backoff. The MAX_RECONNECT_ATTEMPTS guard at the top still bounds the loop.
+            DecisionAction(
+                type = DecisionActionType.RECONNECT_SAME,
+                targetServerId = currentServerId,
+                delayMs = backoffFor(reconnectAttempt),
+                reason = "no_fallback_retry_current_until_ceiling",
+            )
         } else {
             DecisionAction(
                 type = DecisionActionType.GIVE_UP,

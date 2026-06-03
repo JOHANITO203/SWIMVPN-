@@ -348,6 +348,22 @@ class AdaptiveDecisionAgentTest {
     }
 
     @Test
+    fun `single-server account retries current instead of giving up (H11)`() {
+        // Only the current server exists (no fallback) and it isn't in an avoid window. Past the
+        // same-server early-retry limit but below MAX, the agent must keep retrying it, not give up.
+        val action = AdaptiveDecisionAgent.planAfterFailure(
+            currentServerId = "server-a",
+            candidates = listOf(candidate("server-a")),
+            scores = emptyMap(),
+            reconnectAttempt = 3,
+            nowMs = 1_000L,
+        )
+
+        assertEquals(DecisionActionType.RECONNECT_SAME, action.type)
+        assertEquals("server-a", action.targetServerId)
+    }
+
+    @Test
     fun `backoff grows through production retry sequence`() {
         val delays = (0 until AdaptiveDecisionAgent.MAX_RECONNECT_ATTEMPTS).map { attempt ->
             AdaptiveDecisionAgent.planAfterFailure(
