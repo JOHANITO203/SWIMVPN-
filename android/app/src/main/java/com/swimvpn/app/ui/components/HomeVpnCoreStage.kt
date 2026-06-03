@@ -192,8 +192,10 @@ private fun VpnAuroraStage(
     val bloom = if (reducedMotion) 0.5f else bloomRaw
     val spin = if (reducedMotion) 0f else spinRaw
 
-    val coolHue = Color(0xFF4DA3FF)
-    val warmHue = if (state == VpnOrbState.UNSTABLE) Color(0xFFFF9A5E) else Color(0xFFC86BFF)
+    // Color harmony: keep the halo within the purple family (the brand's single jewel accent),
+    // never blue/magenta — only UNSTABLE shifts to amber as a state semantic.
+    val coolHue = if (state == VpnOrbState.UNSTABLE) Color(0xFFFFB27A) else Color(0xFFB388FF)
+    val warmHue = if (state == VpnOrbState.UNSTABLE) Color(0xFFFF9A5E) else Color(0xFF6E3FD8)
     val showRing = state == VpnOrbState.CONNECTING || state == VpnOrbState.CONNECTED
     val ringStrength = if (state == VpnOrbState.CONNECTING) 0.85f else 0.42f
     val twoPi = 6.2831855f
