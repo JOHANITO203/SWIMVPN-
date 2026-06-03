@@ -198,6 +198,11 @@ object TunnelRuntimeAdapter {
                     putExtra("METHOD", profile.method)
                 }
 
+                Protocol.SOCKS5, Protocol.HTTP -> {
+                    putExtra("USER_ID", profile.userId)
+                    putExtra("PASSWORD", profile.password)
+                }
+
                 Protocol.UNKNOWN -> {
                     Log.w(TAG, "Unknown protocol, using raw config fallback")
                 }
@@ -264,6 +269,7 @@ object TunnelRuntimeAdapter {
                 }
             }
 
+            Protocol.SOCKS5, Protocol.HTTP -> Pair(true, "Proxy supported")
             Protocol.UNKNOWN -> Pair(false, "Unknown protocol")
         }
     }
@@ -378,6 +384,8 @@ object TunnelRuntimeAdapter {
             Protocol.VMESS -> createVmessOutbound(profile)
             Protocol.TROJAN -> createTrojanOutbound(profile)
             Protocol.SHADOWSOCKS -> createShadowsocksOutbound(profile)
+            Protocol.SOCKS5 -> createSocksOutbound(profile)
+            Protocol.HTTP -> createHttpOutbound(profile)
             Protocol.UNKNOWN -> null
         }
     }
@@ -590,6 +598,36 @@ object TunnelRuntimeAdapter {
                         addProperty("port", profile.port)
                         addProperty("method", profile.method)
                         addProperty("password", profile.password)
+                    })
+                })
+            })
+        }
+    }
+
+    // BYO proxy (residential / user-supplied): the pasted proxy IS the Xray outbound, so the
+    // FULL_TUNNEL tun routes all device traffic out through it. users[] omitted when no auth.
+    private fun createSocksOutbound(profile: SwimVpnProfile): JsonObject = createProxyOutbound(profile, "socks")
+
+    private fun createHttpOutbound(profile: SwimVpnProfile): JsonObject = createProxyOutbound(profile, "http")
+
+    private fun createProxyOutbound(profile: SwimVpnProfile, proxyProtocol: String): JsonObject {
+        return JsonObject().apply {
+            addProperty("tag", "proxy")
+            addProperty("protocol", proxyProtocol)
+            add("settings", JsonObject().apply {
+                add("servers", JsonArray().apply {
+                    add(JsonObject().apply {
+                        addProperty("address", profile.address)
+                        addProperty("port", profile.port)
+                        val user = profile.userId
+                        if (!user.isNullOrEmpty()) {
+                            add("users", JsonArray().apply {
+                                add(JsonObject().apply {
+                                    addProperty("user", user)
+                                    addProperty("pass", profile.password ?: "")
+                                })
+                            })
+                        }
                     })
                 })
             })

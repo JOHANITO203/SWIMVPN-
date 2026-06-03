@@ -145,6 +145,8 @@ object SubscriptionParser {
             Protocol.VMESS -> "vmess"
             Protocol.TROJAN -> "trojan"
             Protocol.SHADOWSOCKS -> "shadowsocks"
+            Protocol.SOCKS5 -> "socks5"
+            Protocol.HTTP -> "http"
             Protocol.UNKNOWN -> "unknown"
         }
     }
