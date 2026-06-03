@@ -151,7 +151,7 @@ object ConfigParserEngine {
             
             val ps = json["ps"] as? String ?: ""
             val add = json["add"] as? String ?: return ParseResult(null, listOf("Missing address in VMess config"), warnings)
-            val port = (json["port"] as? Number)?.toInt() ?: return ParseResult(null, listOf("Missing port in VMess config"), warnings)
+            val port = jsonPortOrNull(json["port"]) ?: return ParseResult(null, listOf("Missing or invalid port in VMess config"), warnings)
             val id = json["id"] as? String ?: return ParseResult(null, listOf("Missing user ID in VMess config"), warnings)
             val net = json["net"] as? String ?: "tcp"
             val tls = json["tls"] as? String ?: "none"
@@ -469,9 +469,9 @@ object ConfigParserEngine {
                 warnings
             )
             
-            val port = (vnext["port"] as? Number)?.toInt() ?: return ParseResult(
-                null, 
-                listOf("Missing port in VLESS configuration"), 
+            val port = jsonPortOrNull(vnext["port"]) ?: return ParseResult(
+                null,
+                listOf("Missing or invalid port in VLESS configuration"),
                 warnings
             )
             
@@ -629,9 +629,9 @@ object ConfigParserEngine {
                 warnings
             )
             
-            val port = (vnext["port"] as? Number)?.toInt() ?: return ParseResult(
-                null, 
-                listOf("Missing port in VMess configuration"), 
+            val port = jsonPortOrNull(vnext["port"]) ?: return ParseResult(
+                null,
+                listOf("Missing or invalid port in VMess configuration"),
                 warnings
             )
             
@@ -785,9 +785,9 @@ object ConfigParserEngine {
                 warnings
             )
             
-            val port = (servers["port"] as? Number)?.toInt() ?: return ParseResult(
-                null, 
-                listOf("Missing port in Trojan configuration"), 
+            val port = jsonPortOrNull(servers["port"]) ?: return ParseResult(
+                null,
+                listOf("Missing or invalid port in Trojan configuration"),
                 warnings
             )
             
@@ -911,9 +911,9 @@ object ConfigParserEngine {
                 warnings
             )
             
-            val port = (servers["port"] as? Number)?.toInt() ?: return ParseResult(
-                null, 
-                listOf("Missing port in Shadowsocks configuration"), 
+            val port = jsonPortOrNull(servers["port"]) ?: return ParseResult(
+                null,
+                listOf("Missing or invalid port in Shadowsocks configuration"),
                 warnings
             )
             
@@ -1101,15 +1101,23 @@ object ConfigParserEngine {
             if (endBracket == -1) return null
             val host = trimmed.substring(1, endBracket)
             val portPart = trimmed.substring(endBracket + 1).removePrefix(":")
-            val port = portPart.toIntOrNull() ?: return null
+            val port = portPart.toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
             return host to port
         }
 
         val colonIndex = trimmed.lastIndexOf(':')
         if (colonIndex == -1) return null
         val host = trimmed.substring(0, colonIndex)
-        val port = trimmed.substring(colonIndex + 1).toIntOrNull() ?: return null
+        val port = trimmed.substring(colonIndex + 1).toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
         return host to port
+    }
+
+    // Parse a JSON port robustly: read as Long (avoids the Int-overflow truncation of toInt() on a
+    // huge value, which silently connects to a wrong port) and reject anything outside the valid
+    // TCP port range.
+    private fun jsonPortOrNull(value: Any?): Int? {
+        val n = (value as? Number)?.toLong() ?: return null
+        return if (n in 1L..65535L) n.toInt() else null
     }
 
     private fun parseHostAndPortWithDefault(input: String): Pair<String?, Int?> {
@@ -1125,7 +1133,7 @@ object ConfigParserEngine {
             }
             val host = trimmed.substring(1, endBracket).ifBlank { null }
             val remainder = trimmed.substring(endBracket + 1)
-            val port = remainder.removePrefix(":").takeIf { it.isNotBlank() }?.toIntOrNull()
+            val port = remainder.removePrefix(":").takeIf { it.isNotBlank() }?.toIntOrNull()?.takeIf { it in 1..65535 }
             return host to port
         }
 
@@ -1136,7 +1144,7 @@ object ConfigParserEngine {
 
         val host = trimmed.substring(0, colonIndex).ifBlank { null }
         val portPart = trimmed.substring(colonIndex + 1)
-        val port = portPart.toIntOrNull()
+        val port = portPart.toIntOrNull()?.takeIf { it in 1..65535 }
 
         return if (port != null) {
             host to port

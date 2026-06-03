@@ -16,14 +16,13 @@ package com.swimvpn.app.vpn
 object TunnelFallbackPolicy {
 
     /**
-     * Causes that represent a FULL_TUNNEL data-plane failure a LOCAL_PROXY session does not
-     * depend on (establish() failure, tun2socks unavailable/crash). Network/server/config/user
-     * causes are intentionally excluded — proxy mode cannot rescue those.
+     * NEUTRALIZED (B1/B2): LOCAL_PROXY does NOT route device traffic (no VpnService tun, no
+     * setHttpProxy), so degrading a failed FULL_TUNNEL to it produced a "connected" UI with no
+     * actual protection — a leak. We therefore NEVER fall back to proxy; a data-plane failure now
+     * surfaces honestly as FAILED. This is kept as the single decision point in case a *real*
+     * (routing) fallback is introduced later. See docs/LOCAL_PROXY_ANALYSIS.md.
      */
-    private val PROXY_RESCUABLE_CAUSES = setOf(
-        DisconnectCause.ENGINE_CRASH,
-        DisconnectCause.UNKNOWN,
-    )
+    private val PROXY_RESCUABLE_CAUSES = emptySet<DisconnectCause>()
 
     fun shouldFallbackToProxy(
         requestedMode: RuntimeMode,
