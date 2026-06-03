@@ -63,7 +63,9 @@ import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.ui.components.ImportConfigDialog
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.theme.SwimDesignTokens
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ConfigImportScreen(
@@ -79,6 +81,7 @@ fun ConfigImportScreen(
     var showQrScanner by remember { mutableStateOf(false) }
     var importText by remember { mutableStateOf("") }
     var importPreview by remember { mutableStateOf<ConfigPreview?>(null) }
+    var canImport by remember { mutableStateOf(false) }
     var importedProfiles by remember { mutableStateOf<List<SwimVpnProfile>>(emptyList()) }
     var activeProfileId by remember { mutableStateOf<String?>(null) }
     var isInitialLoading by remember { mutableStateOf(true) }
@@ -215,7 +218,7 @@ fun ConfigImportScreen(
             onTextChange = { text -> importText = text },
             initialText = importText,
             preview = importPreview,
-            canImport = configRepository.canAttemptImport(importText),
+            canImport = canImport,
         )
     }
 
@@ -248,10 +251,18 @@ fun ConfigImportScreen(
     }
 
     LaunchedEffect(importText) {
-        importPreview = if (importText.isNotBlank()) {
-            configRepository.previewConfig(importText)
+        // Parse OFF the main thread: a large paste/QR can be megabytes of base64 with several decode
+        // passes. Cap the input length so a huge paste can't OOM/ANR the UI on a low-end device.
+        val text = importText
+        if (text.isBlank() || text.length > 1_000_000) {
+            importPreview = null
+            canImport = false
         } else {
-            null
+            val parsed = withContext(Dispatchers.Default) {
+                configRepository.previewConfig(text) to configRepository.canAttemptImport(text)
+            }
+            importPreview = parsed.first
+            canImport = parsed.second
         }
     }
 }
