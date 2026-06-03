@@ -37,6 +37,9 @@ object ConfigParserEngine {
                 trimmed.startsWith("vmess://") -> parseVmessUrl(trimmed, sourceType)
                 trimmed.startsWith("trojan://") -> parseTrojanUrl(trimmed, sourceType)
                 trimmed.startsWith("ss://") -> parseShadowsocksUrl(trimmed, sourceType)
+                trimmed.startsWith("socks5://") || trimmed.startsWith("socks5h://") || trimmed.startsWith("socks://") ->
+                    parseProxyEndpoint(trimmed, sourceType)
+                isBareProxyEndpoint(trimmed) -> parseProxyEndpoint(trimmed, sourceType)
                 isRecognizedUnsupportedModernScheme(trimmed) -> parseUnsupportedModernConfig(trimmed)
                 isJsonConfig(trimmed) -> parseJsonConfig(trimmed, sourceType)
                 else -> ParseResult(null, listOf("Unsupported configuration format"), emptyList())
@@ -404,6 +407,78 @@ object ConfigParserEngine {
         }
     }
     
+    /**
+     * Parse a user-supplied proxy (BYO residential proxy): socks5://[user:pass@]host:port[#name]
+     * or the bare residential format host:port[:user:pass]. Becomes a SOCKS5 Xray outbound routed
+     * via the FULL_TUNNEL tun. (HTTP-scheme proxies are deferred; socks5 + bare cover common cases.)
+     */
+    private fun parseProxyEndpoint(input: String, sourceType: SourceType): ParseResult {
+        val warnings = mutableListOf<String>()
+        return try {
+            val hasScheme = input.contains("://")
+            val core0 = if (hasScheme) input.substringAfter("://") else input
+            val fragment = core0.substringAfter('#', "")
+                .takeIf { it.isNotBlank() }
+                ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+            val core = core0.substringBefore('#').substringBefore('?')
+
+            var user: String? = null
+            var password: String? = null
+            val hostPort: String
+
+            if (core.contains('@')) {
+                val creds = core.substringBeforeLast('@')
+                hostPort = core.substringAfterLast('@')
+                val ci = creds.indexOf(':')
+                if (ci >= 0) {
+                    user = creds.substring(0, ci).ifBlank { null }
+                    password = creds.substring(ci + 1)
+                } else {
+                    user = creds.ifBlank { null }
+                }
+            } else {
+                // No '@': either host:port, or the residential host:port:user:pass form.
+                val parts = core.split(':')
+                if (parts.size == 4) {
+                    hostPort = "${parts[0]}:${parts[1]}"
+                    user = parts[2].ifBlank { null }
+                    password = parts[3]
+                } else {
+                    hostPort = core
+                }
+            }
+
+            val (host, port) = parseHostAndPort(hostPort)
+                ?: return ParseResult(null, listOf("Invalid proxy host:port"), warnings)
+
+            val profile = SwimVpnProfile(
+                sourceType = sourceType,
+                rawConfig = input,
+                sourceFormat = SourceFormat.UNKNOWN,
+                protocol = Protocol.SOCKS5,
+                transport = Transport.TCP,
+                securityMode = SecurityMode.NONE,
+                address = host,
+                port = port,
+                userId = user,
+                password = password,
+                displayName = fragment ?: "Proxy $host",
+                displaySubtitle = "SOCKS5 • $host:$port",
+                parseWarnings = warnings,
+            )
+            return ParseResult(profile, emptyList(), warnings)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing proxy endpoint", e)
+            return ParseResult(null, listOf("Invalid proxy: ${e.message}"), warnings)
+        }
+    }
+
+    // Bare residential format with no scheme: host:port or host:port:user:pass (no '@', no '/', no space).
+    private fun isBareProxyEndpoint(input: String): Boolean {
+        if (input.contains("://") || input.contains('@') || input.contains('/') || input.any { it.isWhitespace() }) return false
+        return Regex("""^[A-Za-z0-9._-]+:\d{1,5}(:[^:\s]+:[^:\s]+)?$""").matches(input)
+    }
+
     /**
      * Parse JSON configuration (Xray/V2Ray)
      */
@@ -1255,7 +1330,7 @@ object ConfigParserEngine {
     private fun unsupportedModernScheme(input: String): String? {
         val scheme = input.substringBefore("://", "").lowercase()
         return scheme.takeIf {
-            it in setOf("hy2", "hysteria2", "hysteria", "tuic", "socks", "socks5", "wg", "wireguard")
+            it in setOf("hy2", "hysteria2", "hysteria", "tuic", "wg", "wireguard")
         }
     }
 

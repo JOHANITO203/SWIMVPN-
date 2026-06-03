@@ -100,6 +100,9 @@ enum class Protocol {
     VMESS,
     TROJAN,
     SHADOWSOCKS,
+    // BYO residential/user proxy used as the Xray outbound (routed via the FULL_TUNNEL tun).
+    SOCKS5,
+    HTTP,
     UNKNOWN
 }
 

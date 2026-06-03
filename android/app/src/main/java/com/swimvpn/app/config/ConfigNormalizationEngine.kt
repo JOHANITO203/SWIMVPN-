@@ -94,11 +94,14 @@ object ConfigNormalizationEngine {
                     validationWarnings.add("Shadowsocks plugin metadata is preserved, but plugin runtime support is not fully verified yet")
                 }
             }
+            Protocol.SOCKS5, Protocol.HTTP -> {
+                // BYO proxy: address + port already validated above; auth is optional.
+            }
             Protocol.UNKNOWN -> {
                 validationErrors.add("Unknown protocol")
             }
         }
-        
+
         // Transport validation
         when (profile.transport) {
             Transport.WEBSOCKET -> {
