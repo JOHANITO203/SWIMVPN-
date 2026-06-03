@@ -311,12 +311,8 @@ private fun RoutingPill(
                 active = selectedMode == FULL_TUNNEL_MODE && (!running || activeMode == FULL_TUNNEL_MODE),
                 onClick = { onRoutingModeChange(FULL_TUNNEL_MODE) },
             )
-            RouteLight(
-                label = "Proxy",
-                selected = selectedMode == LOCAL_PROXY_MODE,
-                active = selectedMode == LOCAL_PROXY_MODE && (!running || activeMode == LOCAL_PROXY_MODE),
-                onClick = { onRoutingModeChange(LOCAL_PROXY_MODE) },
-            )
+            // LOCAL_PROXY mode pill removed (B1/B2): it did not route device traffic. Only the
+            // real FULL_TUNNEL is offered; legacy proxy preferences are coerced to it.
         }
     }
 }
@@ -569,7 +565,8 @@ private fun purpleGradient(): Brush =
 
 private fun normalizeRoutingMode(mode: String): String =
     when (mode.uppercase()) {
-        LEGACY_PROXY_MODE, LOCAL_PROXY_MODE -> LOCAL_PROXY_MODE
+        // LOCAL_PROXY retired (B1/B2): legacy/proxy preferences normalize to the real full tunnel.
+        LEGACY_PROXY_MODE, LOCAL_PROXY_MODE -> FULL_TUNNEL_MODE
         LEGACY_TUNNEL_MODE, FULL_TUNNEL_MODE -> FULL_TUNNEL_MODE
         else -> FULL_TUNNEL_MODE
     }

@@ -1,16 +1,17 @@
 package com.swimvpn.app.vpn
 
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TunnelFallbackPolicyTest {
 
     @Test
-    fun `falls back to proxy on tunnel infra failure`() {
+    fun `never falls back to proxy — LOCAL_PROXY does not route (B1B2)`() {
+        // Even tunnel-infra failures must NOT degrade to LOCAL_PROXY: it routes nothing, so the
+        // old fallback produced a false-connected leak. A data-plane failure now surfaces as FAILED.
         listOf(DisconnectCause.ENGINE_CRASH, DisconnectCause.UNKNOWN).forEach { cause ->
-            assertTrue(
-                "cause=$cause should fall back",
+            assertFalse(
+                "cause=$cause must NOT fall back (proxy fallback removed)",
                 TunnelFallbackPolicy.shouldFallbackToProxy(
                     requestedMode = RuntimeMode.FULL_TUNNEL,
                     cause = cause,

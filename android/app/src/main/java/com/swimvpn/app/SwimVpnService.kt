@@ -443,8 +443,12 @@ class SwimVpnService : VpnService() {
                 } ?: throw IllegalStateException("Missing runtime config for VPN session")
 
                 when (requestedMode) {
-                    RuntimeMode.LOCAL_PROXY -> startLocalProxy(runtime, host, port)
-                    RuntimeMode.FULL_TUNNEL -> startTunnelInterface(runtime, host, port)
+                    // LOCAL_PROXY is retired (B1/B2): it never routed device traffic (no VpnService
+                    // tun, no setHttpProxy), so it could report "connected" while leaking. Any
+                    // LOCAL_PROXY request — including a stale persisted preference — now runs the
+                    // real FULL_TUNNEL data plane. See docs/LOCAL_PROXY_ANALYSIS.md.
+                    RuntimeMode.FULL_TUNNEL, RuntimeMode.LOCAL_PROXY ->
+                        startTunnelInterface(runtime, host, port)
                     RuntimeMode.SPLIT_TUNNEL -> {
                         throw IllegalStateException("Split tunnel is not available yet")
                     }
