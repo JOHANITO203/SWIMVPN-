@@ -8,7 +8,13 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.TypeAdapter
+import com.google.gson.TypeAdapterFactory
 import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
+import com.google.gson.stream.JsonWriter
 import com.swimvpn.app.config.subscriptionparser.SubscriptionHeaderMetadata
 import com.swimvpn.app.config.subscriptionparser.SubscriptionPayloadDecoder
 import com.swimvpn.app.config.subscriptionparser.SubscriptionParser
@@ -25,6 +31,38 @@ import java.net.URLDecoder
 import java.util.UUID
 
 /**
+ * Gson factory that maps unknown enum constants to a safe fallback (a member named UNKNOWN if
+ * present, else the first declared constant) instead of throwing. Without this, a single enum
+ * value added/renamed in a newer build would make Gson throw while deserializing stored profiles,
+ * silently wiping the user's entire imported-profile list.
+ */
+private object EnumFallbackTypeAdapterFactory : TypeAdapterFactory {
+    override fun <T> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
+        val rawType = type.rawType
+        if (!rawType.isEnum) return null
+        val constants = rawType.enumConstants ?: return null
+        val byName = HashMap<String, Any>()
+        for (c in constants) byName[(c as Enum<*>).name] = c
+        val fallback: Any? = byName["UNKNOWN"] ?: constants.firstOrNull()
+        return object : TypeAdapter<T>() {
+            override fun write(out: JsonWriter, value: T) {
+                if (value == null) out.nullValue() else out.value((value as Enum<*>).name)
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            override fun read(reader: JsonReader): T {
+                if (reader.peek() == JsonToken.NULL) {
+                    reader.nextNull()
+                    return null as T
+                }
+                val name = reader.nextString()
+                return (byName[name] ?: fallback) as T
+            }
+        }
+    }
+}
+
+/**
  * Repository for managing imported VPN configurations
  * 
  * Responsibilities:
@@ -36,7 +74,11 @@ import java.util.UUID
 class ConfigRepository(private val context: Context) {
     
     private val TAG = "ConfigRepository"
-    private val gson = Gson()
+    // Tolerant Gson: unknown enum constants (e.g. after a schema change) map to UNKNOWN / the first
+    // constant instead of throwing — prevents a single drift from wiping ALL stored profiles.
+    private val gson: Gson = GsonBuilder()
+        .registerTypeAdapterFactory(EnumFallbackTypeAdapterFactory)
+        .create()
     private val api = RetrofitClient.apiService
     private val prefs = PreferencesManager(context)
     private val subscriptionFetcher = SubscriptionFetcher()
@@ -52,6 +94,9 @@ class ConfigRepository(private val context: Context) {
         
         // Preference keys
         private val IMPORTED_PROFILES_KEY = stringPreferencesKey("imported_profiles")
+        // Holds the raw blob when it fails to parse, so corrupt data is recoverable instead of
+        // being silently overwritten by the next save.
+        private val CORRUPT_PROFILES_BACKUP_KEY = stringPreferencesKey("imported_profiles_corrupt_backup")
         private val ACTIVE_PROFILE_ID_KEY = stringPreferencesKey("active_profile_id")
         private val LAST_USED_PROFILE_ID_KEY = stringPreferencesKey("last_used_profile_id")
 
@@ -286,18 +331,33 @@ class ConfigRepository(private val context: Context) {
      * Get all imported profiles
      */
     suspend fun getAllProfiles(): List<SwimVpnProfile> {
+        val jsonString = try {
+            context.dataStore.data.first()[IMPORTED_PROFILES_KEY]
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading profiles store", e)
+            null
+        }
+        if (jsonString.isNullOrEmpty()) return emptyList()
+
         return try {
-            val jsonString = context.dataStore.data.first()[IMPORTED_PROFILES_KEY]
-            
-            if (jsonString.isNullOrEmpty()) {
-                emptyList()
-            } else {
-                val typeToken = object : TypeToken<List<SwimVpnProfile>>() {}.type
-                gson.fromJson(jsonString, typeToken) ?: emptyList()
+            val typeToken = object : TypeToken<List<SwimVpnProfile>>() {}.type
+            gson.fromJson<List<SwimVpnProfile>>(jsonString, typeToken) ?: emptyList()
+        } catch (e: Exception) {
+            // A NON-empty blob failed to parse. Do NOT silently treat it as "no profiles": the next
+            // save would overwrite recoverable data. Back up the raw blob first (best effort).
+            Log.e(TAG, "Error parsing profiles — backing up raw blob before fallback", e)
+            backupCorruptProfiles(jsonString)
+            emptyList()
+        }
+    }
+
+    private suspend fun backupCorruptProfiles(raw: String) {
+        try {
+            context.dataStore.edit { prefs ->
+                prefs[CORRUPT_PROFILES_BACKUP_KEY] = "${System.currentTimeMillis()}\n$raw"
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error reading profiles", e)
-            emptyList()
+            Log.e(TAG, "Failed to back up corrupt profiles blob", e)
         }
     }
 
