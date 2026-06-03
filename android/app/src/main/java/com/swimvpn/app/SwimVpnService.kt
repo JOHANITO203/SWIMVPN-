@@ -563,7 +563,14 @@ class SwimVpnService : VpnService() {
             activeXraySessionId?.let { sessionId -> runCatching { xrayBridge.stop(sessionId) } }
             runCatching { xrayBridge.stopAll() }
             activeXraySessionId = null
-            throw IllegalStateException("Failed to establish VPN interface. Permission missing?")
+            // H4: carry the cause explicitly. StartupHealthException bypasses the fragile keyword
+            // classifier (the old message happened to match "permission" -> SERVICE_KILLED), so the
+            // cause no longer depends on the message wording/localization. Cause kept as-is
+            // (SERVICE_KILLED) to preserve recovery behavior; refine on-device if warranted.
+            throw StartupHealthException(
+                "Failed to establish the VPN tunnel interface",
+                DisconnectCause.SERVICE_KILLED,
+            )
         }
 
         // Guard the tun fd: never hand an invalid/closed descriptor to native
