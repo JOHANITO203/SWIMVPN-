@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -44,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -66,6 +66,7 @@ import com.swimvpn.app.ui.components.SwimMetaballDock
 import com.swimvpn.app.ui.components.SwimPillSurface
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.orb.VpnOrbState
+import com.swimvpn.app.ui.theme.PoppinsFontFamily
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStateStore
@@ -221,16 +222,29 @@ fun HomeScreen(
             val dockHeight = 89.dp
             val bottomDockPadding = 34.dp
 
-            SwimCircularIconButton(
-                icon = Icons.Default.Person,
-                contentDescription = stringResource(R.string.content_desc_profile),
-                onClick = onNavigateProfile,
-                size = profileSize,
-                iconSize = if (compact) 24.dp else SwimDesignTokens.Home.ProfileIconSize,
+            // Top bar: brand wordmark (left) balances the profile button (right). A bare wordmark —
+            // not the app icon — gives the home an identity anchor without redundant app branding.
+            Row(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = if (compact) 48.dp else 54.dp, end = horizontalPadding),
-            )
+                    .fillMaxWidth()
+                    .align(Alignment.TopStart)
+                    .padding(
+                        top = if (compact) 46.dp else 52.dp,
+                        start = horizontalPadding,
+                        end = horizontalPadding,
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                BrandWordmark(compact = compact)
+                SwimCircularIconButton(
+                    icon = Icons.Default.Person,
+                    contentDescription = stringResource(R.string.content_desc_profile),
+                    onClick = onNavigateProfile,
+                    size = profileSize,
+                    iconSize = if (compact) 24.dp else SwimDesignTokens.Home.ProfileIconSize,
+                )
+            }
 
             Column(
                 modifier = Modifier
@@ -248,7 +262,7 @@ fun HomeScreen(
                     modifier = Modifier.size(orbSize),
                 )
 
-                Spacer(modifier = Modifier.height(if (compact) 2.dp else 8.dp))
+                Spacer(modifier = Modifier.height(if (compact) 4.dp else 10.dp))
 
                 Text(
                     text = statusText,
@@ -266,13 +280,13 @@ fun HomeScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 3.dp),
                 )
-                ProtectedIndicator(
-                    active = vpnState == VpnState.CONNECTED,
+                StatusChip(
+                    connected = vpnState == VpnState.CONNECTED,
                     compact = compact,
-                    modifier = Modifier.padding(top = if (compact) 6.dp else 8.dp),
+                    modifier = Modifier.padding(top = if (compact) 10.dp else 14.dp),
                 )
 
-                Spacer(modifier = Modifier.height(if (compact) 10.dp else 18.dp))
+                Spacer(modifier = Modifier.height(if (compact) 16.dp else 24.dp))
 
                 SwimServerPill(
                     server = activeServer,
@@ -282,7 +296,7 @@ fun HomeScreen(
                     compact = compact,
                 )
 
-                Spacer(modifier = Modifier.height(if (compact) 8.dp else 14.dp))
+                Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
 
                 SwimStatsCard(
                     bytesIn = bytesIn,
@@ -309,43 +323,59 @@ fun HomeScreen(
     }
 }
 
+// Identity anchor for the home top bar (NOT the launcher icon): a compact "SWIM / VPN" logotype
+// in the app's own Poppins, balancing the profile button on the opposite side.
 @Composable
-private fun ProtectedIndicator(active: Boolean, compact: Boolean, modifier: Modifier = Modifier) {
-    val lightTheme = SwimDesignTokens.Current == SwimDesignTokens.Light
+private fun BrandWordmark(compact: Boolean) {
+    Column(verticalArrangement = Arrangement.Center) {
+        Text(
+            text = "SWIM",
+            color = SwimDesignTokens.Color.TextPrimary,
+            fontFamily = PoppinsFontFamily,
+            fontWeight = FontWeight.Black,
+            fontSize = if (compact) 16.sp else 18.sp,
+            letterSpacing = 1.5.sp,
+        )
+        Text(
+            text = "VPN",
+            color = SwimDesignTokens.Color.TextSecondary,
+            fontFamily = PoppinsFontFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = if (compact) 9.sp else 9.5.sp,
+            letterSpacing = 3.5.sp,
+        )
+    }
+}
+
+// Protection trust badge: a single tinted chip (green dot + word) that lights up only when the
+// tunnel is up. Replaces the old indicator row, which duplicated the status title's meaning.
+@Composable
+private fun StatusChip(connected: Boolean, compact: Boolean, modifier: Modifier = Modifier) {
+    val accent = if (connected) SwimDesignTokens.Color.SuccessGreen else SwimDesignTokens.Color.TextMuted
     Row(
-        modifier = modifier,
+        modifier = modifier
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(accent.copy(alpha = if (connected) 0.10f else 0.06f))
+            .border(1.dp, accent.copy(alpha = if (connected) 0.30f else 0.20f), SwimDesignTokens.Shape.Pill)
+            .padding(start = 12.dp, end = 15.dp, top = 7.dp, bottom = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
     ) {
-        val color = if (active) SwimDesignTokens.Color.SuccessGreen else SwimDesignTokens.Color.TextMuted
         Box(
             modifier = Modifier
-                .size(if (compact) 14.dp else 16.dp)
+                .size(if (compact) 8.dp else 9.dp)
+                .drawBehind {
+                    if (connected) {
+                        drawCircle(color = accent.copy(alpha = 0.45f), radius = size.minDimension)
+                    }
+                }
                 .clip(CircleShape)
-                .background(SwimDesignTokens.Material.BowlBottom)
-                .border(
-                    1.dp,
-                    if (lightTheme) {
-                        SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.56f)
-                    } else {
-                        SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = 0.38f)
-                    },
-                    CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(if (compact) 7.dp else 8.dp)
-                    .clip(CircleShape)
-                    .background(color)
-            )
-        }
-        Spacer(modifier = Modifier.width(if (compact) 8.dp else 9.dp))
+                .background(accent),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = if (active) "Prot\u00E9g\u00E9" else "En veille",
-            color = color,
-            fontSize = if (compact) 15.sp else 16.sp,
+            text = if (connected) "Prot\u00E9g\u00E9" else "Non prot\u00E9g\u00E9",
+            color = accent,
+            fontSize = if (compact) 12.sp else 13.sp,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -458,7 +488,7 @@ private fun SwimStatsCard(
     SwimHardwareCard(
         modifier = modifier,
         height = height,
-        shape = RoundedCornerShape(42.dp),
+        shape = SwimDesignTokens.Shape.HardwareCard,
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -527,8 +557,16 @@ private fun SwimStatsDivider() {
     Box(
         modifier = Modifier
             .width(1.dp)
-            .height(42.dp)
-            .background(SwimDesignTokens.Color.DividerSubtle)
+            .height(46.dp)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        SwimDesignTokens.Color.StrokeSubtle,
+                        Color.Transparent,
+                    ),
+                ),
+            )
     )
 }
 

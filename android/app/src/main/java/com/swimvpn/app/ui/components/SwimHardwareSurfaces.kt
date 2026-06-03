@@ -133,6 +133,24 @@ fun Modifier.swimDarkLuxuryBackground(): Modifier {
         drawRect(brush = leftSheen)
         drawRect(brush = lowerVignette)
         drawRect(brush = verticalVignette)
+        // Subtle film grain for premium depth (dark theme only). Sparse pseudo-random speckle,
+        // computed once and cached by drawWithCache — never re-rasterized on recomposition.
+        if (!isLight) {
+            val grainStep = 6.dp.toPx()
+            val grainRadius = 0.4.dp.toPx()
+            var gy = 0f
+            while (gy < size.height) {
+                var gx = 0f
+                while (gx < size.width) {
+                    when ((gx * 12.9898f + gy * 78.233f).toInt() and 31) {
+                        0 -> drawCircle(Color.White.copy(alpha = 0.018f), grainRadius, Offset(gx, gy))
+                        9 -> drawCircle(Color.Black.copy(alpha = 0.05f), grainRadius, Offset(gx, gy))
+                    }
+                    gx += grainStep
+                }
+                gy += grainStep
+            }
+        }
     }
 }
 }

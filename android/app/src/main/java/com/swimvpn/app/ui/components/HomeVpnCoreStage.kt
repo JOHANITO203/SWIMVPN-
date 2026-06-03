@@ -424,6 +424,21 @@ private fun VpnHardwarePowerCore(
                 center = center,
                 style = Stroke(width = 1.25.dp.toPx()),
             )
+
+            // Crisper top-left specular glint — reads glassier than the diffuse sheen alone.
+            val specular = Offset(center.x - radius * 0.30f, center.y - radius * 0.44f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = if (lightTheme) 0.32f else 0.16f),
+                        Color.Transparent,
+                    ),
+                    center = specular,
+                    radius = radius * 0.34f,
+                ),
+                radius = radius * 0.34f,
+                center = specular,
+            )
         }
 
         Box(
