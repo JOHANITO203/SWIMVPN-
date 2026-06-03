@@ -123,14 +123,12 @@ fun MetaballNavDock(
     val tokens = LocalSwimVisualTokens.current
     val homeLabel = stringResource(R.string.dock_home)
     val serversLabel = stringResource(R.string.dock_servers)
-    val proxyLabel = stringResource(R.string.dock_proxy)
     val subscriptionLabel = stringResource(R.string.dock_subscription)
     val accountLabel = stringResource(R.string.dock_account)
-    val items = remember(homeLabel, serversLabel, proxyLabel, subscriptionLabel, accountLabel) {
+    val items = remember(homeLabel, serversLabel, subscriptionLabel, accountLabel) {
         listOf(
             DockItem(NavDockItem.HOME, homeLabel, Icons.Default.Home),
             DockItem(NavDockItem.SERVERS, serversLabel, Icons.Default.Storage),
-            DockItem(NavDockItem.PROXY, proxyLabel, Icons.Default.Hub),
             DockItem(NavDockItem.SUBSCRIPTION, subscriptionLabel, Icons.Default.CreditCard),
             DockItem(NavDockItem.SETTINGS, accountLabel, Icons.Default.Settings),
         )

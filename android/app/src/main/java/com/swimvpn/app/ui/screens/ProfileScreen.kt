@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.LocalOffer
+import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -63,6 +64,7 @@ fun ProfileScreen(
     onNavigateToTechnical: () -> Unit,
     onNavigateToImport: () -> Unit = {},
     onNavigateToSupport: () -> Unit = {},
+    onNavigateToProxy: () -> Unit = {},
     onActivateTrial: (() -> Unit)? = null,
     onCancelSubscription: (() -> Unit)? = null,
     onSignOut: () -> Unit,
@@ -178,6 +180,13 @@ fun ProfileScreen(
 
             AccountSectionTitle(stringResource(R.string.label_management))
             AccountCanvas {
+                AccountActionPill(
+                    icon = Icons.Outlined.Hub,
+                    title = stringResource(R.string.menu_proxy_title),
+                    subtitle = stringResource(R.string.menu_proxy_subtitle),
+                    onClick = onNavigateToProxy,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 AccountActionPill(
                     icon = Icons.Outlined.Settings,
                     title = stringResource(R.string.menu_technical),

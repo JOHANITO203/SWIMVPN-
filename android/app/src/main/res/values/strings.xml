@@ -94,6 +94,8 @@
     <string name="dock_home">Accueil</string>
     <string name="dock_servers">Serveurs</string>
     <string name="dock_proxy">Proxy</string>
+    <string name="menu_proxy_title">Proxy résidentiel</string>
+    <string name="menu_proxy_subtitle">Colle ton proxy · routé via le tunnel</string>
     <string name="dock_subscription">Abonnement</string>
     <string name="dock_account">Compte</string>
 

@@ -254,6 +254,7 @@ fun AppNavigation(
                         onNavigateToTechnical = { navController.navigateOnce("technical") },
                         onNavigateToImport = { navController.navigateOnce("import") },
                         onNavigateToSupport = { navController.navigateOnce("support") },
+                        onNavigateToProxy = { navController.navigateOnce("proxy") },
                         onActivateTrial = { viewModel.activateTrialFromProfile() },
                         onCancelSubscription = { viewModel.cancelCurrentSubscription(context) },
                         onSignOut = {
@@ -326,15 +327,7 @@ fun AppNavigation(
             ProxyScreen(
                 configRepository = ConfigRepository(proxyContext),
                 onProxyReady = { profile -> viewModel.selectImportedProfile(profile) },
-                onDockNavigate = { item ->
-                    when (item) {
-                        com.swimvpn.app.ui.components.NavDockItem.HOME -> navController.navigateProductRoot("home")
-                        com.swimvpn.app.ui.components.NavDockItem.SERVERS -> navController.navigateProductRoot("servers")
-                        com.swimvpn.app.ui.components.NavDockItem.PROXY -> Unit
-                        com.swimvpn.app.ui.components.NavDockItem.SUBSCRIPTION -> navController.navigateProductRoot("subscription")
-                        com.swimvpn.app.ui.components.NavDockItem.SETTINGS -> navController.navigateProductRoot("profile")
-                    }
-                },
+                onBack = { navController.popBackStack() },
                 showToast = { message ->
                     android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
                 },

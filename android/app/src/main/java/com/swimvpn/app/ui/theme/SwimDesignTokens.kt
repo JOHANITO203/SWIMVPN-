@@ -334,12 +334,10 @@ object SwimDesignTokens {
     }
 
     object Dock {
-        // 5 nodes (Home · Servers · Proxy · Subscription · Settings). Width fits phones >= 360dp;
-        // spacing 70 keeps the metaball overlap (80dp nodes) without overflowing narrow screens.
-        val Width = 360.dp
+        val Width = 320.dp
         val Height = 89.dp
         const val CenterY = 45f
-        const val CenterSpacing = 70f
+        const val CenterSpacing = 77f
         val InactiveOuterDiameter = 80.dp
         val ActiveOuterDiameter = 89.dp
         val InactiveBowlDiameter = 54.dp
@@ -351,7 +349,7 @@ object SwimDesignTokens {
         const val ActiveOuterRadius = 44.5f
         const val ActiveGlowRadius = 70f
         const val ValleyDepth = 14f
-        val Centers = listOf(40f, 110f, 180f, 250f, 320f)
+        val Centers = listOf(44.5f, 121.5f, 198.5f, 275.5f)
     }
 
     object StartButton {
