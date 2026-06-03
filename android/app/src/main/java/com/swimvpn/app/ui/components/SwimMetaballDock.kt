@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Icon
@@ -55,6 +56,7 @@ import kotlin.math.max
 enum class SwimDockDestination {
     Home,
     Servers,
+    Proxy,
     Subscription,
     Settings,
 }
@@ -62,6 +64,7 @@ enum class SwimDockDestination {
 enum class NavDockItem {
     HOME,
     SERVERS,
+    PROXY,
     SUBSCRIPTION,
     SETTINGS,
 }
@@ -82,6 +85,7 @@ fun SwimMetaballDock(
     active: SwimDockDestination,
     onHome: () -> Unit,
     onServers: () -> Unit,
+    onProxy: () -> Unit = {},
     onSubscription: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -95,6 +99,7 @@ fun SwimMetaballDock(
             when (item) {
                 NavDockItem.HOME -> onHome()
                 NavDockItem.SERVERS -> onServers()
+                NavDockItem.PROXY -> onProxy()
                 NavDockItem.SUBSCRIPTION -> onSubscription()
                 NavDockItem.SETTINGS -> onSettings()
             }
@@ -118,12 +123,14 @@ fun MetaballNavDock(
     val tokens = LocalSwimVisualTokens.current
     val homeLabel = stringResource(R.string.dock_home)
     val serversLabel = stringResource(R.string.dock_servers)
+    val proxyLabel = stringResource(R.string.dock_proxy)
     val subscriptionLabel = stringResource(R.string.dock_subscription)
     val accountLabel = stringResource(R.string.dock_account)
-    val items = remember(homeLabel, serversLabel, subscriptionLabel, accountLabel) {
+    val items = remember(homeLabel, serversLabel, proxyLabel, subscriptionLabel, accountLabel) {
         listOf(
             DockItem(NavDockItem.HOME, homeLabel, Icons.Default.Home),
             DockItem(NavDockItem.SERVERS, serversLabel, Icons.Default.Storage),
+            DockItem(NavDockItem.PROXY, proxyLabel, Icons.Default.Hub),
             DockItem(NavDockItem.SUBSCRIPTION, subscriptionLabel, Icons.Default.CreditCard),
             DockItem(NavDockItem.SETTINGS, accountLabel, Icons.Default.Settings),
         )
@@ -667,6 +674,7 @@ private fun SwimDockDestination.toNavItem(): NavDockItem =
     when (this) {
         SwimDockDestination.Home -> NavDockItem.HOME
         SwimDockDestination.Servers -> NavDockItem.SERVERS
+        SwimDockDestination.Proxy -> NavDockItem.PROXY
         SwimDockDestination.Subscription -> NavDockItem.SUBSCRIPTION
         SwimDockDestination.Settings -> NavDockItem.SETTINGS
     }

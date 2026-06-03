@@ -81,6 +81,7 @@ fun HomeScreen(
     onNavigateProfile: () -> Unit,
     onNavigateServers: () -> Unit,
     onNavigateSubscription: () -> Unit,
+    onNavigateProxy: () -> Unit = {},
 ) {
     val profile = data.profile
     val activeServer = data.activeServer
@@ -298,6 +299,7 @@ fun HomeScreen(
                 active = SwimDockDestination.Home,
                 onHome = {},
                 onServers = onNavigateServers,
+                onProxy = onNavigateProxy,
                 onSubscription = onNavigateSubscription,
                 onSettings = onNavigateProfile,
                 height = dockHeight,

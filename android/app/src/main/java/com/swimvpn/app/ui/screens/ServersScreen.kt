@@ -150,6 +150,7 @@ fun ServersScreen(
     onProfileClick: () -> Unit,
     onHomeClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onProxyClick: () -> Unit = {},
     onPeriodicRefresh: () -> Unit = {},
     recommendedServerId: String? = null,
     isRecommendedServerValidated: Boolean = false,
@@ -229,6 +230,7 @@ fun ServersScreen(
             when (item) {
                 com.swimvpn.app.ui.components.NavDockItem.HOME -> onHomeClick()
                 com.swimvpn.app.ui.components.NavDockItem.SERVERS -> Unit
+                com.swimvpn.app.ui.components.NavDockItem.PROXY -> onProxyClick()
                 com.swimvpn.app.ui.components.NavDockItem.SUBSCRIPTION -> onSubscribeClick()
                 com.swimvpn.app.ui.components.NavDockItem.SETTINGS -> onSettingsClick()
             }
@@ -355,6 +357,7 @@ fun ServerScreen(
                 active = SwimDockDestination.Servers,
                 onHome = { onDockNavigate(com.swimvpn.app.ui.components.NavDockItem.HOME) },
                 onServers = { onDockNavigate(com.swimvpn.app.ui.components.NavDockItem.SERVERS) },
+                onProxy = { onDockNavigate(com.swimvpn.app.ui.components.NavDockItem.PROXY) },
                 onSubscription = { onDockNavigate(com.swimvpn.app.ui.components.NavDockItem.SUBSCRIPTION) },
                 onSettings = { onDockNavigate(com.swimvpn.app.ui.components.NavDockItem.SETTINGS) },
                 modifier = Modifier

@@ -93,6 +93,7 @@
     <string name="content_desc_swim_orb">SwimVPN holographic orb</string>
     <string name="dock_home">Home</string>
     <string name="dock_servers">Servers</string>
+    <string name="dock_proxy">Proxy</string>
     <string name="dock_subscription">Subscription</string>
     <string name="dock_account">Account</string>
 

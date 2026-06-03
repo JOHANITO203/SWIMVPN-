@@ -93,6 +93,7 @@
     <string name="content_desc_swim_orb">Голографическая сфера SwimVPN</string>
     <string name="dock_home">Главная</string>
     <string name="dock_servers">Серверы</string>
+    <string name="dock_proxy">Прокси</string>
     <string name="dock_subscription">Подписка</string>
     <string name="dock_account">Аккаунт</string>
 

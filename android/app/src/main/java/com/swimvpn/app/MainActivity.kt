@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import com.swimvpn.app.config.ConfigRepository
 import com.swimvpn.app.ui.screens.ConfigImportScreen
+import com.swimvpn.app.ui.screens.ProxyScreen
 import androidx.core.os.LocaleListCompat
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -211,8 +212,9 @@ fun AppNavigation(
                 data = data,
                 onNavigateProfile = { navController.navigateProductRoot("profile") },
                 onNavigateServers = { navController.navigateProductRoot("servers") },
-                onNavigateSubscription = { navController.navigateProductRoot("subscription") }
-            ) 
+                onNavigateSubscription = { navController.navigateProductRoot("subscription") },
+                onNavigateProxy = { navController.navigateProductRoot("proxy") }
+            )
         }
         composable("servers") { 
             val data = state as? AppState.Success ?: return@composable
@@ -233,6 +235,7 @@ fun AppNavigation(
                 onProfileClick = { navController.navigateProductRoot("profile") },
                 onHomeClick = { navController.navigateProductRoot("home") },
                 onSettingsClick = { navController.navigateProductRoot("profile") },
+                onProxyClick = { navController.navigateProductRoot("proxy") },
                 onPeriodicRefresh = { viewModel.refreshServerLatency() },
             )
         }
@@ -314,9 +317,30 @@ fun AppNavigation(
                 onProfileClick = { navController.navigateProductRoot("profile") },
                 onNavigateHome = { navController.navigateProductRoot("home") },
                 onNavigateServers = { navController.navigateProductRoot("servers") },
+                onNavigateProxy = { navController.navigateProductRoot("proxy") },
                 onNavigateSettings = { navController.navigateProductRoot("profile") },
             )
         }
+        composable("proxy") {
+            val proxyContext = LocalContext.current
+            ProxyScreen(
+                configRepository = ConfigRepository(proxyContext),
+                onProxyReady = { profile -> viewModel.selectImportedProfile(profile) },
+                onDockNavigate = { item ->
+                    when (item) {
+                        com.swimvpn.app.ui.components.NavDockItem.HOME -> navController.navigateProductRoot("home")
+                        com.swimvpn.app.ui.components.NavDockItem.SERVERS -> navController.navigateProductRoot("servers")
+                        com.swimvpn.app.ui.components.NavDockItem.PROXY -> Unit
+                        com.swimvpn.app.ui.components.NavDockItem.SUBSCRIPTION -> navController.navigateProductRoot("subscription")
+                        com.swimvpn.app.ui.components.NavDockItem.SETTINGS -> navController.navigateProductRoot("profile")
+                    }
+                },
+                showToast = { message ->
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+                },
+            )
+        }
+
         composable("technical") {
             val metrics by VpnManager.metrics.collectAsState()
             val runtimeStatus by VpnManager.runtimeStatus.collectAsState()
