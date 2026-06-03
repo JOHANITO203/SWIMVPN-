@@ -23,7 +23,10 @@ import {
   TrialGrantStatus,
 } from '@prisma/client';
 import { canAllocateSupplierConfig } from './supplier-capacity.policy';
-import { resolveInventoryHealthcheckIntervalMs } from './inventory-health-scheduler.policy';
+import {
+  resolveFulfillmentRetryIntervalMs,
+  resolveInventoryHealthcheckIntervalMs,
+} from './inventory-health-scheduler.policy';
 
 type ConfigEventInput = {
   configScope: 'PAID' | 'TRIAL';
@@ -41,6 +44,8 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
   private static readonly TRIAL_DURATION_LABEL = '3 Days';
   private readonly logger = new Logger(InventoryService.name);
   private healthcheckTimer?: NodeJS.Timeout;
+  private fulfillmentRetryTimer?: NodeJS.Timeout;
+  private fulfillmentRetryInFlight = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -53,23 +58,81 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     const intervalMs = resolveInventoryHealthcheckIntervalMs(
       process.env.INVENTORY_HEALTHCHECK_INTERVAL_MS,
     );
-
-    if (!intervalMs) {
+    if (intervalMs) {
+      this.logger.log(`Inventory healthcheck scheduler enabled every ${intervalMs}ms`);
+      this.healthcheckTimer = setInterval(() => {
+        void this.runScheduledHealthCheck();
+      }, intervalMs);
+      this.healthcheckTimer.unref?.();
+    } else {
       this.logger.log('Inventory healthcheck scheduler disabled');
-      return;
     }
 
-    this.logger.log(`Inventory healthcheck scheduler enabled every ${intervalMs}ms`);
-    this.healthcheckTimer = setInterval(() => {
-      void this.runScheduledHealthCheck();
-    }, intervalMs);
-    this.healthcheckTimer.unref?.();
+    // Auto-retry orders stuck in PENDING_FULFILLMENT so capacity that frees up later (new import
+    // or a revoked assignment) is picked up without a manual admin /retry.
+    const retryIntervalMs = resolveFulfillmentRetryIntervalMs(
+      process.env.INVENTORY_FULFILLMENT_RETRY_INTERVAL_MS,
+    );
+    if (retryIntervalMs) {
+      this.logger.log(`Fulfillment retry scheduler enabled every ${retryIntervalMs}ms`);
+      this.fulfillmentRetryTimer = setInterval(() => {
+        void this.runScheduledFulfillmentRetry();
+      }, retryIntervalMs);
+      this.fulfillmentRetryTimer.unref?.();
+    } else {
+      this.logger.log('Fulfillment retry scheduler disabled');
+    }
   }
 
   onModuleDestroy() {
     if (this.healthcheckTimer) {
       clearInterval(this.healthcheckTimer);
       this.healthcheckTimer = undefined;
+    }
+    if (this.fulfillmentRetryTimer) {
+      clearInterval(this.fulfillmentRetryTimer);
+      this.fulfillmentRetryTimer = undefined;
+    }
+  }
+
+  // Periodic sweep: re-attempt every order stuck in PENDING_FULFILLMENT. fulfillOrder() is
+  // idempotent — it delivers as soon as inventory capacity exists and otherwise leaves the order
+  // pending. Bounded batch + an in-flight guard so overlapping ticks never stack.
+  private async runScheduledFulfillmentRetry() {
+    if (this.fulfillmentRetryInFlight) {
+      return;
+    }
+    this.fulfillmentRetryInFlight = true;
+    try {
+      const stuck = await this.prisma.order.findMany({
+        where: { status: OrderStatus.PENDING_FULFILLMENT },
+        orderBy: { created_at: 'asc' },
+        take: 25,
+        select: { id: true, order_ref: true },
+      });
+      if (stuck.length === 0) {
+        return;
+      }
+      let fulfilled = 0;
+      for (const order of stuck) {
+        try {
+          const result = await this.fulfillOrder(order.id);
+          if (result?.pendingFulfillment === false) {
+            fulfilled += 1;
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Fulfillment retry failed for ${order.order_ref}: ${(error as Error).message}`,
+          );
+        }
+      }
+      this.logger.log(
+        `Fulfillment retry sweep: ${stuck.length} pending, ${fulfilled} fulfilled`,
+      );
+    } catch (error) {
+      this.logger.error('Scheduled fulfillment retry failed', error as Error);
+    } finally {
+      this.fulfillmentRetryInFlight = false;
     }
   }
 
