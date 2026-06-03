@@ -104,6 +104,40 @@ export class SwimPayService {
     return this.parseCheckoutResponse(json);
   }
 
+  // Merchant-side status lookup used by the reconciliation sweep when a confirmation webhook
+  // never arrived. Returns null on any error / not-found so the caller simply waits and retries.
+  async getOrderStatus(swimpayOrderId: string): Promise<{ status: string } | null> {
+    if (!this.secretKey || !swimpayOrderId) {
+      return null;
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.apiBaseUrl}/v1/orders/${encodeURIComponent(swimpayOrderId)}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch {
+      return null;
+    }
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = await response.json().catch(() => ({} as Record<string, any>));
+    const status =
+      this.stringFrom((json as any)?.status) ||
+      this.stringFrom((json as any)?.order?.status) ||
+      this.stringFrom((json as any)?.payment_session?.status) ||
+      this.stringFrom((json as any)?.paymentSession?.status);
+
+    return status ? { status } : null;
+  }
+
   verifyWebhook(rawBody: string | Buffer, headers: Record<string, string | string[] | number | undefined>): SwimPayPublicWebhookEvent {
     if (!this.webhookSecret) {
       throw new Error('SwimPay webhook secret is not configured');

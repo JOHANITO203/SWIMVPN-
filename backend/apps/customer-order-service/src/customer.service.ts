@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom } from 'rxjs';
@@ -25,9 +25,15 @@ import {
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
 import { SwimPayService } from './swim-pay.service';
+import {
+  SWIMPAY_RECONCILE_MIN_ORDER_AGE_MS,
+  mapSwimPayStatusToAction,
+  parseSwimPayOrderId,
+  resolveSwimPayReconcileIntervalMs,
+} from './swimpay-reconciliation.policy';
 
 @Injectable()
-export class CustomerService {
+export class CustomerService implements OnModuleInit, OnModuleDestroy {
   private static readonly TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
   private static readonly TRIAL_QUOTA_LABEL = 'UNLIMITED';
   private static readonly ACTIVE_TRIAL_CAMPAIGN_CODE = 'trial-2026-05';
@@ -39,6 +45,90 @@ export class CustomerService {
     private readonly cryptoPayService: CryptoPayService,
     private readonly swimPayService?: SwimPayService,
   ) {}
+
+  private reconcileTimer?: NodeJS.Timeout;
+  private reconcileInFlight = false;
+
+  onModuleInit() {
+    const intervalMs = resolveSwimPayReconcileIntervalMs(
+      process.env.SWIMPAY_RECONCILE_INTERVAL_MS,
+    );
+    if (intervalMs && this.swimPayService?.isConfigured()) {
+      console.log(`[CustomerService] SwimPay reconciliation enabled every ${intervalMs}ms`);
+      this.reconcileTimer = setInterval(() => {
+        void this.runScheduledSwimPayReconciliation();
+      }, intervalMs);
+      this.reconcileTimer.unref?.();
+    } else {
+      console.log('[CustomerService] SwimPay reconciliation disabled');
+    }
+  }
+
+  onModuleDestroy() {
+    if (this.reconcileTimer) {
+      clearInterval(this.reconcileTimer);
+      this.reconcileTimer = undefined;
+    }
+  }
+
+  // Safety net: for SwimPay orders still PENDING after the confirmation webhook should have
+  // arrived, poll SwimPay's order status and act. Idempotent (fulfillOrderByRef is webhook-deduped
+  // and status-guarded), bounded batch, single-flight, and only touches orders past a min age so
+  // it never races the normal (faster) webhook path.
+  private async runScheduledSwimPayReconciliation() {
+    if (this.reconcileInFlight || !this.swimPayService?.isConfigured()) {
+      return;
+    }
+    this.reconcileInFlight = true;
+    try {
+      const cutoff = new Date(Date.now() - SWIMPAY_RECONCILE_MIN_ORDER_AGE_MS);
+      const stuck = await this.prisma.order.findMany({
+        where: {
+          status: OrderStatus.PENDING,
+          payment_ref: { startsWith: 'SWIMPAY_SESSION:' },
+          created_at: { lt: cutoff },
+        },
+        orderBy: { created_at: 'asc' },
+        take: 10,
+        select: { id: true, order_ref: true, payment_ref: true },
+      });
+      if (stuck.length === 0) {
+        return;
+      }
+
+      let fulfilled = 0;
+      let failed = 0;
+      for (const order of stuck) {
+        const swimpayOrderId = parseSwimPayOrderId(order.payment_ref);
+        if (!swimpayOrderId) continue;
+        try {
+          const remote = await this.swimPayService.getOrderStatus(swimpayOrderId);
+          const action = mapSwimPayStatusToAction(remote?.status);
+          if (action === 'FULFILL') {
+            await this.fulfillOrderByRef(order.order_ref, order.payment_ref ?? '');
+            fulfilled += 1;
+          } else if (action === 'FAIL') {
+            await this.prisma.order.update({
+              where: { id: order.id },
+              data: { status: OrderStatus.FAILED },
+            });
+            failed += 1;
+          }
+        } catch (error) {
+          console.warn(
+            `[CustomerService] SwimPay reconciliation failed for ${order.order_ref}: ${this.extractErrorMessage(error, 'unknown')}`,
+          );
+        }
+      }
+      console.log(
+        `[CustomerService] SwimPay reconciliation: ${stuck.length} pending, ${fulfilled} fulfilled, ${failed} failed`,
+      );
+    } catch (error) {
+      console.error('[CustomerService] SwimPay reconciliation sweep failed', error);
+    } finally {
+      this.reconcileInFlight = false;
+    }
+  }
 
   async bootstrapAccess(data: BootstrapAccessDto) {
     const customer = await this.findOrCreateCustomerByDevice(data.deviceId);
