@@ -6,10 +6,18 @@ import com.swimvpn.app.vpn.NetworkType
 class ServerScoreStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    // Cache the decoded scores so repeated reads (every recommendation refresh / AI-toggle flip)
+    // don't re-parse the whole persisted set on the calling thread. Kept fresh on every save.
+    @Volatile
+    private var cached: Map<String, ServerQualityScore>? = null
+
     fun loadScores(): Map<String, ServerQualityScore> {
-        return prefs.getStringSet(KEY_SCORES, emptySet()).orEmpty()
+        cached?.let { return it }
+        val decoded = prefs.getStringSet(KEY_SCORES, emptySet()).orEmpty()
             .mapNotNull(ServerScoreCodec::decode)
             .associateBy { it.serverId }
+        cached = decoded
+        return decoded
     }
 
     fun recordFailure(
@@ -50,6 +58,7 @@ class ServerScoreStore(context: Context) {
     }
 
     private fun saveScores(scores: Map<String, ServerQualityScore>) {
+        cached = scores
         prefs.edit()
             .putStringSet(KEY_SCORES, scores.values.map(ServerScoreCodec::encode).toSet())
             .apply()

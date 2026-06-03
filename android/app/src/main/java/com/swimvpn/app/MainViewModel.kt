@@ -130,7 +130,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var externalCheckoutRefreshUntilMs = 0L
     private var externalCheckoutRefreshInFlight = false
     @Volatile
-    private var latencyRefreshInFlight = false
+    private var latencyRefreshJob: Job? = null
+    private var aiToggleJob: Job? = null
     private var externalCheckoutRefreshRetryJob: Job? = null
     @Volatile
     private var subscriptionRefreshInFlight = false
@@ -524,7 +525,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setAiAgentEnabled(enabled: Boolean) {
-        viewModelScope.launch {
+        // Debounce: cancel any in-flight toggle apply so rapid flips don't launch overlapping
+        // recompute coroutines (and don't land state/persisted-pref out of order).
+        aiToggleJob?.cancel()
+        aiToggleJob = viewModelScope.launch {
             prefs.setAiAgentEnabled(enabled)
             when (val currentState = _state.value) {
                 // Re-apply the recommendation immediately so the toggle takes effect at once
@@ -1059,31 +1063,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshServerLatency() {
         // Skip if a probe sweep is already running (e.g. a periodic tick firing while a previous
         // refresh — manual or periodic — is still in flight) to avoid concurrent probe passes.
-        if (latencyRefreshInFlight) return
-        latencyRefreshInFlight = true
-        viewModelScope.launch {
-            try {
-                val current = _state.value as? AppState.Success ?: return@launch
-                val measuredServers = ServerLatencyEvaluator.enrichWithLatency(
-                    current.servers,
-                    probeSocketFactory = nonVpnProbeSocketFactory(),
+        // Guard via the retained Job (not a boolean that can wedge true if the scope is cancelled
+        // mid-sweep): skip when a sweep is already running so periodic + manual triggers don't run
+        // overlapping probe passes. The Job is cancelled with viewModelScope, freeing future sweeps.
+        if (latencyRefreshJob?.isActive == true) return
+        latencyRefreshJob = viewModelScope.launch {
+            val current = _state.value as? AppState.Success ?: return@launch
+            val measuredServers = ServerLatencyEvaluator.enrichWithLatency(
+                current.servers,
+                probeSocketFactory = nonVpnProbeSocketFactory(),
+            )
+            val byId = measuredServers.associateBy { it.id }
+            val measuredGroups = current.serverGroups.map { group ->
+                group.copy(
+                    servers = group.servers.map { server -> byId[server.id] ?: server }
                 )
-                val byId = measuredServers.associateBy { it.id }
-                val measuredGroups = current.serverGroups.map { group ->
-                    group.copy(
-                        servers = group.servers.map { server -> byId[server.id] ?: server }
-                    )
-                }
-                val activeServer = current.activeServer?.id?.let(byId::get) ?: current.activeServer
-                val updatedState = current.copy(
-                    servers = measuredServers,
-                    serverGroups = measuredGroups,
-                    activeServer = activeServer,
-                )
-                _state.value = applyAdaptiveRecommendation(updatedState)
-            } finally {
-                latencyRefreshInFlight = false
             }
+            val activeServer = current.activeServer?.id?.let(byId::get) ?: current.activeServer
+            val updatedState = current.copy(
+                servers = measuredServers,
+                serverGroups = measuredGroups,
+                activeServer = activeServer,
+            )
+            _state.value = applyAdaptiveRecommendation(updatedState)
         }
     }
 
