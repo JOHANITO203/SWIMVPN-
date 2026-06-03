@@ -133,18 +133,18 @@ fun Modifier.swimDarkLuxuryBackground(): Modifier {
         drawRect(brush = leftSheen)
         drawRect(brush = lowerVignette)
         drawRect(brush = verticalVignette)
-        // Subtle film grain for premium depth (dark theme only). Sparse pseudo-random speckle,
-        // computed once and cached by drawWithCache — never re-rasterized on recomposition.
+        // Matte rubber tooth (dark theme only): a dense, dark-only speckle that makes the rubber
+        // layers felt — NO white specks. Computed once and cached by drawWithCache.
         if (!isLight) {
-            val grainStep = 6.dp.toPx()
-            val grainRadius = 0.4.dp.toPx()
+            val grainStep = 5.dp.toPx()
+            val grainRadius = 0.5.dp.toPx()
             var gy = 0f
             while (gy < size.height) {
                 var gx = 0f
                 while (gx < size.width) {
-                    when ((gx * 12.9898f + gy * 78.233f).toInt() and 31) {
-                        0 -> drawCircle(Color.White.copy(alpha = 0.018f), grainRadius, Offset(gx, gy))
-                        9 -> drawCircle(Color.Black.copy(alpha = 0.05f), grainRadius, Offset(gx, gy))
+                    when ((gx * 12.9898f + gy * 78.233f).toInt() and 15) {
+                        0 -> drawCircle(Color.Black.copy(alpha = 0.12f), grainRadius, Offset(gx, gy))
+                        7 -> drawCircle(Color.Black.copy(alpha = 0.07f), grainRadius, Offset(gx, gy))
                     }
                     gx += grainStep
                 }
@@ -445,9 +445,9 @@ fun DrawScope.drawSwimDarkMaterialSkin(tokens: SwimVisualTokens) {
     drawRect(
         brush = Brush.verticalGradient(
             colors = listOf(
-                Color.Black.copy(alpha = 0.16f),
-                Color.Transparent,
                 Color.Black.copy(alpha = 0.24f),
+                Color.Transparent,
+                Color.Black.copy(alpha = 0.36f),
             ),
             startY = 0f,
             endY = size.height,
@@ -464,8 +464,9 @@ fun DrawScope.drawSwimDarkMaterialSkin(tokens: SwimVisualTokens) {
         )
     )
 
+    // Matte rubber pores — dark speckle (no white), so the rubber layer reads as a real material.
     val step = 7.dp.toPx()
-    val radius = 0.34.dp.toPx()
+    val radius = 0.4.dp.toPx()
     var y = step * 0.55f
     var row = 0
     while (y < size.height) {
@@ -474,7 +475,7 @@ fun DrawScope.drawSwimDarkMaterialSkin(tokens: SwimVisualTokens) {
             val seed = ((x * 12.9898f + y * 78.233f).toInt() and 7)
             if (seed == 0 || seed == 3) {
                 drawCircle(
-                    color = tokens.highlight.bodyStroke.copy(alpha = if (seed == 0) 0.020f else 0.012f),
+                    color = Color.Black.copy(alpha = if (seed == 0) 0.16f else 0.10f),
                     radius = radius,
                     center = Offset(x, y),
                 )
