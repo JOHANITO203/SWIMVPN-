@@ -26,6 +26,7 @@ import com.swimvpn.app.adaptive.AdaptiveEventLogger
 import com.swimvpn.app.config.RoutingOptions
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
+import com.swimvpn.app.config.XrayRoutingBuilder
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.runtime.Tun2SocksAssetCatalog
 import com.swimvpn.app.runtime.Tun2SocksLaunchSpec
@@ -446,15 +447,28 @@ class SwimVpnService : VpnService() {
                     }
                 }
 
-                // Geo bypass (OFF by default): when ON, LAN/private + curated traffic is routed
-                // direct (outside the tunnel) via Xray routing rules. Read at connect time.
-                val bypassGeo = PreferencesManager(applicationContext).bypassGeoEnabledFlow.first()
+                // Geo bypass (OFF by default): when ON, LAN/private space + the user's direct list
+                // (domains/IPs) are routed direct (outside the tunnel) via Xray routing rules.
+                // Read at connect time.
+                val bypassPrefs = PreferencesManager(applicationContext)
+                val bypassGeo = bypassPrefs.bypassGeoEnabledFlow.first()
+                val routingOptions = if (bypassGeo) {
+                    val (directDomains, directIps) =
+                        XrayRoutingBuilder.partitionDirectEntries(bypassPrefs.bypassGeoEntriesFlow.first())
+                    RoutingOptions(
+                        bypassGeo = true,
+                        directDomains = directDomains,
+                        directIps = RoutingOptions.DEFAULT_DIRECT_IPS + directIps,
+                    )
+                } else {
+                    RoutingOptions()
+                }
                 val runtime = rawConfig?.takeIf { it.isNotBlank() }?.let {
                     TunnelRuntimeAdapter.prepareRuntimeFromRawConfig(
                         rawConfig = it,
                         sourceType = SourceType.BACKEND_API,
                         runtimeMode = requestedMode,
-                        routingOptions = RoutingOptions(bypassGeo = bypassGeo),
+                        routingOptions = routingOptions,
                     ).getOrElse { error ->
                         throw IllegalStateException(
                             "Invalid runtime config: ${error.localizedMessage}",

@@ -131,6 +131,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             PreferencesManager.DEFAULT_BYPASS_GEO_ENABLED,
         )
 
+    // User-editable list of domains/IPs routed direct (outside the tunnel) when bypass is ON.
+    val bypassGeoEntries: StateFlow<Set<String>> = prefs.bypassGeoEntriesFlow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
     private var lastAutoConnectSignature: String? = null
     private var adaptiveReconnectAttempt = 0
     private var adaptiveActiveServerId: String? = null
@@ -555,6 +559,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Persists the geo-bypass toggle. Takes effect on the next (re)connect when the service reads it. */
     fun setBypassGeoEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setBypassGeoEnabled(enabled) }
+    }
+
+    /** Persists the geo-bypass direct list. Takes effect on the next (re)connect. */
+    fun setBypassGeoEntries(entries: Set<String>) {
+        viewModelScope.launch { prefs.setBypassGeoEntries(entries) }
     }
 
     private fun autoConnectValidationError(): String? {

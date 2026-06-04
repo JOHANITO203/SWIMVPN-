@@ -68,4 +68,43 @@ object XrayRoutingBuilder {
             addProperty("outboundTag", tag)
         })
     }
+
+    private val IPV4_CIDR = Regex("^\\d{1,3}(\\.\\d{1,3}){3}(/\\d{1,2})?$")
+    private val IPV6_CIDR = Regex("^[0-9a-fA-F:]+(/\\d{1,3})?$")
+
+    /**
+     * Normalizes a raw user-entered direct-routing entry. Returns the trimmed entry, or null if it
+     * is unusable (blank or contains whitespace) — guards the generated Xray config against
+     * malformed rules. Accepts plain hosts, `domain:`/`full:`/`keyword:`/`regexp:`/`geosite:` rules,
+     * IPv4/IPv6 (with optional CIDR), and `geoip:` rules; semantic validity beyond this is left to
+     * Xray (we never want to silently drop a valid-but-unusual rule).
+     */
+    fun sanitizeEntry(raw: String): String? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty() || trimmed.any { it.isWhitespace() }) return null
+        return trimmed
+    }
+
+    /** True when a sanitized entry belongs in Xray's `ip` rule field rather than `domain`. */
+    fun isIpEntry(entry: String): Boolean {
+        if (entry.startsWith("geoip:", ignoreCase = true)) return true
+        if (IPV4_CIDR.matches(entry)) return true
+        // IPv6 must contain a colon and only hex/colon (+ optional CIDR); excludes "domain:x" forms.
+        if (entry.contains(":") && !entry.contains(".") && IPV6_CIDR.matches(entry)) return true
+        return false
+    }
+
+    /**
+     * Partitions raw user entries into (domains, ips) for the `domain`/`ip` routing fields,
+     * dropping invalid ones and de-duplicating while preserving order.
+     */
+    fun partitionDirectEntries(entries: Collection<String>): Pair<List<String>, List<String>> {
+        val domains = LinkedHashSet<String>()
+        val ips = LinkedHashSet<String>()
+        entries.forEach { raw ->
+            val entry = sanitizeEntry(raw) ?: return@forEach
+            if (isIpEntry(entry)) ips.add(entry) else domains.add(entry)
+        }
+        return domains.toList() to ips.toList()
+    }
 }
