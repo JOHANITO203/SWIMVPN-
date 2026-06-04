@@ -157,7 +157,7 @@ class PreferencesManager(private val context: Context) {
             preferences[LAST_RUNTIME_HOST_KEY] = payload.host
             preferences[LAST_RUNTIME_PORT_KEY] = payload.port
             preferences[LAST_RUNTIME_PROTOCOL_KEY] = payload.protocol
-            preferences[LAST_RUNTIME_CONFIG_KEY] = payload.runtimeConfig
+            preferences[LAST_RUNTIME_CONFIG_KEY] = SecureCrypto.encrypt(payload.runtimeConfig)
             preferences[LAST_RUNTIME_MODE_KEY] = payload.runtimeMode.name
         }
     }
@@ -167,7 +167,8 @@ class PreferencesManager(private val context: Context) {
         val host = preferences[LAST_RUNTIME_HOST_KEY] ?: return null
         val port = preferences[LAST_RUNTIME_PORT_KEY] ?: return null
         val protocol = preferences[LAST_RUNTIME_PROTOCOL_KEY] ?: return null
-        val runtimeConfig = preferences[LAST_RUNTIME_CONFIG_KEY] ?: return null
+        val runtimeConfig = preferences[LAST_RUNTIME_CONFIG_KEY]
+            ?.let { runCatching { SecureCrypto.decrypt(it) }.getOrNull() } ?: return null
         val runtimeMode = RuntimeMode.fromPersisted(preferences[LAST_RUNTIME_MODE_KEY])
         if (runtimeConfig.isBlank()) return null
         return AutoConnectPayload(

@@ -14,10 +14,11 @@ import java.net.URL
 import kotlin.system.measureTimeMillis
 
 /**
- * "Works-here" probe for a BYO residential proxy. Fetches a geo-IP endpoint THROUGH the pasted
- * SOCKS5 proxy: confirms it actually relays, reveals the real exit country/IP, and measures latency.
- * Runs OFF the VPN (a direct SOCKS connection from the app), so the user gets confidence BEFORE
- * routing the whole device through it.
+ * "Works-here" probe for a BYO residential proxy. Calls our own backend echo endpoint
+ * (https://api.swimvpn.pro/api/v1/status/caller-ip) THROUGH the pasted proxy over HTTPS: confirms it
+ * actually relays, and the backend echoes the exit IP + country (resolved server-side via geoip-lite,
+ * ISO-2 code). No third party and no plaintext leak of the exit IP from the device. Runs OFF the VPN
+ * (a direct proxy connection from the app), so the user gets confidence BEFORE routing through it.
  */
 object ResidentialProxyProbe {
 
@@ -44,7 +45,7 @@ object ResidentialProxyProbe {
                 val proxy = Proxy(if (useHttp) Proxy.Type.HTTP else Proxy.Type.SOCKS, InetSocketAddress(host, port))
                 var body = ""
                 val elapsed = measureTimeMillis {
-                    val conn = URL("http://ip-api.com/json/?fields=status,message,country,query")
+                    val conn = URL("https://api.swimvpn.pro/api/v1/status/caller-ip")
                         .openConnection(proxy) as HttpURLConnection
                     conn.connectTimeout = 7000
                     conn.readTimeout = 7000
@@ -53,11 +54,12 @@ object ResidentialProxyProbe {
                     conn.disconnect()
                 }
                 val json = JsonParser.parseString(body).asJsonObject
-                if (json.get("status")?.asString == "success") {
+                val exitIp = json.get("ip")?.asString
+                if (!exitIp.isNullOrBlank()) {
                     Result(
                         ok = true,
-                        country = json.get("country")?.asString,
-                        ip = json.get("query")?.asString,
+                        country = json.get("country")?.takeIf { !it.isJsonNull }?.asString,
+                        ip = exitIp,
                         latencyMs = elapsed.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                     )
                 } else {
