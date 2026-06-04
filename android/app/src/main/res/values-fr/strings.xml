@@ -414,9 +414,9 @@
     <string name="menu_proxy_subtitle">Colle ton proxy · routé via le tunnel</string>
     <string name="proxy_screen_title">Mon proxy</string>
     <string name="proxy_screen_subtitle">Ton proxy résidentiel, routé via le tunnel</string>
-    <string name="proxy_screen_paste_label">Colle ton proxy</string>
-    <string name="proxy_screen_paste_placeholder">socks5://user:pass@host:port  ·  ou  host:port:user:pass</string>
-    <string name="proxy_screen_paste_hint">Acheté ailleurs · socks5:// ou host:port:user:pass — on s\'occupe du reste.</string>
+    <string name="proxy_screen_paste_label">Colle un ou plusieurs proxys</string>
+    <string name="proxy_screen_paste_placeholder">socks5://… ou host:port:user:pass · un par ligne</string>
+    <string name="proxy_screen_paste_hint">Un ou plusieurs — on teste tout, on connecte le meilleur.</string>
     <string name="proxy_screen_cta">Tester &amp; connecter</string>
     <string name="proxy_screen_result_label">Résultat</string>
     <string name="proxy_screen_works">Fonctionne — ça nage ici</string>
@@ -437,4 +437,12 @@
     <string name="proxy_error_unreachable">Proxy injoignable</string>
     <string name="proxy_session_down">Ton proxy résidentiel ne répond plus — teste-le ou colle-en un autre dans Paramètres → Proxy résidentiel.</string>
     <string name="proxy_open_cta">Ouvrir Mon proxy →</string>
+    <string name="proxy_screen_pool_label">Autres proxys du pool</string>
+    <string name="proxy_screen_switch">Basculer</string>
+    <string name="proxy_screen_retry">Réessayer</string>
+    <string name="proxy_screen_best_badge">ACTIF · MEILLEUR</string>
+    <string name="proxy_screen_active_badge">ACTIF</string>
+    <string name="proxy_screen_unreachable_short">Injoignable</string>
+    <string name="proxy_screen_untested">Non testé</string>
+    <string name="proxy_screen_pool_footer">Bascule manuelle en un tap. L\'auto-bascule arrive bientôt.</string>
 </resources>

@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,17 +44,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
 import com.swimvpn.app.config.ConfigParserEngine
 import com.swimvpn.app.config.ConfigRepository
-import com.swimvpn.app.config.ImportResult
 import com.swimvpn.app.config.Protocol
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
@@ -63,9 +65,23 @@ import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.launch
 
 /**
- * Dedicated "Mon proxy" screen (reached from Settings). Paste a BYO residential proxy, test it
- * end-to-end via the works-here probe (real exit country/IP + latency through the proxy), then it
- * is imported + activated so the FULL_TUNNEL routes the device through it.
+ * One entry of the BYO residential proxy pool: an imported SOCKS5/HTTP profile plus its last
+ * "works-here" probe outcome (null = not yet tested this session).
+ */
+private data class ProxyPoolEntry(
+    val profile: SwimVpnProfile,
+    val probe: ResidentialProxyProbe.Result?,
+)
+
+/**
+ * Dedicated "Mon proxy" screen (reached from Settings). Paste one OR several BYO residential proxies
+ * (one per line), test them all via the works-here probe (real exit country/IP + latency through
+ * each proxy), and the best-latency one is auto-imported + activated so the FULL_TUNNEL routes the
+ * device through it. The others form a manual-switch pool — tap "Basculer" to make another active.
+ *
+ * Probing is SEQUENTIAL on purpose: [ResidentialProxyProbe] authenticates via the JVM-global
+ * [java.net.Authenticator], which cannot be set per-connection, so concurrent authenticated probes
+ * would race on credentials. Results stream in as each probe completes.
  */
 @Composable
 fun ProxyScreen(
@@ -78,10 +94,95 @@ fun ProxyScreen(
     val c = SwimDesignTokens.Color
     var pasted by remember { mutableStateOf("") }
     var probing by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<ResidentialProxyProbe.Result?>(null) }
+    var pool by remember { mutableStateOf<List<ProxyPoolEntry>>(emptyList()) }
+    var activeId by remember { mutableStateOf<String?>(null) }
+    var errorRes by remember { mutableStateOf<Int?>(null) }
     val activatedMsg = stringResource(R.string.proxy_screen_activated)
-    val duplicateMsg = stringResource(R.string.proxy_screen_duplicate)
-    val importFailedMsg = stringResource(R.string.proxy_screen_import_failed)
+
+    fun isProxy(p: SwimVpnProfile) = p.protocol == Protocol.SOCKS5 || p.protocol == Protocol.HTTP
+
+    // Hydrate the pool from already-imported residential proxies so it stays visible even when
+    // arriving via the proxy-down deep-link (no fresh paste) — the user can then re-test / switch.
+    LaunchedEffect(Unit) {
+        pool = configRepository.getAllProfiles().filter(::isProxy).map { ProxyPoolEntry(it, null) }
+        activeId = configRepository.getActiveProfile()?.id
+    }
+
+    val activate: (SwimVpnProfile) -> Unit = { profile ->
+        scope.launch {
+            configRepository.setActiveProfile(profile)
+            onProxyReady(profile)
+            activeId = profile.id
+            showToast(activatedMsg)
+        }
+    }
+
+    // Serialized through the same `probing` flag as the full sweep: ResidentialProxyProbe
+    // authenticates via the JVM-global Authenticator, so only one probe may run at a time.
+    val reprobe: (ProxyPoolEntry) -> Unit = { entry ->
+        if (!probing) {
+            scope.launch {
+                probing = true
+                pool = pool.map { if (it.profile.id == entry.profile.id) it.copy(probe = null) else it }
+                val res = ResidentialProxyProbe.probe(
+                    entry.profile.address, entry.profile.port, entry.profile.userId, entry.profile.password,
+                    useHttp = entry.profile.protocol == Protocol.HTTP,
+                )
+                pool = pool.map { if (it.profile.id == entry.profile.id) it.copy(probe = res) else it }
+                probing = false
+            }
+        }
+    }
+
+    val testAndConnect: () -> Unit = {
+        if (!probing) {
+            scope.launch {
+                probing = true
+                errorRes = null
+                val text = pasted.trim()
+                var parsedAny = false
+                if (text.isNotBlank()) {
+                    text.lines().map { it.trim() }.filter { it.isNotBlank() }.forEach { line ->
+                        val p = ConfigParserEngine.parseConfig(line, SourceType.MANUAL_ENTRY).profile
+                        if (p != null && isProxy(p)) {
+                            configRepository.importConfig(line, SourceType.MANUAL_ENTRY)
+                            parsedAny = true
+                        }
+                    }
+                    if (parsedAny) pasted = ""
+                }
+
+                val proxies = configRepository.getAllProfiles().filter(::isProxy)
+                if (proxies.isEmpty() || (text.isNotBlank() && !parsedAny)) {
+                    errorRes = R.string.proxy_screen_error_format
+                    probing = false
+                    return@launch
+                }
+
+                // Show untested rows immediately, then stream each probe result as it lands.
+                pool = proxies.map { ProxyPoolEntry(it, null) }
+                for (p in proxies) {
+                    val res = ResidentialProxyProbe.probe(
+                        p.address, p.port, p.userId, p.password, useHttp = p.protocol == Protocol.HTTP,
+                    )
+                    pool = pool.map { if (it.profile.id == p.id) it.copy(probe = res) else it }
+                }
+
+                // Rank reachable proxies by latency; the best becomes the active connection.
+                pool = pool.sortedWith(
+                    compareByDescending<ProxyPoolEntry> { it.probe?.ok == true }
+                        .thenBy { it.probe?.latencyMs ?: Int.MAX_VALUE },
+                )
+                pool.firstOrNull { it.probe?.ok == true }?.let { best ->
+                    configRepository.setActiveProfile(best.profile)
+                    onProxyReady(best.profile)
+                    activeId = best.profile.id
+                    showToast(activatedMsg)
+                }
+                probing = false
+            }
+        }
+    }
 
     SwimDarkLuxuryBackground {
         Column(
@@ -125,9 +226,9 @@ fun ProxyScreen(
             SectionLabel(stringResource(R.string.proxy_screen_paste_label))
             OutlinedTextField(
                 value = pasted,
-                onValueChange = { pasted = it; result = null },
+                onValueChange = { pasted = it; errorRes = null },
                 placeholder = { Text(stringResource(R.string.proxy_screen_paste_placeholder), color = c.TextMuted, fontSize = 13.sp) },
-                minLines = 2,
+                minLines = 3,
                 shape = RoundedCornerShape(20.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -148,35 +249,8 @@ fun ProxyScreen(
 
             Spacer(Modifier.height(18.dp))
             Button(
-                onClick = {
-                    if (probing || pasted.isBlank()) return@Button
-                    val text = pasted.trim()
-                    scope.launch {
-                        probing = true
-                        result = null
-                        val parsed = ConfigParserEngine.parseConfig(text, SourceType.MANUAL_ENTRY).profile
-                        if (parsed == null || (parsed.protocol != Protocol.SOCKS5 && parsed.protocol != Protocol.HTTP)) {
-                            result = ResidentialProxyProbe.Result(ok = false, errorRes = R.string.proxy_screen_error_format)
-                            probing = false
-                            return@launch
-                        }
-                        val probe = ResidentialProxyProbe.probe(parsed.address, parsed.port, parsed.userId, parsed.password, useHttp = parsed.protocol == Protocol.HTTP)
-                        result = probe
-                        if (probe.ok) {
-                            when (val imp = configRepository.importConfig(text, SourceType.MANUAL_ENTRY)) {
-                                is ImportResult.Success -> {
-                                    configRepository.setActiveProfile(imp.profile)
-                                    onProxyReady(imp.profile)
-                                    showToast(activatedMsg)
-                                }
-                                is ImportResult.Duplicate -> showToast(duplicateMsg)
-                                is ImportResult.Error -> showToast(imp.errors.firstOrNull() ?: importFailedMsg)
-                            }
-                        }
-                        probing = false
-                    }
-                },
-                enabled = !probing && pasted.isNotBlank(),
+                onClick = testAndConnect,
+                enabled = !probing && (pasted.isNotBlank() || pool.isNotEmpty()),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = c.PurplePrimary, contentColor = Color.White, disabledContainerColor = c.SurfaceElevated, disabledContentColor = c.TextMuted),
                 modifier = Modifier.fillMaxWidth().height(58.dp),
@@ -190,15 +264,39 @@ fun ProxyScreen(
                 }
             }
 
-            val r = result
-            if (r != null && !probing) {
-                Spacer(Modifier.height(26.dp))
-                if (r.ok) {
-                    SectionLabel(stringResource(R.string.proxy_screen_result_label))
-                    ProxyResultCard(country = r.country ?: "—", latencyMs = r.latencyMs)
-                } else {
-                    ProxyErrorCard(message = stringResource(r.errorRes ?: R.string.proxy_error_unreachable))
+            errorRes?.let { res ->
+                if (!probing) {
+                    Spacer(Modifier.height(22.dp))
+                    ProxyErrorCard(message = stringResource(res))
                 }
+            }
+
+            val activeEntry = pool.firstOrNull { it.profile.id == activeId }
+            val bestId = pool.firstOrNull { it.probe?.ok == true }?.profile?.id
+            val others = pool.filter { it.profile.id != activeEntry?.profile?.id }
+
+            if (activeEntry != null) {
+                Spacer(Modifier.height(26.dp))
+                SectionLabel(stringResource(R.string.proxy_screen_result_label))
+                ProxyHeroCard(entry = activeEntry, isBest = activeEntry.profile.id == bestId)
+            }
+
+            if (others.isNotEmpty()) {
+                Spacer(Modifier.height(24.dp))
+                SectionLabel(stringResource(R.string.proxy_screen_pool_label) + " · ${others.size}")
+                others.forEach { entry ->
+                    ProxyPoolRow(
+                        entry = entry,
+                        probing = probing,
+                        onSwitch = { activate(entry.profile) },
+                        onRetry = { reprobe(entry) },
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.proxy_screen_pool_footer),
+                    color = c.TextMuted, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp),
+                )
             }
         }
     }
@@ -216,38 +314,148 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun ProxyResultCard(country: String, latencyMs: Int?) {
+private fun ProxyHeroCard(entry: ProxyPoolEntry, isBest: Boolean) {
     val c = SwimDesignTokens.Color
+    val probe = entry.probe
+    val ok = probe?.ok == true
+    val failed = probe != null && !probe.ok
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .background(c.SurfaceBase)
-            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(24.dp))
+            .border(1.dp, if (ok) c.PurpleActive.copy(alpha = 0.40f) else Color.White.copy(alpha = 0.06f), RoundedCornerShape(24.dp))
             .padding(20.dp),
     ) {
         Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(9.dp).clip(CircleShape).background(c.SuccessGreen))
-                Spacer(Modifier.width(10.dp))
-                Text(stringResource(R.string.proxy_screen_works), color = c.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(9.dp).clip(CircleShape).background(if (ok) c.SuccessGreen else if (failed) c.Danger else c.TextMuted))
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = when {
+                            ok -> stringResource(R.string.proxy_screen_works)
+                            failed -> stringResource(R.string.proxy_screen_unreachable_short)
+                            else -> stringResource(R.string.proxy_screen_active_badge)
+                        },
+                        color = c.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    )
+                }
+                BadgePill(if (isBest) stringResource(R.string.proxy_screen_best_badge) else stringResource(R.string.proxy_screen_active_badge))
             }
-            Spacer(Modifier.height(18.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                ResultStat(Icons.Default.Public, stringResource(R.string.proxy_screen_stat_exit), country, Modifier.weight(1f))
-                StatDivider()
-                ResultStat(Icons.Default.Speed, stringResource(R.string.proxy_screen_stat_latency), latencyMs?.let { "$it ms" } ?: "—", Modifier.weight(1f))
-                StatDivider()
-                ResultStat(Icons.Default.Shield, stringResource(R.string.proxy_screen_stat_type), "SOCKS5", Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(16.dp))
-            Row {
-                GuardItem(stringResource(R.string.proxy_screen_guard_dns))
-                Spacer(Modifier.width(22.dp))
-                GuardItem(stringResource(R.string.proxy_screen_guard_noleak))
+            if (ok) {
+                Spacer(Modifier.height(18.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    ResultStat(Icons.Default.Public, stringResource(R.string.proxy_screen_stat_exit), probe?.country ?: "—", Modifier.weight(1f))
+                    StatDivider()
+                    ResultStat(Icons.Default.Speed, stringResource(R.string.proxy_screen_stat_latency), probe?.latencyMs?.let { "$it ms" } ?: "—", Modifier.weight(1f))
+                    StatDivider()
+                    ResultStat(Icons.Default.Shield, stringResource(R.string.proxy_screen_stat_type), entry.profile.protocol.name, Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(16.dp))
+                Row {
+                    GuardItem(stringResource(R.string.proxy_screen_guard_dns))
+                    Spacer(Modifier.width(22.dp))
+                    GuardItem(stringResource(R.string.proxy_screen_guard_noleak))
+                }
+            } else {
+                Spacer(Modifier.height(8.dp))
+                Text("${entry.profile.address}:${entry.profile.port}", color = c.TextSecondary, fontSize = 13.sp)
             }
         }
     }
+}
+
+@Composable
+private fun BadgePill(text: String) {
+    val c = SwimDesignTokens.Color
+    Text(
+        text = text,
+        color = c.PurpleActive,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .clip(RoundedCornerShape(40.dp))
+            .background(c.PurplePrimary.copy(alpha = 0.16f))
+            .border(1.dp, c.PurpleActive.copy(alpha = 0.34f), RoundedCornerShape(40.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+    )
+}
+
+@Composable
+private fun ProxyPoolRow(
+    entry: ProxyPoolEntry,
+    probing: Boolean,
+    onSwitch: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    val c = SwimDesignTokens.Color
+    val probe = entry.probe
+    val ok = probe?.ok == true
+    val failed = probe != null && !probe.ok
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(c.SurfaceBase)
+            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(20.dp))
+            .alpha(if (failed) 0.6f else 1f)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(if (ok) c.SuccessGreen else if (failed) c.Danger else c.TextMuted))
+            Spacer(Modifier.width(13.dp))
+            Column(Modifier.weight(1f)) {
+                Text("${entry.profile.address}:${entry.profile.port}", color = c.TextPrimary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 3.dp)) {
+                    Text(
+                        entry.profile.protocol.name,
+                        color = c.TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(c.SurfaceHighlight).padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = when {
+                            probing && probe == null -> "…"
+                            ok -> listOfNotNull(probe?.country, probe?.latencyMs?.let { "$it ms" }).joinToString(" · ")
+                            failed -> stringResource(R.string.proxy_screen_unreachable_short)
+                            else -> stringResource(R.string.proxy_screen_untested)
+                        },
+                        color = if (failed) c.Danger else c.TextSecondary, fontSize = 12.sp,
+                    )
+                }
+            }
+            if (!probing) {
+                Spacer(Modifier.width(10.dp))
+                if (failed) {
+                    PoolAction(stringResource(R.string.proxy_screen_retry), accent = false, onClick = onRetry)
+                } else {
+                    PoolAction(stringResource(R.string.proxy_screen_switch), accent = true, onClick = onSwitch)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PoolAction(text: String, accent: Boolean, onClick: () -> Unit) {
+    val c = SwimDesignTokens.Color
+    Text(
+        text = text,
+        color = if (accent) c.PurpleActive else c.TextSecondary,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, if (accent) c.PurpleActive.copy(alpha = 0.30f) else Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    )
 }
 
 @Composable
@@ -258,7 +466,7 @@ private fun ResultStat(icon: androidx.compose.ui.graphics.vector.ImageVector, la
         Spacer(Modifier.height(7.dp))
         Text(label.uppercase(), color = c.TextMuted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(3.dp))
-        Text(value, color = c.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = c.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

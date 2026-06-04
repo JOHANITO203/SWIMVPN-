@@ -414,9 +414,9 @@
     <string name="menu_proxy_subtitle">Вставь свой прокси · через туннель</string>
     <string name="proxy_screen_title">Мой прокси</string>
     <string name="proxy_screen_subtitle">Твой резидентный прокси, маршрут через туннель</string>
-    <string name="proxy_screen_paste_label">Вставь свой прокси</string>
-    <string name="proxy_screen_paste_placeholder">socks5://user:pass@host:port  ·  или  host:port:user:pass</string>
-    <string name="proxy_screen_paste_hint">Куплен в другом месте · socks5:// или host:port:user:pass — остальное на нас.</string>
+    <string name="proxy_screen_paste_label">Вставь один или несколько прокси</string>
+    <string name="proxy_screen_paste_placeholder">socks5://… или host:port:user:pass · по одному в строке</string>
+    <string name="proxy_screen_paste_hint">Один или несколько — проверим все и подключим лучший.</string>
     <string name="proxy_screen_cta">Проверить и подключить</string>
     <string name="proxy_screen_result_label">Результат</string>
     <string name="proxy_screen_works">Работает — здесь плывётся</string>
@@ -437,4 +437,12 @@
     <string name="proxy_error_unreachable">Прокси недоступен</string>
     <string name="proxy_session_down">Твой резидентный прокси недоступен — проверь его или вставь новый в Настройки → Резидентный прокси.</string>
     <string name="proxy_open_cta">Открыть Мой прокси →</string>
+    <string name="proxy_screen_pool_label">Другие прокси пула</string>
+    <string name="proxy_screen_switch">Переключить</string>
+    <string name="proxy_screen_retry">Повторить</string>
+    <string name="proxy_screen_best_badge">АКТИВНЫЙ · ЛУЧШИЙ</string>
+    <string name="proxy_screen_active_badge">АКТИВНЫЙ</string>
+    <string name="proxy_screen_unreachable_short">Недоступен</string>
+    <string name="proxy_screen_untested">Не проверен</string>
+    <string name="proxy_screen_pool_footer">Ручное переключение в один тап. Авто-переключение скоро.</string>
 </resources>

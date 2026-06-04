@@ -414,9 +414,9 @@
     <string name="menu_proxy_subtitle">Paste your proxy · routed via the tunnel</string>
     <string name="proxy_screen_title">My proxy</string>
     <string name="proxy_screen_subtitle">Your residential proxy, routed via the tunnel</string>
-    <string name="proxy_screen_paste_label">Paste your proxy</string>
-    <string name="proxy_screen_paste_placeholder">socks5://user:pass@host:port  ·  or  host:port:user:pass</string>
-    <string name="proxy_screen_paste_hint">Bought elsewhere · socks5:// or host:port:user:pass — we handle the rest.</string>
+    <string name="proxy_screen_paste_label">Paste one or more proxies</string>
+    <string name="proxy_screen_paste_placeholder">socks5://… or host:port:user:pass · one per line</string>
+    <string name="proxy_screen_paste_hint">One or many — we test them all and connect the best.</string>
     <string name="proxy_screen_cta">Test &amp; connect</string>
     <string name="proxy_screen_result_label">Result</string>
     <string name="proxy_screen_works">Works — it swims here</string>
@@ -437,4 +437,12 @@
     <string name="proxy_error_unreachable">Proxy unreachable</string>
     <string name="proxy_session_down">Your residential proxy is down — test it or paste a new one in Settings → Residential proxy.</string>
     <string name="proxy_open_cta">Open My proxy →</string>
+    <string name="proxy_screen_pool_label">Other proxies in the pool</string>
+    <string name="proxy_screen_switch">Switch</string>
+    <string name="proxy_screen_retry">Retry</string>
+    <string name="proxy_screen_best_badge">ACTIVE · BEST</string>
+    <string name="proxy_screen_active_badge">ACTIVE</string>
+    <string name="proxy_screen_unreachable_short">Unreachable</string>
+    <string name="proxy_screen_untested">Not tested</string>
+    <string name="proxy_screen_pool_footer">Manual switch in one tap. Auto-switch is coming soon.</string>
 </resources>
