@@ -27,7 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.draw.shadow
@@ -97,7 +97,6 @@ fun HomeVpnCoreStage(
         VpnAuroraStage(
             state = state,
             accent = accent,
-            reducedMotion = isReducedMotionEnabled,
             modifier = Modifier
                 .matchParentSize()
                 .scale(stageBreath),
@@ -121,57 +120,48 @@ fun HomeVpnCoreStage(
 private fun VpnAuroraStage(
     state: VpnOrbState,
     accent: Color,
-    reducedMotion: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val transition = rememberInfiniteTransition(label = "vpnAurora")
-    val spinRaw by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            tween(if (state == VpnOrbState.CONNECTING) 1100 else 9000, easing = LinearEasing),
-            RepeatMode.Restart,
-        ),
-        label = "auroraSpin",
-    )
-    // The connecting halo is functional feedback (not decoration), so it keeps spinning even under
-    // reduced motion; only the idle/decorative spin is frozen.
-    val spin = if (reducedMotion && state != VpnOrbState.CONNECTING) 0f else spinRaw
-    val showRing = state == VpnOrbState.CONNECTING || state == VpnOrbState.CONNECTED
-    val ringStrength = if (state == VpnOrbState.CONNECTING) 0.85f else 0.42f
+    val connecting = state == VpnOrbState.CONNECTING
+    // Frame-clock-driven rotation: ticks every vsync REGARDLESS of the system animation scale, so
+    // the connecting halo stays fluid even under battery-saver / "animations off" (Compose freezes
+    // animateFloat/infiniteTransition at scale 0 — that was the static-halo bug). The halo lives
+    // only while CONNECTING; once connected it's gone (the lit button is the indicator, and a
+    // perpetual orbit would burn battery + repaint forever).
+    var spin by remember { mutableStateOf(0f) }
+    LaunchedEffect(connecting) {
+        if (!connecting) return@LaunchedEffect
+        val periodMs = 1100f
+        while (true) {
+            withFrameMillis { t -> spin = (t % periodMs.toLong()).toFloat() / periodMs * 360f }
+        }
+    }
 
     Box(modifier = modifier) {
-        // Only the rotating halo remains around the button (all other external layers removed):
-        // a bright fast comet while connecting, a subtle slow arc when connected.
-        Canvas(modifier = Modifier.matchParentSize()) {
-            if (!showRing) return@Canvas
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val radius = size.minDimension * 0.43f
-            val connecting = state == VpnOrbState.CONNECTING
-            val haloR = radius * 1.08f
-            rotate(degrees = spin, pivot = center) {
-                drawArc(
-                    brush = Brush.sweepGradient(
-                        colors = if (connecting) listOf(
-                            Color.Transparent,
-                            accent.copy(alpha = 0f),
-                            accent.copy(alpha = 0.9f),
-                            Color.White,
-                            Color.Transparent,
-                        ) else listOf(
-                            Color.Transparent,
-                            accent.copy(alpha = ringStrength),
-                            Color.Transparent,
+        if (connecting) {
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val haloR = size.minDimension * 0.43f * 1.08f
+                rotate(degrees = spin, pivot = center) {
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                accent.copy(alpha = 0f),
+                                accent.copy(alpha = 0.9f),
+                                Color.White,
+                                Color.Transparent,
+                            ),
+                            center = center,
                         ),
-                        center = center,
-                    ),
-                    startAngle = 0f,
-                    sweepAngle = if (connecting) 130f else 150f,
-                    useCenter = false,
-                    topLeft = Offset(center.x - haloR, center.y - haloR),
-                    size = Size(haloR * 2f, haloR * 2f),
-                    style = Stroke(width = (if (connecting) 5f else 2.4f).dp.toPx(), cap = StrokeCap.Round),
-                )
+                        startAngle = 0f,
+                        sweepAngle = 130f,
+                        useCenter = false,
+                        topLeft = Offset(center.x - haloR, center.y - haloR),
+                        size = Size(haloR * 2f, haloR * 2f),
+                        style = Stroke(width = 5.dp.toPx(), cap = StrokeCap.Round),
+                    )
+                }
             }
         }
     }
