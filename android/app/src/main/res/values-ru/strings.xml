@@ -435,4 +435,5 @@
     <string name="proxy_error_connect">Не удаётся подключиться к прокси</string>
     <string name="proxy_error_host">Хост прокси не найден</string>
     <string name="proxy_error_unreachable">Прокси недоступен</string>
+    <string name="proxy_session_down">Твой резидентный прокси недоступен — проверь его или вставь новый в Настройки → Резидентный прокси.</string>
 </resources>

@@ -435,4 +435,5 @@
     <string name="proxy_error_connect">Cannot connect to the proxy</string>
     <string name="proxy_error_host">Proxy host not found</string>
     <string name="proxy_error_unreachable">Proxy unreachable</string>
+    <string name="proxy_session_down">Your residential proxy is down — test it or paste a new one in Settings → Residential proxy.</string>
 </resources>

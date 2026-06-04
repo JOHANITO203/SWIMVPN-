@@ -435,4 +435,5 @@
     <string name="proxy_error_connect">Connexion au proxy impossible</string>
     <string name="proxy_error_host">Hôte du proxy introuvable</string>
     <string name="proxy_error_unreachable">Proxy injoignable</string>
+    <string name="proxy_session_down">Ton proxy résidentiel ne répond plus — teste-le ou colle-en un autre dans Paramètres → Proxy résidentiel.</string>
 </resources>
