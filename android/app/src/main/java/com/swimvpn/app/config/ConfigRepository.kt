@@ -20,6 +20,7 @@ import com.swimvpn.app.config.subscriptionparser.SubscriptionPayloadDecoder
 import com.swimvpn.app.config.subscriptionparser.SubscriptionParser
 import com.swimvpn.app.data.local.DeviceIdentityProvider
 import com.swimvpn.app.data.local.PreferencesManager
+import com.swimvpn.app.data.local.SecureCrypto
 import com.swimvpn.app.data.network.ResolveCryptSubscriptionRequest
 import com.swimvpn.app.data.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
@@ -340,8 +341,10 @@ class ConfigRepository(private val context: Context) {
         if (jsonString.isNullOrEmpty()) return emptyList()
 
         return try {
+            // Decrypt at-rest (legacy plaintext blobs pass through unchanged — transparent migration).
+            val decoded = SecureCrypto.decrypt(jsonString)
             val typeToken = object : TypeToken<List<SwimVpnProfile>>() {}.type
-            gson.fromJson<List<SwimVpnProfile>>(jsonString, typeToken) ?: emptyList()
+            gson.fromJson<List<SwimVpnProfile>>(decoded, typeToken) ?: emptyList()
         } catch (e: Exception) {
             // A NON-empty blob failed to parse. Do NOT silently treat it as "no profiles": the next
             // save would overwrite recoverable data. Back up the raw blob first (best effort).
@@ -556,7 +559,7 @@ class ConfigRepository(private val context: Context) {
         try {
             val jsonString = gson.toJson(profiles)
             context.dataStore.edit { preferences ->
-                preferences[IMPORTED_PROFILES_KEY] = jsonString
+                preferences[IMPORTED_PROFILES_KEY] = SecureCrypto.encrypt(jsonString)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving profiles", e)
