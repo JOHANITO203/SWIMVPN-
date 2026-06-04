@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -267,6 +268,19 @@ fun HomeScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 3.dp),
                 )
+                // Deep-link: when the active BYO proxy is reported down, offer a one-tap jump to the
+                // proxy screen to test/replace it (keyed off the proxy-specific runtime message).
+                if (errorMessage == stringResource(R.string.proxy_session_down)) {
+                    Text(
+                        text = stringResource(R.string.proxy_open_cta),
+                        color = SwimDesignTokens.Color.PurpleActive,
+                        fontSize = subtitleSize,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .padding(top = if (compact) 6.dp else 8.dp)
+                            .clickable { onNavigateProxy() },
+                    )
+                }
                 ProtectedIndicator(
                     active = vpnState == VpnState.CONNECTED,
                     compact = compact,
