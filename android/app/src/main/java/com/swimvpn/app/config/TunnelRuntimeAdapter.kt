@@ -67,6 +67,7 @@ object TunnelRuntimeAdapter {
         sourceType: SourceType = SourceType.BACKEND_API,
         runtimeMode: RuntimeMode = RuntimeMode.FULL_TUNNEL,
         routingOptions: RoutingOptions = RoutingOptions(),
+        camouflageFingerprint: String? = null,
     ): Result<RuntimePreparationResult> {
         val parseResult = ConfigParserEngine.parseConfig(rawConfig, sourceType)
         if (!parseResult.isValid) {
@@ -81,7 +82,7 @@ object TunnelRuntimeAdapter {
             return Result.failure(IllegalStateException(support.second))
         }
 
-        val runtimeDocument = generateXrayRuntimeDocument(normalized, runtimeMode, routingOptions)
+        val runtimeDocument = generateXrayRuntimeDocument(normalized, runtimeMode, routingOptions, camouflageFingerprint)
             ?: return Result.failure(IllegalStateException("Runtime config generation failed"))
 
         return Result.success(
@@ -103,11 +104,15 @@ object TunnelRuntimeAdapter {
         profile: SwimVpnProfile,
         runtimeMode: RuntimeMode = RuntimeMode.FULL_TUNNEL,
         routingOptions: RoutingOptions = RoutingOptions(),
+        // Camouflage: optional uTLS fingerprint override (chrome/firefox/safari/ios/randomized),
+        // applied post-build ONLY to outbounds whose streamSettings already use TLS/Reality. Null
+        // (default) leaves the document byte-for-byte unchanged — no regression.
+        camouflageFingerprint: String? = null,
     ): JsonObject? {
         return try {
             val networkPolicy = policyForMode(runtimeMode).copy(routing = routingOptions)
             val parsedConfig = parseRuntimeConfig(profile.normalizedRuntimeConfig)
-            when {
+            val document = when {
                 parsedConfig != null && parsedConfig.has("outbounds") -> {
                     augmentFullDocument(parsedConfig.deepCopy(), networkPolicy)
                 }
@@ -119,9 +124,27 @@ object TunnelRuntimeAdapter {
                     wrapOutboundIntoRuntime(outbound, networkPolicy)
                 }
             }
+            camouflageFingerprint?.takeIf { it.isNotBlank() }?.let { applyFingerprintOverride(document, it) }
+            document
         } catch (e: Exception) {
             Log.e(TAG, "Error generating full Xray runtime document", e)
             null
+        }
+    }
+
+    /**
+     * Override the uTLS fingerprint on every outbound that ALREADY negotiates TLS or Reality, leaving
+     * plaintext outbounds untouched (so a no-TLS transport is never given a meaningless fingerprint,
+     * and nothing else in the config changes). This runs on the final document so it covers all
+     * production paths (normalized fragment, full document, fallback) uniformly.
+     */
+    private fun applyFingerprintOverride(document: JsonObject, fingerprint: String) {
+        val outbounds = document.getAsJsonArray("outbounds") ?: return
+        outbounds.forEach { element ->
+            val stream = element.takeIf { it.isJsonObject }
+                ?.asJsonObject?.getAsJsonObject("streamSettings") ?: return@forEach
+            stream.getAsJsonObject("tlsSettings")?.addProperty("fingerprint", fingerprint)
+            stream.getAsJsonObject("realitySettings")?.addProperty("fingerprint", fingerprint)
         }
     }
 

@@ -270,7 +270,8 @@ class ServerScoreCodecTest {
         )
 
         val encoded = ServerScoreCodec.encode(original)
-        assertEquals("v5", encoded.split(ServerScoreCodec.SEPARATOR).first())
+        // Current codec version (bumped to v6 in Phase 3); round-trip semantics below are unchanged.
+        assertEquals("v6", encoded.split(ServerScoreCodec.SEPARATOR).first())
 
         val decoded = ServerScoreCodec.decode(encoded)
         assertEquals(original, decoded)

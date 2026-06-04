@@ -1,5 +1,7 @@
 package com.swimvpn.app.adaptive
 
+import com.swimvpn.app.config.CamouflageProfile
+import com.swimvpn.app.config.CamouflageProfileRepository
 import com.swimvpn.app.data.network.ProbeFailureReason
 import com.swimvpn.app.vpn.NetworkType
 import kotlin.math.max
@@ -41,6 +43,11 @@ data class ServerQualityScore(
     // hours (e.g. -1) are never bucketed.
     val successByHour: Map<Int, Int> = emptyMap(),
     val failureByHour: Map<Int, Int> = emptyMap(),
+    // Phase 3 (camouflage): connection outcomes per (concrete network × camouflage profile), keyed
+    // "NETWORK|profileId" (e.g. "WIFI|firefox"). Learns which uTLS profile CONNECTS RELIABLY on this
+    // server+network — NOT stealth (unmeasurable client-side). Only WIFI/CELLULAR/ETHERNET bucketed.
+    val profileSuccesses: Map<String, Int> = emptyMap(),
+    val profileFailures: Map<String, Int> = emptyMap(),
 ) {
     fun isAvoided(nowMs: Long): Boolean = avoidUntilMs > nowMs
 }
@@ -132,6 +139,7 @@ object AdaptiveDecisionAgent {
         nowMs: Long,
         networkType: NetworkType = NetworkType.UNKNOWN,
         hourOfDay: Int = -1,
+        profileId: String? = null,
     ): ServerQualityScore {
         val nextConsecutiveFailures = score.consecutiveFailures + 1
         val avoidUntil = if (nextConsecutiveFailures >= AVOID_AFTER_CONSECUTIVE_FAILURES) {
@@ -147,6 +155,13 @@ object AdaptiveDecisionAgent {
             score.networkFailures
         }
 
+        val profileKey = profileKey(networkType, profileId)
+        val nextProfileFailures = if (profileKey != null) {
+            score.profileFailures + (profileKey to ((score.profileFailures[profileKey] ?: 0) + 1))
+        } else {
+            score.profileFailures
+        }
+
         return score.copy(
             failureCount = score.failureCount + 1,
             consecutiveFailures = nextConsecutiveFailures,
@@ -154,6 +169,7 @@ object AdaptiveDecisionAgent {
             avoidUntilMs = avoidUntil,
             networkFailures = nextNetworkFailures,
             failureByHour = incrementHour(score.failureByHour, hourOfDay),
+            profileFailures = nextProfileFailures,
         )
     }
 
@@ -174,6 +190,12 @@ object AdaptiveDecisionAgent {
         else -> false
     }
 
+    /** Composite "NETWORK|profileId" key, or null when the network isn't bucketed or no profile. */
+    private fun profileKey(networkType: NetworkType, profileId: String?): String? {
+        if (profileId.isNullOrBlank() || !isBucketedNetwork(networkType)) return null
+        return "${networkType.name}|$profileId"
+    }
+
     // Increment the hour bucket only for a valid local hour (0..23). Any other value (e.g. -1)
     // leaves the map untouched.
     private fun incrementHour(byHour: Map<Int, Int>, hourOfDay: Int): Map<Int, Int> =
@@ -188,6 +210,7 @@ object AdaptiveDecisionAgent {
         nowMs: Long,
         networkType: NetworkType = NetworkType.UNKNOWN,
         hourOfDay: Int = -1,
+        profileId: String? = null,
     ): ServerQualityScore {
         // On concrete transports: credit a per-network success AND shed one accumulated failure on
         // that same network (recovery — a server that starts working again here sheds a failure,
@@ -211,6 +234,23 @@ object AdaptiveDecisionAgent {
             score.networkSuccesses to score.networkFailures
         }
 
+        // Per-profile recovery, parallel to the per-network logic: credit a success and shed one
+        // accumulated failure for this (network × profile).
+        val profileKey = profileKey(networkType, profileId)
+        val (nextProfileSuccesses, nextProfileFailures) = if (profileKey != null) {
+            val successes = score.profileSuccesses +
+                (profileKey to ((score.profileSuccesses[profileKey] ?: 0) + 1))
+            val prior = score.profileFailures[profileKey] ?: 0
+            val failures = when {
+                prior <= 0 -> score.profileFailures
+                prior - 1 > 0 -> score.profileFailures + (profileKey to (prior - 1))
+                else -> score.profileFailures - profileKey
+            }
+            successes to failures
+        } else {
+            score.profileSuccesses to score.profileFailures
+        }
+
         return score.copy(
             successCount = score.successCount + 1,
             consecutiveFailures = 0,
@@ -219,6 +259,8 @@ object AdaptiveDecisionAgent {
             networkSuccesses = nextNetworkSuccesses,
             networkFailures = nextNetworkFailures,
             successByHour = incrementHour(score.successByHour, hourOfDay),
+            profileSuccesses = nextProfileSuccesses,
+            profileFailures = nextProfileFailures,
         )
     }
 
@@ -470,6 +512,38 @@ object AdaptiveDecisionAgent {
         if (winner.second < PREFERRED_NETWORK_MIN_SAMPLES) return null
         if (winner.third - runnerUp.third < PREFERRED_NETWORK_MARGIN_GAP) return null
         return winner.first
+    }
+
+    /**
+     * Phase 3: pick the camouflage profile that has CONNECTED most reliably for this server on the
+     * current concrete network. Pure and deterministic.
+     *
+     * Profiles are walked in [CamouflageProfileRepository.fallbackOrder] (preference order) and scored
+     * by margin = successes − failures for the "NETWORK|profileId" bucket. Strict-greater keeps the
+     * earlier (more-preferred) profile on ties, so with no history it returns the default (chrome) and
+     * a failing profile is naturally superseded by the next as its margin drops — an implicit DPI
+     * fallback cascade, with recovery as successes accrue. Returns [CamouflageProfileRepository.DEFAULT]
+     * when the score is null or the network isn't bucketed (no per-network learning possible).
+     *
+     * NOTE: this optimizes connection RELIABILITY, not stealth (which the client cannot measure).
+     */
+    fun selectBestCamouflageProfile(
+        score: ServerQualityScore?,
+        networkType: NetworkType,
+        profiles: List<CamouflageProfile> = CamouflageProfileRepository.fallbackOrder,
+    ): CamouflageProfile {
+        if (score == null || !isBucketedNetwork(networkType)) return CamouflageProfileRepository.DEFAULT
+        var best = CamouflageProfileRepository.DEFAULT
+        var bestMargin = Int.MIN_VALUE
+        for (profile in profiles) {
+            val key = "${networkType.name}|${profile.id}"
+            val margin = (score.profileSuccesses[key] ?: 0) - (score.profileFailures[key] ?: 0)
+            if (margin > bestMargin) {
+                bestMargin = margin
+                best = profile
+            }
+        }
+        return best
     }
 
     private fun historyPenalty(score: ServerQualityScore?, nowMs: Long): Int {

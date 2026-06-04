@@ -25,10 +25,11 @@ class ServerScoreStore(context: Context) {
         nowMs: Long = System.currentTimeMillis(),
         networkType: NetworkType = NetworkType.UNKNOWN,
         hourOfDay: Int = -1,
+        profileId: String? = null,
     ): ServerQualityScore {
         val scores = loadScores().toMutableMap()
         val current = scores[serverId] ?: ServerQualityScore(serverId = serverId)
-        val updated = AdaptiveDecisionAgent.recordFailure(current, nowMs, networkType, hourOfDay)
+        val updated = AdaptiveDecisionAgent.recordFailure(current, nowMs, networkType, hourOfDay, profileId)
         scores[serverId] = updated
         saveScores(scores)
         return updated
@@ -48,10 +49,11 @@ class ServerScoreStore(context: Context) {
         nowMs: Long = System.currentTimeMillis(),
         networkType: NetworkType = NetworkType.UNKNOWN,
         hourOfDay: Int = -1,
+        profileId: String? = null,
     ): ServerQualityScore {
         val scores = loadScores().toMutableMap()
         val current = scores[serverId] ?: ServerQualityScore(serverId = serverId)
-        val updated = AdaptiveDecisionAgent.recordSuccess(current, nowMs, networkType, hourOfDay)
+        val updated = AdaptiveDecisionAgent.recordSuccess(current, nowMs, networkType, hourOfDay, profileId)
         scores[serverId] = updated
         saveScores(scores)
         return updated
@@ -82,7 +84,7 @@ class ServerScoreStore(context: Context) {
  */
 object ServerScoreCodec {
     const val SEPARATOR = ""
-    const val VERSION = "v5"
+    const val VERSION = "v6"
     private const val LEGACY_FIELD_COUNT = 7
     // Sub-separators for the networkFailures field. Distinct from SEPARATOR () so they cannot
     // collide with the field framing: "WIFI:2;CELLULAR:1".
@@ -106,6 +108,9 @@ object ServerScoreCodec {
         // v5: hour-of-day maps appended after networkSuccesses, compact int-keyed format "9:2;18:5".
         encodeHourMap(score.successByHour),
         encodeHourMap(score.failureByHour),
+        // v6: per-(network×camouflage-profile) outcome maps, composite string keys "WIFI|firefox:3".
+        encodeProfileMap(score.profileSuccesses),
+        encodeProfileMap(score.profileFailures),
     ).joinToString(SEPARATOR)
 
     // Omit zero/negative entries; empty map -> "". Stable order for deterministic encoding/tests.
@@ -120,6 +125,14 @@ object ServerScoreCodec {
     private fun encodeHourMap(hourMap: Map<Int, Int>): String =
         hourMap.entries
             .filter { it.value > 0 }
+            .sortedBy { it.key }
+            .joinToString(NETWORK_ENTRY_SEPARATOR) { "${it.key}$NETWORK_KV_SEPARATOR${it.value}" }
+
+    // v6: composite string-keyed profile map ("WIFI|firefox:3"). Keys contain "|" (never ":" or ";"),
+    // so they don't collide with the sub-separators. Omit zero/negative entries; sorted for determinism.
+    private fun encodeProfileMap(profileMap: Map<String, Int>): String =
+        profileMap.entries
+            .filter { it.value > 0 && it.key.isNotEmpty() }
             .sortedBy { it.key }
             .joinToString(NETWORK_ENTRY_SEPARATOR) { "${it.key}$NETWORK_KV_SEPARATOR${it.value}" }
 
@@ -156,6 +169,9 @@ object ServerScoreCodec {
             // v5 fields; absent in v2/v3/v4 rows -> emptyMap so older rows upgrade losslessly.
             successByHour = decodeHourMap(parts.getOrNull(12)),
             failureByHour = decodeHourMap(parts.getOrNull(13)),
+            // v6 fields; absent in v2..v5 rows -> emptyMap so older rows upgrade losslessly.
+            profileSuccesses = decodeProfileMap(parts.getOrNull(14)),
+            profileFailures = decodeProfileMap(parts.getOrNull(15)),
         )
     }
 
@@ -184,6 +200,21 @@ object ServerScoreCodec {
             val hour = kv[0].toIntOrNull()?.takeIf { it in 0..23 } ?: return@forEach
             val count = kv[1].toIntOrNull()?.takeIf { it > 0 } ?: return@forEach
             result[hour] = count
+        }
+        return result
+    }
+
+    // v6: composite string-keyed profile map. Split on ":" with limit 2 so the value is the trailing
+    // token; the key (e.g. "WIFI|firefox") never contains ":". Malformed entries are skipped.
+    private fun decodeProfileMap(raw: String?): Map<String, Int> {
+        if (raw.isNullOrEmpty()) return emptyMap()
+        val result = mutableMapOf<String, Int>()
+        raw.split(NETWORK_ENTRY_SEPARATOR).forEach { entry ->
+            val kv = entry.split(NETWORK_KV_SEPARATOR, limit = 2)
+            if (kv.size != 2) return@forEach
+            val key = kv[0].takeIf { it.isNotEmpty() } ?: return@forEach
+            val count = kv[1].toIntOrNull()?.takeIf { it > 0 } ?: return@forEach
+            result[key] = count
         }
         return result
     }

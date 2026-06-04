@@ -262,6 +262,15 @@
     <string name="bypass_geo_editor_remove">Remove</string>
     <string name="bypass_geo_editor_save">Save</string>
     <string name="bypass_geo_editor_cancel">Cancel</string>
+    <string name="camouflage_chrome">Chrome</string>
+    <string name="camouflage_firefox">Firefox</string>
+    <string name="camouflage_safari">Safari</string>
+    <string name="camouflage_ios">iOS</string>
+    <string name="camouflage_randomized">Randomized</string>
+    <string name="technical_camouflage_title">Camouflage</string>
+    <string name="technical_camouflage_adaptive">Adaptive · %1$s</string>
+    <string name="camouflage_picker_title">Camouflage profile</string>
+    <string name="camouflage_picker_note">Mimics a browser TLS fingerprint. Improves network compatibility; does not guarantee undetectability.</string>
     <string name="technical_language_title">Language</string>
     <string name="technical_theme_title">Theme</string>
     <string name="technical_theme_dark_active">Dark active</string>

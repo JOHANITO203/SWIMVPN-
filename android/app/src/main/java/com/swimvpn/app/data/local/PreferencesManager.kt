@@ -37,6 +37,7 @@ class PreferencesManager(private val context: Context) {
         val AI_AGENT_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("ai_agent_enabled")
         val BYPASS_GEO_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("bypass_geo_enabled")
         val BYPASS_GEO_ENTRIES_KEY = stringSetPreferencesKey("bypass_geo_entries")
+        val CAMOUFLAGE_PROFILE_KEY = stringPreferencesKey("camouflage_profile_id")
         val LANGUAGE_KEY = stringPreferencesKey("language") // "en", "fr", "ru"
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SELECTED_SERVER_ID_KEY = stringPreferencesKey("selected_server_id")
@@ -60,6 +61,9 @@ class PreferencesManager(private val context: Context) {
 
         /** Resolves the persisted bypass-geo flag, defaulting to OFF when unset. Pure logic for unit tests. */
         fun resolveBypassGeoEnabled(persisted: Boolean?): Boolean = persisted ?: DEFAULT_BYPASS_GEO_ENABLED
+
+        // Default camouflage = chrome (matches the prior fixed behavior; Reality already defaulted to it).
+        const val DEFAULT_CAMOUFLAGE_PROFILE_ID = "chrome"
     }
 
     val userNumberFlow: Flow<String?> = context.dataStore.data
@@ -87,6 +91,10 @@ class PreferencesManager(private val context: Context) {
 
     val bypassGeoEntriesFlow: Flow<Set<String>> = context.dataStore.data
         .map { preferences -> preferences[BYPASS_GEO_ENTRIES_KEY] ?: emptySet() }
+
+    // Manual camouflage profile (used when the AI toggle is OFF). Default "chrome" = today's behavior.
+    val camouflageProfileFlow: Flow<String> = context.dataStore.data
+        .map { preferences -> preferences[CAMOUFLAGE_PROFILE_KEY] ?: DEFAULT_CAMOUFLAGE_PROFILE_ID }
 
     val languageFlow: Flow<String> = context.dataStore.data
         .map { preferences -> preferences[LANGUAGE_KEY] ?: DEFAULT_LANGUAGE }
@@ -127,6 +135,10 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setBypassGeoEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences -> preferences[BYPASS_GEO_ENABLED_KEY] = enabled }
+    }
+
+    suspend fun setCamouflageProfile(profileId: String) {
+        context.dataStore.edit { preferences -> preferences[CAMOUFLAGE_PROFILE_KEY] = profileId }
     }
 
     suspend fun setBypassGeoEntries(entries: Set<String>) {
