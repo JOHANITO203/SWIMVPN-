@@ -111,7 +111,7 @@ fun MetaballNavDock(
             DockEntry(NavDockItem.HOME, homeLabel, DockGlyphs.Home),
             DockEntry(NavDockItem.SERVERS, serversLabel, DockGlyphs.Servers),
             DockEntry(NavDockItem.SUBSCRIPTION, subscriptionLabel, DockGlyphs.Subscription),
-            DockEntry(NavDockItem.SETTINGS, accountLabel, DockGlyphs.Account),
+            DockEntry(NavDockItem.SETTINGS, accountLabel, DockGlyphs.Settings),
         )
     }
     val centers = DockTokens.Centers
@@ -139,6 +139,20 @@ fun MetaballNavDock(
         val activeX = activeCenterX.value
         val spacingHalf = if (centers.size > 1) (centers[1] - centers[0]) / 2f else DockTokens.BulgeRadius
 
+        // Theme-aware 3-layer palette: dark = grey metal membrane + black wells + white glyphs;
+        // light = brushed silver membrane + light recessed wells + dark glyphs. Active well/glow
+        // already adapt via the purple tokens.
+        val light = tokens == SwimDesignTokens.Light
+        val memTop = if (light) Color(0xFFEDEBF5) else GreyTop
+        val memMid = if (light) Color(0xFFDAD6E8) else GreyMid
+        val memBot = if (light) Color(0xFFC5BFD7) else GreyBottom
+        val wellTop = if (light) Color(0xFFF6F4FC) else WellTop
+        val wellMid = if (light) Color(0xFFE4DFF1) else WellMid
+        val wellBot = if (light) Color(0xFFD2CBE5) else WellBottom
+        val iconMuted = if (light) Color(0xFF6B6479) else IconMuted
+        val membraneRim = if (light) Color(0xFF3D305C).copy(alpha = 0.10f) else Color.White.copy(alpha = 0.06f)
+        val wellRim = if (light) Color(0xFF3D305C).copy(alpha = 0.10f) else Color.White.copy(alpha = 0.05f)
+
         Canvas(modifier = Modifier.width(width).height(height)) {
             val sx = size.width / DockTokens.Width.value
             val sy = size.height / DockTokens.Height.value
@@ -153,19 +167,19 @@ fun MetaballNavDock(
                 drawPath(
                     path = membrane,
                     brush = Brush.verticalGradient(
-                        colors = listOf(GreyTop, GreyMid, GreyBottom),
+                        colors = listOf(memTop, memMid, memBot),
                         startY = cy - bulgeR,
                         endY = cy + bulgeR,
                     ),
                 )
                 // subtle top rim on the membrane
-                drawPath(path = membrane, color = Color.White.copy(alpha = 0.06f), style = Stroke(width = 1f))
+                drawPath(path = membrane, color = membraneRim, style = Stroke(width = 1f))
 
                 // --- Layer 2 : deep-black wells (all positions) ---
                 centers.forEach { cx ->
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(WellTop, WellMid, WellBottom),
+                            colors = listOf(wellTop, wellMid, wellBot),
                             center = Offset(cx, cy - wellR * 0.30f),
                             radius = wellR * 1.25f,
                         ),
@@ -173,7 +187,7 @@ fun MetaballNavDock(
                         center = Offset(cx, cy),
                     )
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.05f),
+                        color = wellRim,
                         radius = wellR,
                         center = Offset(cx, cy),
                         style = Stroke(width = 1f),
@@ -225,7 +239,7 @@ fun MetaballNavDock(
                 items.forEachIndexed { index, entry ->
                     val cx = centers[index]
                     val isActive = abs(cx - activeX) < spacingHalf
-                    val tint = if (isActive) Color.White else IconMuted
+                    val tint = if (isActive) Color.White else iconMuted
                     withTransform({
                         translate(cx - isz / 2f, cy - isz / 2f)
                         scale(isz / 24f, isz / 24f, pivot = Offset.Zero)
@@ -373,8 +387,11 @@ private object DockGlyphs {
             evenOdd = true,
         ),
     )
-    val Account = DockGlyph(
-        parseGlyph("M12 11.8a3.9 3.9 0 1 0 0-7.8 3.9 3.9 0 0 0 0 7.8zM12 13.4c-3.7 0-6.7 2.4-6.7 5.4 0 .9 .7 1.6 1.6 1.6h10.2c.9 0 1.6-.7 1.6-1.6 0-3-3-5.4-6.7-5.4z"),
+    val Settings = DockGlyph(
+        parseGlyph(
+            "M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49 .49 0 0 0 .12-.61l-1.92-3.32a.488 .488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484 .484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49 .49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z",
+            evenOdd = true,
+        ),
     )
 }
 

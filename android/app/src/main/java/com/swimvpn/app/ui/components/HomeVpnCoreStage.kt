@@ -54,8 +54,6 @@ fun HomeVpnCoreStage(
     isReducedMotionEnabled: Boolean = false,
 ) {
     val core = state.coreVisuals()
-    val tokens = LocalSwimVisualTokens.current
-    val lightTheme = tokens == SwimDesignTokens.Light
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
@@ -94,9 +92,8 @@ fun HomeVpnCoreStage(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center,
     ) {
-        // Ambient "Halo Pulse" aurora behind the state-aware power button. Replaces the removed
-        // 3D GL/Vulkan orb with a premium, pure-Compose backdrop (drifting blurred color blobs +
-        // a breathing bloom + a rotating accent ring while connecting). Runs on every device, no GL.
+        // Only a rotating halo orbits the button (connecting = bright comet, connected = subtle arc);
+        // all decorative background layers were removed — identical in dark + light theme.
         VpnAuroraStage(
             state = state,
             accent = accent,
@@ -105,15 +102,6 @@ fun HomeVpnCoreStage(
                 .matchParentSize()
                 .scale(stageBreath),
         )
-
-        if (lightTheme) {
-            LightOrbContrastVeil(
-                accent = accent,
-                modifier = Modifier
-                    .matchParentSize()
-                    .scale(stageBreath),
-            )
-        }
 
         VpnHardwarePowerCore(
             state = state,
@@ -190,42 +178,6 @@ private fun VpnAuroraStage(
 }
 
 @Composable
-private fun LightOrbContrastVeil(
-    accent: Color,
-    modifier: Modifier = Modifier,
-) {
-    Canvas(modifier = modifier) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.minDimension * 0.43f
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    accent.copy(alpha = 0.16f),
-                    accent.copy(alpha = 0.055f),
-                    Color.Transparent,
-                ),
-                center = center,
-                radius = radius * 1.58f,
-            ),
-            radius = radius * 1.58f,
-            center = center,
-        )
-        drawCircle(
-            color = accent.copy(alpha = 0.18f),
-            radius = radius * 1.02f,
-            center = center,
-            style = Stroke(width = 1.0.dp.toPx()),
-        )
-        drawCircle(
-            color = SwimDesignTokens.Color.StrokeActive.copy(alpha = 0.12f),
-            radius = radius * 0.86f,
-            center = center,
-            style = Stroke(width = 0.8.dp.toPx()),
-        )
-    }
-}
-
-@Composable
 private fun VpnHardwarePowerCore(
     state: VpnOrbState,
     accent: Color,
@@ -248,6 +200,24 @@ private fun VpnHardwarePowerCore(
         animationSpec = tween(620, easing = FastOutSlowInEasing),
         label = "coreLit",
     )
+    // Theme-aware palette: dark = chrome/black groove/dark face + white glyph; light = brushed
+    // silver + light recessed groove + light face + dark glyph. The lit "lamp" uses the accent.
+    val light = LocalSwimVisualTokens.current == SwimDesignTokens.Light
+    val chromeA = if (light) Color(0xFFC8C3D8) else ChromeDark
+    val chromeB = if (light) Color(0xFFFCFBFE) else ChromeLight
+    val chromeC = if (light) Color(0xFFEAE6F4) else ChromeLight2
+    val bevelTop = if (light) Color.White.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.18f)
+    val bevelBot = if (light) Color(0xFF3D305C).copy(alpha = 0.16f) else Color.Black.copy(alpha = 0.40f)
+    val grooveColor = if (light) Color(0xFFD6CFE6) else GrooveBlack
+    val grooveShadowA = if (light) Color(0xFF3D305C).copy(alpha = 0.26f) else Color.Black.copy(alpha = 0.9f)
+    val grooveShadowB = if (light) Color(0xFF3D305C).copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.25f)
+    val grooveRim = if (light) Color(0xFF3D305C).copy(alpha = 0.08f) else Color.White.copy(alpha = 0.05f)
+    val faceTopOff = if (light) Color(0xFFF5F2FB) else FaceDarkTop
+    val faceMidOff = if (light) Color(0xFFE7E2F3) else FaceDarkMid
+    val faceBotOff = if (light) Color(0xFFD7D0E9) else FaceDarkBottom
+    val faceHiBase = if (light) 0.45f else 0.30f
+    val faceBottomShadowMax = if (light) 0.16f else 0.45f
+    val glyphOff = if (light) Color(0xFF35304A) else Color.White
     Box(
         modifier = modifier
             .scale(pressScale * breathScale)
@@ -273,10 +243,10 @@ private fun VpnHardwarePowerCore(
             val grooveR = outerR * 0.825f
             val faceR = outerR * 0.63f
 
-            // Layer 1 — chromed Nardo-grey ring (metallic sweep + bevel)
+            // Layer 1 — chromed ring (metallic sweep + bevel)
             drawCircle(
                 brush = Brush.sweepGradient(
-                    colors = listOf(ChromeDark, ChromeLight, ChromeDark, ChromeLight2, ChromeDark, ChromeLight, ChromeDark, ChromeLight2, ChromeDark),
+                    colors = listOf(chromeA, chromeB, chromeA, chromeC, chromeA, chromeB, chromeA, chromeC, chromeA),
                     center = c,
                 ),
                 radius = outerR,
@@ -284,7 +254,7 @@ private fun VpnHardwarePowerCore(
             )
             drawCircle(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.18f), Color.Transparent, Color.Black.copy(alpha = 0.40f)),
+                    colors = listOf(bevelTop, Color.Transparent, bevelBot),
                     startY = c.y - outerR,
                     endY = c.y + outerR,
                 ),
@@ -292,18 +262,18 @@ private fun VpnHardwarePowerCore(
                 center = c,
             )
 
-            // Layer 2 — pure-black groove (gives the ring its 3D relief)
-            drawCircle(color = GrooveBlack, radius = grooveR, center = c)
+            // Layer 2 — recessed groove (gives the ring its 3D relief)
+            drawCircle(color = grooveColor, radius = grooveR, center = c)
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color.Black.copy(alpha = 0.9f), Color.Black.copy(alpha = 0.25f), Color.Transparent),
+                    colors = listOf(grooveShadowA, grooveShadowB, Color.Transparent),
                     center = Offset(c.x, c.y - grooveR * 0.18f),
                     radius = grooveR,
                 ),
                 radius = grooveR,
                 center = c,
             )
-            drawCircle(color = Color.White.copy(alpha = 0.05f), radius = grooveR, center = c, style = Stroke(width = 1.2.dp.toPx()))
+            drawCircle(color = grooveRim, radius = grooveR, center = c, style = Stroke(width = 1.2.dp.toPx()))
 
             // lamp glow under the face (grows with `lit`)
             if (lit > 0.01f) {
@@ -318,10 +288,10 @@ private fun VpnHardwarePowerCore(
                 )
             }
 
-            // Layer 3 — domed face (dark -> lit accent)
-            val faceTop = lerpColor(FaceDarkTop, lerpColor(accent, Color.White, 0.45f), lit)
-            val faceMid = lerpColor(FaceDarkMid, accent, lit)
-            val faceBot = lerpColor(FaceDarkBottom, lerpColor(accent, Color.Black, 0.35f), lit)
+            // Layer 3 — domed face (off -> lit accent)
+            val faceTop = lerpColor(faceTopOff, lerpColor(accent, Color.White, 0.45f), lit)
+            val faceMid = lerpColor(faceMidOff, accent, lit)
+            val faceBot = lerpColor(faceBotOff, lerpColor(accent, Color.Black, 0.35f), lit)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(faceTop, faceMid, faceBot),
@@ -333,7 +303,7 @@ private fun VpnHardwarePowerCore(
             )
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.30f + 0.25f * lit), Color.Transparent),
+                    colors = listOf(Color.White.copy(alpha = faceHiBase + 0.25f * lit), Color.Transparent),
                     center = Offset(c.x - faceR * 0.20f, c.y - faceR * 0.42f),
                     radius = faceR * 0.8f,
                 ),
@@ -342,7 +312,7 @@ private fun VpnHardwarePowerCore(
             )
             drawCircle(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.45f * (1f - lit))),
+                    colors = listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = faceBottomShadowMax * (1f - lit))),
                     startY = c.y - faceR,
                     endY = c.y + faceR,
                 ),
@@ -350,8 +320,8 @@ private fun VpnHardwarePowerCore(
                 center = c,
             )
 
-            // white geometric power glyph (arc + bar)
-            drawPowerGlyph(c, faceR * 0.40f, Color.White, 2.6.dp.toPx())
+            // geometric power glyph (dark off -> white lit)
+            drawPowerGlyph(c, faceR * 0.40f, lerpColor(glyphOff, Color.White, lit), 2.6.dp.toPx())
         }
     }
 }
