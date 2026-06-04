@@ -143,6 +143,8 @@ class SwimVpnService : VpnService() {
         // Passive watchdog: how long a confirmed-running session may show outbound
         // bytes with zero inbound bytes before being demoted to DEGRADED (NO_TRAFFIC).
         private const val TRAFFIC_STALL_THRESHOLD_MS = 15_000L
+        // A BYO residential proxy that stops relaying is flagged faster than a managed server.
+        private const val BYO_PROXY_STALL_THRESHOLD_MS = 8_000L
     }
 
     // Distinct startup failure that already carries an explicit DisconnectCause, so
@@ -1308,7 +1310,7 @@ class SwimVpnService : VpnService() {
                         bytesIn = VpnManager.bytesIn.value,
                         bytesOut = VpnManager.bytesOut.value,
                         elapsedMs = System.currentTimeMillis() - monitorStartedAt,
-                        thresholdMs = TRAFFIC_STALL_THRESHOLD_MS,
+                        thresholdMs = if (activeSession?.isByoProxy == true) BYO_PROXY_STALL_THRESHOLD_MS else TRAFFIC_STALL_THRESHOLD_MS,
                     )
                 ) {
                     trafficStallReported = true

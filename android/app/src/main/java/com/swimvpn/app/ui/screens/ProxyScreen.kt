@@ -160,7 +160,7 @@ fun ProxyScreen(
                             probing = false
                             return@launch
                         }
-                        val probe = ResidentialProxyProbe.probe(parsed.address, parsed.port, parsed.userId, parsed.password)
+                        val probe = ResidentialProxyProbe.probe(parsed.address, parsed.port, parsed.userId, parsed.password, useHttp = parsed.protocol == Protocol.HTTP)
                         result = probe
                         if (probe.ok) {
                             when (val imp = configRepository.importConfig(text, SourceType.MANUAL_ENTRY)) {

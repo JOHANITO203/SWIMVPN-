@@ -29,7 +29,7 @@ object ResidentialProxyProbe {
         @StringRes val errorRes: Int? = null,
     )
 
-    suspend fun probe(host: String, port: Int, user: String?, password: String?): Result =
+    suspend fun probe(host: String, port: Int, user: String?, password: String?, useHttp: Boolean = false): Result =
         withContext(Dispatchers.IO) {
             val hasAuth = !user.isNullOrEmpty()
             try {
@@ -39,7 +39,9 @@ object ResidentialProxyProbe {
                             PasswordAuthentication(user, (password ?: "").toCharArray())
                     })
                 }
-                val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port))
+                // SOCKS5 by default; HTTP proxies are probed via Proxy.Type.HTTP (auth handled by the
+                // same Authenticator, which answers RequestorType.PROXY too).
+                val proxy = Proxy(if (useHttp) Proxy.Type.HTTP else Proxy.Type.SOCKS, InetSocketAddress(host, port))
                 var body = ""
                 val elapsed = measureTimeMillis {
                     val conn = URL("http://ip-api.com/json/?fields=status,message,country,query")
