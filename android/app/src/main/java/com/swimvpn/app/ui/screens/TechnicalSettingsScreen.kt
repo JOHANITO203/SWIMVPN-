@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -35,18 +36,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,9 +76,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.swimvpn.app.R
+import com.swimvpn.app.config.XrayRoutingBuilder
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.drawSwimDarkMaterialSkin
 import com.swimvpn.app.ui.components.drawSwimLightCardTexture
@@ -107,11 +117,16 @@ fun TechnicalSettingsScreen(
     activeRuntimeMode: String? = null,
     agentEnabled: Boolean = true,
     onAgentEnabledChange: (Boolean) -> Unit = {},
+    bypassGeoEnabled: Boolean = false,
+    onBypassGeoEnabledChange: (Boolean) -> Unit = {},
+    bypassGeoEntries: Set<String> = emptySet(),
+    onBypassGeoEntriesChange: (Set<String>) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
     var externalActionsArmed by rememberSaveable { mutableStateOf(false) }
+    var showBypassEditor by rememberSaveable { mutableStateOf(false) }
     // Battery-optimization and kill-switch status are read from system settings the user can
     // change outside the app (battery exemption dialog, VPN settings). Re-read them on every
     // ON_RESUME so the displayed status reflects reality after the user returns from those screens.
@@ -229,9 +244,155 @@ fun TechnicalSettingsScreen(
                     checked = agentEnabled,
                     onCheckedChange = onAgentEnabledChange,
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsSwitchPill(
+                    icon = Icons.Outlined.Language,
+                    title = stringResource(R.string.technical_bypass_geo_title),
+                    subtitle = if (bypassGeoEnabled) stringResource(R.string.technical_bypass_geo_on) else stringResource(R.string.technical_bypass_geo_off),
+                    checked = bypassGeoEnabled,
+                    onCheckedChange = onBypassGeoEnabledChange,
+                )
+                if (bypassGeoEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SettingsActionPill(
+                        icon = Icons.AutoMirrored.Outlined.FormatListBulleted,
+                        title = stringResource(R.string.technical_bypass_geo_list_title),
+                        subtitle = stringResource(R.string.technical_bypass_geo_list_subtitle, bypassGeoEntries.size),
+                        enabled = true,
+                        onClick = { showBypassEditor = true },
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+
+    if (showBypassEditor) {
+        BypassGeoEditorDialog(
+            entries = bypassGeoEntries,
+            onDismiss = { showBypassEditor = false },
+            onSave = {
+                onBypassGeoEntriesChange(it)
+                showBypassEditor = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun BypassGeoEditorDialog(
+    entries: Set<String>,
+    onDismiss: () -> Unit,
+    onSave: (Set<String>) -> Unit,
+) {
+    val working = remember { mutableStateListOf<String>().apply { addAll(entries) } }
+    var input by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.98f),
+                            SwimDesignTokens.Material.ShellBottom,
+                        )
+                    )
+                )
+                .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, RoundedCornerShape(20.dp))
+                .padding(20.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.bypass_geo_editor_title),
+                color = SwimDesignTokens.Color.TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    singleLine = true,
+                    placeholder = { Text(stringResource(R.string.bypass_geo_editor_hint), fontSize = 12.sp) },
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        XrayRoutingBuilder.sanitizeEntry(input)?.let { clean ->
+                            if (clean !in working) working.add(clean)
+                        }
+                        input = ""
+                    },
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = stringResource(R.string.bypass_geo_editor_add),
+                        tint = SwimDesignTokens.Color.TextPrimary,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            if (working.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.bypass_geo_editor_empty),
+                    color = SwimDesignTokens.Color.TextSecondary,
+                    fontSize = 12.sp,
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 220.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    working.toList().forEach { entry ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(SwimDesignTokens.Material.ShellMid.copy(alpha = 0.6f))
+                                .padding(start = 12.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = entry,
+                                color = SwimDesignTokens.Color.TextPrimary,
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(onClick = { working.remove(entry) }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = stringResource(R.string.bypass_geo_editor_remove),
+                                    tint = SwimDesignTokens.Color.TextSecondary,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.bypass_geo_editor_cancel), color = SwimDesignTokens.Color.TextSecondary)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(onClick = { onSave(working.toSet()) }) {
+                    Text(stringResource(R.string.bypass_geo_editor_save), color = SwimDesignTokens.Highlight.PurpleEdge)
+                }
+            }
         }
     }
 }

@@ -59,12 +59,14 @@ object TunnelRuntimeAdapter {
         val dnsServers: List<String>,
         val queryStrategy: String,
         val domainStrategy: String,
+        val routing: RoutingOptions = RoutingOptions(),
     )
 
     fun prepareRuntimeFromRawConfig(
         rawConfig: String,
         sourceType: SourceType = SourceType.BACKEND_API,
         runtimeMode: RuntimeMode = RuntimeMode.FULL_TUNNEL,
+        routingOptions: RoutingOptions = RoutingOptions(),
     ): Result<RuntimePreparationResult> {
         val parseResult = ConfigParserEngine.parseConfig(rawConfig, sourceType)
         if (!parseResult.isValid) {
@@ -79,7 +81,7 @@ object TunnelRuntimeAdapter {
             return Result.failure(IllegalStateException(support.second))
         }
 
-        val runtimeDocument = generateXrayRuntimeDocument(normalized, runtimeMode)
+        val runtimeDocument = generateXrayRuntimeDocument(normalized, runtimeMode, routingOptions)
             ?: return Result.failure(IllegalStateException("Runtime config generation failed"))
 
         return Result.success(
@@ -100,9 +102,10 @@ object TunnelRuntimeAdapter {
     fun generateXrayRuntimeDocument(
         profile: SwimVpnProfile,
         runtimeMode: RuntimeMode = RuntimeMode.FULL_TUNNEL,
+        routingOptions: RoutingOptions = RoutingOptions(),
     ): JsonObject? {
         return try {
-            val networkPolicy = policyForMode(runtimeMode)
+            val networkPolicy = policyForMode(runtimeMode).copy(routing = routingOptions)
             val parsedConfig = parseRuntimeConfig(profile.normalizedRuntimeConfig)
             when {
                 parsedConfig != null && parsedConfig.has("outbounds") -> {
@@ -315,10 +318,13 @@ object TunnelRuntimeAdapter {
         networkPolicy: RuntimeNetworkPolicy,
     ): JsonObject {
         val document = JsonObject()
+        // Sniffing is required for domain-based routing; enable it only when bypass rules exist
+        // (OFF by default ⇒ false ⇒ identical to the prior full-tunnel runtime).
+        val enableSniffing = XrayRoutingBuilder.hasActiveRules(networkPolicy.routing)
         document.add("log", buildLogSection())
         document.add("dns", buildDnsSection(networkPolicy))
         document.add("policy", buildPolicySection(enableStats = false))
-        document.add("inbounds", buildStandardInbounds(enableSniffing = false))
+        document.add("inbounds", buildStandardInbounds(enableSniffing = enableSniffing))
         document.add("outbounds", buildStandardOutbounds(primaryOutbound))
         document.add("routing", buildRoutingSection(networkPolicy))
         return document
@@ -341,10 +347,12 @@ object TunnelRuntimeAdapter {
             document.add("stats", JsonObject())
         }
 
-        val hasRoutingRules = document.getAsJsonObject("routing")
-            ?.getAsJsonArray("rules")
-            ?.let { it.size() > 0 }
-            ?: false
+        val hasRoutingRules = (
+            document.getAsJsonObject("routing")
+                ?.getAsJsonArray("rules")
+                ?.let { it.size() > 0 }
+                ?: false
+            ) || XrayRoutingBuilder.hasActiveRules(networkPolicy.routing)
         val inbounds = if (document.has("inbounds") && document.get("inbounds").isJsonArray) {
             document.getAsJsonArray("inbounds")
         } else {
@@ -503,7 +511,7 @@ object TunnelRuntimeAdapter {
     private fun buildRoutingSection(networkPolicy: RuntimeNetworkPolicy): JsonObject {
         return JsonObject().apply {
             addProperty("domainStrategy", networkPolicy.domainStrategy)
-            add("rules", JsonArray())
+            add("rules", XrayRoutingBuilder.buildRules(networkPolicy.routing))
         }
     }
 
@@ -524,85 +532,16 @@ object TunnelRuntimeAdapter {
         }
     }
 
-    private fun createVlessOutbound(profile: SwimVpnProfile): JsonObject {
-        return JsonObject().apply {
-            addProperty("tag", "proxy")
-            addProperty("protocol", "vless")
-            add("settings", JsonObject().apply {
-                add("vnext", JsonArray().apply {
-                    add(JsonObject().apply {
-                        addProperty("address", profile.address)
-                        addProperty("port", profile.port)
-                        add("users", JsonArray().apply {
-                            add(JsonObject().apply {
-                                addProperty("id", profile.userId)
-                                addProperty("encryption", "none")
-                                addProperty("flow", profile.flow ?: "")
-                            })
-                        })
-                    })
-                })
-            })
-            add("streamSettings", buildStreamSettings(profile))
-        }
-    }
+    // VLESS/VMESS/Trojan/SS outbounds are produced by the shared XrayOutboundBuilder (same source
+    // of truth as ConfigNormalizationEngine), so transports + Reality/XTLS stay complete and
+    // consistent across both config paths.
+    private fun createVlessOutbound(profile: SwimVpnProfile): JsonObject = XrayOutboundBuilder.vless(profile)
 
-    private fun createVmessOutbound(profile: SwimVpnProfile): JsonObject {
-        return JsonObject().apply {
-            addProperty("tag", "proxy")
-            addProperty("protocol", "vmess")
-            add("settings", JsonObject().apply {
-                add("vnext", JsonArray().apply {
-                    add(JsonObject().apply {
-                        addProperty("address", profile.address)
-                        addProperty("port", profile.port)
-                        add("users", JsonArray().apply {
-                            add(JsonObject().apply {
-                                addProperty("id", profile.userId)
-                                addProperty("alterId", 0)
-                                addProperty("security", "auto")
-                            })
-                        })
-                    })
-                })
-            })
-            add("streamSettings", buildStreamSettings(profile))
-        }
-    }
+    private fun createVmessOutbound(profile: SwimVpnProfile): JsonObject = XrayOutboundBuilder.vmess(profile)
 
-    private fun createTrojanOutbound(profile: SwimVpnProfile): JsonObject {
-        return JsonObject().apply {
-            addProperty("tag", "proxy")
-            addProperty("protocol", "trojan")
-            add("settings", JsonObject().apply {
-                add("servers", JsonArray().apply {
-                    add(JsonObject().apply {
-                        addProperty("address", profile.address)
-                        addProperty("port", profile.port)
-                        addProperty("password", profile.password)
-                    })
-                })
-            })
-            add("streamSettings", buildStreamSettings(profile))
-        }
-    }
+    private fun createTrojanOutbound(profile: SwimVpnProfile): JsonObject = XrayOutboundBuilder.trojan(profile)
 
-    private fun createShadowsocksOutbound(profile: SwimVpnProfile): JsonObject {
-        return JsonObject().apply {
-            addProperty("tag", "proxy")
-            addProperty("protocol", "shadowsocks")
-            add("settings", JsonObject().apply {
-                add("servers", JsonArray().apply {
-                    add(JsonObject().apply {
-                        addProperty("address", profile.address)
-                        addProperty("port", profile.port)
-                        addProperty("method", profile.method)
-                        addProperty("password", profile.password)
-                    })
-                })
-            })
-        }
-    }
+    private fun createShadowsocksOutbound(profile: SwimVpnProfile): JsonObject = XrayOutboundBuilder.shadowsocks(profile)
 
     // BYO proxy (residential / user-supplied): the pasted proxy IS the Xray outbound, so the
     // FULL_TUNNEL tun routes all device traffic out through it. users[] omitted when no auth.
@@ -634,129 +573,6 @@ object TunnelRuntimeAdapter {
         }
     }
 
-    private fun buildStreamSettings(profile: SwimVpnProfile): JsonObject {
-        return JsonObject().apply {
-            addProperty("network", mapTransport(profile.transport))
-            addProperty("security", mapSecurity(profile.securityMode))
-
-            when (profile.transport) {
-                Transport.TCP -> profile.tcpSettings?.let { add("tcpSettings", buildTcpSettings(it)) }
-                Transport.WEBSOCKET -> add("wsSettings", buildWebSocketSettings(profile))
-                Transport.GRPC -> profile.grpcSettings?.let { add("grpcSettings", buildGrpcSettings(it)) }
-                Transport.HTTP2 -> add("httpSettings", buildHttp2Settings(profile))
-                Transport.KCP -> add("kcpSettings", JsonObject())
-                Transport.QUIC -> add("quicSettings", JsonObject())
-                Transport.UNKNOWN -> Unit
-            }
-
-            when (profile.securityMode) {
-                SecurityMode.TLS -> add("tlsSettings", buildTlsSettings(profile))
-                SecurityMode.REALITY -> add("realitySettings", buildRealitySettings(profile))
-                else -> Unit
-            }
-        }
-    }
-
-    private fun buildTcpSettings(settings: TcpSettings): JsonObject {
-        return JsonObject().apply {
-            if (settings.headerType != "none") {
-                add("header", JsonObject().apply {
-                    addProperty("type", settings.headerType)
-                    settings.host?.takeIf { it.isNotBlank() }?.let { addProperty("host", it) }
-                })
-            }
-        }
-    }
-
-    private fun buildWebSocketSettings(profile: SwimVpnProfile): JsonObject {
-        val ws = profile.websocketSettings
-        return JsonObject().apply {
-            addProperty("path", ws?.path ?: "/")
-            val headers = JsonObject()
-            ws?.host?.takeIf { it.isNotBlank() }?.let { headers.addProperty("Host", it) }
-            ws?.headers?.forEach { (key, value) ->
-                if (value.isNotBlank()) {
-                    headers.addProperty(key, value)
-                }
-            }
-            if (headers.size() > 0) {
-                add("headers", headers)
-            }
-        }
-    }
-
-    private fun buildGrpcSettings(settings: GrpcSettings): JsonObject {
-        return JsonObject().apply {
-            addProperty("serviceName", settings.serviceName)
-            addProperty("multiMode", settings.mode.equals("multi", ignoreCase = true))
-        }
-    }
-
-    private fun buildHttp2Settings(profile: SwimVpnProfile): JsonObject {
-        return JsonObject().apply {
-            addProperty("path", profile.websocketSettings?.path ?: "/")
-            val hostArray = JsonArray()
-            profile.websocketSettings?.host?.takeIf { it.isNotBlank() }?.let { hostArray.add(it) }
-            profile.tlsSettings?.sni?.takeIf { it.isNotBlank() }?.let {
-                if (hostArray.none { element -> element.asString == it }) {
-                    hostArray.add(it)
-                }
-            }
-            if (hostArray.size() > 0) {
-                add("host", hostArray)
-            }
-        }
-    }
-
-    private fun buildTlsSettings(profile: SwimVpnProfile): JsonObject {
-        val tls = profile.tlsSettings
-        return JsonObject().apply {
-            addProperty("serverName", tls?.sni ?: profile.address)
-            addProperty("allowInsecure", tls?.allowInsecure ?: false)
-            if (!tls?.fingerprint.isNullOrBlank()) {
-                addProperty("fingerprint", tls?.fingerprint)
-            }
-            if (!tls?.alpn.isNullOrEmpty()) {
-                add("alpn", JsonArray().apply {
-                    tls?.alpn?.forEach { add(it) }
-                })
-            }
-        }
-    }
-
-    private fun buildRealitySettings(profile: SwimVpnProfile): JsonObject {
-        val reality = profile.realitySettings
-        return JsonObject().apply {
-            addProperty("publicKey", reality?.publicKey)
-            addProperty("shortId", reality?.shortId ?: "")
-            addProperty("serverName", profile.tlsSettings?.sni ?: profile.address)
-            reality?.spiderX?.let { addProperty("spiderX", it) }
-            profile.tlsSettings?.fingerprint?.takeIf { it.isNotBlank() }?.let {
-                addProperty("fingerprint", it)
-            }
-        }
-    }
-
-    private fun mapTransport(transport: Transport): String {
-        return when (transport) {
-            Transport.TCP, Transport.UNKNOWN -> "tcp"
-            Transport.WEBSOCKET -> "ws"
-            Transport.GRPC -> "grpc"
-            Transport.HTTP2 -> "http"
-            Transport.KCP -> "kcp"
-            Transport.QUIC -> "quic"
-        }
-    }
-
-    private fun mapSecurity(securityMode: SecurityMode): String {
-        return when (securityMode) {
-            SecurityMode.NONE, SecurityMode.UNKNOWN -> "none"
-            SecurityMode.TLS -> "tls"
-            SecurityMode.REALITY -> "reality"
-            SecurityMode.XTLS -> "xtls"
-        }
-    }
-
     private fun ensureInbound(inbounds: JsonArray, tag: String, factory: () -> JsonObject) {
         val exists = inbounds.any { element ->
             element.isJsonObject && element.asJsonObject.get("tag")?.asString == tag
@@ -783,15 +599,6 @@ object TunnelRuntimeAdapter {
 
     private fun JsonArray.firstOrNull(): JsonElement? {
         return if (size() > 0) get(0) else null
-    }
-
-    private inline fun JsonArray.none(predicate: (JsonElement) -> Boolean): Boolean {
-        for (index in 0 until size()) {
-            if (predicate(get(index))) {
-                return false
-            }
-        }
-        return true
     }
 
     private inline fun JsonArray.any(predicate: (JsonElement) -> Boolean): Boolean {

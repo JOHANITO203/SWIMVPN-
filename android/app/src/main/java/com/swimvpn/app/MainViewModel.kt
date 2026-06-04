@@ -57,10 +57,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -119,6 +121,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _effect = MutableSharedFlow<AppSideEffect>()
     val effect: SharedFlow<AppSideEffect> = _effect.asSharedFlow()
+
+    // Geo-bypass toggle: a standalone persisted flag (OFF by default) read by SwimVpnService at
+    // connect time. Kept out of AppState since it never affects app/recommendation state.
+    val bypassGeoEnabled: StateFlow<Boolean> = prefs.bypassGeoEnabledFlow
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            PreferencesManager.DEFAULT_BYPASS_GEO_ENABLED,
+        )
+
+    // User-editable list of domains/IPs routed direct (outside the tunnel) when bypass is ON.
+    val bypassGeoEntries: StateFlow<Set<String>> = prefs.bypassGeoEntriesFlow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     private var lastAutoConnectSignature: String? = null
     private var adaptiveReconnectAttempt = 0
@@ -539,6 +554,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 else -> {}
             }
         }
+    }
+
+    /** Persists the geo-bypass toggle. Takes effect on the next (re)connect when the service reads it. */
+    fun setBypassGeoEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefs.setBypassGeoEnabled(enabled) }
+    }
+
+    /** Persists the geo-bypass direct list. Takes effect on the next (re)connect. */
+    fun setBypassGeoEntries(entries: Set<String>) {
+        viewModelScope.launch { prefs.setBypassGeoEntries(entries) }
     }
 
     private fun autoConnectValidationError(): String? {
