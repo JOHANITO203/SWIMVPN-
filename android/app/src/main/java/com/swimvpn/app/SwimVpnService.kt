@@ -122,6 +122,8 @@ class SwimVpnService : VpnService() {
 
     companion object {
         private const val DEFAULT_VPN_MTU = 1280
+        // Unique-local IPv6 address for the tun, so IPv6 is captured (not leaked) — see startTunnelInterface.
+        private const val VPN_IPV6_ADDRESS = "fd00:2::2"
         const val ACTION_START = "com.swimvpn.app.START_VPN"
         const val ACTION_RESTART = "com.swimvpn.app.RESTART_VPN"
         const val ACTION_STOP = "com.swimvpn.app.STOP_VPN"
@@ -576,7 +578,14 @@ class SwimVpnService : VpnService() {
         val builder = Builder()
             .setSession("SWIMVPN+ (${runtime.profile.displayName})")
             .addAddress("10.0.0.2", 24)
+            // Capture IPv6 too. Without an IPv6 address + ::/0 route the OS leaves IPv6 traffic on the
+            // underlying network — a real leak of the device's IPv6 address/traffic while "connected"
+            // (most large sites are dual-stack). tun2socks (hev) is already configured for IPv6
+            // (tunnel.ipv6), so captured IPv6 is forwarded through the proxy; if the server has no
+            // IPv6 egress it simply fails closed (no leak; apps fall back to IPv4 via Happy Eyeballs).
+            .addAddress(VPN_IPV6_ADDRESS, 64)
             .addRoute("0.0.0.0", 0)
+            .addRoute("::", 0)
             .setMtu(DEFAULT_VPN_MTU)
 
         TunnelRuntimeAdapter.DEFAULT_IPV4_DNS_SERVERS.forEach { dns ->

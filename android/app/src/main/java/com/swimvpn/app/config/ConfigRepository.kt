@@ -357,7 +357,10 @@ class ConfigRepository(private val context: Context) {
     private suspend fun backupCorruptProfiles(raw: String) {
         try {
             context.dataStore.edit { prefs ->
-                prefs[CORRUPT_PROFILES_BACKUP_KEY] = "${System.currentTimeMillis()}\n$raw"
+                // Encrypt at rest: the corrupt blob can carry credentials (esp. a legacy plaintext
+                // blob that failed to parse), so it must not sit in cleartext like the live store.
+                prefs[CORRUPT_PROFILES_BACKUP_KEY] =
+                    SecureCrypto.encrypt("${System.currentTimeMillis()}\n$raw")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to back up corrupt profiles blob", e)
@@ -920,7 +923,9 @@ class ConfigRepository(private val context: Context) {
 
     private suspend fun readRefreshRegistry(): Map<String, SubscriptionRefreshEntry> {
         return try {
-            val json = context.dataStore.data.first()[SUBSCRIPTION_REFRESH_REGISTRY_KEY]
+            val stored = context.dataStore.data.first()[SUBSCRIPTION_REFRESH_REGISTRY_KEY]
+            // Decrypt at rest (legacy plaintext registries pass through unchanged — transparent migration).
+            val json = stored?.let { SecureCrypto.decrypt(it) }
             if (json.isNullOrEmpty()) {
                 emptyMap()
             } else {
@@ -938,7 +943,8 @@ class ConfigRepository(private val context: Context) {
         try {
             val json = gson.toJson(registry.values.toList())
             context.dataStore.edit { preferences ->
-                preferences[SUBSCRIPTION_REFRESH_REGISTRY_KEY] = json
+                // Encrypt at rest: subscription URLs can embed access tokens.
+                preferences[SUBSCRIPTION_REFRESH_REGISTRY_KEY] = SecureCrypto.encrypt(json)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error writing subscription refresh registry", e)
