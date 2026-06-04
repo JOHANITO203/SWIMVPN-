@@ -80,6 +80,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.swimvpn.app.R
+import com.swimvpn.app.config.CamouflageProfileRepository
 import com.swimvpn.app.config.XrayRoutingBuilder
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.drawSwimDarkMaterialSkin
@@ -121,12 +122,16 @@ fun TechnicalSettingsScreen(
     onBypassGeoEnabledChange: (Boolean) -> Unit = {},
     bypassGeoEntries: Set<String> = emptySet(),
     onBypassGeoEntriesChange: (Set<String>) -> Unit = {},
+    camouflageProfileId: String = "chrome",
+    activeCamouflageProfileId: String = "chrome",
+    onCamouflageProfileChange: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     var selectedThemeMode by rememberSaveable(themeMode) { mutableStateOf(normalizeThemeMode(themeMode)) }
     var externalActionsArmed by rememberSaveable { mutableStateOf(false) }
     var showBypassEditor by rememberSaveable { mutableStateOf(false) }
+    var showCamouflagePicker by rememberSaveable { mutableStateOf(false) }
     // Battery-optimization and kill-switch status are read from system settings the user can
     // change outside the app (battery exemption dialog, VPN settings). Re-read them on every
     // ON_RESUME so the displayed status reflects reality after the user returns from those screens.
@@ -262,6 +267,28 @@ fun TechnicalSettingsScreen(
                         onClick = { showBypassEditor = true },
                     )
                 }
+                Spacer(modifier = Modifier.height(12.dp))
+                val activeCamouflageName =
+                    stringResource(CamouflageProfileRepository.byId(activeCamouflageProfileId).displayNameRes)
+                if (agentEnabled) {
+                    // AI ON: the agent picks the profile per network — show the active one, read-only.
+                    SettingsPillScaffold(
+                        icon = Icons.Outlined.Security,
+                        title = stringResource(R.string.technical_camouflage_title),
+                        subtitle = stringResource(R.string.technical_camouflage_adaptive, activeCamouflageName),
+                    ) {
+                        StatusChip("AUTO")
+                    }
+                } else {
+                    // AI OFF: manual pick.
+                    SettingsActionPill(
+                        icon = Icons.Outlined.Security,
+                        title = stringResource(R.string.technical_camouflage_title),
+                        subtitle = stringResource(CamouflageProfileRepository.byId(camouflageProfileId).displayNameRes),
+                        enabled = true,
+                        onClick = { showCamouflagePicker = true },
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -277,6 +304,87 @@ fun TechnicalSettingsScreen(
                 showBypassEditor = false
             },
         )
+    }
+
+    if (showCamouflagePicker) {
+        CamouflageProfilePickerDialog(
+            currentId = camouflageProfileId,
+            onPick = {
+                onCamouflageProfileChange(it)
+                showCamouflagePicker = false
+            },
+            onDismiss = { showCamouflagePicker = false },
+        )
+    }
+}
+
+@Composable
+private fun CamouflageProfilePickerDialog(
+    currentId: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.98f),
+                            SwimDesignTokens.Material.ShellBottom,
+                        )
+                    )
+                )
+                .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, RoundedCornerShape(20.dp))
+                .padding(20.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.camouflage_picker_title),
+                color = SwimDesignTokens.Color.TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Black,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            CamouflageProfileRepository.all().forEach { profile ->
+                val selected = profile.id == currentId
+                val accent = if (selected) SwimDesignTokens.Highlight.PurpleEdge else SwimDesignTokens.Color.TextSecondary
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onPick(profile.id) }
+                        .background(
+                            if (selected) SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = 0.12f)
+                            else SwimDesignTokens.Material.ShellMid.copy(alpha = 0.5f)
+                        )
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(accent),
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(profile.displayNameRes),
+                        color = if (selected) SwimDesignTokens.Color.TextPrimary else SwimDesignTokens.Color.TextSecondary,
+                        fontSize = 14.sp,
+                        fontWeight = if (selected) FontWeight.Black else FontWeight.SemiBold,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.camouflage_picker_note),
+                color = SwimDesignTokens.Color.TextMuted,
+                fontSize = 11.sp,
+            )
+        }
     }
 }
 

@@ -135,6 +135,7 @@ class SwimVpnService : VpnService() {
         const val EXTRA_DATA_LIMIT = "DATA_LIMIT_BYTES"
         const val EXTRA_DATA_USED = "DATA_USED_BYTES"
         const val EXTRA_RUNTIME_MODE = "RUNTIME_MODE"
+        const val EXTRA_CAMOUFLAGE_FP = "CAMOUFLAGE_FP"
 
         private val SERVICE_RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
         private const val MAX_SERVICE_RECONNECT_ATTEMPTS = 5
@@ -167,6 +168,9 @@ class SwimVpnService : VpnService() {
         // Such proxies are flaky/ephemeral → give up reconnecting fast + surface a proxy-specific
         // message instead of a generic "connection error".
         val isByoProxy: Boolean = false,
+        // Phase 3: camouflage uTLS fingerprint chosen by the VM (agent or manual). Carried so the
+        // service-driven reconnects reuse it. Null = no override (today's behavior).
+        val camouflageFingerprint: String? = null,
     )
 
     private data class VpnNotificationContent(
@@ -199,6 +203,7 @@ class SwimVpnService : VpnService() {
                     requestedMode = requestedMode,
                     rawConfig = intent.getStringExtra(EXTRA_URL),
                     isByoProxy = isByoProxyProtocol(intent.getStringExtra(EXTRA_PROTOCOL)),
+                    camouflageFingerprint = intent.getStringExtra(EXTRA_CAMOUFLAGE_FP),
                 )
             }
 
@@ -217,6 +222,7 @@ class SwimVpnService : VpnService() {
                     requestedMode = requestedMode,
                     rawConfig = rawConfig,
                     isByoProxy = isByoProxyProtocol(intent.getStringExtra(EXTRA_PROTOCOL)) || (activeSession?.isByoProxy == true),
+                    camouflageFingerprint = intent.getStringExtra(EXTRA_CAMOUFLAGE_FP) ?: activeSession?.camouflageFingerprint,
                 )
             }
 
@@ -344,6 +350,7 @@ class SwimVpnService : VpnService() {
         requestedMode: RuntimeMode,
         rawConfig: String?,
         isByoProxy: Boolean = false,
+        camouflageFingerprint: String? = null,
     ) {
         if (rawConfig.isNullOrBlank()) {
             logRuntimeEvent("reconnect_failed", mapOf("reason" to "missing_restart_config", "mode" to requestedMode.name))
@@ -374,6 +381,7 @@ class SwimVpnService : VpnService() {
                 requestedMode = requestedMode,
                 rawConfig = rawConfig,
                 isByoProxy = isByoProxy,
+                camouflageFingerprint = camouflageFingerprint,
             )
         }
     }
@@ -387,6 +395,7 @@ class SwimVpnService : VpnService() {
         requestedMode: RuntimeMode,
         rawConfig: String?,
         isByoProxy: Boolean = false,
+        camouflageFingerprint: String? = null,
     ) {
         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING ||
             VpnManager.runtimeStatus.value == RuntimeStatus.STARTING
@@ -406,7 +415,11 @@ class SwimVpnService : VpnService() {
         if (requestedMode == RuntimeMode.FULL_TUNNEL) {
             fellBackToProxy = false
         }
-        activeSession = ActiveSession(host, port, requestedMode, rawConfig, isByoProxy)
+        // Preserve the chosen camouflage fingerprint across internal reconnect paths that re-enter
+        // startVpn without re-supplying it (they pass null): inherit the prior session's value, while
+        // a fresh explicit value (user/VM connect) still takes precedence.
+        val effectiveCamouflageFingerprint = camouflageFingerprint ?: activeSession?.camouflageFingerprint
+        activeSession = ActiveSession(host, port, requestedMode, rawConfig, isByoProxy, effectiveCamouflageFingerprint)
         if (sessionStartedAt == null) {
             sessionStartedAt = System.currentTimeMillis()
         }
@@ -471,6 +484,7 @@ class SwimVpnService : VpnService() {
                         sourceType = SourceType.BACKEND_API,
                         runtimeMode = requestedMode,
                         routingOptions = routingOptions,
+                        camouflageFingerprint = activeSession?.camouflageFingerprint,
                     ).getOrElse { error ->
                         throw IllegalStateException(
                             "Invalid runtime config: ${error.localizedMessage}",

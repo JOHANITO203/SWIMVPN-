@@ -262,6 +262,15 @@
     <string name="bypass_geo_editor_remove">Удалить</string>
     <string name="bypass_geo_editor_save">Сохранить</string>
     <string name="bypass_geo_editor_cancel">Отмена</string>
+    <string name="camouflage_chrome">Chrome</string>
+    <string name="camouflage_firefox">Firefox</string>
+    <string name="camouflage_safari">Safari</string>
+    <string name="camouflage_ios">iOS</string>
+    <string name="camouflage_randomized">Случайный</string>
+    <string name="technical_camouflage_title">Маскировка</string>
+    <string name="technical_camouflage_adaptive">Адаптивно · %1$s</string>
+    <string name="camouflage_picker_title">Профиль маскировки</string>
+    <string name="camouflage_picker_note">Имитирует TLS-отпечаток браузера. Улучшает совместимость с сетью; не гарантирует необнаружимость.</string>
     <string name="technical_language_title">Язык</string>
     <string name="technical_theme_title">Тема</string>
     <string name="technical_theme_dark_active">Темная активна</string>

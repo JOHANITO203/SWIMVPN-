@@ -13,6 +13,8 @@ import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.adaptive.AdaptiveDecisionAgent
 import com.swimvpn.app.adaptive.AgentDisabledFailurePolicy
 import com.swimvpn.app.adaptive.AdaptiveEventLogger
+import com.swimvpn.app.adaptive.BenchmarkCollector
+import com.swimvpn.app.adaptive.SessionBenchmarkRecord
 import com.swimvpn.app.adaptive.DecisionActionType
 import com.swimvpn.app.adaptive.ServerRuntimeQualityState
 import com.swimvpn.app.adaptive.ServerDecisionCandidate
@@ -35,6 +37,8 @@ import com.swimvpn.app.data.network.ServerGroup
 import com.swimvpn.app.data.network.ServerLatencyEvaluator
 import com.swimvpn.app.data.network.ServerNode
 import com.swimvpn.app.data.server.PostCheckoutServerSelectionPolicy
+import com.swimvpn.app.config.CamouflageProfile
+import com.swimvpn.app.config.CamouflageProfileRepository
 import com.swimvpn.app.config.ConfigRepository
 import com.swimvpn.app.config.FailingServerAlertPolicy
 import com.swimvpn.app.config.RefreshOutcome
@@ -135,6 +139,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val bypassGeoEntries: StateFlow<Set<String>> = prefs.bypassGeoEntriesFlow
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
+    // Manual camouflage profile selection (used when the AI toggle is OFF), for the settings picker.
+    val camouflageProfileId: StateFlow<String> = prefs.camouflageProfileFlow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, PreferencesManager.DEFAULT_CAMOUFLAGE_PROFILE_ID)
+
+    // The camouflage profile actually applied to the current/last connection, for the discreet
+    // Home indicator. Honest wording only (profile/compatibility), never a stealth guarantee.
+    private val _activeCamouflageProfileId =
+        MutableStateFlow(PreferencesManager.DEFAULT_CAMOUFLAGE_PROFILE_ID)
+    val activeCamouflageProfileId: StateFlow<String> = _activeCamouflageProfileId.asStateFlow()
+
     private var lastAutoConnectSignature: String? = null
     private var adaptiveReconnectAttempt = 0
     private var adaptiveActiveServerId: String? = null
@@ -206,6 +220,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 serverId,
                 networkType = currentNetworkType(),
                 hourOfDay = currentHourOfDay(),
+                profileId = _activeCamouflageProfileId.value,
+            )
+            BenchmarkCollector.record(
+                SessionBenchmarkRecord(
+                    transport = (_state.value as? AppState.Success)?.activeServer?.protocol ?: "unknown",
+                    profileId = _activeCamouflageProfileId.value,
+                    networkType = currentNetworkType(),
+                    success = true,
+                )
             )
             // A successful handshake resets the failing-server alert gate so a future streak can
             // alert again without spamming during the current healthy session.
@@ -243,6 +266,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 now,
                 networkType = currentNetworkType(),
                 hourOfDay = currentHourOfDay(),
+                profileId = _activeCamouflageProfileId.value,
+            )
+            BenchmarkCollector.record(
+                SessionBenchmarkRecord(
+                    transport = activeServer.protocol,
+                    profileId = _activeCamouflageProfileId.value,
+                    networkType = currentNetworkType(),
+                    success = false,
+                )
             )
             maybeAlertFailingImportedServer(activeServer, updatedScore.consecutiveFailures)
             val scores = serverScoreStore.loadScores()
@@ -501,6 +533,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
         )
 
+        val camouflage = resolveCamouflageProfile(server.id, nextState.agentEnabled)
         val context = app.applicationContext
         val restartIntent = Intent(context, SwimVpnService::class.java).apply {
             action = SwimVpnService.ACTION_RESTART
@@ -509,6 +542,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
             putExtra(SwimVpnService.EXTRA_URL, runtimeConfig)
             putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, nextState.routingMode.name)
+            putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_FP, camouflage.fingerprint)
         }
         context.startService(restartIntent)
     }
@@ -564,6 +598,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Persists the geo-bypass direct list. Takes effect on the next (re)connect. */
     fun setBypassGeoEntries(entries: Set<String>) {
         viewModelScope.launch { prefs.setBypassGeoEntries(entries) }
+    }
+
+    /** Persists the manual camouflage profile (applied when the AI toggle is OFF). */
+    fun setCamouflageProfile(profileId: String) {
+        viewModelScope.launch { prefs.setCamouflageProfile(profileId) }
+    }
+
+    /**
+     * Resolves the camouflage profile for a connection: the adaptive agent's best-for-this-network
+     * pick when the AI toggle is ON, otherwise the user's manual selection. Records the choice for the
+     * Home indicator. Honest: optimizes connection reliability, not (unmeasurable) stealth.
+     */
+    private fun resolveCamouflageProfile(serverId: String?, agentEnabled: Boolean): CamouflageProfile {
+        val profile = if (!agentEnabled) {
+            CamouflageProfileRepository.byId(camouflageProfileId.value)
+        } else {
+            val score = serverId?.let { serverScoreStore.loadScores()[it] }
+            AdaptiveDecisionAgent.selectBestCamouflageProfile(score, currentNetworkType())
+        }
+        _activeCamouflageProfileId.value = profile.id
+        return profile
     }
 
     private fun autoConnectValidationError(): String? {
@@ -1423,6 +1478,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 )
 
+                val camouflage = resolveCamouflageProfile(
+                    server.id,
+                    (_state.value as? AppState.Success)?.agentEnabled ?: true,
+                )
                 val intent = Intent(context, SwimVpnService::class.java).apply {
                     action = SwimVpnService.ACTION_START
                     putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
@@ -1430,6 +1489,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
                     putExtra(SwimVpnService.EXTRA_URL, resolvedRuntimeConfig)
                     putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
+                    putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_FP, camouflage.fingerprint)
 
                     val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
                     val usedBytes = profile.totalConsumedBytes()
