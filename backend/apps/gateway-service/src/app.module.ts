@@ -5,6 +5,7 @@ import { CustomerController } from './controllers/customer.controller';
 import { AdminController } from './controllers/admin.controller';
 import { AccessController } from './controllers/access.controller';
 import { PaymentsController, SwimPayWebhookAliasController } from './controllers/payments.controller';
+import { StatusController } from './controllers/status.controller';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PaymentsController, SwimPayWebhookAliasController } from './controllers
     AccessController,
     PaymentsController,
     SwimPayWebhookAliasController,
+    StatusController,
   ],
   providers: [],
 })
