@@ -297,8 +297,6 @@ private fun DockBodyCanvas(
 ) {
     val tokens = LocalSwimVisualTokens.current
     val lightTheme = tokens == SwimDesignTokens.Light
-    val stardustRandom = remember { java.util.Random(42) }
-    val stardustPoints = remember { List(120) { Offset(stardustRandom.nextFloat(), stardustRandom.nextFloat()) } }
 
     Canvas(modifier = modifier) {
         val sx = size.width / DockTokens.Width.value
@@ -367,20 +365,6 @@ private fun DockBodyCanvas(
                 endY = size.height,
             ),
         )
-
-        // StarDust Texture (Micro-details)
-        if (tokens.texture.starDust != Color.Transparent) {
-            stardustPoints.forEach { point ->
-                val rx = point.x * size.width
-                val ry = point.y * size.height
-                val dotAlpha = (0.05f + stardustRandom.nextFloat() * 0.15f) * (if (lightTheme) 0.5f else 1f)
-                drawCircle(
-                    color = tokens.texture.starDustSpark.copy(alpha = dotAlpha),
-                    radius = 0.6.dp.toPx(),
-                    center = Offset(rx, ry),
-                )
-            }
-        }
 
         // Inner Highlights and Rim Light
         drawPath(
