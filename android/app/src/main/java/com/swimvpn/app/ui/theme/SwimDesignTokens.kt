@@ -70,8 +70,8 @@ data class SwimVisualTokens(
 object SwimDesignTokens {
     val Dark = SwimVisualTokens(
         color = SwimColorTokens(
-            homeBackgroundDeep = ComposeColor(0xFF07070B),
-            homeBackgroundBase = ComposeColor(0xFF0D0C13),
+            homeBackgroundDeep = ComposeColor(0xFF040405),
+            homeBackgroundBase = ComposeColor(0xFF0A090F),
             homeSurfaceBase = ComposeColor(0xFF131317),
             homeSurfaceElevated = ComposeColor(0xFF1A1A20),
             homeSurfaceHighlight = ComposeColor(0xFF24232B),
@@ -94,7 +94,7 @@ object SwimDesignTokens {
         material = SwimMaterialTokens(
             shellTop = ComposeColor.White.copy(alpha = 0.07f),
             shellMid = ComposeColor(0xFF17171C),
-            shellBottom = ComposeColor(0xFF07070B),
+            shellBottom = ComposeColor(0xFF050506),
             bowlTop = ComposeColor(0xFF101116),
             bowlMid = ComposeColor(0xFF05060A),
             bowlBottom = ComposeColor.Black.copy(alpha = 0.96f),

@@ -62,6 +62,9 @@ import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.ui.components.ImportConfigDialog
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
+import com.swimvpn.app.ui.components.drawSwimDarkMaterialSkin
+import com.swimvpn.app.ui.components.drawSwimLightCardTexture
+import com.swimvpn.app.ui.theme.LocalSwimVisualTokens
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -303,6 +306,7 @@ private fun ImportHeader(onBack: () -> Unit) {
 
 @Composable
 private fun ImportHeroCard(importedCount: Int) {
+    val tokens = LocalSwimVisualTokens.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -312,6 +316,7 @@ private fun ImportHeroCard(importedCount: Int) {
             .background(
                 Brush.verticalGradient(
                     listOf(
+                        SwimDesignTokens.Color.SurfaceElevated,
                         SwimDesignTokens.Material.ShellMid,
                         SwimDesignTokens.Material.ShellBottom,
                     )
@@ -319,7 +324,16 @@ private fun ImportHeroCard(importedCount: Int) {
             )
             .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.LargeHardwareCard)
             .drawBehind {
-                drawRect(SwimDesignTokens.Highlight.InnerTop, size = Size(size.width, 1.dp.toPx()))
+                drawSwimDarkMaterialSkin(tokens)
+                drawSwimLightCardTexture(tokens)
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = 0.065f), Color.Transparent),
+                        startY = 0f,
+                        endY = 14.dp.toPx(),
+                    ),
+                    size = Size(size.width, 14.dp.toPx()),
+                )
             }
             .padding(22.dp),
     ) {
@@ -383,6 +397,7 @@ private fun ImportMethodPill(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     Row(
         modifier = modifier
             .height(76.dp)
@@ -391,12 +406,24 @@ private fun ImportMethodPill(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.58f),
+                        SwimDesignTokens.Material.ShellMid.copy(alpha = 0.98f),
                         SwimDesignTokens.Material.ShellBottom,
                     )
                 )
             )
             .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.HardwareCard)
+            .drawBehind {
+                drawSwimDarkMaterialSkin(tokens)
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = 0.075f), Color.Transparent),
+                        startY = 0f,
+                        endY = 10.dp.toPx(),
+                    ),
+                    size = Size(size.width, 10.dp.toPx()),
+                )
+            }
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -405,7 +432,15 @@ private fun ImportMethodPill(
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(SwimDesignTokens.Material.BowlBottom)
+                .background(
+                    Brush.radialGradient(
+                        listOf(
+                            SwimDesignTokens.Material.BowlTop,
+                            SwimDesignTokens.Material.BowlMid,
+                            SwimDesignTokens.Material.BowlBottom,
+                        )
+                    )
+                )
                 .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.7f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
@@ -445,14 +480,24 @@ private fun ImportedProfileRow(
     onDelete: () -> Unit,
 ) {
     val outline = if (selected) SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.74f) else SwimDesignTokens.Color.StrokeSubtle
+    val tokens = LocalSwimVisualTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(78.dp)
             .shadow(8.dp, SwimDesignTokens.Shape.HardwareCard, clip = false)
             .clip(SwimDesignTokens.Shape.HardwareCard)
-            .background(SwimDesignTokens.Material.ShellMid)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.58f),
+                        SwimDesignTokens.Material.ShellMid.copy(alpha = 0.98f),
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
             .border(1.dp, outline, SwimDesignTokens.Shape.HardwareCard)
+            .drawBehind { drawSwimDarkMaterialSkin(tokens) }
             .clickable(onClick = onSelect)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -510,13 +555,24 @@ private fun ImportedProfileRow(
 
 @Composable
 private fun EmptyImportState() {
+    val tokens = LocalSwimVisualTokens.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .height(134.dp)
+            .shadow(SwimDesignTokens.Shadow.HardwareSurface, SwimDesignTokens.Shape.LargeHardwareCard, clip = false)
             .clip(SwimDesignTokens.Shape.LargeHardwareCard)
-            .background(SwimDesignTokens.Material.ShellMid)
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Color.SurfaceElevated,
+                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
             .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.LargeHardwareCard)
+            .drawBehind { drawSwimDarkMaterialSkin(tokens) }
             .padding(22.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,

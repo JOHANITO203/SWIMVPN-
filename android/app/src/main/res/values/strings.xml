@@ -93,6 +93,9 @@
     <string name="content_desc_swim_orb">Orbe holographique SwimVPN</string>
     <string name="dock_home">Accueil</string>
     <string name="dock_servers">Serveurs</string>
+    <string name="dock_proxy">Proxy</string>
+    <string name="menu_proxy_title">Proxy résidentiel</string>
+    <string name="menu_proxy_subtitle">Colle ton proxy · routé via le tunnel</string>
     <string name="dock_subscription">Abonnement</string>
     <string name="dock_account">Compte</string>
 
@@ -407,4 +410,39 @@
     <string name="payment_confirm_email_confirm">CONFIRMER</string>
     <string name="payment_confirm_email_cancel">ANNULER</string>
     <string name="payment_confirm_email_missing">Aucun email trouvé dans votre profil.</string>
+
+    <!-- Residential proxy (BYO) screen -->
+    <string name="proxy_screen_title">Mon proxy</string>
+    <string name="proxy_screen_subtitle">Ton proxy résidentiel, routé via le tunnel</string>
+    <string name="proxy_screen_paste_label">Colle un ou plusieurs proxys</string>
+    <string name="proxy_screen_paste_placeholder">socks5://… ou host:port:user:pass · un par ligne</string>
+    <string name="proxy_screen_paste_hint">Un ou plusieurs — on teste tout, on connecte le meilleur.</string>
+    <string name="proxy_screen_cta">Tester &amp; connecter</string>
+    <string name="proxy_screen_result_label">Résultat</string>
+    <string name="proxy_screen_works">Fonctionne — ça nage ici</string>
+    <string name="proxy_screen_stat_exit">Sortie</string>
+    <string name="proxy_screen_stat_latency">Latence</string>
+    <string name="proxy_screen_stat_type">Type</string>
+    <string name="proxy_screen_guard_dns">DNS sécurisé</string>
+    <string name="proxy_screen_guard_noleak">Pas de fuite</string>
+    <string name="proxy_screen_activated">Proxy activé — connecte depuis l\'accueil</string>
+    <string name="proxy_screen_duplicate">Proxy déjà importé</string>
+    <string name="proxy_screen_import_failed">Import impossible</string>
+    <string name="proxy_screen_error_format">Format non reconnu — colle un socks5:// ou host:port:user:pass</string>
+    <string name="proxy_error_refused">Le proxy répond mais a refusé la requête</string>
+    <string name="proxy_error_auth">Identifiants du proxy refusés</string>
+    <string name="proxy_error_timeout">Le proxy ne répond pas (timeout)</string>
+    <string name="proxy_error_connect">Connexion au proxy impossible</string>
+    <string name="proxy_error_host">Hôte du proxy introuvable</string>
+    <string name="proxy_error_unreachable">Proxy injoignable</string>
+    <string name="proxy_session_down">Ton proxy résidentiel ne répond plus — teste-le ou colle-en un autre dans Paramètres → Proxy résidentiel.</string>
+    <string name="proxy_open_cta">Ouvrir Mon proxy →</string>
+    <string name="proxy_screen_pool_label">Autres proxys du pool</string>
+    <string name="proxy_screen_switch">Basculer</string>
+    <string name="proxy_screen_retry">Réessayer</string>
+    <string name="proxy_screen_best_badge">ACTIF · MEILLEUR</string>
+    <string name="proxy_screen_active_badge">ACTIF</string>
+    <string name="proxy_screen_unreachable_short">Injoignable</string>
+    <string name="proxy_screen_untested">Non testé</string>
+    <string name="proxy_screen_pool_footer">Bascule manuelle en un tap. L\'auto-bascule arrive bientôt.</string>
 </resources>

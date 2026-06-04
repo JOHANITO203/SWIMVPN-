@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,7 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -81,6 +82,7 @@ fun HomeScreen(
     onNavigateProfile: () -> Unit,
     onNavigateServers: () -> Unit,
     onNavigateSubscription: () -> Unit,
+    onNavigateProxy: () -> Unit = {},
 ) {
     val profile = data.profile
     val activeServer = data.activeServer
@@ -248,7 +250,7 @@ fun HomeScreen(
                     modifier = Modifier.size(orbSize),
                 )
 
-                Spacer(modifier = Modifier.height(if (compact) 2.dp else 8.dp))
+                Spacer(modifier = Modifier.height(if (compact) 4.dp else 10.dp))
 
                 Text(
                     text = statusText,
@@ -266,13 +268,26 @@ fun HomeScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 3.dp),
                 )
-                ProtectedIndicator(
-                    active = vpnState == VpnState.CONNECTED,
+                // Deep-link: when the active BYO proxy is reported down, offer a one-tap jump to the
+                // proxy screen to test/replace it (keyed off the proxy-specific runtime message).
+                if (errorMessage == stringResource(R.string.proxy_session_down)) {
+                    Text(
+                        text = stringResource(R.string.proxy_open_cta),
+                        color = SwimDesignTokens.Color.PurpleActive,
+                        fontSize = subtitleSize,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .padding(top = if (compact) 6.dp else 8.dp)
+                            .clickable { onNavigateProxy() },
+                    )
+                }
+                StatusChip(
+                    connected = vpnState == VpnState.CONNECTED,
                     compact = compact,
-                    modifier = Modifier.padding(top = if (compact) 6.dp else 8.dp),
+                    modifier = Modifier.padding(top = if (compact) 10.dp else 14.dp),
                 )
 
-                Spacer(modifier = Modifier.height(if (compact) 10.dp else 18.dp))
+                Spacer(modifier = Modifier.height(if (compact) 16.dp else 24.dp))
 
                 SwimServerPill(
                     server = activeServer,
@@ -282,7 +297,7 @@ fun HomeScreen(
                     compact = compact,
                 )
 
-                Spacer(modifier = Modifier.height(if (compact) 8.dp else 14.dp))
+                Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
 
                 SwimStatsCard(
                     bytesIn = bytesIn,
@@ -298,6 +313,7 @@ fun HomeScreen(
                 active = SwimDockDestination.Home,
                 onHome = {},
                 onServers = onNavigateServers,
+                onProxy = onNavigateProxy,
                 onSubscription = onNavigateSubscription,
                 onSettings = onNavigateProfile,
                 height = dockHeight,
@@ -309,43 +325,35 @@ fun HomeScreen(
     }
 }
 
+// Protection trust badge: a single tinted chip (green dot + word) that lights up only when the
+// tunnel is up. Replaces the old indicator row, which duplicated the status title's meaning.
 @Composable
-private fun ProtectedIndicator(active: Boolean, compact: Boolean, modifier: Modifier = Modifier) {
-    val lightTheme = SwimDesignTokens.Current == SwimDesignTokens.Light
+private fun StatusChip(connected: Boolean, compact: Boolean, modifier: Modifier = Modifier) {
+    val accent = if (connected) SwimDesignTokens.Color.SuccessGreen else SwimDesignTokens.Color.TextMuted
     Row(
-        modifier = modifier,
+        modifier = modifier
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(accent.copy(alpha = if (connected) 0.10f else 0.06f))
+            .border(1.dp, accent.copy(alpha = if (connected) 0.30f else 0.20f), SwimDesignTokens.Shape.Pill)
+            .padding(start = 12.dp, end = 15.dp, top = 7.dp, bottom = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
     ) {
-        val color = if (active) SwimDesignTokens.Color.SuccessGreen else SwimDesignTokens.Color.TextMuted
         Box(
             modifier = Modifier
-                .size(if (compact) 14.dp else 16.dp)
+                .size(if (compact) 8.dp else 9.dp)
+                .drawBehind {
+                    if (connected) {
+                        drawCircle(color = accent.copy(alpha = 0.45f), radius = size.minDimension)
+                    }
+                }
                 .clip(CircleShape)
-                .background(SwimDesignTokens.Material.BowlBottom)
-                .border(
-                    1.dp,
-                    if (lightTheme) {
-                        SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.56f)
-                    } else {
-                        SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = 0.38f)
-                    },
-                    CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(if (compact) 7.dp else 8.dp)
-                    .clip(CircleShape)
-                    .background(color)
-            )
-        }
-        Spacer(modifier = Modifier.width(if (compact) 8.dp else 9.dp))
+                .background(accent),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = if (active) "Prot\u00E9g\u00E9" else "En veille",
-            color = color,
-            fontSize = if (compact) 15.sp else 16.sp,
+            text = if (connected) "Prot\u00E9g\u00E9" else "Non prot\u00E9g\u00E9",
+            color = accent,
+            fontSize = if (compact) 12.sp else 13.sp,
             fontWeight = FontWeight.SemiBold,
         )
     }
@@ -458,7 +466,7 @@ private fun SwimStatsCard(
     SwimHardwareCard(
         modifier = modifier,
         height = height,
-        shape = RoundedCornerShape(42.dp),
+        shape = SwimDesignTokens.Shape.HardwareCard,
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -527,8 +535,16 @@ private fun SwimStatsDivider() {
     Box(
         modifier = Modifier
             .width(1.dp)
-            .height(42.dp)
-            .background(SwimDesignTokens.Color.DividerSubtle)
+            .height(46.dp)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        SwimDesignTokens.Color.StrokeSubtle,
+                        Color.Transparent,
+                    ),
+                ),
+            )
     )
 }
 

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Icon
@@ -55,6 +56,7 @@ import kotlin.math.max
 enum class SwimDockDestination {
     Home,
     Servers,
+    Proxy,
     Subscription,
     Settings,
 }
@@ -62,6 +64,7 @@ enum class SwimDockDestination {
 enum class NavDockItem {
     HOME,
     SERVERS,
+    PROXY,
     SUBSCRIPTION,
     SETTINGS,
 }
@@ -82,6 +85,7 @@ fun SwimMetaballDock(
     active: SwimDockDestination,
     onHome: () -> Unit,
     onServers: () -> Unit,
+    onProxy: () -> Unit = {},
     onSubscription: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -95,6 +99,7 @@ fun SwimMetaballDock(
             when (item) {
                 NavDockItem.HOME -> onHome()
                 NavDockItem.SERVERS -> onServers()
+                NavDockItem.PROXY -> onProxy()
                 NavDockItem.SUBSCRIPTION -> onSubscription()
                 NavDockItem.SETTINGS -> onSettings()
             }
@@ -292,8 +297,6 @@ private fun DockBodyCanvas(
 ) {
     val tokens = LocalSwimVisualTokens.current
     val lightTheme = tokens == SwimDesignTokens.Light
-    val stardustRandom = remember { java.util.Random(42) }
-    val stardustPoints = remember { List(120) { Offset(stardustRandom.nextFloat(), stardustRandom.nextFloat()) } }
 
     Canvas(modifier = modifier) {
         val sx = size.width / DockTokens.Width.value
@@ -362,20 +365,6 @@ private fun DockBodyCanvas(
                 endY = size.height,
             ),
         )
-
-        // StarDust Texture (Micro-details)
-        if (tokens.texture.starDust != Color.Transparent) {
-            stardustPoints.forEach { point ->
-                val rx = point.x * size.width
-                val ry = point.y * size.height
-                val dotAlpha = (0.05f + stardustRandom.nextFloat() * 0.15f) * (if (lightTheme) 0.5f else 1f)
-                drawCircle(
-                    color = tokens.texture.starDustSpark.copy(alpha = dotAlpha),
-                    radius = 0.6.dp.toPx(),
-                    center = Offset(rx, ry),
-                )
-            }
-        }
 
         // Inner Highlights and Rim Light
         drawPath(
@@ -667,6 +656,7 @@ private fun SwimDockDestination.toNavItem(): NavDockItem =
     when (this) {
         SwimDockDestination.Home -> NavDockItem.HOME
         SwimDockDestination.Servers -> NavDockItem.SERVERS
+        SwimDockDestination.Proxy -> NavDockItem.PROXY
         SwimDockDestination.Subscription -> NavDockItem.SUBSCRIPTION
         SwimDockDestination.Settings -> NavDockItem.SETTINGS
     }

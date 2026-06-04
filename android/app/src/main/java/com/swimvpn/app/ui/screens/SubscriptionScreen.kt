@@ -129,6 +129,7 @@ fun SubscriptionScreen(
     onProfileClick: () -> Unit = onBack,
     onNavigateHome: () -> Unit = {},
     onNavigateServers: () -> Unit = {},
+    onNavigateProxy: () -> Unit = {},
     onNavigateSettings: () -> Unit = {},
 ) {
     val resources = LocalContext.current.resources
@@ -167,6 +168,7 @@ fun SubscriptionScreen(
             when (item) {
                 NavDockItem.HOME -> onNavigateHome()
                 NavDockItem.SERVERS -> onNavigateServers()
+                NavDockItem.PROXY -> onNavigateProxy()
                 NavDockItem.SUBSCRIPTION -> Unit
                 NavDockItem.SETTINGS -> onNavigateSettings()
             }
@@ -273,6 +275,7 @@ fun SubscriptionScreen(
                 active = SwimDockDestination.Subscription,
                 onHome = { onDockNavigate(NavDockItem.HOME) },
                 onServers = { onDockNavigate(NavDockItem.SERVERS) },
+                onProxy = { onDockNavigate(NavDockItem.PROXY) },
                 onSubscription = { onDockNavigate(NavDockItem.SUBSCRIPTION) },
                 onSettings = { onDockNavigate(NavDockItem.SETTINGS) },
                 modifier = Modifier

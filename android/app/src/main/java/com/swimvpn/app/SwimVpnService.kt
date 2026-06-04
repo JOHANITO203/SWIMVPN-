@@ -134,6 +134,8 @@ class SwimVpnService : VpnService() {
 
         private val SERVICE_RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
         private const val MAX_SERVICE_RECONNECT_ATTEMPTS = 5
+        // A dead BYO residential proxy won't self-heal via retry → give up fast + tell the user.
+        private const val MAX_BYO_PROXY_RECONNECT_ATTEMPTS = 2
         private const val STARTUP_HEALTH_PROOF_DELAY_MS = 1_000L
         private const val LIVENESS_POLL_INTERVAL_MS = 500L
         private const val TRAFFIC_PROBE_TIMEOUT_MS = 1_200
@@ -141,6 +143,8 @@ class SwimVpnService : VpnService() {
         // Passive watchdog: how long a confirmed-running session may show outbound
         // bytes with zero inbound bytes before being demoted to DEGRADED (NO_TRAFFIC).
         private const val TRAFFIC_STALL_THRESHOLD_MS = 15_000L
+        // A BYO residential proxy that stops relaying is flagged faster than a managed server.
+        private const val BYO_PROXY_STALL_THRESHOLD_MS = 8_000L
     }
 
     // Distinct startup failure that already carries an explicit DisconnectCause, so
@@ -155,6 +159,10 @@ class SwimVpnService : VpnService() {
         val port: Int,
         val requestedMode: RuntimeMode,
         val rawConfig: String?,
+        // True when the active profile is a user-supplied (BYO) residential proxy (SOCKS5/HTTP).
+        // Such proxies are flaky/ephemeral → give up reconnecting fast + surface a proxy-specific
+        // message instead of a generic "connection error".
+        val isByoProxy: Boolean = false,
     )
 
     private data class VpnNotificationContent(
@@ -186,6 +194,7 @@ class SwimVpnService : VpnService() {
                     port = port,
                     requestedMode = requestedMode,
                     rawConfig = intent.getStringExtra(EXTRA_URL),
+                    isByoProxy = isByoProxyProtocol(intent.getStringExtra(EXTRA_PROTOCOL)),
                 )
             }
 
@@ -203,6 +212,7 @@ class SwimVpnService : VpnService() {
                     port = port,
                     requestedMode = requestedMode,
                     rawConfig = rawConfig,
+                    isByoProxy = isByoProxyProtocol(intent.getStringExtra(EXTRA_PROTOCOL)) || (activeSession?.isByoProxy == true),
                 )
             }
 
@@ -329,6 +339,7 @@ class SwimVpnService : VpnService() {
         port: Int,
         requestedMode: RuntimeMode,
         rawConfig: String?,
+        isByoProxy: Boolean = false,
     ) {
         if (rawConfig.isNullOrBlank()) {
             logRuntimeEvent("reconnect_failed", mapOf("reason" to "missing_restart_config", "mode" to requestedMode.name))
@@ -358,15 +369,20 @@ class SwimVpnService : VpnService() {
                 port = port,
                 requestedMode = requestedMode,
                 rawConfig = rawConfig,
+                isByoProxy = isByoProxy,
             )
         }
     }
+
+    private fun isByoProxyProtocol(protocol: String?): Boolean =
+        protocol == "SOCKS5" || protocol == "HTTP"
 
     private fun startVpn(
         host: String,
         port: Int,
         requestedMode: RuntimeMode,
         rawConfig: String?,
+        isByoProxy: Boolean = false,
     ) {
         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING ||
             VpnManager.runtimeStatus.value == RuntimeStatus.STARTING
@@ -386,7 +402,7 @@ class SwimVpnService : VpnService() {
         if (requestedMode == RuntimeMode.FULL_TUNNEL) {
             fellBackToProxy = false
         }
-        activeSession = ActiveSession(host, port, requestedMode, rawConfig)
+        activeSession = ActiveSession(host, port, requestedMode, rawConfig, isByoProxy)
         if (sessionStartedAt == null) {
             sessionStartedAt = System.currentTimeMillis()
         }
@@ -1294,7 +1310,7 @@ class SwimVpnService : VpnService() {
                         bytesIn = VpnManager.bytesIn.value,
                         bytesOut = VpnManager.bytesOut.value,
                         elapsedMs = System.currentTimeMillis() - monitorStartedAt,
-                        thresholdMs = TRAFFIC_STALL_THRESHOLD_MS,
+                        thresholdMs = if (activeSession?.isByoProxy == true) BYO_PROXY_STALL_THRESHOLD_MS else TRAFFIC_STALL_THRESHOLD_MS,
                     )
                 ) {
                     trafficStallReported = true
@@ -1303,6 +1319,11 @@ class SwimVpnService : VpnService() {
                         "traffic_stalled",
                         mapOf("mode" to mode.name, "cause" to DisconnectCause.NO_TRAFFIC.name),
                     )
+                    // BYO residential proxy stalled = the user's proxy likely died. Surface a
+                    // proxy-specific message (UNSTABLE shows errorMessage) instead of generic.
+                    if (activeSession?.isByoProxy == true) {
+                        VpnManager.setError(getString(R.string.proxy_session_down))
+                    }
                     updateRuntimeStatus(RuntimeStatus.DEGRADED, mode, cause = DisconnectCause.NO_TRAFFIC)
                     // R5: DEGRADED(NO_TRAFFIC) must not be a dead-end. Engage the existing
                     // recovery path so the session either recovers or fails cleanly,
@@ -1590,9 +1611,18 @@ class SwimVpnService : VpnService() {
         }
         val reconnectSession = session ?: return
 
-        if (reconnectAttempt >= MAX_SERVICE_RECONNECT_ATTEMPTS) {
-            logRuntimeEvent("reconnect_failed", mapOf("reason" to "max_attempts", "cause" to cause.name))
+        val maxAttempts = if (reconnectSession.isByoProxy) MAX_BYO_PROXY_RECONNECT_ATTEMPTS else MAX_SERVICE_RECONNECT_ATTEMPTS
+        if (reconnectAttempt >= maxAttempts) {
+            logRuntimeEvent(
+                "reconnect_failed",
+                mapOf("reason" to "max_attempts", "cause" to cause.name, "byoProxy" to reconnectSession.isByoProxy.toString()),
+            )
             stopVpn(clearRuntimeState = false, reason = reason, cause = cause)
+            // A dead BYO residential proxy: say so plainly (and where to fix it). Set AFTER stopVpn
+            // so it is the final error surfaced to the UI.
+            if (reconnectSession.isByoProxy) {
+                VpnManager.setError(getString(R.string.proxy_session_down))
+            }
             return
         }
 
@@ -1618,6 +1648,7 @@ class SwimVpnService : VpnService() {
                     port = reconnectSession.port,
                     requestedMode = reconnectSession.requestedMode,
                     rawConfig = reconnectSession.rawConfig,
+                    isByoProxy = reconnectSession.isByoProxy,
                 )
             } finally {
                 activeReconnectJob = null

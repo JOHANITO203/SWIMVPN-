@@ -6,6 +6,9 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,11 +23,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -37,9 +42,6 @@ import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -54,7 +56,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,6 +63,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,7 +72,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.swimvpn.app.R
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
+import com.swimvpn.app.ui.components.drawSwimDarkMaterialSkin
+import com.swimvpn.app.ui.components.drawSwimLightCardTexture
 import com.swimvpn.app.ui.theme.AppThemePreference
+import com.swimvpn.app.ui.theme.LocalSwimVisualTokens
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.delay
 
@@ -356,13 +361,34 @@ private fun SettingsPillScaffold(
     modifier: Modifier = Modifier,
     trailing: @Composable () -> Unit,
 ) {
+    val tokens = LocalSwimVisualTokens.current
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(72.dp)
+            .shadow(SwimDesignTokens.Elevation.HardwareSurface, SwimDesignTokens.Shape.Pill, clip = false)
             .clip(SwimDesignTokens.Shape.Pill)
-            .background(SwimDesignTokens.Material.BowlTop.copy(alpha = 0.72f))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Color.SurfaceElevated.copy(alpha = 0.58f),
+                        SwimDesignTokens.Material.ShellMid.copy(alpha = 0.98f),
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
             .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.Pill)
+            .drawBehind {
+                drawSwimDarkMaterialSkin(tokens)
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = 0.075f), Color.Transparent),
+                        startY = 0f,
+                        endY = 10.dp.toPx(),
+                    ),
+                    size = Size(size.width, 10.dp.toPx()),
+                )
+            }
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -390,6 +416,7 @@ private fun SettingsPillScaffold(
 
 @Composable
 private fun SettingsCanvas(content: @Composable ColumnScope.() -> Unit) {
+    val tokens = LocalSwimVisualTokens.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -398,6 +425,7 @@ private fun SettingsCanvas(content: @Composable ColumnScope.() -> Unit) {
             .background(
                 Brush.verticalGradient(
                     listOf(
+                        SwimDesignTokens.Color.SurfaceElevated,
                         SwimDesignTokens.Material.ShellMid,
                         SwimDesignTokens.Material.ShellBottom,
                     )
@@ -405,7 +433,16 @@ private fun SettingsCanvas(content: @Composable ColumnScope.() -> Unit) {
             )
             .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, SwimDesignTokens.Shape.LargeHardwareCard)
             .drawBehind {
-                drawRect(SwimDesignTokens.Highlight.InnerTop, size = Size(size.width, 1.dp.toPx()))
+                drawSwimDarkMaterialSkin(tokens)
+                drawSwimLightCardTexture(tokens)
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(SwimDesignTokens.Highlight.PurpleEdge.copy(alpha = 0.065f), Color.Transparent),
+                        startY = 0f,
+                        endY = 14.dp.toPx(),
+                    ),
+                    size = Size(size.width, 14.dp.toPx()),
+                )
             }
             .padding(14.dp),
         content = content,
@@ -430,7 +467,15 @@ private fun IconBowl(icon: ImageVector) {
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .background(SwimDesignTokens.Material.BowlBottom)
+            .background(
+                Brush.radialGradient(
+                    listOf(
+                        SwimDesignTokens.Material.BowlTop,
+                        SwimDesignTokens.Material.BowlMid,
+                        SwimDesignTokens.Material.BowlBottom,
+                    )
+                )
+            )
             .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.72f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
@@ -524,20 +569,63 @@ private fun RouteLight(label: String, selected: Boolean, active: Boolean, onClic
     }
 }
 
+// Hardware-style toggle: a recessed track with a glossy sliding thumb. Replaces the Material3
+// Switch so the control reads as part of the app's skeuomorphic surface language.
 @Composable
 private fun SwimSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Switch(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        colors = SwitchDefaults.colors(
-            checkedThumbColor = Color.White,
-            checkedTrackColor = SwimDesignTokens.Color.PurplePrimary,
-            checkedBorderColor = SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.4f),
-            uncheckedThumbColor = SwimDesignTokens.Color.TextSecondary,
-            uncheckedTrackColor = SwimDesignTokens.Material.BowlBottom,
-            uncheckedBorderColor = SwimDesignTokens.Color.StrokeSubtle,
-        ),
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 22.dp else 0.dp,
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
+        label = "swimSwitchThumb",
     )
+    val trackBrush = if (checked) {
+        Brush.verticalGradient(
+            listOf(SwimDesignTokens.Color.PurplePrimary, SwimDesignTokens.Material.PurpleCoreBottom)
+        )
+    } else {
+        Brush.radialGradient(
+            listOf(SwimDesignTokens.Material.BowlTop, SwimDesignTokens.Material.BowlMid)
+        )
+    }
+    Box(
+        modifier = Modifier
+            .width(50.dp)
+            .height(28.dp)
+            .shadow(
+                elevation = if (checked) 8.dp else 0.dp,
+                shape = SwimDesignTokens.Shape.Pill,
+                clip = false,
+                spotColor = SwimDesignTokens.Color.PurplePrimary,
+                ambientColor = Color.Transparent,
+            )
+            .clip(SwimDesignTokens.Shape.Pill)
+            .background(trackBrush)
+            .border(
+                1.dp,
+                if (checked) SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.55f) else SwimDesignTokens.Color.StrokeSubtle,
+                SwimDesignTokens.Shape.Pill,
+            )
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+            .padding(3.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(22.dp)
+                .shadow(3.dp, CircleShape, clip = false)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        if (checked) {
+                            listOf(Color.White, Color(0xFFECE8F7), Color(0xFFD3CBE8))
+                        } else {
+                            listOf(Color(0xFF9B96A8), SwimDesignTokens.Color.TextMuted, Color(0xFF4A4651))
+                        }
+                    )
+                ),
+        )
+    }
 }
 
 @Composable
