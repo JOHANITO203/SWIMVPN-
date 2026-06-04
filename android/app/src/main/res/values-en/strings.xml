@@ -408,4 +408,31 @@
     <string name="payment_confirm_email_confirm">CONFIRM</string>
     <string name="payment_confirm_email_cancel">CANCEL</string>
     <string name="payment_confirm_email_missing">No email found in your profile.</string>
+
+    <!-- Residential proxy (BYO) screen -->
+    <string name="menu_proxy_title">Residential proxy</string>
+    <string name="menu_proxy_subtitle">Paste your proxy · routed via the tunnel</string>
+    <string name="proxy_screen_title">My proxy</string>
+    <string name="proxy_screen_subtitle">Your residential proxy, routed via the tunnel</string>
+    <string name="proxy_screen_paste_label">Paste your proxy</string>
+    <string name="proxy_screen_paste_placeholder">socks5://user:pass@host:port  ·  or  host:port:user:pass</string>
+    <string name="proxy_screen_paste_hint">Bought elsewhere · socks5:// or host:port:user:pass — we handle the rest.</string>
+    <string name="proxy_screen_cta">Test &amp; connect</string>
+    <string name="proxy_screen_result_label">Result</string>
+    <string name="proxy_screen_works">Works — it swims here</string>
+    <string name="proxy_screen_stat_exit">Exit</string>
+    <string name="proxy_screen_stat_latency">Latency</string>
+    <string name="proxy_screen_stat_type">Type</string>
+    <string name="proxy_screen_guard_dns">Secure DNS</string>
+    <string name="proxy_screen_guard_noleak">No leak</string>
+    <string name="proxy_screen_activated">Proxy activated — connect from home</string>
+    <string name="proxy_screen_duplicate">Proxy already imported</string>
+    <string name="proxy_screen_import_failed">Import failed</string>
+    <string name="proxy_screen_error_format">Unrecognized format — paste a socks5:// or host:port:user:pass</string>
+    <string name="proxy_error_refused">The proxy responded but refused the request</string>
+    <string name="proxy_error_auth">Proxy credentials rejected</string>
+    <string name="proxy_error_timeout">The proxy is not responding (timeout)</string>
+    <string name="proxy_error_connect">Cannot connect to the proxy</string>
+    <string name="proxy_error_host">Proxy host not found</string>
+    <string name="proxy_error_unreachable">Proxy unreachable</string>
 </resources>

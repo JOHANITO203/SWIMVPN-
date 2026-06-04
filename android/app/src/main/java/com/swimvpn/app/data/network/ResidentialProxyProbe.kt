@@ -1,6 +1,8 @@
 package com.swimvpn.app.data.network
 
+import androidx.annotation.StringRes
 import com.google.gson.JsonParser
+import com.swimvpn.app.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.Authenticator
@@ -24,7 +26,7 @@ object ResidentialProxyProbe {
         val country: String? = null,
         val ip: String? = null,
         val latencyMs: Int? = null,
-        val error: String? = null,
+        @StringRes val errorRes: Int? = null,
     )
 
     suspend fun probe(host: String, port: Int, user: String?, password: String?): Result =
@@ -57,20 +59,21 @@ object ResidentialProxyProbe {
                         latencyMs = elapsed.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
                     )
                 } else {
-                    Result(ok = false, error = "Le proxy répond mais a refusé la requête")
+                    Result(ok = false, errorRes = R.string.proxy_error_refused)
                 }
             } catch (e: Exception) {
-                Result(ok = false, error = mapError(e))
+                Result(ok = false, errorRes = mapError(e))
             } finally {
                 if (hasAuth) Authenticator.setDefault(null)
             }
         }
 
-    private fun mapError(e: Exception): String = when {
-        (e.message ?: "").contains("authentication", ignoreCase = true) -> "Identifiants du proxy refusés"
-        e is java.net.SocketTimeoutException -> "Le proxy ne répond pas (timeout)"
-        e is java.net.ConnectException -> "Connexion au proxy impossible"
-        e is java.net.UnknownHostException -> "Hôte du proxy introuvable"
-        else -> "Proxy injoignable"
+    @StringRes
+    private fun mapError(e: Exception): Int = when {
+        (e.message ?: "").contains("authentication", ignoreCase = true) -> R.string.proxy_error_auth
+        e is java.net.SocketTimeoutException -> R.string.proxy_error_timeout
+        e is java.net.ConnectException -> R.string.proxy_error_connect
+        e is java.net.UnknownHostException -> R.string.proxy_error_host
+        else -> R.string.proxy_error_unreachable
     }
 }

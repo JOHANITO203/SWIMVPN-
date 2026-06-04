@@ -45,10 +45,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.swimvpn.app.R
 import com.swimvpn.app.config.ConfigParserEngine
 import com.swimvpn.app.config.ConfigRepository
 import com.swimvpn.app.config.ImportResult
@@ -77,6 +79,9 @@ fun ProxyScreen(
     var pasted by remember { mutableStateOf("") }
     var probing by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<ResidentialProxyProbe.Result?>(null) }
+    val activatedMsg = stringResource(R.string.proxy_screen_activated)
+    val duplicateMsg = stringResource(R.string.proxy_screen_duplicate)
+    val importFailedMsg = stringResource(R.string.proxy_screen_import_failed)
 
     SwimDarkLuxuryBackground {
         Column(
@@ -97,12 +102,12 @@ fun ProxyScreen(
                         .clickable { onBack() },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour", tint = c.TextSecondary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.content_desc_back), tint = c.TextSecondary, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Mon proxy", color = c.TextPrimary, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-                    Text("Ton proxy résidentiel, routé via le tunnel", color = c.TextMuted, fontSize = 13.sp)
+                    Text(stringResource(R.string.proxy_screen_title), color = c.TextPrimary, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.proxy_screen_subtitle), color = c.TextMuted, fontSize = 13.sp)
                 }
                 Box(
                     modifier = Modifier
@@ -117,11 +122,11 @@ fun ProxyScreen(
             }
 
             Spacer(Modifier.height(28.dp))
-            SectionLabel("Colle ton proxy")
+            SectionLabel(stringResource(R.string.proxy_screen_paste_label))
             OutlinedTextField(
                 value = pasted,
                 onValueChange = { pasted = it; result = null },
-                placeholder = { Text("socks5://user:pass@host:port  ·  ou  host:port:user:pass", color = c.TextMuted, fontSize = 13.sp) },
+                placeholder = { Text(stringResource(R.string.proxy_screen_paste_placeholder), color = c.TextMuted, fontSize = 13.sp) },
                 minLines = 2,
                 shape = RoundedCornerShape(20.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
@@ -137,7 +142,7 @@ fun ProxyScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                "Acheté ailleurs · socks5:// ou host:port:user:pass — on s'occupe du reste.",
+                stringResource(R.string.proxy_screen_paste_hint),
                 color = c.TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, start = 4.dp),
             )
 
@@ -151,7 +156,7 @@ fun ProxyScreen(
                         result = null
                         val parsed = ConfigParserEngine.parseConfig(text, SourceType.MANUAL_ENTRY).profile
                         if (parsed == null || (parsed.protocol != Protocol.SOCKS5 && parsed.protocol != Protocol.HTTP)) {
-                            result = ResidentialProxyProbe.Result(ok = false, error = "Format non reconnu — colle un socks5:// ou host:port:user:pass")
+                            result = ResidentialProxyProbe.Result(ok = false, errorRes = R.string.proxy_screen_error_format)
                             probing = false
                             return@launch
                         }
@@ -162,10 +167,10 @@ fun ProxyScreen(
                                 is ImportResult.Success -> {
                                     configRepository.setActiveProfile(imp.profile)
                                     onProxyReady(imp.profile)
-                                    showToast("Proxy activé — connecte depuis l'accueil")
+                                    showToast(activatedMsg)
                                 }
-                                is ImportResult.Duplicate -> showToast("Proxy déjà importé")
-                                is ImportResult.Error -> showToast(imp.errors.firstOrNull() ?: "Import impossible")
+                                is ImportResult.Duplicate -> showToast(duplicateMsg)
+                                is ImportResult.Error -> showToast(imp.errors.firstOrNull() ?: importFailedMsg)
                             }
                         }
                         probing = false
@@ -181,7 +186,7 @@ fun ProxyScreen(
                 } else {
                     Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Tester & connecter", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.proxy_screen_cta), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -189,10 +194,10 @@ fun ProxyScreen(
             if (r != null && !probing) {
                 Spacer(Modifier.height(26.dp))
                 if (r.ok) {
-                    SectionLabel("Résultat")
+                    SectionLabel(stringResource(R.string.proxy_screen_result_label))
                     ProxyResultCard(country = r.country ?: "—", latencyMs = r.latencyMs)
                 } else {
-                    ProxyErrorCard(message = r.error ?: "Proxy injoignable")
+                    ProxyErrorCard(message = stringResource(r.errorRes ?: R.string.proxy_error_unreachable))
                 }
             }
         }
@@ -225,21 +230,21 @@ private fun ProxyResultCard(country: String, latencyMs: Int?) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(9.dp).clip(CircleShape).background(c.SuccessGreen))
                 Spacer(Modifier.width(10.dp))
-                Text("Fonctionne — ça nage ici", color = c.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.proxy_screen_works), color = c.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(18.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                ResultStat(Icons.Default.Public, "Sortie", country, Modifier.weight(1f))
+                ResultStat(Icons.Default.Public, stringResource(R.string.proxy_screen_stat_exit), country, Modifier.weight(1f))
                 StatDivider()
-                ResultStat(Icons.Default.Speed, "Latence", latencyMs?.let { "$it ms" } ?: "—", Modifier.weight(1f))
+                ResultStat(Icons.Default.Speed, stringResource(R.string.proxy_screen_stat_latency), latencyMs?.let { "$it ms" } ?: "—", Modifier.weight(1f))
                 StatDivider()
-                ResultStat(Icons.Default.Shield, "Type", "SOCKS5", Modifier.weight(1f))
+                ResultStat(Icons.Default.Shield, stringResource(R.string.proxy_screen_stat_type), "SOCKS5", Modifier.weight(1f))
             }
             Spacer(Modifier.height(16.dp))
             Row {
-                GuardItem("DNS sécurisé")
+                GuardItem(stringResource(R.string.proxy_screen_guard_dns))
                 Spacer(Modifier.width(22.dp))
-                GuardItem("Pas de fuite")
+                GuardItem(stringResource(R.string.proxy_screen_guard_noleak))
             }
         }
     }

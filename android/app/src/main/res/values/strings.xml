@@ -410,4 +410,29 @@
     <string name="payment_confirm_email_confirm">CONFIRMER</string>
     <string name="payment_confirm_email_cancel">ANNULER</string>
     <string name="payment_confirm_email_missing">Aucun email trouvé dans votre profil.</string>
+
+    <!-- Residential proxy (BYO) screen -->
+    <string name="proxy_screen_title">Mon proxy</string>
+    <string name="proxy_screen_subtitle">Ton proxy résidentiel, routé via le tunnel</string>
+    <string name="proxy_screen_paste_label">Colle ton proxy</string>
+    <string name="proxy_screen_paste_placeholder">socks5://user:pass@host:port  ·  ou  host:port:user:pass</string>
+    <string name="proxy_screen_paste_hint">Acheté ailleurs · socks5:// ou host:port:user:pass — on s\'occupe du reste.</string>
+    <string name="proxy_screen_cta">Tester &amp; connecter</string>
+    <string name="proxy_screen_result_label">Résultat</string>
+    <string name="proxy_screen_works">Fonctionne — ça nage ici</string>
+    <string name="proxy_screen_stat_exit">Sortie</string>
+    <string name="proxy_screen_stat_latency">Latence</string>
+    <string name="proxy_screen_stat_type">Type</string>
+    <string name="proxy_screen_guard_dns">DNS sécurisé</string>
+    <string name="proxy_screen_guard_noleak">Pas de fuite</string>
+    <string name="proxy_screen_activated">Proxy activé — connecte depuis l\'accueil</string>
+    <string name="proxy_screen_duplicate">Proxy déjà importé</string>
+    <string name="proxy_screen_import_failed">Import impossible</string>
+    <string name="proxy_screen_error_format">Format non reconnu — colle un socks5:// ou host:port:user:pass</string>
+    <string name="proxy_error_refused">Le proxy répond mais a refusé la requête</string>
+    <string name="proxy_error_auth">Identifiants du proxy refusés</string>
+    <string name="proxy_error_timeout">Le proxy ne répond pas (timeout)</string>
+    <string name="proxy_error_connect">Connexion au proxy impossible</string>
+    <string name="proxy_error_host">Hôte du proxy introuvable</string>
+    <string name="proxy_error_unreachable">Proxy injoignable</string>
 </resources>
