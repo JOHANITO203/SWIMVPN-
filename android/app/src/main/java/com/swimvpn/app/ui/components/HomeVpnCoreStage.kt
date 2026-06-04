@@ -10,17 +10,12 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.PowerSettingsNew
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,16 +28,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.rotate
-import kotlin.math.cos
-import kotlin.math.sin
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -96,7 +89,6 @@ fun HomeVpnCoreStage(
     val stageBreath = 1f + (breath - 0.5f) * core.stageBreathRange
     val buttonBreath = 1f + (breath - 0.5f) * core.buttonBreathRange
     val buttonSize = size * core.buttonSizeRatio
-    val bowlSize = buttonSize * 0.67f
 
     Box(
         modifier = modifier.size(size),
@@ -124,17 +116,15 @@ fun HomeVpnCoreStage(
         }
 
         VpnHardwarePowerCore(
+            state = state,
             accent = accent,
             enabled = enabled,
-            isConnecting = state == VpnOrbState.CONNECTING,
             pressScale = pressScale,
             breathScale = buttonBreath,
             glowAlpha = core.buttonGlowAlpha + pressEnergy * 0.14f,
-            shellLift = core.shellLift + pressEnergy * 0.10f,
             onClick = onClick,
             interactionSource = interactionSource,
             modifier = Modifier.size(buttonSize),
-            bowlSize = bowlSize,
         )
     }
 }
@@ -147,140 +137,53 @@ private fun VpnAuroraStage(
     modifier: Modifier = Modifier,
 ) {
     val transition = rememberInfiniteTransition(label = "vpnAurora")
-    val driftARaw by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "auroraDriftA",
-    )
-    val driftBRaw by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(13000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "auroraDriftB",
-    )
-    val bloomRaw by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(
-                durationMillis = when (state) {
-                    VpnOrbState.CONNECTED -> 2600
-                    VpnOrbState.CONNECTING -> 1500
-                    VpnOrbState.UNSTABLE -> 1100
-                    else -> 4200
-                },
-                easing = FastOutSlowInEasing,
-            ),
-            RepeatMode.Reverse,
-        ),
-        label = "auroraBloom",
-    )
     val spinRaw by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            tween(if (state == VpnOrbState.CONNECTING) 2400 else 9000, easing = LinearEasing),
+            tween(if (state == VpnOrbState.CONNECTING) 1100 else 9000, easing = LinearEasing),
             RepeatMode.Restart,
         ),
         label = "auroraSpin",
     )
-
-    // Respect reduced motion: keep the composition but freeze drift/spin and hold a mid bloom.
-    val driftA = if (reducedMotion) 0.5f else driftARaw
-    val driftB = if (reducedMotion) 0.5f else driftBRaw
-    val bloom = if (reducedMotion) 0.5f else bloomRaw
-    val spin = if (reducedMotion) 0f else spinRaw
-
-    // Color harmony: keep the halo within the purple family (the brand's single jewel accent),
-    // never blue/magenta — only UNSTABLE shifts to amber as a state semantic.
-    val coolHue = if (state == VpnOrbState.UNSTABLE) Color(0xFFFFB27A) else Color(0xFFB388FF)
-    val warmHue = if (state == VpnOrbState.UNSTABLE) Color(0xFFFF9A5E) else Color(0xFF6E3FD8)
+    // The connecting halo is functional feedback (not decoration), so it keeps spinning even under
+    // reduced motion; only the idle/decorative spin is frozen.
+    val spin = if (reducedMotion && state != VpnOrbState.CONNECTING) 0f else spinRaw
     val showRing = state == VpnOrbState.CONNECTING || state == VpnOrbState.CONNECTED
     val ringStrength = if (state == VpnOrbState.CONNECTING) 0.85f else 0.42f
-    val twoPi = 6.2831855f
 
     Box(modifier = modifier) {
-        // Soft drifting aurora blobs — blurred on API 31+, gracefully soft (radial-only) below.
-        Canvas(
-            modifier = Modifier
-                .matchParentSize()
-                .blur(30.dp, BlurredEdgeTreatment.Unbounded),
-        ) {
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            val s = size.minDimension
-            fun blob(color: Color, dx: Float, dy: Float, rad: Float, a: Float) {
-                val center = Offset(cx + s * dx, cy + s * dy)
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(color.copy(alpha = a), Color.Transparent),
-                        center = center,
-                        radius = s * rad,
-                    ),
-                    radius = s * rad,
-                    center = center,
-                )
-            }
-            val ax = sin(driftA * twoPi) * 0.16f
-            val ay = cos(driftA * twoPi) * 0.11f
-            val bx = cos(driftB * twoPi) * 0.19f
-            val by = sin(driftA * twoPi + 1.3f) * 0.15f
-            blob(accent, ax, ay, 0.52f, 0.26f)
-            blob(coolHue, bx, by, 0.46f, 0.18f)
-            blob(warmHue, -bx * 0.8f, -ay * 1.1f, 0.44f, 0.16f)
-        }
-
-        // Sharper layer: breathing bloom, faint structural rings, rotating accent ring.
+        // Only the rotating halo remains around the button (all other external layers removed):
+        // a bright fast comet while connecting, a subtle slow arc when connected.
         Canvas(modifier = Modifier.matchParentSize()) {
+            if (!showRing) return@Canvas
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = size.minDimension * 0.43f
-
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        accent.copy(alpha = 0.20f + bloom * 0.16f),
-                        accent.copy(alpha = 0.05f),
-                        Color.Transparent,
-                    ),
-                    center = center,
-                    radius = radius * (1.42f + bloom * 0.12f),
-                ),
-                radius = radius * (1.42f + bloom * 0.12f),
-                center = center,
-            )
-            drawCircle(
-                color = accent.copy(alpha = 0.12f),
-                radius = radius,
-                center = center,
-                style = Stroke(width = 0.9.dp.toPx()),
-            )
-            drawCircle(
-                color = Color.White.copy(alpha = 0.045f),
-                radius = radius * 0.73f,
-                center = center,
-                style = Stroke(width = 0.75.dp.toPx()),
-            )
-
-            if (showRing) {
-                rotate(degrees = spin, pivot = center) {
-                    drawArc(
-                        brush = Brush.sweepGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                accent.copy(alpha = ringStrength),
-                                Color.Transparent,
-                            ),
-                            center = center,
+            val connecting = state == VpnOrbState.CONNECTING
+            val haloR = radius * 1.08f
+            rotate(degrees = spin, pivot = center) {
+                drawArc(
+                    brush = Brush.sweepGradient(
+                        colors = if (connecting) listOf(
+                            Color.Transparent,
+                            accent.copy(alpha = 0f),
+                            accent.copy(alpha = 0.9f),
+                            Color.White,
+                            Color.Transparent,
+                        ) else listOf(
+                            Color.Transparent,
+                            accent.copy(alpha = ringStrength),
+                            Color.Transparent,
                         ),
-                        startAngle = 0f,
-                        sweepAngle = 150f,
-                        useCenter = false,
-                        topLeft = Offset(center.x - radius * 1.05f, center.y - radius * 1.05f),
-                        size = Size(radius * 2.1f, radius * 2.1f),
-                        style = Stroke(width = 2.4.dp.toPx()),
-                    )
-                }
+                        center = center,
+                    ),
+                    startAngle = 0f,
+                    sweepAngle = if (connecting) 130f else 150f,
+                    useCenter = false,
+                    topLeft = Offset(center.x - haloR, center.y - haloR),
+                    size = Size(haloR * 2f, haloR * 2f),
+                    style = Stroke(width = (if (connecting) 5f else 2.4f).dp.toPx(), cap = StrokeCap.Round),
+                )
             }
         }
     }
@@ -324,20 +227,27 @@ private fun LightOrbContrastVeil(
 
 @Composable
 private fun VpnHardwarePowerCore(
+    state: VpnOrbState,
     accent: Color,
     enabled: Boolean,
-    isConnecting: Boolean,
     pressScale: Float,
     breathScale: Float,
     glowAlpha: Float,
-    shellLift: Float,
     onClick: () -> Unit,
     interactionSource: MutableInteractionSource,
     modifier: Modifier = Modifier,
-    bowlSize: Dp,
 ) {
-    val tokens = LocalSwimVisualTokens.current
-    val lightTheme = tokens == SwimDesignTokens.Light
+    // Face brightness — the lamp "turns on" when connected; partial while connecting / unstable.
+    val lit by animateFloatAsState(
+        targetValue = when (state) {
+            VpnOrbState.CONNECTED -> 1f
+            VpnOrbState.UNSTABLE -> 0.85f
+            VpnOrbState.CONNECTING -> 0.45f
+            VpnOrbState.DISCONNECTED -> 0f
+        },
+        animationSpec = tween(620, easing = FastOutSlowInEasing),
+        label = "coreLit",
+    )
     Box(
         modifier = modifier
             .scale(pressScale * breathScale)
@@ -345,11 +255,9 @@ private fun VpnHardwarePowerCore(
                 elevation = SwimDesignTokens.Shadow.StartButton,
                 shape = CircleShape,
                 clip = false,
-                spotColor = accent.copy(alpha = glowAlpha * 0.62f),
-                ambientColor = tokens.material.shadowRaised,
+                spotColor = accent.copy(alpha = glowAlpha * 0.6f),
             )
             .clip(CircleShape)
-            .border(1.dp, accent.copy(alpha = 0.22f + glowAlpha * 0.18f), CircleShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -360,159 +268,128 @@ private fun VpnHardwarePowerCore(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val radius = size.minDimension / 2f
+            val c = Offset(size.width / 2f, size.height / 2f)
+            val outerR = size.minDimension / 2f
+            val grooveR = outerR * 0.825f
+            val faceR = outerR * 0.63f
 
+            // Layer 1 — chromed Nardo-grey ring (metallic sweep + bevel)
+            drawCircle(
+                brush = Brush.sweepGradient(
+                    colors = listOf(ChromeDark, ChromeLight, ChromeDark, ChromeLight2, ChromeDark, ChromeLight, ChromeDark, ChromeLight2, ChromeDark),
+                    center = c,
+                ),
+                radius = outerR,
+                center = c,
+            )
+            drawCircle(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.18f), Color.Transparent, Color.Black.copy(alpha = 0.40f)),
+                    startY = c.y - outerR,
+                    endY = c.y + outerR,
+                ),
+                radius = outerR,
+                center = c,
+            )
+
+            // Layer 2 — pure-black groove (gives the ring its 3D relief)
+            drawCircle(color = GrooveBlack, radius = grooveR, center = c)
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(
-                        accent.copy(alpha = glowAlpha),
-                        accent.copy(alpha = glowAlpha * 0.18f),
-                        Color.Transparent,
-                    ),
-                    center = center,
-                    radius = radius * 1.36f,
+                    colors = listOf(Color.Black.copy(alpha = 0.9f), Color.Black.copy(alpha = 0.25f), Color.Transparent),
+                    center = Offset(c.x, c.y - grooveR * 0.18f),
+                    radius = grooveR,
                 ),
-                radius = radius * 1.36f,
-                center = center,
+                radius = grooveR,
+                center = c,
             )
+            drawCircle(color = Color.White.copy(alpha = 0.05f), radius = grooveR, center = c, style = Stroke(width = 1.2.dp.toPx()))
 
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        if (lightTheme) {
-                            tokens.material.shellTop.copy(alpha = 0.72f + shellLift * 0.06f)
-                        } else {
-                            tokens.material.shellTop.copy(alpha = 0.16f + shellLift * 0.04f)
-                        },
-                        tokens.material.shellMid.copy(alpha = 0.98f),
-                        tokens.material.shellBottom,
-                    ),
-                    center = Offset(center.x - radius * 0.24f, center.y - radius * 0.36f),
-                    radius = radius * 1.16f,
-                ),
-                radius = radius,
-                center = center,
-            )
-
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        if (lightTheme) {
-                            tokens.highlight.skinSheen.copy(alpha = 0.26f + shellLift * 0.06f)
-                        } else {
-                            tokens.highlight.purpleEdge.copy(alpha = 0.12f + shellLift * 0.06f)
-                        },
-                        Color.Transparent,
-                    ),
-                    center = Offset(center.x - radius * 0.28f, center.y - radius * 0.36f),
-                    radius = radius * 0.72f,
-                ),
-                radius = radius * 0.72f,
-                center = Offset(center.x - radius * 0.08f, center.y - radius * 0.12f),
-            )
-
-            drawCircle(
-                color = tokens.material.outerDarkVeil,
-                radius = radius * 0.82f,
-                center = Offset(center.x, center.y + radius * 0.09f),
-            )
-
-            drawCircle(
-                color = accent.copy(alpha = 0.18f + glowAlpha * 0.20f),
-                radius = radius * 0.91f,
-                center = center,
-                style = Stroke(width = 1.25.dp.toPx()),
-            )
-
-            // Crisper top-left specular glint — reads glassier than the diffuse sheen alone.
-            val specular = Offset(center.x - radius * 0.30f, center.y - radius * 0.44f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = if (lightTheme) 0.32f else 0.16f),
-                        Color.Transparent,
-                    ),
-                    center = specular,
-                    radius = radius * 0.34f,
-                ),
-                radius = radius * 0.34f,
-                center = specular,
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .size(bowlSize)
-                .clip(CircleShape)
-                .background(Color.Transparent)
-                .border(1.dp, if (lightTheme) tokens.color.homeStrokeMedium else tokens.highlight.bodyStroke, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Canvas(modifier = Modifier.matchParentSize()) {
-                val center = Offset(size.width / 2f, size.height / 2f)
-                val radius = size.minDimension / 2f
-
+            // lamp glow under the face (grows with `lit`)
+            if (lit > 0.01f) {
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(
-                            tokens.material.bowlTop.copy(alpha = 0.98f),
-                            tokens.material.bowlMid.copy(alpha = 0.98f),
-                            tokens.material.bowlBottom,
-                        ),
-                        center = Offset(center.x, center.y + radius * 0.20f),
-                        radius = radius * 1.12f,
+                        colors = listOf(accent.copy(alpha = 0.55f * lit), Color.Transparent),
+                        center = c,
+                        radius = grooveR * (0.9f + 0.25f * lit),
                     ),
-                    radius = radius,
-                    center = center,
+                    radius = grooveR * (0.9f + 0.25f * lit),
+                    center = c,
                 )
-
-                drawCircle(
-                    color = tokens.material.bowlInnerShadow,
-                    radius = radius * 0.98f,
-                    center = center,
-                    style = Stroke(width = 4.dp.toPx()),
-                )
-
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            accent.copy(alpha = glowAlpha * 0.50f),
-                            Color.Transparent,
-                        ),
-                        center = center,
-                        radius = radius * 0.92f,
-                    ),
-                    radius = radius * 0.92f,
-                    center = center,
-                )
-
-                if (isConnecting) {
-                    drawArc(
-                        color = accent.copy(alpha = 0.48f),
-                        startAngle = -90f,
-                        sweepAngle = 238f,
-                        useCenter = false,
-                        style = Stroke(width = 3.dp.toPx()),
-                    )
-                }
             }
 
-            Icon(
-                imageVector = Icons.Rounded.PowerSettingsNew,
-                contentDescription = null,
-                tint = accent,
-                modifier = Modifier
-                    .size(bowlSize * 0.54f)
-                    .shadow(
-                        elevation = SwimDesignTokens.StartButton.IconGlow,
-                        shape = CircleShape,
-                        spotColor = accent.copy(alpha = SwimDesignTokens.StartButton.IconGlowAlpha),
-                    ),
+            // Layer 3 — domed face (dark -> lit accent)
+            val faceTop = lerpColor(FaceDarkTop, lerpColor(accent, Color.White, 0.45f), lit)
+            val faceMid = lerpColor(FaceDarkMid, accent, lit)
+            val faceBot = lerpColor(FaceDarkBottom, lerpColor(accent, Color.Black, 0.35f), lit)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(faceTop, faceMid, faceBot),
+                    center = Offset(c.x, c.y - faceR * 0.34f),
+                    radius = faceR * 1.18f,
+                ),
+                radius = faceR,
+                center = c,
             )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.30f + 0.25f * lit), Color.Transparent),
+                    center = Offset(c.x - faceR * 0.20f, c.y - faceR * 0.42f),
+                    radius = faceR * 0.8f,
+                ),
+                radius = faceR * 0.8f,
+                center = Offset(c.x - faceR * 0.10f, c.y - faceR * 0.22f),
+            )
+            drawCircle(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.Transparent, Color.Transparent, Color.Black.copy(alpha = 0.45f * (1f - lit))),
+                    startY = c.y - faceR,
+                    endY = c.y + faceR,
+                ),
+                radius = faceR,
+                center = c,
+            )
+
+            // white geometric power glyph (arc + bar)
+            drawPowerGlyph(c, faceR * 0.40f, Color.White, 2.6.dp.toPx())
         }
     }
 }
+
+private fun lerpColor(a: Color, b: Color, t: Float): Color = Color(
+    red = a.red + (b.red - a.red) * t,
+    green = a.green + (b.green - a.green) * t,
+    blue = a.blue + (b.blue - a.blue) * t,
+    alpha = a.alpha + (b.alpha - a.alpha) * t,
+)
+
+/** Geometric power symbol: a ring with a top gap + a vertical bar. */
+private fun DrawScope.drawPowerGlyph(center: Offset, r: Float, color: Color, stroke: Float) {
+    drawArc(
+        color = color,
+        startAngle = -58f,
+        sweepAngle = 296f,
+        useCenter = false,
+        topLeft = Offset(center.x - r, center.y - r),
+        size = Size(r * 2f, r * 2f),
+        style = Stroke(width = stroke, cap = StrokeCap.Round),
+    )
+    drawLine(
+        color = color,
+        start = Offset(center.x, center.y - r * 1.28f),
+        end = Offset(center.x, center.y - r * 0.12f),
+        strokeWidth = stroke,
+        cap = StrokeCap.Round,
+    )
+}
+
+private val ChromeDark = Color(0xFF26272A)
+private val ChromeLight = Color(0xFF5C5E63)
+private val ChromeLight2 = Color(0xFF56585C)
+private val GrooveBlack = Color(0xFF050506)
+private val FaceDarkTop = Color(0xFF3C3D42)
+private val FaceDarkMid = Color(0xFF26272B)
+private val FaceDarkBottom = Color(0xFF161719)
 
 private data class HomeVpnCoreVisuals(
     val accent: Color,
@@ -532,7 +409,7 @@ private fun VpnOrbState.coreVisuals(): HomeVpnCoreVisuals = when (this) {
         buttonBreathRange = 0.006f,
         buttonGlowAlpha = 0.22f,
         shellLift = 0.18f,
-        buttonSizeRatio = 0.49f,
+        buttonSizeRatio = 0.62f,
     )
     VpnOrbState.CONNECTING -> HomeVpnCoreVisuals(
         accent = SwimDesignTokens.Material.PurpleCoreTop,
@@ -541,7 +418,7 @@ private fun VpnOrbState.coreVisuals(): HomeVpnCoreVisuals = when (this) {
         buttonBreathRange = 0.014f,
         buttonGlowAlpha = 0.42f,
         shellLift = 0.34f,
-        buttonSizeRatio = 0.51f,
+        buttonSizeRatio = 0.63f,
     )
     VpnOrbState.CONNECTED -> HomeVpnCoreVisuals(
         accent = SwimDesignTokens.Color.PurpleActive,
@@ -550,7 +427,7 @@ private fun VpnOrbState.coreVisuals(): HomeVpnCoreVisuals = when (this) {
         buttonBreathRange = 0.010f,
         buttonGlowAlpha = 0.34f,
         shellLift = 0.24f,
-        buttonSizeRatio = 0.50f,
+        buttonSizeRatio = 0.62f,
     )
     VpnOrbState.UNSTABLE -> HomeVpnCoreVisuals(
         accent = SwimDesignTokens.Color.Warning,
@@ -559,7 +436,7 @@ private fun VpnOrbState.coreVisuals(): HomeVpnCoreVisuals = when (this) {
         buttonBreathRange = 0.012f,
         buttonGlowAlpha = 0.30f,
         shellLift = 0.22f,
-        buttonSizeRatio = 0.50f,
+        buttonSizeRatio = 0.62f,
     )
 }
 
