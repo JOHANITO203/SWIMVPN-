@@ -334,21 +334,22 @@ object SwimDesignTokens {
     }
 
     object Dock {
+        // 3-layer metaball dock (mock-faithful): grey wave membrane + deep-black wells + white
+        // geometric glyphs; active well = purple. 4 items (Home·Servers·Subscription·Account);
+        // Proxy stays reached from Settings. Design space (units == dp); the Canvas scales to size.
         val Width = 320.dp
-        val Height = 89.dp
-        const val CenterY = 45f
-        const val CenterSpacing = 77f
-        val InactiveOuterDiameter = 80.dp
-        val ActiveOuterDiameter = 89.dp
-        val InactiveBowlDiameter = 54.dp
-        val ActiveBowlDiameter = 58.dp
-        val ActiveCoreDiameter = 58.dp
-        val InactiveIconSize = 18.dp
-        val ActiveIconSize = 22.dp
-        const val InactiveOuterRadius = 40f
-        const val ActiveOuterRadius = 44.5f
-        const val ActiveGlowRadius = 70f
-        const val ValleyDepth = 14f
+        val Height = 92.dp
+        const val CenterY = 46f
+        // Layer 1 — grey membrane: bulges are perfect circles connected by exact tangent bridges.
+        const val BulgeRadius = 40f
+        // Layer 2 — wells slightly smaller than the bulge (grey ring around) and never touching.
+        const val WellRadius = 31f
+        const val ActiveWellRadius = 33f
+        const val GlowRadius = 58f
+        // Layer 3 — geometric glyphs (≈ ⌀well / φ).
+        val IconSize = 30.dp
+        val ActiveIconSize = 33.dp
+        // 4 evenly-spaced centers (spacing 77): bulges overlap (connected), wells keep a gap.
         val Centers = listOf(44.5f, 121.5f, 198.5f, 275.5f)
     }
 
