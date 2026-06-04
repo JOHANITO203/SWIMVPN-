@@ -107,6 +107,8 @@ fun TechnicalSettingsScreen(
     activeRuntimeMode: String? = null,
     agentEnabled: Boolean = true,
     onAgentEnabledChange: (Boolean) -> Unit = {},
+    bypassGeoEnabled: Boolean = false,
+    onBypassGeoEnabledChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -228,6 +230,14 @@ fun TechnicalSettingsScreen(
                     subtitle = if (agentEnabled) stringResource(R.string.technical_agent_on) else stringResource(R.string.technical_agent_off),
                     checked = agentEnabled,
                     onCheckedChange = onAgentEnabledChange,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsSwitchPill(
+                    icon = Icons.Outlined.Language,
+                    title = stringResource(R.string.technical_bypass_geo_title),
+                    subtitle = if (bypassGeoEnabled) stringResource(R.string.technical_bypass_geo_on) else stringResource(R.string.technical_bypass_geo_off),
+                    checked = bypassGeoEnabled,
+                    onCheckedChange = onBypassGeoEnabledChange,
                 )
             }
 

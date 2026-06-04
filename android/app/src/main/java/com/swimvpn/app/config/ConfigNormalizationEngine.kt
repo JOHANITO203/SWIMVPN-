@@ -13,8 +13,12 @@ import android.util.Log
  * - Generate runtime-ready configurations
  */
 object ConfigNormalizationEngine {
-    
+
     private val TAG = "ConfigNormalizationEngine"
+
+    private val gson = com.google.gson.GsonBuilder()
+        .disableHtmlEscaping()
+        .create()
     
     /**
      * Main entry point: normalize a parsed configuration
@@ -180,16 +184,13 @@ object ConfigNormalizationEngine {
      * Prepare runtime configuration for tunnel engine
      */
     private fun prepareRuntimeConfig(profile: SwimVpnProfile): SwimVpnProfile {
-        val runtimeConfig = when (profile.protocol) {
-            Protocol.VLESS -> generateVlessRuntimeConfig(profile)
-            Protocol.VMESS -> generateVmessRuntimeConfig(profile)
-            Protocol.TROJAN -> generateTrojanRuntimeConfig(profile)
-            Protocol.SHADOWSOCKS -> generateShadowsocksRuntimeConfig(profile)
-            else -> null
-        }
-        
+        // Single producer for the proxy outbound (shared with TunnelRuntimeAdapter via
+        // XrayOutboundBuilder), so VLESS/VMESS get full transports + complete Reality/XTLS, and
+        // every protocol emits the same correct streamSettings. SOCKS5/HTTP BYO proxies return null
+        // here and keep their dedicated outbound builders in the adapter.
+        val outbound = XrayOutboundBuilder.forProfile(profile)
         return profile.copy(
-            normalizedRuntimeConfig = runtimeConfig
+            normalizedRuntimeConfig = outbound?.let { gson.toJson(it) },
         )
     }
     
@@ -303,247 +304,6 @@ object ConfigNormalizationEngine {
     private fun enrichShadowsocksProfile(profile: SwimVpnProfile): SwimVpnProfile {
         // Shadowsocks-specific enrichment
         return profile
-    }
-    
-    /**
-     * Runtime configuration generation
-     */
-    private fun generateVlessRuntimeConfig(profile: SwimVpnProfile): String? {
-        return try {
-            // Generate Xray-core compatible JSON
-            buildString {
-                appendLine("{")
-                appendLine("  \"protocol\": \"vless\",")
-                appendLine("  \"settings\": {")
-                appendLine("    \"vnext\": [{")
-                appendLine("      \"address\": \"${profile.address}\",")
-                appendLine("      \"port\": ${profile.port},")
-                appendLine("      \"users\": [{")
-                appendLine("        \"id\": \"${profile.userId}\",")
-                appendLine("        \"encryption\": \"none\"")
-                profile.flow?.takeIf { it.isNotBlank() }?.let { flow ->
-                    appendLine("        ,\"flow\": \"$flow\"")
-                }
-                appendLine("      }]")
-                appendLine("    }]")
-                appendLine("  },")
-                
-                // Stream settings based on transport
-                appendLine("  \"streamSettings\": {")
-                appendLine("    \"network\": \"${profile.transport.name.lowercase()}\",")
-                
-                when (profile.transport) {
-                    Transport.TCP -> {
-                        appendLine("    \"tcpSettings\": {")
-                        profile.tcpSettings?.let { tcp ->
-                            if (tcp.headerType != "none") {
-                                appendLine("      \"header\": {")
-                                appendLine("        \"type\": \"${tcp.headerType}\"")
-                                tcp.host?.let { host ->
-                                    appendLine("        \"host\": \"$host\"")
-                                }
-                                appendLine("      }")
-                            }
-                        }
-                        appendLine("    }")
-                    }
-                    Transport.WEBSOCKET -> {
-                        appendLine("    \"wsSettings\": {")
-                        profile.websocketSettings?.let { ws ->
-                            appendLine("      \"path\": \"${ws.path}\",")
-                            ws.host?.let { host ->
-                                appendLine("      \"headers\": {")
-                                appendLine("        \"Host\": \"$host\"")
-                                appendLine("      }")
-                            }
-                        }
-                        appendLine("    }")
-                    }
-                    else -> {
-                        // Other transports
-                    }
-                }
-                
-                // Security settings
-                appendLine("    \"security\": \"${profile.securityMode.name.lowercase()}\",")
-                
-                when (profile.securityMode) {
-                    SecurityMode.TLS -> {
-                        appendLine("    \"tlsSettings\": {")
-                        profile.tlsSettings?.let { tls ->
-                            appendLine("      \"serverName\": \"${tls.sni}\",")
-                            appendLine("      \"allowInsecure\": ${tls.allowInsecure}")
-                            if (tls.alpn.isNotEmpty()) {
-                                appendLine("      \"alpn\": [${tls.alpn.joinToString(", ") { "\"$it\"" }}]")
-                            }
-                        }
-                        appendLine("    }")
-                    }
-                    SecurityMode.REALITY -> {
-                        appendLine("    \"realitySettings\": {")
-                        profile.realitySettings?.let { reality ->
-                            appendLine("      \"publicKey\": \"${reality.publicKey}\",")
-                            appendLine("      \"shortId\": \"${reality.shortId}\"")
-                        }
-                        appendLine("    }")
-                    }
-                    else -> {
-                        // No security settings
-                    }
-                }
-                
-                appendLine("  }")
-                appendLine("}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generating VLESS runtime config", e)
-            null
-        }
-    }
-    
-    private fun generateVmessRuntimeConfig(profile: SwimVpnProfile): String? {
-        return try {
-            // Generate Xray-core compatible JSON for VMess
-            buildString {
-                appendLine("{")
-                appendLine("  \"protocol\": \"vmess\",")
-                appendLine("  \"settings\": {")
-                appendLine("    \"vnext\": [{")
-                appendLine("      \"address\": \"${profile.address}\",")
-                appendLine("      \"port\": ${profile.port},")
-                appendLine("      \"users\": [{")
-                appendLine("        \"id\": \"${profile.userId}\",")
-                appendLine("        \"alterId\": 0,")
-                appendLine("        \"security\": \"auto\"")
-                appendLine("      }]")
-                appendLine("    }]")
-                appendLine("  },")
-                
-                // Stream settings based on transport
-                appendLine("  \"streamSettings\": {")
-                appendLine("    \"network\": \"${profile.transport.name.lowercase()}\",")
-                
-                when (profile.transport) {
-                    Transport.TCP -> {
-                        appendLine("    \"tcpSettings\": {")
-                        profile.tcpSettings?.let { tcp ->
-                            if (tcp.headerType != "none") {
-                                appendLine("      \"header\": {")
-                                appendLine("        \"type\": \"${tcp.headerType}\"")
-                                tcp.host?.let { host ->
-                                    appendLine("        \"host\": \"$host\"")
-                                }
-                                appendLine("      }")
-                            }
-                        }
-                        appendLine("    }")
-                    }
-                    Transport.WEBSOCKET -> {
-                        appendLine("    \"wsSettings\": {")
-                        profile.websocketSettings?.let { ws ->
-                            appendLine("      \"path\": \"${ws.path}\",")
-                            ws.host?.let { host ->
-                                appendLine("      \"headers\": {")
-                                appendLine("        \"Host\": \"$host\"")
-                                appendLine("      }")
-                            }
-                        }
-                        appendLine("    }")
-                    }
-                    else -> {
-                        // Other transports
-                    }
-                }
-                
-                // Security settings
-                appendLine("    \"security\": \"${profile.securityMode.name.lowercase()}\",")
-                
-                when (profile.securityMode) {
-                    SecurityMode.TLS -> {
-                        appendLine("    \"tlsSettings\": {")
-                        profile.tlsSettings?.let { tls ->
-                            appendLine("      \"serverName\": \"${tls.sni}\",")
-                            appendLine("      \"allowInsecure\": ${tls.allowInsecure}")
-                            if (tls.alpn.isNotEmpty()) {
-                                appendLine("      \"alpn\": [${tls.alpn.joinToString(", ") { "\"$it\"" }}]")
-                            }
-                        }
-                        appendLine("    }")
-                    }
-                    SecurityMode.REALITY -> {
-                        appendLine("    \"realitySettings\": {")
-                        profile.realitySettings?.let { reality ->
-                            appendLine("      \"publicKey\": \"${reality.publicKey}\",")
-                            appendLine("      \"shortId\": \"${reality.shortId}\"")
-                        }
-                        appendLine("    }")
-                    }
-                    else -> {
-                        // No security settings
-                    }
-                }
-                
-                appendLine("  }")
-                appendLine("}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generating VMess runtime config", e)
-            null
-        }
-    }
-    
-    private fun generateTrojanRuntimeConfig(profile: SwimVpnProfile): String? {
-        return try {
-            buildString {
-                appendLine("{")
-                appendLine("  \"run_type\": \"client\",")
-                appendLine("  \"local_addr\": \"127.0.0.1\",")
-                appendLine("  \"local_port\": 1080,")
-                appendLine("  \"remote_addr\": \"${profile.address}\",")
-                appendLine("  \"remote_port\": ${profile.port},")
-                appendLine("  \"password\": [\"${profile.password}\"],")
-                appendLine("  \"ssl\": {")
-                appendLine("    \"verify\": true,")
-                appendLine("    \"verify_hostname\": true,")
-                appendLine("    \"sni\": \"${profile.tlsSettings?.sni ?: profile.address}\"")
-                appendLine("  }")
-                
-                // WebSocket support if enabled
-                profile.websocketSettings?.let { ws ->
-                    appendLine("  \"websocket\": {")
-                    appendLine("    \"enabled\": true,")
-                    appendLine("    \"path\": \"${ws.path}\",")
-                    ws.host?.let { host ->
-                        appendLine("    \"host\": \"$host\"")
-                    }
-                    appendLine("  }")
-                }
-                
-                appendLine("}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generating Trojan runtime config", e)
-            null
-        }
-    }
-    
-    private fun generateShadowsocksRuntimeConfig(profile: SwimVpnProfile): String? {
-        return try {
-            buildString {
-                appendLine("{")
-                appendLine("  \"server\": \"${profile.address}\",")
-                appendLine("  \"server_port\": ${profile.port},")
-                appendLine("  \"password\": \"${profile.password}\",")
-                appendLine("  \"method\": \"${profile.method}\",")
-                appendLine("  \"plugin\": \"\",")
-                appendLine("  \"plugin_opts\": \"\",")
-                appendLine("  \"timeout\": 300")
-                appendLine("}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error generating Shadowsocks runtime config", e)
-            null
-        }
     }
     
     /**

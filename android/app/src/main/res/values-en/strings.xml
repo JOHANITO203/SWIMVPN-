@@ -250,6 +250,9 @@
     <string name="technical_agent_title">AI Agent</string>
     <string name="technical_agent_on">Smart selection active</string>
     <string name="technical_agent_off">Manual selection</string>
+    <string name="technical_bypass_geo_title">Geo bypass</string>
+    <string name="technical_bypass_geo_on">Local &amp; private traffic outside the tunnel</string>
+    <string name="technical_bypass_geo_off">Everything goes through the tunnel</string>
     <string name="technical_language_title">Language</string>
     <string name="technical_theme_title">Theme</string>
     <string name="technical_theme_dark_active">Dark active</string>

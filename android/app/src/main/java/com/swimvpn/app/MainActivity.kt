@@ -337,6 +337,7 @@ fun AppNavigation(
         composable("technical") {
             val metrics by VpnManager.metrics.collectAsState()
             val runtimeStatus by VpnManager.runtimeStatus.collectAsState()
+            val bypassGeoEnabled by viewModel.bypassGeoEnabled.collectAsState()
             val routingMode = when (val currentState = state) {
                 is AppState.Success -> currentState.routingMode
                 is AppState.TrialSetup -> currentState.routingMode
@@ -370,10 +371,12 @@ fun AppNavigation(
                 },
                 autoConnect = autoConnect,
                 agentEnabled = agentEnabled,
+                bypassGeoEnabled = bypassGeoEnabled,
                 language = language,
                 onRoutingModeChange = { viewModel.setRoutingMode(it) },
                 onAutoConnectChange = { viewModel.setAutoConnect(it) },
                 onAgentEnabledChange = { viewModel.setAiAgentEnabled(it) },
+                onBypassGeoEnabledChange = { viewModel.setBypassGeoEnabled(it) },
                 onLanguageChange = {
                     viewModel.setLanguage(it)
                     onApplyLocale(it)

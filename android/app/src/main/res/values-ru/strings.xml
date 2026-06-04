@@ -250,6 +250,9 @@
     <string name="technical_agent_title">AI Agent</string>
     <string name="technical_agent_on">Умный выбор активен</string>
     <string name="technical_agent_off">Ручной выбор</string>
+    <string name="technical_bypass_geo_title">Гео-байпас</string>
+    <string name="technical_bypass_geo_on">Локальный и частный трафик вне туннеля</string>
+    <string name="technical_bypass_geo_off">Весь трафик идёт через туннель</string>
     <string name="technical_language_title">Язык</string>
     <string name="technical_theme_title">Тема</string>
     <string name="technical_theme_dark_active">Темная активна</string>

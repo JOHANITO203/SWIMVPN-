@@ -35,6 +35,7 @@ class PreferencesManager(private val context: Context) {
         val ROUTING_MODE_KEY = stringPreferencesKey("routing_mode")
         val AUTO_CONNECT_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("auto_connect")
         val AI_AGENT_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("ai_agent_enabled")
+        val BYPASS_GEO_ENABLED_KEY = androidx.datastore.preferences.core.booleanPreferencesKey("bypass_geo_enabled")
         val LANGUAGE_KEY = stringPreferencesKey("language") // "en", "fr", "ru"
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SELECTED_SERVER_ID_KEY = stringPreferencesKey("selected_server_id")
@@ -51,6 +52,13 @@ class PreferencesManager(private val context: Context) {
 
         /** Resolves the persisted AI-agent flag, defaulting to ON when unset. Pure logic for unit tests. */
         fun resolveAiAgentEnabled(persisted: Boolean?): Boolean = persisted ?: DEFAULT_AI_AGENT_ENABLED
+
+        // Geo bypass stays OFF by default: ON would route LAN/private (and curated) traffic OUTSIDE
+        // the tunnel, so the full-tunnel runtime must be unchanged unless the user opts in.
+        const val DEFAULT_BYPASS_GEO_ENABLED = false
+
+        /** Resolves the persisted bypass-geo flag, defaulting to OFF when unset. Pure logic for unit tests. */
+        fun resolveBypassGeoEnabled(persisted: Boolean?): Boolean = persisted ?: DEFAULT_BYPASS_GEO_ENABLED
     }
 
     val userNumberFlow: Flow<String?> = context.dataStore.data
@@ -72,6 +80,9 @@ class PreferencesManager(private val context: Context) {
 
     val aiAgentEnabledFlow: Flow<Boolean> = context.dataStore.data
         .map { preferences -> resolveAiAgentEnabled(preferences[AI_AGENT_ENABLED_KEY]) }
+
+    val bypassGeoEnabledFlow: Flow<Boolean> = context.dataStore.data
+        .map { preferences -> resolveBypassGeoEnabled(preferences[BYPASS_GEO_ENABLED_KEY]) }
 
     val languageFlow: Flow<String> = context.dataStore.data
         .map { preferences -> preferences[LANGUAGE_KEY] ?: DEFAULT_LANGUAGE }
@@ -108,6 +119,10 @@ class PreferencesManager(private val context: Context) {
 
     suspend fun setAiAgentEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences -> preferences[AI_AGENT_ENABLED_KEY] = enabled }
+    }
+
+    suspend fun setBypassGeoEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences -> preferences[BYPASS_GEO_ENABLED_KEY] = enabled }
     }
 
     suspend fun setLanguage(lang: String) {

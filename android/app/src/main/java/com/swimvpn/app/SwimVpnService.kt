@@ -23,6 +23,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.swimvpn.app.BuildConfig
 import com.swimvpn.app.adaptive.AdaptiveEventLogger
+import com.swimvpn.app.config.RoutingOptions
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
 import com.swimvpn.app.data.local.PreferencesManager
@@ -445,11 +446,15 @@ class SwimVpnService : VpnService() {
                     }
                 }
 
+                // Geo bypass (OFF by default): when ON, LAN/private + curated traffic is routed
+                // direct (outside the tunnel) via Xray routing rules. Read at connect time.
+                val bypassGeo = PreferencesManager(applicationContext).bypassGeoEnabledFlow.first()
                 val runtime = rawConfig?.takeIf { it.isNotBlank() }?.let {
                     TunnelRuntimeAdapter.prepareRuntimeFromRawConfig(
                         rawConfig = it,
                         sourceType = SourceType.BACKEND_API,
                         runtimeMode = requestedMode,
+                        routingOptions = RoutingOptions(bypassGeo = bypassGeo),
                     ).getOrElse { error ->
                         throw IllegalStateException(
                             "Invalid runtime config: ${error.localizedMessage}",
