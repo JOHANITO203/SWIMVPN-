@@ -30,6 +30,8 @@ import {
   mapSwimPayStatusToAction,
   parseSwimPayOrderId,
   resolveSwimPayReconcileIntervalMs,
+  resolveSwimPayPendingMaxAgeMs,
+  shouldAbandonSwimPayOrder,
 } from './swimpay-reconciliation.policy';
 
 @Injectable()
@@ -81,7 +83,9 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
     }
     this.reconcileInFlight = true;
     try {
-      const cutoff = new Date(Date.now() - SWIMPAY_RECONCILE_MIN_ORDER_AGE_MS);
+      const now = Date.now();
+      const maxAgeMs = resolveSwimPayPendingMaxAgeMs(process.env.SWIMPAY_PENDING_MAX_AGE_MS);
+      const cutoff = new Date(now - SWIMPAY_RECONCILE_MIN_ORDER_AGE_MS);
       const stuck = await this.prisma.order.findMany({
         where: {
           status: OrderStatus.PENDING,
@@ -90,7 +94,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
         },
         orderBy: { created_at: 'asc' },
         take: 10,
-        select: { id: true, order_ref: true, payment_ref: true },
+        select: { id: true, order_ref: true, payment_ref: true, created_at: true },
       });
       if (stuck.length === 0) {
         return;
@@ -98,10 +102,21 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
 
       let fulfilled = 0;
       let failed = 0;
+      let abandoned = 0;
+      let unresolved = 0;
       for (const order of stuck) {
         const swimpayOrderId = parseSwimPayOrderId(order.payment_ref);
-        if (!swimpayOrderId) continue;
         try {
+          // Malformed/unparseable payment_ref can never be polled — retire it once aged out.
+          if (!swimpayOrderId) {
+            if (shouldAbandonSwimPayOrder({ createdAt: order.created_at, notFound: true, now, maxAgeMs })) {
+              await this.abandonStaleSwimPayOrder(order.id, order.order_ref, 'malformed_payment_ref');
+              abandoned += 1;
+            } else {
+              unresolved += 1;
+            }
+            continue;
+          }
           const remote = await this.swimPayService.getOrderStatus(swimpayOrderId);
           const action = mapSwimPayStatusToAction(remote?.status);
           if (action === 'FULFILL') {
@@ -113,6 +128,19 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
               data: { status: OrderStatus.FAILED },
             });
             failed += 1;
+          } else if (
+            shouldAbandonSwimPayOrder({ createdAt: order.created_at, notFound: !!remote?.notFound, now, maxAgeMs })
+          ) {
+            // Dead order (not found under the current merchant past expiry, or aged out) → retire it
+            // so the bounded batch advances to newer, genuinely-confirmed orders instead of clogging.
+            await this.abandonStaleSwimPayOrder(
+              order.id,
+              order.order_ref,
+              remote?.notFound ? 'not_found_in_current_merchant' : 'aged_out',
+            );
+            abandoned += 1;
+          } else {
+            unresolved += 1;
           }
         } catch (error) {
           console.warn(
@@ -121,13 +149,30 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
         }
       }
       console.log(
-        `[CustomerService] SwimPay reconciliation: ${stuck.length} pending, ${fulfilled} fulfilled, ${failed} failed`,
+        `[CustomerService] SwimPay reconciliation: ${stuck.length} pending, ${fulfilled} fulfilled, ${failed} failed, ${abandoned} abandoned, ${unresolved} unresolved`,
       );
+      // Loud config-drift signal: orders we keep failing to resolve usually mean the active merchant
+      // has NO active webhook endpoint, or SWIMPAY_SECRET_KEY was rotated to a different merchant.
+      if (abandoned > 0 || unresolved > 0) {
+        console.warn(
+          `[CustomerService] SwimPay reconciliation drift: ${abandoned} abandoned, ${unresolved} unresolved — verify the active merchant has an ACTIVE webhook endpoint and that SWIMPAY_SECRET_KEY matches it.`,
+        );
+      }
     } catch (error) {
       console.error('[CustomerService] SwimPay reconciliation sweep failed', error);
     } finally {
       this.reconcileInFlight = false;
     }
+  }
+
+  // Retire a SwimPay order that can never confirm (not found under the current merchant past its
+  // expiry, aged out, or malformed) so the bounded reconciliation batch never clogs on it.
+  private async abandonStaleSwimPayOrder(orderId: string, orderRef: string, reason: string) {
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.CANCELLED },
+    });
+    console.warn(`[CustomerService] SwimPay order ${orderRef} retired as CANCELLED (${reason})`);
   }
 
   async bootstrapAccess(data: BootstrapAccessDto) {

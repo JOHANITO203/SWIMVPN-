@@ -105,8 +105,9 @@ export class SwimPayService {
   }
 
   // Merchant-side status lookup used by the reconciliation sweep when a confirmation webhook
-  // never arrived. Returns null on any error / not-found so the caller simply waits and retries.
-  async getOrderStatus(swimpayOrderId: string): Promise<{ status: string } | null> {
+  // never arrived. Returns { status } when known, { notFound: true } on HTTP 404 (not visible under
+  // the current merchant key), or null on transient errors (caller waits and retries).
+  async getOrderStatus(swimpayOrderId: string): Promise<{ status?: string; notFound?: boolean } | null> {
     if (!this.secretKey || !swimpayOrderId) {
       return null;
     }
@@ -124,6 +125,11 @@ export class SwimPayService {
       return null;
     }
 
+    // 404 = order not visible under the current merchant key (gone / created under a rotated
+    // merchant). Surface it distinctly so the reconciler can retire it instead of waiting forever.
+    if (response.status === 404) {
+      return { notFound: true };
+    }
     if (!response.ok) {
       return null;
     }

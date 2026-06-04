@@ -45,3 +45,37 @@ export function mapSwimPayStatusToAction(status?: string | null): SwimPayReconci
   if (FAILED_STATUSES.has(normalized)) return 'FAIL';
   return 'WAIT';
 }
+
+// --- Stale-order retirement (anti-clog) ---------------------------------------------------------
+// SwimPay expires an unpaid order ~15 min after creation. A PENDING order we still can't resolve
+// well past that — because it is not found under the CURRENT merchant key (HTTP 404, e.g. created
+// under a since-rotated merchant) or simply aged out — can never become confirmed. Retiring it
+// (-> CANCELLED) stops the bounded reconciliation batch from clogging forever on dead orders, which
+// would otherwise starve newer, genuinely-confirmed orders (the production incident root cause).
+
+export const DEFAULT_SWIMPAY_PENDING_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h hard cap
+// 2× SwimPay's ~15-min order expiry, so we never race a slow manual confirmation.
+export const SWIMPAY_ABANDON_NOT_FOUND_AFTER_MS = 30 * 60 * 1000;
+
+export function resolveSwimPayPendingMaxAgeMs(rawValue?: string | null): number {
+  const normalized = rawValue?.trim().toLowerCase();
+  if (!normalized) return DEFAULT_SWIMPAY_PENDING_MAX_AGE_MS;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_SWIMPAY_PENDING_MAX_AGE_MS;
+  // Never let the cap dip below the not-found window, or we'd abandon transiently-unreachable orders.
+  return Math.max(Math.floor(parsed), SWIMPAY_ABANDON_NOT_FOUND_AFTER_MS);
+}
+
+export function shouldAbandonSwimPayOrder(input: {
+  createdAt: Date;
+  notFound: boolean;
+  now: number;
+  maxAgeMs: number;
+}): boolean {
+  const ageMs = input.now - input.createdAt.getTime();
+  if (ageMs < 0) return false;
+  // Not visible under the current merchant, and already past SwimPay's expiry window → dead.
+  if (input.notFound && ageMs > SWIMPAY_ABANDON_NOT_FOUND_AFTER_MS) return true;
+  // Hard age cap: it will never confirm now.
+  return ageMs > input.maxAgeMs;
+}
