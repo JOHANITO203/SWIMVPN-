@@ -694,7 +694,7 @@ export function formatContinuityNoStockAlert(input: { category: string; count: n
     '⚠️ *Continuité — stock à sec*',
     `Forfait : ${planLabel(input.category)}`,
     `${input.count} accès à risque non couverts (config mourante, aucun stock sain).`,
-    'Action : importe du stock — /stock_health',
+    'Action : importe du stock — `/stock_health`',
   ].join('\n');
 }
 
