@@ -39,6 +39,8 @@ import {
   parseReviewCommand,
   parseRetryCommand,
   formatStockHealth,
+  formatCockpitHub,
+  cockpitHubKeyboard,
   type StockHealthItem,
 } from './admin-bot.formatter';
 
@@ -112,8 +114,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   private setupCommands() {
     if (!this.bot) return;
 
-    this.bot.start(async (ctx) => ctx.reply(this.helpText(), this.mainKeyboard()));
-    this.bot.command('help', async (ctx) => ctx.reply(this.helpText(), this.mainKeyboard()));
+    this.bot.start(async (ctx) => { await this.replyCockpitHub(ctx, false); });
+    this.bot.command('help', async (ctx) => { await this.replyCockpitHub(ctx, false); });
+    this.bot.command('cockpit', async (ctx) => { await this.replyCockpitHub(ctx, false); });
+    this.bot.command('menu', async (ctx) => { await this.replyCockpitHub(ctx, false); });
     this.bot.command('whoami', async (ctx) => ctx.reply(this.formatWhoami(ctx), { parse_mode: 'Markdown' }));
 
     this.bot.command('status', async (ctx) => {
@@ -582,6 +586,11 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.catch((error, ctx) => {
       this.logger.error(`Telegraf error for ${ctx.updateType}:`, error as Error);
+    });
+
+    this.bot.action(/^cockpit:home$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await this.replyCockpitHub(ctx, true);
     });
 
     this.bot.action(/^stock$/, async (ctx) => {
@@ -1504,6 +1513,16 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error('Order retry failed', error as Error);
       await ctx.reply(`❌ Échec de la relance pour ${orderRef}.`);
+    }
+  }
+
+  private async replyCockpitHub(ctx: any, edit: boolean) {
+    const text = formatCockpitHub();
+    const kb = cockpitHubKeyboard();
+    if (edit && ctx.callbackQuery) {
+      await ctx.editMessageText(text, { parse_mode: 'Markdown', ...kb });
+    } else {
+      await ctx.reply(text, { parse_mode: 'Markdown', ...kb });
     }
   }
 

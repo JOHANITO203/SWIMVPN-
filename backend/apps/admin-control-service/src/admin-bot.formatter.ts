@@ -81,6 +81,8 @@ const CATEGORY_SUPPLIER_CAPACITY: Record<string, number> = {
 
 export const ADMIN_BOT_COMMANDS = [
   { command: 'help', description: 'Show admin command list' },
+  { command: 'cockpit', description: 'Open the admin cockpit (menu)' },
+  { command: 'menu', description: 'Open the admin cockpit (menu)' },
   { command: 'whoami', description: 'Show your Telegram ids' },
   { command: 'status', description: 'Check admin bot status' },
   { command: 'stock', description: 'Show inventory by plan bucket' },
@@ -673,6 +675,23 @@ function extractPreviewStatus(value: unknown) {
 function formatSupplierCapacity(category: PlanCategory | string) {
   const capacity = CATEGORY_SUPPLIER_CAPACITY[String(category)] ?? 2;
   return `${capacity} internal capacity units`;
+}
+
+// ── Cockpit hub ───────────────────────────────────────────────────────────────
+
+export function formatCockpitHub(): string {
+  return [
+    '🎛️ *SWIMVPN — Cockpit admin*',
+    'Choisis une section ci-dessous.',
+  ].join('\n');
+}
+
+export function cockpitHubKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('📦 Stock', 'cockpit:stock'), Markup.button.callback('⚠️ Alertes', 'cockpit:alerts')],
+    [Markup.button.callback('📥 Import', 'cockpit:import'), Markup.button.callback('💰 Finance', 'cockpit:finance')],
+    [Markup.button.callback('🧩 Actions', 'cockpit:palette'), Markup.button.callback('🛑 Danger', 'cockpit:danger')],
+  ]);
 }
 
 // ── Continuity + stock-health formatters ──────────────────────────────────────
