@@ -694,6 +694,26 @@ export function cockpitHubKeyboard() {
   ]);
 }
 
+// ── Actions palette ───────────────────────────────────────────────────────────
+
+export function formatCockpitPalette(): string {
+  return [
+    '🧩 *Actions du bot*',
+    'Tape un bouton — pas besoin de retenir les commandes.',
+  ].join('\n');
+}
+
+export function cockpitPaletteKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('📦 Stock', 'stock'), Markup.button.callback('📊 Santé stock', 'cockpit:stock_health')],
+    [Markup.button.callback('⏳ En attente', 'pending'), Markup.button.callback('🧾 Commandes', 'cockpit:orders')],
+    [Markup.button.callback('🔧 Gérer une config', 'cockpit:manage'), Markup.button.callback('♻️ Vérif santé', 'cockpit:healthcheck')],
+    [Markup.button.callback('📥 Importer', 'cockpit:import')],
+    [Markup.button.callback('💰 Finance', 'finance_refresh'), Markup.button.callback('➕ Dépense', 'add_expense_start')],
+    [Markup.button.callback('👥 Users', 'cockpit:users'), Markup.button.callback('⬅️ Retour', 'cockpit:home')],
+  ]);
+}
+
 // ── Continuity + stock-health formatters ──────────────────────────────────────
 
 export interface StockHealthItem {

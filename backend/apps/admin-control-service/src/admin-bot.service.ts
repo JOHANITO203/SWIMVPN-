@@ -41,6 +41,8 @@ import {
   formatStockHealth,
   formatCockpitHub,
   cockpitHubKeyboard,
+  formatCockpitPalette,
+  cockpitPaletteKeyboard,
   type StockHealthItem,
 } from './admin-bot.formatter';
 
@@ -143,32 +145,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('orders', async (ctx) => {
-      await ctx.reply('Reading recent orders...');
-      try {
-        const recentOrders = await this.prisma.order.findMany({
-          take: 5,
-          orderBy: { created_at: 'desc' },
-          include: { customer: true, plan: true },
-        });
-
-        if (recentOrders.length === 0) {
-          await ctx.reply('No orders found.');
-          return;
-        }
-
-        const message = recentOrders.map((order) => [
-          `📦 *Order:* \`${order.order_ref}\``,
-          `👤 *Customer:* \`${order.customer.public_id}\``,
-          `🏷️ *Plan:* ${order.plan.name}`,
-          `💰 *Amount:* ${order.amount_rub.toString()} RUB`,
-          `🚦 *Status:* ${order.status}`,
-        ].join('\n')).join('\n\n');
-
-        await ctx.reply(message, { parse_mode: 'Markdown' });
-      } catch (error) {
-        this.logger.error('Failed to fetch recent orders', error as Error);
-        await ctx.reply('Unable to fetch orders right now.');
-      }
+      await this.replyRecentOrders(ctx);
     });
 
     this.bot.command('pending', async (ctx) => {
@@ -251,35 +228,11 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('users', async (ctx) => {
-      try {
-        const totalUsers = await this.prisma.customer.count();
-        const activeUsers = await this.prisma.order.groupBy({
-          by: ['customer_id'],
-          where: { status: 'FULFILLED' },
-        });
-
-        await ctx.reply([
-          'User statistics',
-          `Total registered: ${totalUsers}`,
-          `Active paid/trial customers: ${activeUsers.length}`,
-        ].join('\n'));
-      } catch (error) {
-        this.logger.error('Failed to fetch user stats', error as Error);
-        await ctx.reply('Unable to fetch user stats right now.');
-      }
+      await this.replyUsersStats(ctx);
     });
 
     this.bot.command('healthcheck', async (ctx) => {
-      await ctx.reply('Starting inventory health check...');
-      try {
-        const result = await firstValueFrom(
-          this.inventoryClient.send({ cmd: 'trigger_health_check' }, {}),
-        );
-        await ctx.reply(`Health check completed:\n${JSON.stringify(result, null, 2)}`);
-      } catch (error) {
-        this.logger.error('Health check failed', error as Error);
-        await ctx.reply('Health check failed.');
-      }
+      await this.runHealthcheckReply(ctx);
     });
 
     this.bot.command('expire', async (ctx) => {
@@ -752,6 +705,39 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await ctx.answerCbQuery();
       await ctx.reply('Utilisez la commande: /add_expense <montant> <devise> <note>\nExemple: `/add_expense 5000 RUB Serveurs Mai`', { parse_mode: 'Markdown' });
     });
+
+    this.bot.action(/^cockpit:palette$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(formatCockpitPalette(), { parse_mode: 'Markdown', ...cockpitPaletteKeyboard() });
+    });
+
+    this.bot.action(/^cockpit:stock_health$/, async (ctx) => {
+      await ctx.answerCbQuery('Lecture...');
+      await this.replyStockHealth(ctx);
+    });
+
+    this.bot.action(/^cockpit:orders$/, async (ctx) => {
+      await ctx.answerCbQuery('Lecture...');
+      await this.replyRecentOrders(ctx);
+    });
+
+    this.bot.action(/^cockpit:users$/, async (ctx) => {
+      await ctx.answerCbQuery('Lecture...');
+      await this.replyUsersStats(ctx);
+    });
+
+    this.bot.action(/^cockpit:healthcheck$/, async (ctx) => {
+      await ctx.answerCbQuery('Vérification...');
+      await this.runHealthcheckReply(ctx);
+    });
+
+    this.bot.action(/^cockpit:danger$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        '🛑 *Danger* — choisis une config à gérer (désactiver / expirer / supprimer se font depuis sa fiche).',
+        { parse_mode: 'Markdown', ...Markup.inlineKeyboard([[Markup.button.callback('🔧 Gérer une config', 'cockpit:manage')], [Markup.button.callback('⬅️ Retour', 'cockpit:home')]]) },
+      );
+    });
   }
 
   private async registerTelegramCommandMenu() {
@@ -873,6 +859,67 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error('Failed to read stock health', error as Error);
       await ctx.reply('Lecture de la santé du stock impossible.');
+    }
+  }
+
+  private async replyRecentOrders(ctx: any) {
+    await ctx.reply('Reading recent orders...');
+    try {
+      const recentOrders = await this.prisma.order.findMany({
+        take: 5,
+        orderBy: { created_at: 'desc' },
+        include: { customer: true, plan: true },
+      });
+
+      if (recentOrders.length === 0) {
+        await ctx.reply('No orders found.');
+        return;
+      }
+
+      const message = recentOrders.map((order) => [
+        `📦 *Order:* \`${order.order_ref}\``,
+        `👤 *Customer:* \`${order.customer.public_id}\``,
+        `🏷️ *Plan:* ${order.plan.name}`,
+        `💰 *Amount:* ${order.amount_rub.toString()} RUB`,
+        `🚦 *Status:* ${order.status}`,
+      ].join('\n')).join('\n\n');
+
+      await ctx.reply(message, { parse_mode: 'Markdown' });
+    } catch (error) {
+      this.logger.error('Failed to fetch recent orders', error as Error);
+      await ctx.reply('Unable to fetch orders right now.');
+    }
+  }
+
+  private async replyUsersStats(ctx: any) {
+    try {
+      const totalUsers = await this.prisma.customer.count();
+      const activeUsers = await this.prisma.order.groupBy({
+        by: ['customer_id'],
+        where: { status: 'FULFILLED' },
+      });
+
+      await ctx.reply([
+        'User statistics',
+        `Total registered: ${totalUsers}`,
+        `Active paid/trial customers: ${activeUsers.length}`,
+      ].join('\n'));
+    } catch (error) {
+      this.logger.error('Failed to fetch user stats', error as Error);
+      await ctx.reply('Unable to fetch user stats right now.');
+    }
+  }
+
+  private async runHealthcheckReply(ctx: any) {
+    await ctx.reply('Starting inventory health check...');
+    try {
+      const result = await firstValueFrom(
+        this.inventoryClient.send({ cmd: 'trigger_health_check' }, {}),
+      );
+      await ctx.reply(`Health check completed:\n${JSON.stringify(result, null, 2)}`);
+    } catch (error) {
+      this.logger.error('Health check failed', error as Error);
+      await ctx.reply('Health check failed.');
     }
   }
 
