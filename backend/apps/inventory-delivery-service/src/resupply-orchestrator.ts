@@ -82,6 +82,9 @@ export class ResupplyOrchestrator {
       });
       if (didRealloc) reallocated++;
     }
+    if (reallocated > 0 || failed > 0) {
+      this.adminClient.emit('continuity_pass_summary', { reallocated, failed });
+    }
     return { checked: assignments.length, reallocated, failed };
   }
 }

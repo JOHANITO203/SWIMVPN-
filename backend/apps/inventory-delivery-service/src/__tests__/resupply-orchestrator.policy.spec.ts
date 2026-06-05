@@ -42,6 +42,7 @@ async function main() {
     await orch.runReallocationPass();
     assert(writes.events.some((e: any) => e.data.event_type === 'ASSIGNMENT_REALLOCATED'), 'logs ASSIGNMENT_REALLOCATED');
     assert(writes.itemUpdates.length >= 2, 'adjusts both old and new item slots');
+    assert(writes.emitted.some((m: any) => m.ev === 'continuity_pass_summary' && m.payload.reallocated === 1), 'emits per-pass summary with reallocated count');
   }
 
   // 2) At-risk but NO covering candidate => no reallocation, logs failure + emits alert.
@@ -72,6 +73,7 @@ async function main() {
     const orch = new ResupplyOrchestrator(prisma, adminClient);
     await orch.runReallocationPass();
     assert(writes.events.length === 0 && writes.emitted.length === 0, 'no-op when healthy');
+    assert(!writes.emitted.some((m: any) => m.ev === 'continuity_pass_summary'), 'no summary when nothing happened');
   }
 
   // 4) At-risk + candidate passes selection but is FULL at tx-time (race guard) => no reallocation.
