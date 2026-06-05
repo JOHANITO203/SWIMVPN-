@@ -27,6 +27,7 @@ import {
   resolveFulfillmentRetryIntervalMs,
   resolveInventoryHealthcheckIntervalMs,
 } from './inventory-health-scheduler.policy';
+import { ResupplyOrchestrator } from './resupply-orchestrator';
 
 type ConfigEventInput = {
   configScope: 'PAID' | 'TRIAL';
@@ -1532,6 +1533,17 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
   private async runScheduledHealthCheck() {
     try {
       const result = await this.runHealthCheck();
+      if (process.env.CONTINUITY_REALLOCATION_ENABLED !== 'false') {
+        try {
+          const orchestrator = new ResupplyOrchestrator(this.prisma, this.adminClient);
+          const realloc = await orchestrator.runReallocationPass();
+          this.logger.log(
+            `Continuity reallocation: checked=${realloc.checked} reallocated=${realloc.reallocated} failed=${realloc.failed}`,
+          );
+        } catch (reallocError) {
+          this.logger.error('Continuity reallocation pass failed', reallocError as Error);
+        }
+      }
       this.logger.log(
         `Scheduled inventory healthcheck completed: checked=${result.checked} healthy=${result.healthy} degraded=${result.degraded}`,
       );
