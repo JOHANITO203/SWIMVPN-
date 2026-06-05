@@ -119,6 +119,7 @@
     <string name="servers_import_required">Import required</string>
     <string name="servers_no_config">No config</string>
     <string name="servers_unlimited">Unlimited</string>
+    <string name="servers_trial_quota">Trial</string>
     <string name="servers_used_format">%1$s used</string>
     <string name="servers_no_expiration">No expiration</string>
     <string name="servers_plan_basic">Basic</string>

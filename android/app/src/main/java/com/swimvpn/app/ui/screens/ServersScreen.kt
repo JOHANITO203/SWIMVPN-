@@ -116,6 +116,7 @@ data class PremiumAccessSummaryUi(
     val limitBytes: Long = 0L,
     val usedBaselineBytes: Long = 0L,
     val isUnlimited: Boolean = false,
+    val isTrial: Boolean = false,
 )
 
 data class ServerNodeUi(
@@ -721,7 +722,17 @@ private fun PremiumSummaryPill(access: PremiumAccessSummaryUi, modifier: Modifie
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (access.isUnlimited) {
+            if (access.isTrial) {
+                // A trial has no GB quota and is not unlimited: show a clear "Essai" label, no bar.
+                Text(
+                    stringResource(R.string.servers_trial_quota),
+                    color = SwimDesignTokens.Color.TextPrimary,
+                    fontSize = fixedSp(15),
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else if (access.isUnlimited) {
                 Text(
                     stringResource(R.string.servers_unlimited),
                     color = SwimDesignTokens.Color.TextPrimary,
@@ -1245,13 +1256,20 @@ private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(resources: Resources
     )
 }
 
-internal data class PremiumQuotaNumbers(val limitBytes: Long, val usedBaselineBytes: Long, val isUnlimited: Boolean)
+internal data class PremiumQuotaNumbers(
+    val limitBytes: Long,
+    val usedBaselineBytes: Long,
+    val isUnlimited: Boolean,
+    val isTrial: Boolean,
+)
 
 internal fun premiumQuotaNumbers(profile: AccessProfileResponse): PremiumQuotaNumbers =
     PremiumQuotaNumbers(
         limitBytes = profile.dataLimitBytes,
         usedBaselineBytes = profile.parsedDataUsedBytes,
-        isUnlimited = profile.isPremiumAllowed && !profile.hasMeasuredLimit,
+        // A trial is NOT unlimited (it is time/device limited with no GB quota); never label it "Illimité".
+        isUnlimited = profile.isPremiumAllowed && !profile.hasMeasuredLimit && !profile.isActiveTrial,
+        isTrial = profile.isActiveTrial,
     )
 
 private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
@@ -1306,6 +1324,7 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
         limitBytes = nums.limitBytes,
         usedBaselineBytes = nums.usedBaselineBytes,
         isUnlimited = nums.isUnlimited,
+        isTrial = nums.isTrial,
     )
 }
 

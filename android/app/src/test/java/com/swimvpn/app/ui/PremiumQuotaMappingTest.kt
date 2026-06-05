@@ -56,4 +56,11 @@ class PremiumQuotaMappingTest {
         val n = premiumQuotaNumbers(profile(0.0, "0"))
         assertTrue(n.isUnlimited)
     }
+
+    @Test
+    fun `active trial is flagged trial and never unlimited`() {
+        val n = premiumQuotaNumbers(profile(0.0, "0", state = "ACTIVE_TRIAL"))
+        assertTrue(n.isTrial)
+        assertTrue(!n.isUnlimited)
+    }
 }

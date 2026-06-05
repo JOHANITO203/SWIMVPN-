@@ -119,6 +119,7 @@
     <string name="servers_import_required">Нужен импорт</string>
     <string name="servers_no_config">Нет конфигурации</string>
     <string name="servers_unlimited">Безлимитно</string>
+    <string name="servers_trial_quota">Пробный</string>
     <string name="servers_used_format">Использовано %1$s</string>
     <string name="servers_no_expiration">Без срока действия</string>
     <string name="servers_plan_basic">Базовый</string>
