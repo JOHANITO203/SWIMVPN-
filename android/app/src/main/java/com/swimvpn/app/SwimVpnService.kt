@@ -1597,6 +1597,8 @@ class SwimVpnService : VpnService() {
             port = session.port,
             requestedMode = session.requestedMode,
             rawConfig = session.rawConfig,
+            quotaLimitBytes = session.quotaLimitBytes,
+            quotaBaselineBytes = session.quotaBaselineBytes,
         )
     }
 
@@ -1729,6 +1731,8 @@ class SwimVpnService : VpnService() {
                     requestedMode = reconnectSession.requestedMode,
                     rawConfig = reconnectSession.rawConfig,
                     isByoProxy = reconnectSession.isByoProxy,
+                    quotaLimitBytes = reconnectSession.quotaLimitBytes,
+                    quotaBaselineBytes = reconnectSession.quotaBaselineBytes,
                 )
             } finally {
                 activeReconnectJob = null
