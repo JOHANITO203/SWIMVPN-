@@ -43,6 +43,9 @@ import {
   cockpitHubKeyboard,
   formatCockpitPalette,
   cockpitPaletteKeyboard,
+  paginate,
+  cockpitStockCategoriesKeyboard,
+  cockpitStockListKeyboard,
   type StockHealthItem,
 } from './admin-bot.formatter';
 
@@ -729,6 +732,32 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     this.bot.action(/^cockpit:healthcheck$/, async (ctx) => {
       await ctx.answerCbQuery('Vérification...');
       await this.runHealthcheckReply(ctx);
+    });
+
+    this.bot.action(/^cockpit:stock$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('📦 *Stock — choisis un forfait*', { parse_mode: 'Markdown', ...cockpitStockCategoriesKeyboard() });
+    });
+
+    this.bot.action(/^cockpit:manage$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('🔧 *Gérer une config — choisis un forfait*', { parse_mode: 'Markdown', ...cockpitStockCategoriesKeyboard() });
+    });
+
+    this.bot.action(/^cockpit:stocklist:(WEEK|MONTH|QUARTER):(\d+)$/, async (ctx) => {
+      await ctx.answerCbQuery('Chargement...');
+      const category = ctx.match[1];
+      const page = parseInt(ctx.match[2], 10) || 0;
+      try {
+        const overview = await firstValueFrom(this.inventoryClient.send({ cmd: 'list_inventory_overview' }, {}));
+        const items = (Array.isArray(overview) ? overview : []).filter((i: any) => i.category === category);
+        const pg = paginate(items, page, 5);
+        const text = `📦 *${category}* — ${items.length} config(s) · page ${pg.page + 1}/${pg.totalPages}`;
+        await ctx.editMessageText(text, { parse_mode: 'Markdown', ...cockpitStockListKeyboard(pg.items as any, category, pg.page, pg.totalPages) });
+      } catch (error) {
+        this.logger.error('Failed to load stock list', error as Error);
+        await ctx.editMessageText('Lecture du stock impossible.', { parse_mode: 'Markdown', ...cockpitStockCategoriesKeyboard() });
+      }
     });
 
     this.bot.action(/^cockpit:danger$/, async (ctx) => {

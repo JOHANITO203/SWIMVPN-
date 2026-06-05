@@ -1,4 +1,4 @@
-import { cockpitHubKeyboard, formatCockpitHub, ADMIN_BOT_COMMANDS, cockpitPaletteKeyboard, formatCockpitPalette } from '../admin-bot.formatter';
+import { cockpitHubKeyboard, formatCockpitHub, ADMIN_BOT_COMMANDS, cockpitPaletteKeyboard, formatCockpitPalette, paginate, cockpitStockListKeyboard } from '../admin-bot.formatter';
 
 function assert(c: boolean, m: string) { if (!c) throw new Error(m); }
 
@@ -19,5 +19,16 @@ for (const d of ['stock', 'cockpit:stock_health', 'pending', 'cockpit:import', '
   assert(pdatas.includes(d), `palette exposes ${d}`);
 }
 assert(formatCockpitPalette().includes('Actions'), 'palette names Actions');
+
+const arr = Array.from({ length: 13 }, (_, i) => ({ id: 'id' + i, folderCode: 'F' + i, healthStatus: 'HEALTHY', usedResaleSlots: 0, maxResaleSlots: 2 }));
+const p0 = paginate(arr, 0, 5);
+assert(p0.items.length === 5 && p0.page === 0 && p0.totalPages === 3, 'page 0 of 13 @5');
+const p2 = paginate(arr, 2, 5);
+assert(p2.items.length === 3 && !p2.hasNext && p2.hasPrev, 'last page partial');
+const lk = cockpitStockListKeyboard(p0.items as any, 'WEEK', 0, p0.totalPages);
+const ld = (lk as any).reply_markup.inline_keyboard.flat().map((b: any) => b.callback_data);
+assert(ld.some((d: string) => d.startsWith('review:paid:id0')), 'item button routes to existing review:paid:<id>');
+assert(ld.includes('cockpit:stocklist:WEEK:1'), 'next-page button present');
+assert(ld.includes('cockpit:stock'), 'back-to-categories present');
 
 console.log('cockpit-keyboards.spec.ts passed');

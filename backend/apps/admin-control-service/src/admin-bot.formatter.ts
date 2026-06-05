@@ -60,7 +60,7 @@ const STATUS_EMOJIS: Record<string, string> = {
   UNKNOWN: '❓',
 };
 
-function getStatusEmoji(status?: string | null): string {
+export function getStatusEmoji(status?: string | null): string {
   if (!status) return STATUS_EMOJIS.UNKNOWN;
   return STATUS_EMOJIS[status] || STATUS_EMOJIS.UNKNOWN;
 }
@@ -677,6 +677,15 @@ function formatSupplierCapacity(category: PlanCategory | string) {
   return `${capacity} internal capacity units`;
 }
 
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+export function paginate<T>(items: T[], page: number, size: number) {
+  const totalPages = Math.max(1, Math.ceil(items.length / size));
+  const p = Math.min(Math.max(0, page), totalPages - 1);
+  const start = p * size;
+  return { items: items.slice(start, start + size), page: p, totalPages, hasPrev: p > 0, hasNext: p < totalPages - 1 };
+}
+
 // ── Cockpit hub ───────────────────────────────────────────────────────────────
 
 export function formatCockpitHub(): string {
@@ -772,4 +781,37 @@ export function formatStockHealth(items: StockHealthItem[], nowMs: number): stri
     if (avgLife !== null) lines.push(`Vie moy. ~${avgLife} j · ${expiringSoon} sous 7 j`);
   }
   return lines.join('\n');
+}
+
+// ── Cockpit stock navigation ──────────────────────────────────────────────────
+
+export function cockpitStockCategoriesKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('Basic 🟢', 'cockpit:stocklist:WEEK:0'), Markup.button.callback('Premium 💎', 'cockpit:stocklist:MONTH:0')],
+    [Markup.button.callback('Platinum 🏆', 'cockpit:stocklist:QUARTER:0')],
+    [Markup.button.callback('⬅️ Retour', 'cockpit:home')],
+  ]);
+}
+
+export interface CockpitStockListItem {
+  id: string;
+  folderCode?: string | null;
+  healthStatus: string;
+  usedResaleSlots: number;
+  maxResaleSlots: number;
+}
+
+export function cockpitStockListKeyboard(items: CockpitStockListItem[], category: string, page: number, totalPages: number) {
+  const rows: any[] = items.map((i) => [
+    Markup.button.callback(
+      `${getStatusEmoji(i.healthStatus)} ${i.folderCode || i.id.slice(0, 8)} (${i.usedResaleSlots}/${i.maxResaleSlots})`,
+      `review:paid:${i.id}`,
+    ),
+  ]);
+  const nav: any[] = [];
+  if (page > 0) nav.push(Markup.button.callback('◀️', `cockpit:stocklist:${category}:${page - 1}`));
+  if (page < totalPages - 1) nav.push(Markup.button.callback('▶️', `cockpit:stocklist:${category}:${page + 1}`));
+  if (nav.length) rows.push(nav);
+  rows.push([Markup.button.callback('⬅️ Forfaits', 'cockpit:stock'), Markup.button.callback('🏠 Hub', 'cockpit:home')]);
+  return Markup.inlineKeyboard(rows);
 }
