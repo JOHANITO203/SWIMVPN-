@@ -50,6 +50,9 @@ export function isAssignmentAtRisk(input: RiskInput): RiskVerdict {
   }
 
   // QUOTA: only for metered plans (soldQuotaBytes > 0) with a known config source quota.
+  // NOTE: configSourceQuotaRemainingBytes is the WHOLE config's supplier quota pool (shared by up
+  // to max_resale_slots co-tenants), compared against ONE client's remaining need — an intentional
+  // CONSERVATIVE approximation (it may over-reallocate, never under-protect).
   if (input.soldQuotaBytes > 0 && input.configSourceQuotaRemainingBytes !== null) {
     const stillOwed = remainingSoldNeed(input.soldQuotaBytes, input.clientConsumedBytes);
     if (stillOwed > 0 && input.configSourceQuotaRemainingBytes < stillOwed) {

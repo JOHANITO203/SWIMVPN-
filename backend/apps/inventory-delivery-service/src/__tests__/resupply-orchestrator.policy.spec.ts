@@ -17,6 +17,7 @@ function makeDeps(overrides: any = {}) {
     },
     inventoryItem: {
       findMany: async () => overrides.candidates ?? [],
+      findUnique: async ({ where }: any) => (overrides.winnerFresh !== undefined ? overrides.winnerFresh : (overrides.candidates ?? []).find((c: any) => c.id === where.id) ?? null),
       update: async (a: any) => { writes.itemUpdates.push(a); return a; },
     },
     adminEvent: { create: async (a: any) => { writes.events.push(a); return a; } },
@@ -71,6 +72,42 @@ async function main() {
     const orch = new ResupplyOrchestrator(prisma, adminClient);
     await orch.runReallocationPass();
     assert(writes.events.length === 0 && writes.emitted.length === 0, 'no-op when healthy');
+  }
+
+  // 4) At-risk + candidate passes selection but is FULL at tx-time (race guard) => no reallocation.
+  {
+    const order = { fulfilled_at: new Date(now - 5 * day), plan: { code: 'WEEK', quota_gb: 0 } };
+    const assignment = {
+      id: 'a4', order_id: 'o4', customer_id: 'cust4', inventory_item_id: 'old4',
+      access_status: 'ACTIVE', measured_used_bytes: 0n, order,
+      inventory_item: { id: 'old4', category: 'WEEK', supplier_expires_at: new Date(now + 1 * day), source_quota_bytes: null, source_used_bytes: 0n, used_resale_slots: 1, max_resale_slots: 2 },
+    };
+    // Candidate passes selection (usedResaleSlots: 0 < maxResaleSlots: 2) but winnerFresh is full
+    const candidate = { id: 'new4', category: 'WEEK', health_status: 'HEALTHY', used_resale_slots: 0, max_resale_slots: 2, supplier_expires_at: new Date(now + 30 * day), source_quota_bytes: null, source_used_bytes: 0n, sale_priority_score: 50 };
+    const winnerFresh = { id: 'new4', used_resale_slots: 2, max_resale_slots: 2 };
+    const { prisma, adminClient, writes } = makeDeps({ assignments: [assignment], candidates: [candidate], winnerFresh });
+    const orch = new ResupplyOrchestrator(prisma, adminClient);
+    const result = await orch.runReallocationPass();
+    assert(result.reallocated === 0, 'race guard: reallocated should be 0');
+    assert(!writes.events.some((e: any) => e.data.event_type === 'ASSIGNMENT_REALLOCATED'), 'race guard: no ASSIGNMENT_REALLOCATED event');
+    assert(writes.assignmentUpdates.length === 0, 'race guard: no assignment update');
+    assert(writes.itemUpdates.length === 0, 'race guard: no item updates');
+  }
+
+  // 5) ACTIVE assignment whose sold promise already expired => skipped by soldExpiryMs < nowMs guard.
+  {
+    // fulfilled_at = 60 days ago, WEEK plan => soldExpiryMs = ~53 days ago (well in the past)
+    const order = { fulfilled_at: new Date(now - 60 * day), plan: { code: 'WEEK', quota_gb: 0 } };
+    const assignment = {
+      id: 'a5', order_id: 'o5', customer_id: 'cust5', inventory_item_id: 'old5',
+      access_status: 'ACTIVE', measured_used_bytes: 0n, order,
+      inventory_item: { id: 'old5', category: 'WEEK', supplier_expires_at: new Date(now + 1 * day), source_quota_bytes: null, source_used_bytes: 0n, used_resale_slots: 1, max_resale_slots: 2 },
+    };
+    const { prisma, adminClient, writes } = makeDeps({ assignments: [assignment], candidates: [] });
+    const orch = new ResupplyOrchestrator(prisma, adminClient);
+    await orch.runReallocationPass();
+    assert(writes.events.length === 0, 'expired promise: no events');
+    assert(writes.emitted.length === 0, 'expired promise: no emits');
   }
 
   console.log('resupply-orchestrator.policy.spec.ts passed');

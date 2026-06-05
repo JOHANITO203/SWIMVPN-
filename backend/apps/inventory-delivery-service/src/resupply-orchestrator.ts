@@ -21,6 +21,7 @@ export class ResupplyOrchestrator {
       if (!item || !a.order?.fulfilled_at) continue;
 
       const soldExpiryMs = a.order.fulfilled_at.getTime() + planDurationMs(a.order.plan.code, false);
+      if (soldExpiryMs < nowMs) continue; // sold promise already over — nothing to protect
       const soldQuotaBytes = (a.order.plan.quota_gb ?? 0) > 0 ? a.order.plan.quota_gb * GB : 0;
       const configRemaining = item.source_quota_bytes != null
         ? Number(item.source_quota_bytes) - Number(item.source_used_bytes ?? 0n)
@@ -62,7 +63,11 @@ export class ResupplyOrchestrator {
         continue;
       }
 
-      await this.prisma.$transaction(async (tx: any) => {
+      const didRealloc = await this.prisma.$transaction(async (tx: any) => {
+        const fresh = await tx.inventoryItem.findUnique({ where: { id: winner.id } });
+        if (!fresh || fresh.used_resale_slots >= fresh.max_resale_slots) {
+          return false; // winner filled up since selection (race) — skip, retry next pass
+        }
         await tx.orderAssignment.update({
           where: { id: a.id },
           data: { inventory_item_id: winner.id, expires_at: winner.supplierExpiresAtMs ? new Date(winner.supplierExpiresAtMs) : null, status_reason: 'REALLOCATED' },
@@ -73,8 +78,9 @@ export class ResupplyOrchestrator {
           event_type: 'ASSIGNMENT_REALLOCATED', entity_type: 'ORDER', entity_id: a.order_id,
           payload_json: { assignmentId: a.id, fromItemId: item.id, toItemId: winner.id, reasons: verdict.reasons } as any,
         }});
+        return true;
       });
-      reallocated++;
+      if (didRealloc) reallocated++;
     }
     return { checked: assignments.length, reallocated, failed };
   }
