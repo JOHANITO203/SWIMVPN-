@@ -47,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,6 +85,7 @@ import com.swimvpn.app.ui.components.SwimMetaballDock
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import com.swimvpn.app.vpn.NetworkType
+import com.swimvpn.app.vpn.VpnManager
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -111,6 +113,10 @@ data class PremiumAccessSummaryUi(
     val expiresCaption: String,
     val accessActive: Boolean,
     val hasPremiumNodes: Boolean,
+    val limitBytes: Long = 0L,
+    val usedBaselineBytes: Long = 0L,
+    val isUnlimited: Boolean = false,
+    val isTrial: Boolean = false,
 )
 
 data class ServerNodeUi(
@@ -303,6 +309,7 @@ fun ServerScreen(
                             PremiumAccessCard(
                                 access = uiState.premiumAccess,
                                 compact = compact,
+                                onSubscribeClick = onSubscribeClick,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -560,6 +567,7 @@ private fun AiOrbBadge(modifier: Modifier = Modifier) {
 private fun PremiumAccessCard(
     access: PremiumAccessSummaryUi?,
     compact: Boolean,
+    onSubscribeClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val resolved = access ?: PremiumAccessSummaryUi(
@@ -633,6 +641,16 @@ private fun PremiumAccessCard(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+    if (resolved.limitBytes > 0L && resolved.usedBaselineBytes >= resolved.limitBytes) {
+        Spacer(Modifier.height(8.dp))
+        ServerActionPill(
+            title = stringResource(R.string.servers_renew),
+            subtitle = stringResource(R.string.quota_exhausted_label),
+            icon = Icons.Default.WorkspacePremium,
+            onClick = onSubscribeClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
@@ -673,6 +691,12 @@ private fun PremiumOrbBadge(active: Boolean, modifier: Modifier = Modifier) {
 
 @Composable
 private fun PremiumSummaryPill(access: PremiumAccessSummaryUi, modifier: Modifier = Modifier) {
+    val bytesIn by VpnManager.bytesIn.collectAsState()
+    val bytesOut by VpnManager.bytesOut.collectAsState()
+    val usedNow = access.usedBaselineBytes + bytesIn + bytesOut
+    val fraction = if (access.limitBytes > 0L)
+        (usedNow.toFloat() / access.limitBytes.toFloat()).coerceIn(0f, 1f) else 0f
+    val exhausted = access.limitBytes > 0L && usedNow >= access.limitBytes
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -690,7 +714,68 @@ private fun PremiumSummaryPill(access: PremiumAccessSummaryUi, modifier: Modifie
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuotaColumn(label = stringResource(R.string.servers_quota_premium), value = access.quotaValue, caption = access.quotaCaption, modifier = Modifier.weight(1f))
+        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                stringResource(R.string.servers_quota_premium),
+                color = SwimDesignTokens.Color.TextSecondary,
+                fontSize = fixedSp(10),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (access.isTrial) {
+                // A trial has no GB quota and is not unlimited: show a clear "Essai" label, no bar.
+                Text(
+                    stringResource(R.string.servers_trial_quota),
+                    color = SwimDesignTokens.Color.TextPrimary,
+                    fontSize = fixedSp(15),
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else if (access.isUnlimited) {
+                Text(
+                    stringResource(R.string.servers_unlimited),
+                    color = SwimDesignTokens.Color.TextPrimary,
+                    fontSize = fixedSp(15),
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(SwimDesignTokens.Shape.Pill)
+                        .background(SwimDesignTokens.Color.DividerSubtle)
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(fraction)
+                            .height(6.dp)
+                            .clip(SwimDesignTokens.Shape.Pill)
+                            .background(
+                                if (exhausted) SwimDesignTokens.Color.Danger
+                                else SwimDesignTokens.Color.PurpleActive
+                            )
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (exhausted) stringResource(R.string.quota_exhausted_label)
+                    else stringResource(
+                        R.string.servers_quota_used_remaining,
+                        formatBytes(usedNow),
+                        formatBytes(access.limitBytes),
+                        formatBytes((access.limitBytes - usedNow).coerceAtLeast(0L)),
+                    ),
+                    color = SwimDesignTokens.Color.TextSecondary,
+                    fontSize = fixedSp(10),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Box(
             modifier = Modifier
                 .height(58.dp)
@@ -1171,6 +1256,22 @@ private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(resources: Resources
     )
 }
 
+internal data class PremiumQuotaNumbers(
+    val limitBytes: Long,
+    val usedBaselineBytes: Long,
+    val isUnlimited: Boolean,
+    val isTrial: Boolean,
+)
+
+internal fun premiumQuotaNumbers(profile: AccessProfileResponse): PremiumQuotaNumbers =
+    PremiumQuotaNumbers(
+        limitBytes = profile.dataLimitBytes,
+        usedBaselineBytes = profile.parsedDataUsedBytes,
+        // A trial is NOT unlimited (it is time/device limited with no GB quota); never label it "Illimité".
+        isUnlimited = profile.isPremiumAllowed && !profile.hasMeasuredLimit && !profile.isActiveTrial,
+        isTrial = profile.isActiveTrial,
+    )
+
 private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
     premiumServers: List<ServerNode>,
     resources: Resources,
@@ -1180,12 +1281,8 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
     }
 
     val planName = localizedPremiumPlanName(resources)
-    val totalBytes = premiumServers.firstNotNullOfOrNull { it.trafficTotalBytes?.filter(Char::isDigit)?.toLongOrNull() }
-        ?: dataLimitBytes.takeIf { it > 0L }
-    val usedBytes = premiumServers.firstNotNullOfOrNull { it.trafficUsedBytes?.filter(Char::isDigit)?.toLongOrNull() }
-        ?: parsedDataUsedBytes
-    val expiry = premiumServers.firstNotNullOfOrNull { it.expiresAt?.takeIf(String::isNotBlank) }
-        ?: effectiveExpiryAt
+    val nums = premiumQuotaNumbers(this)
+    val expiry = effectiveExpiryAt
     val active = isPremiumAllowed && premiumServers.isNotEmpty()
     val waitingFulfillment = isPremiumAllowed && premiumServers.isEmpty()
 
@@ -1203,12 +1300,12 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
             else -> resources.getString(R.string.servers_premium_access_subtitle)
         },
         quotaValue = when {
-            totalBytes != null && totalBytes > 0L -> formatBytes(totalBytes)
+            nums.limitBytes > 0L -> formatBytes(nums.limitBytes)
             isPremiumAllowed -> resources.getString(R.string.servers_unlimited)
             else -> resources.getString(R.string.servers_locked)
         },
         quotaCaption = when {
-            totalBytes != null && totalBytes > 0L -> resources.getString(R.string.servers_used_format, formatBytes(usedBytes))
+            nums.limitBytes > 0L -> resources.getString(R.string.servers_used_format, formatBytes(nums.usedBaselineBytes))
             isPremiumAllowed -> resources.getString(R.string.servers_managed_by_plan)
             else -> resources.getString(R.string.servers_subscription_required)
         },
@@ -1224,6 +1321,10 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
         },
         accessActive = isPremiumAllowed || isPendingFulfillment,
         hasPremiumNodes = active,
+        limitBytes = nums.limitBytes,
+        usedBaselineBytes = nums.usedBaselineBytes,
+        isUnlimited = nums.isUnlimited,
+        isTrial = nums.isTrial,
     )
 }
 

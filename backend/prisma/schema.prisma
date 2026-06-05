@@ -116,6 +116,7 @@ model Plan {
   name           String
   duration_label String
   quota_label    String
+  quota_gb       Int?          // Quota VENDU en GB (null/0 = illimité). Source numérique du dataLimitGB exposé au client.
   slot_count     Int          @default(1)
   price_rub      Decimal      @db.Decimal(10, 2)
   active         Boolean      @default(true)

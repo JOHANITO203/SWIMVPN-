@@ -35,6 +35,7 @@ import com.swimvpn.app.runtime.Tun2SocksNativeBridgeContract
 import com.swimvpn.app.runtime.Tun2SocksRuntimeFilePreparer
 import com.swimvpn.app.runtime.XrayProcessBridge
 import com.swimvpn.app.vpn.DisconnectCause
+import com.swimvpn.app.vpn.QuotaCutoffPolicy
 import com.swimvpn.app.vpn.NetworkClassifier
 import com.swimvpn.app.vpn.NetworkHandoffAction
 import com.swimvpn.app.vpn.NetworkHandoffPolicy
@@ -174,6 +175,10 @@ class SwimVpnService : VpnService() {
         // Phase 3: camouflage uTLS fingerprint chosen by the VM (agent or manual). Carried so the
         // service-driven reconnects reuse it. Null = no override (today's behavior).
         val camouflageFingerprint: String? = null,
+        // Sold-quota client cutoff: limit from the plan (-1 = unmetered), baseline = bytes already
+        // used before this session started (so the meter continues across reconnects).
+        val quotaLimitBytes: Long = -1L,
+        val quotaBaselineBytes: Long = 0L,
     )
 
     private data class VpnNotificationContent(
@@ -207,6 +212,8 @@ class SwimVpnService : VpnService() {
                     rawConfig = intent.getStringExtra(EXTRA_URL),
                     isByoProxy = isByoProxyProtocol(intent.getStringExtra(EXTRA_PROTOCOL)),
                     camouflageFingerprint = intent.getStringExtra(EXTRA_CAMOUFLAGE_FP),
+                    quotaLimitBytes = intent.getLongExtra(EXTRA_DATA_LIMIT, -1L),
+                    quotaBaselineBytes = intent.getLongExtra(EXTRA_DATA_USED, 0L),
                 )
             }
 
@@ -226,6 +233,8 @@ class SwimVpnService : VpnService() {
                     rawConfig = rawConfig,
                     isByoProxy = isByoProxyProtocol(intent.getStringExtra(EXTRA_PROTOCOL)) || (activeSession?.isByoProxy == true),
                     camouflageFingerprint = intent.getStringExtra(EXTRA_CAMOUFLAGE_FP) ?: activeSession?.camouflageFingerprint,
+                    quotaLimitBytes = intent.getLongExtra(EXTRA_DATA_LIMIT, activeSession?.quotaLimitBytes ?: -1L),
+                    quotaBaselineBytes = intent.getLongExtra(EXTRA_DATA_USED, activeSession?.quotaBaselineBytes ?: 0L),
                 )
             }
 
@@ -354,6 +363,8 @@ class SwimVpnService : VpnService() {
         rawConfig: String?,
         isByoProxy: Boolean = false,
         camouflageFingerprint: String? = null,
+        quotaLimitBytes: Long = -1L,
+        quotaBaselineBytes: Long = 0L,
     ) {
         if (rawConfig.isNullOrBlank()) {
             logRuntimeEvent("reconnect_failed", mapOf("reason" to "missing_restart_config", "mode" to requestedMode.name))
@@ -385,6 +396,8 @@ class SwimVpnService : VpnService() {
                 rawConfig = rawConfig,
                 isByoProxy = isByoProxy,
                 camouflageFingerprint = camouflageFingerprint,
+                quotaLimitBytes = quotaLimitBytes,
+                quotaBaselineBytes = quotaBaselineBytes,
             )
         }
     }
@@ -399,6 +412,8 @@ class SwimVpnService : VpnService() {
         rawConfig: String?,
         isByoProxy: Boolean = false,
         camouflageFingerprint: String? = null,
+        quotaLimitBytes: Long = -1L,
+        quotaBaselineBytes: Long = 0L,
     ) {
         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING ||
             VpnManager.runtimeStatus.value == RuntimeStatus.STARTING
@@ -422,7 +437,7 @@ class SwimVpnService : VpnService() {
         // startVpn without re-supplying it (they pass null): inherit the prior session's value, while
         // a fresh explicit value (user/VM connect) still takes precedence.
         val effectiveCamouflageFingerprint = camouflageFingerprint ?: activeSession?.camouflageFingerprint
-        activeSession = ActiveSession(host, port, requestedMode, rawConfig, isByoProxy, effectiveCamouflageFingerprint)
+        activeSession = ActiveSession(host, port, requestedMode, rawConfig, isByoProxy, effectiveCamouflageFingerprint, quotaLimitBytes, quotaBaselineBytes)
         if (sessionStartedAt == null) {
             sessionStartedAt = System.currentTimeMillis()
         }
@@ -1345,6 +1360,26 @@ class SwimVpnService : VpnService() {
                     }
                 }
 
+                // QUOTA CUTOFF: stop immediately (no auto-reconnect) when the sold-quota
+                // limit is reached. QuotaCutoffPolicy.isExhausted is fail-open: returns
+                // false when limitBytes <= 0 (unmetered / not set).
+                val qLimit = activeSession?.quotaLimitBytes ?: -1L
+                if (QuotaCutoffPolicy.isExhausted(
+                        limitBytes = qLimit,
+                        baselineBytes = activeSession?.quotaBaselineBytes ?: 0L,
+                        sessionBytes = VpnManager.bytesIn.value + VpnManager.bytesOut.value,
+                    )
+                ) {
+                    logRuntimeEvent("quota_exhausted", mapOf("limit" to qLimit.toString()))
+                    stoppedByUser = true // reuse existing anti-reconnect guard — scheduleReconnect checks this first
+                    setRuntimeError(
+                        localizedContextFor(notificationLanguage).getString(R.string.vpn_err_quota_exhausted),
+                        DisconnectCause.QUOTA_EXHAUSTED,
+                    )
+                    stopVpn(clearRuntimeState = false, reason = "quota_exhausted", cause = DisconnectCause.QUOTA_EXHAUSTED)
+                    return@launch
+                }
+
                 // PASSIVE WATCHDOG: a "zombie" tunnel keeps the engine alive and sends
                 // outbound bytes but never receives any. The policy demotes only when
                 // bytesOut > 0 && bytesIn == 0 past the threshold; a genuinely idle
@@ -1562,6 +1597,9 @@ class SwimVpnService : VpnService() {
             port = session.port,
             requestedMode = session.requestedMode,
             rawConfig = session.rawConfig,
+            isByoProxy = session.isByoProxy,
+            quotaLimitBytes = session.quotaLimitBytes,
+            quotaBaselineBytes = session.quotaBaselineBytes,
         )
     }
 
@@ -1694,6 +1732,8 @@ class SwimVpnService : VpnService() {
                     requestedMode = reconnectSession.requestedMode,
                     rawConfig = reconnectSession.rawConfig,
                     isByoProxy = reconnectSession.isByoProxy,
+                    quotaLimitBytes = reconnectSession.quotaLimitBytes,
+                    quotaBaselineBytes = reconnectSession.quotaBaselineBytes,
                 )
             } finally {
                 activeReconnectJob = null
