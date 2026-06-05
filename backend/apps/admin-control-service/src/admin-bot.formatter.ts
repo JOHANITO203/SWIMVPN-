@@ -84,6 +84,7 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'whoami', description: 'Show your Telegram ids' },
   { command: 'status', description: 'Check admin bot status' },
   { command: 'stock', description: 'Show inventory by plan bucket' },
+  { command: 'stock_health', description: 'Stock health by plan (allocatable, life, alerts)' },
   { command: 'review', description: 'Review one paid or trial config' },
   { command: 'add_wizard', description: 'Guided supplier config import' },
   { command: 'import', description: 'Show direct import instructions' },
