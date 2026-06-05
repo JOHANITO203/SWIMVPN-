@@ -8,7 +8,7 @@ import org.junit.Test
 class XrayCamouflageTest {
 
     private fun streamOf(profile: SwimVpnProfile, fingerprint: String?) =
-        TunnelRuntimeAdapter.generateXrayRuntimeDocument(profile, RuntimeMode.FULL_TUNNEL, camouflageFingerprint = fingerprint)
+        TunnelRuntimeAdapter.generateXrayRuntimeDocument(profile, RuntimeMode.FULL_TUNNEL, camouflageProfileId = fingerprint)
             ?.getAsJsonArray("outbounds")?.first()?.asJsonObject?.getAsJsonObject("streamSettings")
             ?: error("runtime document / streamSettings must exist")
 
