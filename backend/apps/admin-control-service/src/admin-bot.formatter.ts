@@ -783,6 +783,21 @@ export function formatStockHealth(items: StockHealthItem[], nowMs: number): stri
   return lines.join('\n');
 }
 
+// ── Cockpit alerts view ───────────────────────────────────────────────────────
+
+export interface RecentAlertEvent { event_type: string; payload_json: any; created_at: string | Date; }
+
+export function formatRecentAlerts(events: RecentAlertEvent[]): string {
+  if (!events.length) return '⚠️ *Alertes continuité/stock*\nAucune alerte récente.';
+  const lines = ['⚠️ *Alertes continuité/stock* (récentes)'];
+  for (const e of events.slice(0, 10)) {
+    const when = String(e.created_at).slice(0, 16).replace('T', ' ');
+    const cat = e.payload_json?.category ? ` ${e.payload_json.category}` : '';
+    lines.push(`• ${when} — ${e.event_type}${cat}`);
+  }
+  return lines.join('\n');
+}
+
 // ── Cockpit import entry ──────────────────────────────────────────────────────
 
 export function cockpitImportKeyboard() {

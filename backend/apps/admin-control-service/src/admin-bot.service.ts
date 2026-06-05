@@ -47,6 +47,7 @@ import {
   cockpitStockCategoriesKeyboard,
   cockpitStockListKeyboard,
   cockpitImportKeyboard,
+  formatRecentAlerts,
   type StockHealthItem,
 } from './admin-bot.formatter';
 
@@ -767,6 +768,23 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         '🛑 *Danger* — choisis une config à gérer (désactiver / expirer / supprimer se font depuis sa fiche).',
         { parse_mode: 'Markdown', ...Markup.inlineKeyboard([[Markup.button.callback('🔧 Gérer une config', 'cockpit:manage')], [Markup.button.callback('⬅️ Retour', 'cockpit:home')]]) },
       );
+    });
+
+    this.bot.action(/^cockpit:alerts$/, async (ctx) => {
+      await ctx.answerCbQuery('Lecture des alertes...');
+      try {
+        const events = await this.prisma.adminEvent.findMany({
+          where: { event_type: { in: ['REALLOCATION_FAILED_NO_STOCK', 'ASSIGNMENT_REALLOCATED', 'CONFIG_ASSIGNED'] } },
+          orderBy: { created_at: 'desc' },
+          take: 10,
+        });
+        const back = Markup.inlineKeyboard([[Markup.button.callback('⬅️ Retour', 'cockpit:home')]]);
+        await ctx.editMessageText(formatRecentAlerts(events as any), { parse_mode: 'Markdown', ...back });
+      } catch (error) {
+        this.logger.error('Failed to load alerts', error as Error);
+        const back = Markup.inlineKeyboard([[Markup.button.callback('⬅️ Retour', 'cockpit:home')]]);
+        await ctx.editMessageText('Lecture des alertes impossible.', { parse_mode: 'Markdown', ...back });
+      }
     });
 
     this.bot.action(/^cockpit:import$/, async (ctx) => {

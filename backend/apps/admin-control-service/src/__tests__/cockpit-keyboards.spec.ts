@@ -1,4 +1,4 @@
-import { cockpitHubKeyboard, formatCockpitHub, ADMIN_BOT_COMMANDS, cockpitPaletteKeyboard, formatCockpitPalette, paginate, cockpitStockListKeyboard } from '../admin-bot.formatter';
+import { cockpitHubKeyboard, formatCockpitHub, ADMIN_BOT_COMMANDS, cockpitPaletteKeyboard, formatCockpitPalette, paginate, cockpitStockListKeyboard, formatRecentAlerts } from '../admin-bot.formatter';
 
 function assert(c: boolean, m: string) { if (!c) throw new Error(m); }
 
@@ -30,5 +30,14 @@ const ld = (lk as any).reply_markup.inline_keyboard.flat().map((b: any) => b.cal
 assert(ld.some((d: string) => d.startsWith('review:paid:id0')), 'item button routes to existing review:paid:<id>');
 assert(ld.includes('cockpit:stocklist:WEEK:1'), 'next-page button present');
 assert(ld.includes('cockpit:stock'), 'back-to-categories present');
+
+const evtxt = formatRecentAlerts([
+  { event_type: 'REALLOCATION_FAILED_NO_STOCK', payload_json: { category: 'WEEK' }, created_at: '2026-06-05T10:00:00.000Z' },
+  { event_type: 'ASSIGNMENT_REALLOCATED', payload_json: { toItemId: 'x' }, created_at: '2026-06-05T09:00:00.000Z' },
+]);
+assert(evtxt.includes('Alertes') || evtxt.includes('Continuité'), 'alerts view has a header');
+assert(evtxt.includes('REALLOCATION_FAILED_NO_STOCK') || evtxt.toLowerCase().includes('stock'), 'shows the failure event');
+const empty = formatRecentAlerts([]);
+assert(empty.toLowerCase().includes('aucune') || empty.toLowerCase().includes('rien'), 'empty state');
 
 console.log('cockpit-keyboards.spec.ts passed');
