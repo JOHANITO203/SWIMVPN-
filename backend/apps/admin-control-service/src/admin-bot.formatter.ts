@@ -783,6 +783,16 @@ export function formatStockHealth(items: StockHealthItem[], nowMs: number): stri
   return lines.join('\n');
 }
 
+// ── Cockpit import entry ──────────────────────────────────────────────────────
+
+export function cockpitImportKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('💳 Payant (forfait)', 'cockpit:import:paid')],
+    [Markup.button.callback('🧪 Trial', 'cockpit:import:trial')],
+    [Markup.button.callback('⬅️ Retour', 'cockpit:home')],
+  ]);
+}
+
 // ── Cockpit stock navigation ──────────────────────────────────────────────────
 
 export function cockpitStockCategoriesKeyboard() {

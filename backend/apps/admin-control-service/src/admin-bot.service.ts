@@ -46,6 +46,7 @@ import {
   paginate,
   cockpitStockCategoriesKeyboard,
   cockpitStockListKeyboard,
+  cockpitImportKeyboard,
   type StockHealthItem,
 } from './admin-bot.formatter';
 
@@ -766,6 +767,23 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
         '🛑 *Danger* — choisis une config à gérer (désactiver / expirer / supprimer se font depuis sa fiche).',
         { parse_mode: 'Markdown', ...Markup.inlineKeyboard([[Markup.button.callback('🔧 Gérer une config', 'cockpit:manage')], [Markup.button.callback('⬅️ Retour', 'cockpit:home')]]) },
       );
+    });
+
+    this.bot.action(/^cockpit:import$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('📥 *Import* — paye ou trial ?', { parse_mode: 'Markdown', ...cockpitImportKeyboard() });
+    });
+
+    this.bot.action(/^cockpit:import:paid$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'category' });
+      await ctx.reply(formatImportWizardCategoryPrompt());
+    });
+
+    this.bot.action(/^cockpit:import:trial$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'trial_config' });
+      await ctx.reply(formatTrialImportWizardConfigPrompt());
     });
   }
 
