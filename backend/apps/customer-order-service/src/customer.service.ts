@@ -33,7 +33,7 @@ import {
   resolveSwimPayPendingMaxAgeMs,
   shouldAbandonSwimPayOrder,
 } from './swimpay-reconciliation.policy';
-import { resolveSoldQuotaGb, soldExpiryIso } from './entitlement-policy';
+import { resolveSoldQuotaGb } from './entitlement-policy';
 
 @Injectable()
 export class CustomerService implements OnModuleInit, OnModuleDestroy {
@@ -892,7 +892,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
       null;
     const subscriptionExpiresAt = isTrialOrder
       ? (orderExpiresAt || providerExpiresAt)
-      : soldExpiryIso(latestOrder?.fulfilled_at ?? null, latestOrder?.plan.code ?? '', false);
+      : this.calculateSubscriptionExpiresAt(latestOrder, false);
     const trialExpiresAt = isTrialOrder ? subscriptionExpiresAt : null;
     const measuredDataLimitGb = resolveSoldQuotaGb(
       latestOrder && !isTrialOrder ? latestOrder.plan.quota_gb : 0,
