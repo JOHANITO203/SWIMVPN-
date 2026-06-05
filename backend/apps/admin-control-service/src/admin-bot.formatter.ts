@@ -793,7 +793,7 @@ export function formatRecentAlerts(events: RecentAlertEvent[]): string {
   for (const e of events.slice(0, 10)) {
     const when = String(e.created_at).slice(0, 16).replace('T', ' ');
     const cat = e.payload_json?.category ? ` ${e.payload_json.category}` : '';
-    lines.push(`• ${when} — ${e.event_type}${cat}`);
+    lines.push(`• ${when} — \`${e.event_type}\`${cat}`);
   }
   return lines.join('\n');
 }

@@ -672,6 +672,11 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await this.replyFinanceDashboard(ctx, true);
     });
 
+    this.bot.action(/^cockpit:finance$/, async (ctx) => {
+      await ctx.answerCbQuery('Finance...');
+      await this.replyFinanceDashboard(ctx, true);
+    });
+
     this.bot.action(/^profit_month_action$/, async (ctx) => {
       await ctx.answerCbQuery();
       // Logic from profit_month command but as action
