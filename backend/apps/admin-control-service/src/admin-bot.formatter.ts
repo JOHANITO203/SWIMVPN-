@@ -84,6 +84,7 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'whoami', description: 'Show your Telegram ids' },
   { command: 'status', description: 'Check admin bot status' },
   { command: 'stock', description: 'Show inventory by plan bucket' },
+  { command: 'stock_health', description: 'Stock health by plan (allocatable, life, alerts)' },
   { command: 'review', description: 'Review one paid or trial config' },
   { command: 'add_wizard', description: 'Guided supplier config import' },
   { command: 'import', description: 'Show direct import instructions' },
@@ -672,4 +673,64 @@ function extractPreviewStatus(value: unknown) {
 function formatSupplierCapacity(category: PlanCategory | string) {
   const capacity = CATEGORY_SUPPLIER_CAPACITY[String(category)] ?? 2;
   return `${capacity} internal capacity units`;
+}
+
+// ── Continuity + stock-health formatters ──────────────────────────────────────
+
+export interface StockHealthItem {
+  category: string;
+  healthStatus: string;
+  usedResaleSlots: number;
+  maxResaleSlots: number;
+  supplierExpiresAtMs: number | null;
+}
+
+function planLabel(category: string): string {
+  return CATEGORY_LABELS[category] || category;
+}
+
+export function formatContinuityNoStockAlert(input: { category: string; count: number }): string {
+  return [
+    '⚠️ *Continuité — stock à sec*',
+    `Forfait : ${planLabel(input.category)}`,
+    `${input.count} accès à risque non couverts (config mourante, aucun stock sain).`,
+    'Action : importe du stock — `/stock_health`',
+  ].join('\n');
+}
+
+export function formatContinuityPassSummary(input: { reallocated: number; failed: number }): string {
+  return [
+    '🔄 *Continuité — passe terminée*',
+    `✅ Réallocations : ${input.reallocated}`,
+    `⚠️ Échecs (stock manquant) : ${input.failed}`,
+  ].join('\n');
+}
+
+export function formatLowStockAlert(input: { category: string; remaining: number }): string {
+  return [
+    '📉 *Stock bas*',
+    `Forfait : ${planLabel(input.category)}`,
+    `${input.remaining} config(s) allouable(s) restante(s) — pense à refiller.`,
+  ].join('\n');
+}
+
+export function formatStockHealth(items: StockHealthItem[], nowMs: number): string {
+  const day = 24 * 60 * 60 * 1000;
+  const lines = ['📦 *Santé du stock par forfait*'];
+  for (const category of [PlanCategory.WEEK, PlanCategory.MONTH, PlanCategory.QUARTER]) {
+    const group = items.filter((i) => i.category === category);
+    const allocatable = group.filter(
+      (i) => i.healthStatus === 'HEALTHY' && i.usedResaleSlots < i.maxResaleSlots,
+    ).length;
+    const lifes = group
+      .map((i) => i.supplierExpiresAtMs)
+      .filter((ms): ms is number => ms !== null)
+      .map((ms) => Math.max(0, Math.round((ms - nowMs) / day)));
+    const avgLife = lifes.length ? Math.round(lifes.reduce((a, b) => a + b, 0) / lifes.length) : null;
+    const expiringSoon = lifes.filter((d) => d <= 7).length;
+    lines.push(`\n*${planLabel(String(category))}*`);
+    lines.push(`${allocatable} allocatable / ${group.length} total`);
+    if (avgLife !== null) lines.push(`Vie moy. ~${avgLife} j · ${expiringSoon} sous 7 j`);
+  }
+  return lines.join('\n');
 }

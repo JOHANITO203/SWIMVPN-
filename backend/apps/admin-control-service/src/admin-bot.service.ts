@@ -38,6 +38,8 @@ import {
   parseInventoryActionCommand,
   parseReviewCommand,
   parseRetryCommand,
+  formatStockHealth,
+  type StockHealthItem,
 } from './admin-bot.formatter';
 
 type ImportWizardSession =
@@ -120,6 +122,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
 
     this.bot.command('stock', async (ctx) => {
       await this.replyStockOverview(ctx);
+    });
+
+    this.bot.command('stock_health', async (ctx) => {
+      await this.replyStockHealth(ctx);
     });
 
     this.bot.command('review', async (ctx) => {
@@ -841,6 +847,26 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private async replyStockHealth(ctx: any) {
+    await ctx.reply('Lecture de la santé du stock...');
+    try {
+      const overview = await firstValueFrom(
+        this.inventoryClient.send({ cmd: 'list_inventory_overview' }, {}),
+      );
+      const items: StockHealthItem[] = (Array.isArray(overview) ? overview : []).map((i: any) => ({
+        category: i.category,
+        healthStatus: i.healthStatus,
+        usedResaleSlots: i.usedResaleSlots,
+        maxResaleSlots: i.maxResaleSlots,
+        supplierExpiresAtMs: i.supplierExpiresAt ? new Date(i.supplierExpiresAt).getTime() : null,
+      }));
+      await ctx.reply(formatStockHealth(items, Date.now()), { parse_mode: 'Markdown' });
+    } catch (error) {
+      this.logger.error('Failed to read stock health', error as Error);
+      await ctx.reply('Lecture de la santé du stock impossible.');
+    }
+  }
+
   private async replyImportResult(ctx: any, message: string, scope: 'paid' | 'trial', result: any) {
     const importedId = this.extractFirstImportedId(result);
     await ctx.reply(message, {
@@ -1484,7 +1510,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   async sendAdminAlert(message: string) {
     if (!this.adminChatId || !this.bot) return;
     try {
-      await this.bot.telegram.sendMessage(this.adminChatId, message);
+      await this.bot.telegram.sendMessage(this.adminChatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
       this.logger.error('Failed to send admin alert', error as Error);
     }

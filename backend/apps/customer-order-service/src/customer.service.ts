@@ -22,6 +22,7 @@ import {
   getPlanDeviceAllowance,
   getPublicPlanName,
   ReportUsageDto,
+  planDurationMs,
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
 import { SwimPayService } from './swim-pay.service';
@@ -37,7 +38,6 @@ import { resolveSoldQuotaGb } from './entitlement-policy';
 
 @Injectable()
 export class CustomerService implements OnModuleInit, OnModuleDestroy {
-  private static readonly TRIAL_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
   private static readonly TRIAL_QUOTA_LABEL = 'UNLIMITED';
   private static readonly ACTIVE_TRIAL_CAMPAIGN_CODE = 'trial-2026-05';
 
@@ -1963,19 +1963,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private getDurationMsFromOrder(planCode: string, isTrialOrder: boolean) {
-    if (isTrialOrder) {
-      return CustomerService.TRIAL_DURATION_MS;
-    }
-
-    switch (planCode) {
-      case 'MONTH':
-        return 30 * 24 * 60 * 60 * 1000;
-      case 'QUARTER':
-        return 90 * 24 * 60 * 60 * 1000;
-      case 'WEEK':
-      default:
-        return 7 * 24 * 60 * 60 * 1000;
-    }
+    return planDurationMs(planCode, isTrialOrder);
   }
 
   private calculateSubscriptionExpiresAt(
