@@ -16,7 +16,9 @@ import com.swimvpn.app.adaptive.AdaptiveEventLogger
 import com.swimvpn.app.adaptive.BenchmarkCollector
 import com.swimvpn.app.adaptive.SessionBenchmarkRecord
 import com.swimvpn.app.adaptive.DecisionActionType
+import com.swimvpn.app.adaptive.HealthVerdict
 import com.swimvpn.app.adaptive.ServerRuntimeQualityState
+import com.swimvpn.app.adaptive.TunnelHealthSentinel
 import com.swimvpn.app.adaptive.ServerDecisionCandidate
 import com.swimvpn.app.adaptive.ServerScoreStore
 import com.swimvpn.app.data.local.PreferencesManager
@@ -57,8 +59,10 @@ import com.swimvpn.app.vpn.ThemeMode
 import com.swimvpn.app.vpn.VpnManager
 import com.swimvpn.app.vpn.VpnNotificationLanguage
 import com.swimvpn.app.vpn.VpnState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -158,6 +162,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var adaptiveActiveServerId: String? = null
     private var manualStopRequested = false
     private var handlingAdaptiveFailure = false
+    private val healthSentinel = TunnelHealthSentinel(degradedThreshold = 3)
+    private var incidentTriedProfiles: Set<String> = emptySet()
     private var premiumUsageReportJob: Job? = null
     private var premiumUsageSessionBaselineBytes = 0L
     private var externalCheckoutRefreshUntilMs = 0L
@@ -174,10 +180,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         private const val PREMIUM_USAGE_REPORT_INTERVAL_MS = 30_000L
+        private const val HEALTH_PROBE_INTERVAL_MS = 15_000L
     }
 
     init {
         observeAdaptiveRuntime()
+        launchHealthSentinel()
         initApp()
     }
 
@@ -253,6 +261,62 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         handlingAdaptiveFailure = false
     }
 
+    /** True iff a small request succeeds THROUGH xray's local SOCKS (the real tunnelled path). */
+    private suspend fun probeTunnelHealthy(): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val proxy = java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress("127.0.0.1", 10808))
+            val conn = (java.net.URL("https://www.gstatic.com/generate_204").openConnection(proxy) as java.net.HttpURLConnection).apply {
+                connectTimeout = 6000; readTimeout = 6000; instanceFollowRedirects = false; requestMethod = "GET"
+            }
+            try { conn.responseCode in 200..399 } finally { conn.disconnect() }
+        }.getOrDefault(false)
+    }
+
+    /** Probe only while the screen is on and not in battery-saver — cheap and background-friendly. */
+    private fun screenOnAndNotPowerSave(): Boolean {
+        val pm = app.applicationContext.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        return pm.isInteractive && !pm.isPowerSaveMode
+    }
+
+    private fun launchHealthSentinel() {
+        viewModelScope.launch {
+            var wasConnected = false
+            while (true) {
+                delay(HEALTH_PROBE_INTERVAL_MS)
+                val connected = VpnManager.state.value == VpnState.CONNECTED
+                if (connected && !wasConnected) healthSentinel.reset() // fresh session
+                wasConnected = connected
+                if (!connected) continue
+                if (!screenOnAndNotPowerSave()) continue
+                val healthy = probeTunnelHealthy()
+                when (healthSentinel.onProbe(healthy)) {
+                    HealthVerdict.DEGRADED -> handleAdaptiveRuntimeFailure() // into the one pipeline
+                    HealthVerdict.HEALTHY -> incidentTriedProfiles = emptySet() // recovered -> clear incident
+                    HealthVerdict.ALREADY_DEGRADED -> { /* keep probing; one action already fired */ }
+                }
+            }
+        }
+    }
+
+    private suspend fun restartActiveServerWithProfile(server: ServerNode, current: AppState.Success, profileId: String) {
+        val rawInput = server.rawConfig ?: current.profile.subscriptionUrl ?: return
+        val resolved = configRepository.resolveRuntimeConfigForConnection(
+            input = rawInput,
+            sourceType = if (server.source == "backend") SourceType.BACKEND_API else SourceType.MANUAL_ENTRY,
+        ).getOrNull()?.rawConfig ?: return
+        val context = app.applicationContext
+        val intent = Intent(context, SwimVpnService::class.java).apply {
+            action = SwimVpnService.ACTION_RESTART
+            putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
+            putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
+            putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
+            putExtra(SwimVpnService.EXTRA_URL, resolved)
+            putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
+            putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_PROFILE, profileId)
+        }
+        context.startService(intent)
+    }
+
     private suspend fun handleAdaptiveRuntimeFailure() {
         if (handlingAdaptiveFailure) return
         handlingAdaptiveFailure = true
@@ -286,6 +350,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
             maybeAlertFailingImportedServer(activeServer, updatedScore.consecutiveFailures)
             val scores = serverScoreStore.loadScores()
+            if (incidentTriedProfiles.isEmpty()) incidentTriedProfiles = setOf(_activeCamouflageProfileId.value)
             val plannedAction = AdaptiveDecisionAgent.planAfterFailure(
                 currentServerId = activeServer.id,
                 candidates = current.servers.map { it.toDecisionCandidate(current.profile) },
@@ -293,6 +358,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 reconnectAttempt = adaptiveReconnectAttempt,
                 nowMs = now,
                 networkType = currentNetworkType(),
+                currentProfileId = _activeCamouflageProfileId.value,
+                triedProfileIds = incidentTriedProfiles,
             )
             // AI agent disabled: never switch servers automatically. Honor the user's manual
             // selection and only retry the same server (keeping the agent's backoff/give-up bounds).
@@ -313,7 +380,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 ),
             )
 
-            adaptiveReconnectAttempt += 1
+            if (action.type != DecisionActionType.MORPH_PROFILE) adaptiveReconnectAttempt += 1
 
             when (action.type) {
                 DecisionActionType.GIVE_UP -> {
@@ -342,9 +409,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 DecisionActionType.MORPH_PROFILE -> {
-                    // Stage B morph wiring (apply targetProfileId + reconnect on same server) lands in a
-                    // later task. This caller does not yet pass currentProfileId/triedProfileIds, so the
-                    // agent never emits MORPH_PROFILE here today; this is a defensive no-op branch.
+                    val target = action.targetProfileId ?: return
+                    incidentTriedProfiles = incidentTriedProfiles + target
+                    _activeCamouflageProfileId.value = target
+                    _effect.emit(AppSideEffect.ShowToast(s(R.string.adaptive_optimizing)))
+                    delay(action.delayMs)
+                    restartActiveServerWithProfile(activeServer, current, target)
                 }
             }
         } finally {
@@ -1540,6 +1610,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             viewModelScope.launch {
                 manualStopRequested = false
+                incidentTriedProfiles = emptySet()
                 adaptiveActiveServerId = server.id
                 val resolvedRuntimeConfig = configRepository.resolveRuntimeConfigForConnection(
                     input = runtimeConfig,
