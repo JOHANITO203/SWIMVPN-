@@ -234,7 +234,7 @@ private fun AccountHeader(onBack: (() -> Unit)?) {
                 maxLines = 1,
             )
             Text(
-                text = "Identité et accès",
+                text = stringResource(R.string.profile_header_subtitle),
                 color = SwimDesignTokens.Color.TextSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,

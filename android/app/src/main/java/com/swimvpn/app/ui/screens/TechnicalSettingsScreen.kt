@@ -168,7 +168,7 @@ fun TechnicalSettingsScreen(
         ) {
             SettingsHeader(onBack = onBack)
 
-            SettingsSectionTitle("Application")
+            SettingsSectionTitle(stringResource(R.string.technical_section_application))
             SettingsCanvas {
                 LanguagePill(
                     language = language,
@@ -185,7 +185,7 @@ fun TechnicalSettingsScreen(
                 )
             }
 
-            SettingsSectionTitle("Connexion")
+            SettingsSectionTitle(stringResource(R.string.technical_section_connection))
             SettingsCanvas {
                 RoutingPill(
                     selectedMode = normalizedRoutingMode,
@@ -277,7 +277,7 @@ fun TechnicalSettingsScreen(
                         title = stringResource(R.string.technical_camouflage_title),
                         subtitle = stringResource(R.string.technical_camouflage_adaptive, activeCamouflageName),
                     ) {
-                        StatusChip("AUTO")
+                        StatusChip(stringResource(R.string.technical_camouflage_auto))
                     }
                 } else {
                     // AI OFF: manual pick.
@@ -618,7 +618,7 @@ private fun SettingsActionPill(
         subtitle = subtitle,
         modifier = if (enabled) Modifier.clickable(onClick = onClick) else Modifier,
     ) {
-        StatusChip(if (enabled) "OUVRIR" else "ATTENTE")
+        StatusChip(if (enabled) stringResource(R.string.technical_action_open) else stringResource(R.string.technical_action_pending))
     }
 }
 

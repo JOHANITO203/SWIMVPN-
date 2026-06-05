@@ -351,7 +351,7 @@ private fun StatusChip(connected: Boolean, compact: Boolean, modifier: Modifier 
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = if (connected) "Prot\u00E9g\u00E9" else "Non prot\u00E9g\u00E9",
+            text = if (connected) stringResource(R.string.home_status_protected) else stringResource(R.string.home_status_unprotected),
             color = accent,
             fontSize = if (compact) 12.sp else 13.sp,
             fontWeight = FontWeight.SemiBold,
@@ -490,7 +490,7 @@ private fun SwimStatsCard(
             SwimStatsItem(
                 icon = Icons.Default.SettingsInputAntenna,
                 label = stringResource(R.string.status_connected),
-                value = if (connected) "Actif" else "Repos",
+                value = if (connected) stringResource(R.string.home_antenna_active) else stringResource(R.string.home_antenna_idle),
                 compact = compact,
             )
         }

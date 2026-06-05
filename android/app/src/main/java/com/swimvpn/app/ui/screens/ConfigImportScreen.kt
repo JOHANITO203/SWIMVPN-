@@ -366,7 +366,7 @@ private fun ImportHeroCard(importedCount: Int) {
                         )
                     }
                 }
-                Text("AI", color = Color.White, fontSize = importFixedSp(14), fontWeight = FontWeight.Black)
+                Text(stringResource(R.string.server_chip_ai), color = Color.White, fontSize = importFixedSp(14), fontWeight = FontWeight.Black)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {

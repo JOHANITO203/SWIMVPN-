@@ -552,7 +552,7 @@ private fun AiOrbBadge(modifier: Modifier = Modifier) {
                 )
             }
         }
-        Text("AI", color = Color.White, fontSize = fixedSp(14), fontWeight = FontWeight.Black)
+        Text(stringResource(R.string.server_chip_ai), color = Color.White, fontSize = fixedSp(14), fontWeight = FontWeight.Black)
     }
 }
 
@@ -1016,7 +1016,7 @@ private fun PingBadge(node: ServerNodeUi) {
             maxLines = 1,
         )
         Text(
-            text = if (node.pingFresh) "live" else "probe",
+            text = if (node.pingFresh) stringResource(R.string.servers_ping_live) else stringResource(R.string.servers_ping_probe),
             color = SwimDesignTokens.Color.TextMuted,
             fontSize = fixedSp(8),
             maxLines = 1,
@@ -1069,7 +1069,7 @@ private fun EmptyServerSourcePill(tab: ServerSourceTab) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = if (tab == ServerSourceTab.IMPORTED) "Aucun serveur importé" else "Aucun serveur premium disponible",
+            text = if (tab == ServerSourceTab.IMPORTED) stringResource(R.string.servers_empty_imported) else stringResource(R.string.servers_empty_premium),
             color = SwimDesignTokens.Color.TextSecondary,
             fontSize = fixedSp(12),
             fontWeight = FontWeight.Medium,
@@ -1167,7 +1167,7 @@ private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(resources: Resources
         totalQuotaGb = quotaValue,
         quotaCaption = quotaCaption,
         expiresOn = expiresAt?.let(::formatServerExpiryDate) ?: resources.getString(R.string.servers_unknown_country),
-        expiresCaption = expiresAt?.let(::formatServerExpiryCaption) ?: resources.getString(R.string.servers_no_expiration),
+        expiresCaption = expiresAt?.let { formatServerExpiryCaption(it, resources) } ?: resources.getString(R.string.servers_no_expiration),
     )
 }
 
@@ -1217,7 +1217,7 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
         } else {
             resources.getString(R.string.servers_inactive)
         },
-        expiresCaption = expiry?.let(::formatServerExpiryCaption) ?: if (isPremiumAllowed) {
+        expiresCaption = expiry?.let { formatServerExpiryCaption(it, resources) } ?: if (isPremiumAllowed) {
             resources.getString(R.string.servers_managed_by_provider)
         } else {
             resources.getString(R.string.servers_choose_plan)
@@ -1257,20 +1257,20 @@ private fun formatServerExpiryDate(value: String): String {
     }.getOrElse { value.take(10) }
 }
 
-private fun formatServerExpiryCaption(value: String): String {
+private fun formatServerExpiryCaption(value: String, resources: Resources): String {
     return runCatching {
         val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
-        val expiry = input.parse(value)?.time ?: return "Expiry set"
+        val expiry = input.parse(value)?.time ?: return resources.getString(R.string.servers_expiry_set)
         val days = TimeUnit.MILLISECONDS.toDays(expiry - System.currentTimeMillis())
         when {
-            days > 1 -> "In $days days"
-            days == 1L -> "In 1 day"
-            days == 0L -> "Today"
-            else -> "Expired"
+            days > 1 -> resources.getString(R.string.servers_expiry_in_days, days.toInt())
+            days == 1L -> resources.getString(R.string.servers_expiry_in_one_day)
+            days == 0L -> resources.getString(R.string.servers_expiry_today)
+            else -> resources.getString(R.string.servers_expiry_expired)
         }
-    }.getOrElse { "Expiry set" }
+    }.getOrElse { resources.getString(R.string.servers_expiry_set) }
 }
 
 private const val PERIODIC_REFRESH_INTERVAL_MS = 25_000L
