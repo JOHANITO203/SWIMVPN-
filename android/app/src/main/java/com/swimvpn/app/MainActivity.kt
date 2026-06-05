@@ -88,6 +88,9 @@ class MainActivity : AppCompatActivity() {
                         is AppSideEffect.ShowToast -> {
                             android.widget.Toast.makeText(this@MainActivity, effect.message, android.widget.Toast.LENGTH_SHORT).show()
                         }
+                        is AppSideEffect.ShowSubscribePrompt -> {
+                            // Rendered as a snackbar in AppNavigation (needs the navController + Compose host).
+                        }
                     }
                 }
             }
@@ -199,8 +202,30 @@ fun AppNavigation(
         }
     }
 
+    val subscribePromptState = remember { SnackbarHostState() }
+    val subscribePromptScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            if (effect is AppSideEffect.ShowSubscribePrompt) {
+                // Launch in a separate scope so the (long-lived) snackbar never blocks the
+                // shared effect flow / other effects.
+                subscribePromptScope.launch {
+                    val result = subscribePromptState.showSnackbar(
+                        message = effect.message,
+                        actionLabel = effect.actionLabel,
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        navController.navigateProductRoot("subscription")
+                    }
+                }
+            }
+        }
+    }
+
     NavHost(navController = navController, startDestination = bootstrapDestination) {
-        composable("onboarding") { 
+        composable("onboarding") {
             OnboardingScreen(onFinish = { 
                 viewModel.completeOnboarding()
             }) 
@@ -407,6 +432,76 @@ fun AppNavigation(
             ErrorScreen(
                 message = (state as AppState.Error).message,
                 onRetry = { viewModel.retry() }
+            )
+        }
+    }
+
+    // Transparent bottom overlay hosting the light subscribe nudge (snackbar). An empty Box
+    // with no pointer handlers does not intercept touches to the content beneath it.
+    Box(modifier = Modifier.fillMaxSize()) {
+        SnackbarHost(
+            hostState = subscribePromptState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding(),
+        ) { data ->
+            SubscribeNudgeContent(
+                message = data.visuals.message,
+                actionLabel = data.visuals.actionLabel.orEmpty(),
+                onAction = { data.performAction() },
+            )
+        }
+    }
+}
+
+/**
+ * Design-aligned snackbar for the freemium subscribe nudge: the app's satin-glass card grammar
+ * (SurfaceHighlight → Shell gradient, subtle stroke, rounded) with a purple "S'abonner" action —
+ * unlike the old default toast which didn't match the design at all.
+ */
+@Composable
+internal fun SubscribeNudgeContent(
+    message: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Color.SurfaceHighlight.copy(alpha = 0.72f),
+                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
+            .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, RoundedCornerShape(18.dp))
+            .padding(start = 18.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = message,
+            color = SwimDesignTokens.Color.TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            lineHeight = 17.sp,
+            modifier = Modifier.weight(1f),
+        )
+        if (actionLabel.isNotBlank()) {
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = actionLabel,
+                color = SwimDesignTokens.Color.PurpleActive,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier
+                    .clip(SwimDesignTokens.Shape.Pill)
+                    .clickable { onAction() }
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
             )
         }
     }
