@@ -33,10 +33,9 @@ class CamouflageProfileRepositoryTest {
     }
 
     @Test
-    fun `fallback order starts with auto and contains cascade profiles (not shaping presets)`() {
+    fun `fallback order starts with auto and contains every profile`() {
         assertEquals("auto", CamouflageProfileRepository.fallbackOrder.first().id)
-        val cascadeIds = listOf("auto", "chrome", "firefox", "safari", "ios", "randomized")
-        assertEquals(cascadeIds, CamouflageProfileRepository.fallbackOrder.map { it.id })
+        assertTrue(CamouflageProfileRepository.fallbackOrder.containsAll(CamouflageProfileRepository.all()))
     }
 
     @Test

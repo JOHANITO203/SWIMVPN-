@@ -62,10 +62,11 @@ object CamouflageProfileRepository {
 
     /**
      * Order the adaptive agent prefers on ties / walks as a cascade when a profile keeps failing on a
-     * network. AUTO first (respect the supplier's validated fingerprint), then the browser profiles as
-     * escalation when that keeps failing; randomized last (most distinct).
+     * network. AUTO first (respect the supplier's validated fingerprint), then the browser profiles, then
+     * the device-validated TLS-fragmentation presets as a last-resort escalation when nothing else holds.
      */
-    val fallbackOrder: List<CamouflageProfile> = listOf(AUTO, CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED)
+    val fallbackOrder: List<CamouflageProfile> =
+        listOf(AUTO, CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED, FRAG_LIGHT, FRAG_AGGRESSIVE)
 
     fun all(): List<CamouflageProfile> = ALL
 
