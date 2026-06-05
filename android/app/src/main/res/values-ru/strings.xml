@@ -271,6 +271,39 @@
     <string name="technical_camouflage_adaptive">Адаптивно · %1$s</string>
     <string name="camouflage_picker_title">Профиль маскировки</string>
     <string name="camouflage_picker_note">Имитирует TLS-отпечаток браузера. Улучшает совместимость с сетью; не гарантирует необнаружимость.</string>
+
+    <!-- i18n finishing: previously hardcoded text -->
+    <string name="home_status_protected">Защищено</string>
+    <string name="home_status_unprotected">Не защищено</string>
+    <string name="home_antenna_active">Активно</string>
+    <string name="home_antenna_idle">Покой</string>
+    <string name="servers_ping_live">live</string>
+    <string name="servers_ping_probe">зонд</string>
+    <string name="servers_empty_imported">Нет импортированных серверов</string>
+    <string name="servers_empty_premium">Нет доступных premium-серверов</string>
+    <string name="servers_expiry_set">Срок задан</string>
+    <string name="servers_expiry_in_days">Через %1$d дн.</string>
+    <string name="servers_expiry_in_one_day">Через 1 день</string>
+    <string name="servers_expiry_today">Сегодня</string>
+    <string name="servers_expiry_expired">Истёк</string>
+    <string name="profile_header_subtitle">Идентификация и доступ</string>
+    <string name="technical_section_application">Приложение</string>
+    <string name="technical_section_connection">Подключение</string>
+    <string name="technical_camouflage_auto">АВТО</string>
+    <string name="technical_action_open">ОТКРЫТЬ</string>
+    <string name="technical_action_pending">ОЖИДАНИЕ</string>
+    <string name="support_header_subtitle">FAQ, email и Telegram</string>
+    <string name="support_hero_title">Поддержка SwimVPN</string>
+    <string name="support_hero_subtitle">Найдите ответ или свяжитесь с командой.</string>
+    <string name="vpn_err_runtime_failed">Сбой среды выполнения: %1$s</string>
+    <string name="vpn_err_restore_failed">Не удалось восстановить VPN: %1$s</string>
+    <string name="vpn_err_connection_failed">Не удалось подключиться: %1$s</string>
+    <string name="vpn_err_tun2socks_failed">tun2socks дал сбой: %1$s</string>
+    <string name="vpn_err_tun2socks_exit">tun2socks завершился с кодом %1$s</string>
+    <string name="vpn_err_permission_revoked">Разрешение VPN отозвано системой</string>
+    <string name="vpn_err_xray_stopped">Среда Xray неожиданно остановилась (exit=%1$s)</string>
+    <string name="vpn_err_tun2socks_stopped">Плоскость данных tun2socks неожиданно остановилась</string>
+    <string name="vpn_err_unsupported_config">Неподдерживаемый формат конфигурации</string>
     <string name="technical_language_title">Язык</string>
     <string name="technical_theme_title">Тема</string>
     <string name="technical_theme_dark_active">Темная активна</string>

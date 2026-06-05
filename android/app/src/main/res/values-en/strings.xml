@@ -271,6 +271,39 @@
     <string name="technical_camouflage_adaptive">Adaptive · %1$s</string>
     <string name="camouflage_picker_title">Camouflage profile</string>
     <string name="camouflage_picker_note">Mimics a browser TLS fingerprint. Improves network compatibility; does not guarantee undetectability.</string>
+
+    <!-- i18n finishing: previously hardcoded text -->
+    <string name="home_status_protected">Protected</string>
+    <string name="home_status_unprotected">Unprotected</string>
+    <string name="home_antenna_active">Active</string>
+    <string name="home_antenna_idle">Idle</string>
+    <string name="servers_ping_live">live</string>
+    <string name="servers_ping_probe">probe</string>
+    <string name="servers_empty_imported">No imported servers</string>
+    <string name="servers_empty_premium">No premium servers available</string>
+    <string name="servers_expiry_set">Expiry set</string>
+    <string name="servers_expiry_in_days">In %1$d days</string>
+    <string name="servers_expiry_in_one_day">In 1 day</string>
+    <string name="servers_expiry_today">Today</string>
+    <string name="servers_expiry_expired">Expired</string>
+    <string name="profile_header_subtitle">Identity &amp; access</string>
+    <string name="technical_section_application">Application</string>
+    <string name="technical_section_connection">Connection</string>
+    <string name="technical_camouflage_auto">AUTO</string>
+    <string name="technical_action_open">OPEN</string>
+    <string name="technical_action_pending">WAIT</string>
+    <string name="support_header_subtitle">FAQ, email &amp; Telegram</string>
+    <string name="support_hero_title">SwimVPN Support</string>
+    <string name="support_hero_subtitle">Find an answer or contact the team.</string>
+    <string name="vpn_err_runtime_failed">Runtime failed: %1$s</string>
+    <string name="vpn_err_restore_failed">VPN restore failed: %1$s</string>
+    <string name="vpn_err_connection_failed">Connection failed: %1$s</string>
+    <string name="vpn_err_tun2socks_failed">tun2socks failed: %1$s</string>
+    <string name="vpn_err_tun2socks_exit">tun2socks exited with code %1$s</string>
+    <string name="vpn_err_permission_revoked">VPN permission was revoked by the system</string>
+    <string name="vpn_err_xray_stopped">Xray runtime stopped unexpectedly (exit=%1$s)</string>
+    <string name="vpn_err_tun2socks_stopped">tun2socks data plane stopped unexpectedly</string>
+    <string name="vpn_err_unsupported_config">Unsupported configuration format</string>
     <string name="technical_language_title">Language</string>
     <string name="technical_theme_title">Theme</string>
     <string name="technical_theme_dark_active">Dark active</string>

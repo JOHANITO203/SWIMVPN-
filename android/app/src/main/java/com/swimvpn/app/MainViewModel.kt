@@ -1453,7 +1453,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     input = runtimeConfig,
                     sourceType = if (server.source == "backend") SourceType.BACKEND_API else SourceType.MANUAL_ENTRY,
                 ).getOrElse { error ->
-                    val message = "Connection failed: ${error.localizedMessage ?: "Unsupported configuration format"}"
+                    val message = s(R.string.vpn_err_connection_failed, error.localizedMessage ?: s(R.string.vpn_err_unsupported_config))
                     Log.e("MainViewModel", "Runtime config resolution failed for ${server.id}", error)
                     _effect.emit(AppSideEffect.ShowToast(message))
                     VpnManager.setError(message)

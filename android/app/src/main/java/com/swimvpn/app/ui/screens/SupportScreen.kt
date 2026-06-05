@@ -169,7 +169,7 @@ private fun SupportHeader(onBack: () -> Unit) {
                 maxLines = 1,
             )
             Text(
-                text = "FAQ, email et Telegram",
+                text = stringResource(R.string.support_header_subtitle),
                 color = SwimDesignTokens.Color.TextSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -200,14 +200,14 @@ private fun SupportHero() {
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Support SwimVPN",
+                    text = stringResource(R.string.support_hero_title),
                     color = SwimDesignTokens.Color.TextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Black,
                     maxLines = 1,
                 )
                 Text(
-                    text = "Trouver une réponse ou contacter l’équipe.",
+                    text = stringResource(R.string.support_hero_subtitle),
                     color = SwimDesignTokens.Color.TextSecondary,
                     fontSize = 12.sp,
                     maxLines = 2,

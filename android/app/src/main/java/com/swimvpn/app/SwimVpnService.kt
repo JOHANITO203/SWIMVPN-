@@ -105,7 +105,10 @@ class SwimVpnService : VpnService() {
         val cause = RuntimeStartupFailurePolicy.classify(throwable).cause
         runCatching {
             setRuntimeError(
-                "Runtime failed: ${throwable.localizedMessage ?: throwable.javaClass.simpleName}",
+                localizedContextFor(notificationLanguage).getString(
+                    R.string.vpn_err_runtime_failed,
+                    throwable.localizedMessage ?: throwable.javaClass.simpleName,
+                ),
                 cause,
             )
             stopVpn(clearRuntimeState = false, reason = "uncaught_coroutine_failure", cause = cause)
@@ -291,7 +294,7 @@ class SwimVpnService : VpnService() {
                 )
             }.onFailure { error ->
                 Log.e("SwimVpnService", "Unable to restore sticky VPN session", error)
-                setRuntimeError("VPN restore failed: ${error.localizedMessage}", DisconnectCause.UNKNOWN)
+                setRuntimeError(localizedContextFor(notificationLanguage).getString(R.string.vpn_err_restore_failed, error.localizedMessage), DisconnectCause.UNKNOWN)
                 stopVpn(clearRuntimeState = false, reason = "sticky_restore_failed", cause = DisconnectCause.UNKNOWN)
             }
         }
@@ -550,7 +553,7 @@ class SwimVpnService : VpnService() {
                         details = mapOf("from_cause" to cause.name),
                     )
                 } else {
-                    setRuntimeError("Connection failed: ${e.localizedMessage}", cause)
+                    setRuntimeError(localizedContextFor(notificationLanguage).getString(R.string.vpn_err_connection_failed, e.localizedMessage), cause)
                     stopVpn(clearRuntimeState = false, reason = "startup_failure", cause = cause)
                 }
             } finally {
@@ -674,7 +677,7 @@ class SwimVpnService : VpnService() {
                         Log.e("SwimVpnService", "tun2socks native bridge failed", error)
                         CrashReporter.recordVpnFailure(stage = "tun2socks_bridge", cause = "ENGINE_CRASH", throwable = error)
                         if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
-                            setRuntimeError("tun2socks failed: ${error.localizedMessage}", DisconnectCause.ENGINE_CRASH)
+                            setRuntimeError(localizedContextFor(notificationLanguage).getString(R.string.vpn_err_tun2socks_failed, error.localizedMessage), DisconnectCause.ENGINE_CRASH)
                             scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_failure")
                         }
                         return@launch
@@ -683,7 +686,7 @@ class SwimVpnService : VpnService() {
                     preparedRuntime.exitStateFile.writeText(exitCode.toString())
                     if (VpnManager.runtimeStatus.value == RuntimeStatus.RUNNING) {
                         Log.w("SwimVpnService", "tun2socks exited unexpectedly with code $exitCode")
-                        setRuntimeError("tun2socks exited with code $exitCode", DisconnectCause.ENGINE_CRASH)
+                        setRuntimeError(localizedContextFor(notificationLanguage).getString(R.string.vpn_err_tun2socks_exit, exitCode.toString()), DisconnectCause.ENGINE_CRASH)
                         scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_exit_$exitCode")
                     }
                 }
@@ -1114,7 +1117,7 @@ class SwimVpnService : VpnService() {
         // distinct PERMISSION_REVOKED cause, cancel any pending auto-reconnect so we
         // do not fight the revocation, then perform a terminal stop (no auto-retry).
         cancelPendingAutoReconnect("permission_revoked")
-        setRuntimeError("VPN permission was revoked by the system", DisconnectCause.PERMISSION_REVOKED)
+        setRuntimeError(localizedContextFor(notificationLanguage).getString(R.string.vpn_err_permission_revoked), DisconnectCause.PERMISSION_REVOKED)
         stopVpn(clearRuntimeState = false, reason = "vpn_revoked", cause = DisconnectCause.PERMISSION_REVOKED)
         super.onRevoke()
     }
@@ -1325,7 +1328,7 @@ class SwimVpnService : VpnService() {
                     val exitCode = xraySnapshot?.exitCode?.toString() ?: "unknown"
                     Log.w("SwimVpnService", "Xray process is not alive for mode=$mode exitCode=$exitCode")
                     logRuntimeEvent("engine_crashed", mapOf("engine" to "xray", "exitCode" to exitCode))
-                    setRuntimeError("Xray runtime stopped unexpectedly (exit=$exitCode)", DisconnectCause.ENGINE_CRASH)
+                    setRuntimeError(localizedContextFor(notificationLanguage).getString(R.string.vpn_err_xray_stopped, exitCode), DisconnectCause.ENGINE_CRASH)
                     scheduleReconnect(DisconnectCause.ENGINE_CRASH, "xray_not_alive_$exitCode")
                     return@launch
                 }
@@ -1336,7 +1339,7 @@ class SwimVpnService : VpnService() {
                     if (tun2SocksJob == null || tun2SocksContract == null || !tun2SocksJob.isActive) {
                         Log.w("SwimVpnService", "tun2socks monitor detected inactive data plane")
                         logRuntimeEvent("engine_crashed", mapOf("engine" to "tun2socks"))
-                        setRuntimeError("tun2socks data plane stopped unexpectedly", DisconnectCause.ENGINE_CRASH)
+                        setRuntimeError(localizedContextFor(notificationLanguage).getString(R.string.vpn_err_tun2socks_stopped), DisconnectCause.ENGINE_CRASH)
                         scheduleReconnect(DisconnectCause.ENGINE_CRASH, "tun2socks_not_alive")
                         return@launch
                     }
