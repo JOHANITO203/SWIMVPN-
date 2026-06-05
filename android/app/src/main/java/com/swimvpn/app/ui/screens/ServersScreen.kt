@@ -111,6 +111,9 @@ data class PremiumAccessSummaryUi(
     val expiresCaption: String,
     val accessActive: Boolean,
     val hasPremiumNodes: Boolean,
+    val limitBytes: Long = 0L,
+    val usedBaselineBytes: Long = 0L,
+    val isUnlimited: Boolean = false,
 )
 
 data class ServerNodeUi(
@@ -1171,6 +1174,15 @@ private fun ActiveConfigMetadata?.toImportedConfigSummaryUi(resources: Resources
     )
 }
 
+internal data class PremiumQuotaNumbers(val limitBytes: Long, val usedBaselineBytes: Long, val isUnlimited: Boolean)
+
+internal fun premiumQuotaNumbers(profile: AccessProfileResponse): PremiumQuotaNumbers =
+    PremiumQuotaNumbers(
+        limitBytes = profile.dataLimitBytes,
+        usedBaselineBytes = profile.parsedDataUsedBytes,
+        isUnlimited = profile.isPremiumAllowed && !profile.hasMeasuredLimit,
+    )
+
 private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
     premiumServers: List<ServerNode>,
     resources: Resources,
@@ -1180,12 +1192,8 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
     }
 
     val planName = localizedPremiumPlanName(resources)
-    val totalBytes = premiumServers.firstNotNullOfOrNull { it.trafficTotalBytes?.filter(Char::isDigit)?.toLongOrNull() }
-        ?: dataLimitBytes.takeIf { it > 0L }
-    val usedBytes = premiumServers.firstNotNullOfOrNull { it.trafficUsedBytes?.filter(Char::isDigit)?.toLongOrNull() }
-        ?: parsedDataUsedBytes
-    val expiry = premiumServers.firstNotNullOfOrNull { it.expiresAt?.takeIf(String::isNotBlank) }
-        ?: effectiveExpiryAt
+    val nums = premiumQuotaNumbers(this)
+    val expiry = effectiveExpiryAt
     val active = isPremiumAllowed && premiumServers.isNotEmpty()
     val waitingFulfillment = isPremiumAllowed && premiumServers.isEmpty()
 
@@ -1203,12 +1211,12 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
             else -> resources.getString(R.string.servers_premium_access_subtitle)
         },
         quotaValue = when {
-            totalBytes != null && totalBytes > 0L -> formatBytes(totalBytes)
+            nums.limitBytes > 0L -> formatBytes(nums.limitBytes)
             isPremiumAllowed -> resources.getString(R.string.servers_unlimited)
             else -> resources.getString(R.string.servers_locked)
         },
         quotaCaption = when {
-            totalBytes != null && totalBytes > 0L -> resources.getString(R.string.servers_used_format, formatBytes(usedBytes))
+            nums.limitBytes > 0L -> resources.getString(R.string.servers_used_format, formatBytes(nums.usedBaselineBytes))
             isPremiumAllowed -> resources.getString(R.string.servers_managed_by_plan)
             else -> resources.getString(R.string.servers_subscription_required)
         },
@@ -1224,6 +1232,9 @@ private fun AccessProfileResponse?.toPremiumAccessSummaryUi(
         },
         accessActive = isPremiumAllowed || isPendingFulfillment,
         hasPremiumNodes = active,
+        limitBytes = nums.limitBytes,
+        usedBaselineBytes = nums.usedBaselineBytes,
+        isUnlimited = nums.isUnlimited,
     )
 }
 
