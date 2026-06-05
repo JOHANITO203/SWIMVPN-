@@ -88,6 +88,9 @@ class MainActivity : AppCompatActivity() {
                         is AppSideEffect.ShowToast -> {
                             android.widget.Toast.makeText(this@MainActivity, effect.message, android.widget.Toast.LENGTH_SHORT).show()
                         }
+                        is AppSideEffect.ShowSubscribePrompt -> {
+                            // Rendered as a snackbar in AppNavigation (needs the navController + Compose host).
+                        }
                     }
                 }
             }
@@ -199,8 +202,30 @@ fun AppNavigation(
         }
     }
 
+    val subscribePromptState = remember { SnackbarHostState() }
+    val subscribePromptScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            if (effect is AppSideEffect.ShowSubscribePrompt) {
+                // Launch in a separate scope so the (long-lived) snackbar never blocks the
+                // shared effect flow / other effects.
+                subscribePromptScope.launch {
+                    val result = subscribePromptState.showSnackbar(
+                        message = effect.message,
+                        actionLabel = effect.actionLabel,
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        navController.navigateProductRoot("subscription")
+                    }
+                }
+            }
+        }
+    }
+
     NavHost(navController = navController, startDestination = bootstrapDestination) {
-        composable("onboarding") { 
+        composable("onboarding") {
             OnboardingScreen(onFinish = { 
                 viewModel.completeOnboarding()
             }) 
@@ -409,6 +434,17 @@ fun AppNavigation(
                 onRetry = { viewModel.retry() }
             )
         }
+    }
+
+    // Transparent bottom overlay hosting the light subscribe nudge (snackbar). An empty Box
+    // with no pointer handlers does not intercept touches to the content beneath it.
+    Box(modifier = Modifier.fillMaxSize()) {
+        SnackbarHost(
+            hostState = subscribePromptState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding(),
+        )
     }
 }
 

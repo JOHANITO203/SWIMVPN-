@@ -111,6 +111,9 @@ sealed class AppState {
 sealed class AppSideEffect {
     data class OpenUrl(val url: String) : AppSideEffect()
     data class ShowToast(val message: String) : AppSideEffect()
+
+    /** Light, non-blocking upsell shown AFTER premium access ends (revocation itself is silent). */
+    data class ShowSubscribePrompt(val message: String, val actionLabel: String) : AppSideEffect()
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -1329,7 +1332,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ),
         )
         _state.value = standardState
-        _effect.emit(AppSideEffect.ShowToast(s(R.string.premium_access_finished_standard_mode)))
+        // Revocation is silent (servers hidden, session stopped above). The only user-facing
+        // signal is a light, dismissible subscribe nudge — a gentle freemium push, no constraint.
+        _effect.emit(
+            AppSideEffect.ShowSubscribePrompt(
+                message = s(R.string.premium_access_ended_upsell),
+                actionLabel = s(R.string.premium_access_ended_subscribe),
+            ),
+        )
 
         val intent = Intent(context, SwimVpnService::class.java).apply {
             action = SwimVpnService.ACTION_STOP
