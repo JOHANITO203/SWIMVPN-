@@ -47,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,6 +85,7 @@ import com.swimvpn.app.ui.components.SwimMetaballDock
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import com.swimvpn.app.vpn.NetworkType
+import com.swimvpn.app.vpn.VpnManager
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -306,6 +308,7 @@ fun ServerScreen(
                             PremiumAccessCard(
                                 access = uiState.premiumAccess,
                                 compact = compact,
+                                onSubscribeClick = onSubscribeClick,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -563,6 +566,7 @@ private fun AiOrbBadge(modifier: Modifier = Modifier) {
 private fun PremiumAccessCard(
     access: PremiumAccessSummaryUi?,
     compact: Boolean,
+    onSubscribeClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val resolved = access ?: PremiumAccessSummaryUi(
@@ -636,6 +640,16 @@ private fun PremiumAccessCard(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+    if (resolved.limitBytes > 0L && resolved.usedBaselineBytes >= resolved.limitBytes) {
+        Spacer(Modifier.height(8.dp))
+        ServerActionPill(
+            title = stringResource(R.string.servers_renew),
+            subtitle = stringResource(R.string.quota_exhausted_label),
+            icon = Icons.Default.WorkspacePremium,
+            onClick = onSubscribeClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
@@ -676,6 +690,12 @@ private fun PremiumOrbBadge(active: Boolean, modifier: Modifier = Modifier) {
 
 @Composable
 private fun PremiumSummaryPill(access: PremiumAccessSummaryUi, modifier: Modifier = Modifier) {
+    val bytesIn by VpnManager.bytesIn.collectAsState()
+    val bytesOut by VpnManager.bytesOut.collectAsState()
+    val usedNow = access.usedBaselineBytes + bytesIn + bytesOut
+    val fraction = if (access.limitBytes > 0L)
+        (usedNow.toFloat() / access.limitBytes.toFloat()).coerceIn(0f, 1f) else 0f
+    val exhausted = access.limitBytes > 0L && usedNow >= access.limitBytes
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -693,7 +713,58 @@ private fun PremiumSummaryPill(access: PremiumAccessSummaryUi, modifier: Modifie
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        QuotaColumn(label = stringResource(R.string.servers_quota_premium), value = access.quotaValue, caption = access.quotaCaption, modifier = Modifier.weight(1f))
+        Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                stringResource(R.string.servers_quota_premium),
+                color = SwimDesignTokens.Color.TextSecondary,
+                fontSize = fixedSp(10),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (access.isUnlimited) {
+                Text(
+                    stringResource(R.string.servers_unlimited),
+                    color = SwimDesignTokens.Color.TextPrimary,
+                    fontSize = fixedSp(15),
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(SwimDesignTokens.Shape.Pill)
+                        .background(SwimDesignTokens.Color.DividerSubtle)
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(fraction)
+                            .height(6.dp)
+                            .clip(SwimDesignTokens.Shape.Pill)
+                            .background(
+                                if (exhausted) SwimDesignTokens.Color.Danger
+                                else SwimDesignTokens.Color.PurpleActive
+                            )
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (exhausted) stringResource(R.string.quota_exhausted_label)
+                    else stringResource(
+                        R.string.servers_quota_used_remaining,
+                        formatBytes(usedNow),
+                        formatBytes(access.limitBytes),
+                        formatBytes((access.limitBytes - usedNow).coerceAtLeast(0L)),
+                    ),
+                    color = SwimDesignTokens.Color.TextSecondary,
+                    fontSize = fixedSp(10),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Box(
             modifier = Modifier
                 .height(58.dp)
