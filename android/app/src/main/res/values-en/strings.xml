@@ -134,6 +134,11 @@
     <string name="servers_managed">Managed</string>
     <string name="servers_managed_by_provider">Managed by provider</string>
     <string name="servers_detail_separator"> · </string>
+    <string name="servers_quota_used_remaining">%1$s used / %2$s · %3$s left</string>
+    <string name="quota_exhausted_label">Quota reached</string>
+    <string name="quota_exhausted_toast">Data quota reached — renew to keep going.</string>
+    <string name="vpn_err_quota_exhausted">Data quota reached. Renew your plan.</string>
+    <string name="servers_renew">Renew</string>
 
     <!-- Profile -->
     <string name="title_account">ACCOUNT</string>

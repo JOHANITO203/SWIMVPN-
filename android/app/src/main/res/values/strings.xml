@@ -136,6 +136,11 @@
     <string name="servers_managed">Géré</string>
     <string name="servers_managed_by_provider">Géré par le fournisseur</string>
     <string name="servers_detail_separator"> · </string>
+    <string name="servers_quota_used_remaining">%1$s utilisés / %2$s · %3$s restants</string>
+    <string name="quota_exhausted_label">Quota épuisé</string>
+    <string name="quota_exhausted_toast">Quota atteint — renouvelle pour continuer.</string>
+    <string name="vpn_err_quota_exhausted">Quota de données atteint. Renouvelle ton forfait.</string>
+    <string name="servers_renew">Renouveler</string>
 
     <!-- Profile -->
     <string name="title_account">COMPTE</string>

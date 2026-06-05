@@ -134,6 +134,11 @@
     <string name="servers_managed">Управляется</string>
     <string name="servers_managed_by_provider">Управляется провайдером</string>
     <string name="servers_detail_separator"> · </string>
+    <string name="servers_quota_used_remaining">%1$s использовано / %2$s · осталось %3$s</string>
+    <string name="quota_exhausted_label">Квота исчерпана</string>
+    <string name="quota_exhausted_toast">Квота трафика исчерпана — продлите, чтобы продолжить.</string>
+    <string name="vpn_err_quota_exhausted">Квота трафика исчерпана. Продлите тариф.</string>
+    <string name="servers_renew">Продлить</string>
 
     <!-- Profile -->
     <string name="title_account">АККАУНТ</string>
