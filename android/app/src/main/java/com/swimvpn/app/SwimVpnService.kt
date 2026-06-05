@@ -1597,6 +1597,7 @@ class SwimVpnService : VpnService() {
             port = session.port,
             requestedMode = session.requestedMode,
             rawConfig = session.rawConfig,
+            isByoProxy = session.isByoProxy,
             quotaLimitBytes = session.quotaLimitBytes,
             quotaBaselineBytes = session.quotaBaselineBytes,
         )
