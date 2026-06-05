@@ -47,6 +47,7 @@ import com.swimvpn.app.config.ImportedProfileGroup
 import com.swimvpn.app.config.SecurityMode
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
+import com.swimvpn.app.vpn.DisconnectCause
 import com.swimvpn.app.vpn.NetworkType
 import com.swimvpn.app.vpn.NetworkTypeClassifier
 import com.swimvpn.app.vpn.RuntimeMode
@@ -196,6 +197,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         RuntimeStatus.RECONNECTING -> Unit
                         RuntimeStatus.FAILED -> {
                             stopPremiumUsageReporting()
+                            if (VpnManager.metrics.value.lastDisconnectCause == DisconnectCause.QUOTA_EXHAUSTED) {
+                                _effect.emit(AppSideEffect.ShowToast(s(R.string.quota_exhausted_toast)))
+                                return@collect
+                            }
                             handleAdaptiveRuntimeFailure()
                         }
                         RuntimeStatus.IDLE -> {
@@ -1492,10 +1497,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_FP, camouflage.fingerprint)
 
                     val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
-                    val usedBytes = profile.totalConsumedBytes()
-
                     putExtra(SwimVpnService.EXTRA_DATA_LIMIT, limitBytes)
-                    putExtra(SwimVpnService.EXTRA_DATA_USED, usedBytes)
+                    putExtra(SwimVpnService.EXTRA_DATA_USED, profile.parsedDataUsedBytes) // cumulative baseline (NOT the live session)
                 }
                 ContextCompat.startForegroundService(context, intent)
                 startPremiumUsageReporting(context.applicationContext, profile, server)
