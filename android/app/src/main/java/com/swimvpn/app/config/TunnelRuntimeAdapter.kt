@@ -501,6 +501,13 @@ object TunnelRuntimeAdapter {
         return JsonObject().apply {
             addProperty("queryStrategy", networkPolicy.queryStrategy)
             add("servers", JsonArray().apply {
+                // Resolve the outbound server hostname via the SYSTEM resolver FIRST. Public resolvers
+                // (1.1.1.1 / 8.8.8.8) are frequently blocked/throttled (e.g. in Russia), which made
+                // xray's server-domain lookup time out ("lookup ...: operation was canceled") so the
+                // tunnel never dialed the server — "connected" but no internet. xray runs in the app
+                // UID (excluded from the tun), so "localhost" uses the device's working DNS. Public
+                // resolvers are kept as fallback for routing/sniffing.
+                add("localhost")
                 networkPolicy.dnsServers.forEach { add(it) }
             })
         }
