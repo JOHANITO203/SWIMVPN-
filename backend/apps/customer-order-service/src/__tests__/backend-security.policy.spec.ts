@@ -91,8 +91,8 @@ async function main() {
               status: 'FULFILLED',
               plan: { code: 'WEEK', quota_label: '50 GB' },
               payment_ref: 'CARD_MANUAL:APPROVED',
-              created_at: new Date('2026-05-02T00:00:00.000Z'),
-              fulfilled_at: new Date('2026-05-02T00:00:00.000Z'),
+              created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+              fulfilled_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
               assignments: [
                 {
                   id: 'assignment-new-revoked',
@@ -114,8 +114,8 @@ async function main() {
               status: 'FULFILLED',
               plan: { code: 'WEEK', quota_label: '50 GB' },
               payment_ref: 'CARD_MANUAL:APPROVED',
-              created_at: new Date('2026-05-01T00:00:00.000Z'),
-              fulfilled_at: new Date('2026-05-01T00:00:00.000Z'),
+              created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+              fulfilled_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
               assignments: [
                 {
                   id: 'assignment-old-active',
@@ -182,8 +182,8 @@ async function main() {
                 order_ref: 'ORD-DEEP-PROFILE',
                 status: 'FULFILLED',
                 payment_ref: 'CARD_MANUAL:APPROVED',
-                created_at: new Date('2026-04-01T00:00:00.000Z'),
-                fulfilled_at: new Date('2026-04-01T00:00:00.000Z'),
+                created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+                fulfilled_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
                 plan: { code: 'MONTH', quota_label: '150 GB' },
               },
               inventory_item: {
@@ -236,14 +236,14 @@ async function main() {
             access_status: AssignmentAccessStatus.EXPIRED,
             inventory_item_id: 'inventory-expired',
             measured_used_bytes: 0n,
-            expires_at: new Date('2026-05-01T00:00:00.000Z'),
+            expires_at: new Date(Date.now() - 60 * 60 * 1000),
             order: {
               id: 'order-same-id',
               order_ref: 'ORD-SAME-ID',
               status: 'FULFILLED',
               payment_ref: 'CARD_MANUAL:APPROVED',
-              created_at: new Date('2026-04-01T00:00:00.000Z'),
-              fulfilled_at: new Date('2026-04-01T00:00:00.000Z'),
+              created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+              fulfilled_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
               plan: { code: 'MONTH', quota_label: '150 GB' },
             },
             inventory_item: {
@@ -266,8 +266,8 @@ async function main() {
               order_ref: 'ORD-SAME-ID',
               status: 'FULFILLED',
               payment_ref: 'CARD_MANUAL:APPROVED',
-              created_at: new Date('2026-04-01T00:00:00.000Z'),
-              fulfilled_at: new Date('2026-04-01T00:00:00.000Z'),
+              created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+              fulfilled_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
               plan: { code: 'MONTH', quota_label: '150 GB' },
             },
             inventory_item: {
@@ -315,8 +315,8 @@ async function main() {
               order_ref: 'TRIAL-SW-PAID-OVER-TRIAL-1',
               status: 'FULFILLED',
               payment_ref: 'TRIAL:3D',
-              created_at: new Date('2026-05-03T00:00:00.000Z'),
-              fulfilled_at: new Date('2026-05-03T00:00:00.000Z'),
+              created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+              fulfilled_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
               plan: { code: 'WEEK', quota_label: 'UNLIMITED' },
               assignments: [
                 {
@@ -331,7 +331,7 @@ async function main() {
                     health_status: InventoryHealthStatus.HEALTHY,
                     source_quota_bytes: null,
                     source_used_bytes: 0n,
-                    supplier_expires_at: new Date('2026-05-06T00:00:00.000Z'),
+                    supplier_expires_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
                   },
                 },
               ],
@@ -341,8 +341,8 @@ async function main() {
               order_ref: 'ORD-PAID-OLD',
               status: 'FULFILLED',
               payment_ref: 'CARD_MANUAL:APPROVED',
-              created_at: new Date('2026-05-01T00:00:00.000Z'),
-              fulfilled_at: new Date('2026-05-01T00:00:00.000Z'),
+              created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+              fulfilled_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
               plan: { code: 'MONTH', quota_label: '150 GB' },
               assignments: [
                 {
@@ -383,6 +383,8 @@ async function main() {
     'profile must expose paid runtime config when paid and trial are both active',
   );
 
+  // Recent fulfillment so the WEEK plan is genuinely within its sold window (ACTIVE).
+  const planQuotaFulfilledAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const activePlanQuotaService = new CustomerService(
     {
       customer: {
@@ -400,10 +402,11 @@ async function main() {
               plan: {
                 code: 'WEEK',
                 quota_label: '50 GB',
+                quota_gb: 50,
               },
               payment_ref: 'CARD_MANUAL:APPROVED',
-              created_at: new Date('2020-01-01T00:00:00.000Z'),
-              fulfilled_at: new Date('2020-01-01T00:00:00.000Z'),
+              created_at: planQuotaFulfilledAt,
+              fulfilled_at: planQuotaFulfilledAt,
               assignments: [
                 {
                   id: 'assignment-plan-quota',
@@ -437,11 +440,18 @@ async function main() {
   const activePlanQuotaProfile = await activePlanQuotaService.getProfile('SW-PLAN-QUOTA');
   assert(
     activePlanQuotaProfile.entitlementState === 'ACTIVE_SUBSCRIPTION',
-    'paid access time should be provider-managed, not expired by local plan duration',
+    'paid access within its sold window must be ACTIVE_SUBSCRIPTION',
   );
+  // Spec 1: subscriptionExpiresAt is the SOLD expiry (fulfilled_at + plan duration), NOT the supplier expiry.
   assert(
-    activePlanQuotaProfile.subscriptionExpiresAt === '2099-05-21T00:00:00.000Z',
-    'paid access expiry should mirror supplier/assignment expiry when present',
+    activePlanQuotaProfile.subscriptionExpiresAt ===
+      new Date(planQuotaFulfilledAt.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    'subscriptionExpiresAt must be the SOLD expiry (fulfilled_at + plan duration)',
+  );
+  // The raw supplier expiry stays exposed separately (ops), never as the client-facing promise.
+  assert(
+    activePlanQuotaProfile.supplierExpiresAt === '2099-05-21T00:00:00.000Z',
+    'supplierExpiresAt must still expose the raw supplier expiry, separately from the sold expiry',
   );
   assert(activePlanQuotaProfile.dataLimitGB === 50, 'customer-facing quota must come from the paid plan');
   assert(
