@@ -143,6 +143,9 @@ object TunnelRuntimeAdapter {
             // synthetic IP; xray recovers the real hostname from the TLS/HTTP SNI (sniffing) and resolves
             // it at the exit, so there is one connection per real destination and zero DNS round-trips.
             applyFakeDnsInterception(document)
+            // Fast-reject literal IPv6 so a captured-but-unsupported IPv6 connection fails instantly
+            // (blackhole = immediate close) instead of hanging, letting Happy Eyeballs fall back to IPv4.
+            appendIpv6BlockRule(document)
             document
         } catch (e: Exception) {
             Log.e(TAG, "Error generating full Xray runtime document", e)
@@ -254,6 +257,29 @@ object TunnelRuntimeAdapter {
             }
             routing.add("rules", JsonArray().apply { add(dnsRule); rules.forEach { add(it) } })
         }
+    }
+
+    /**
+     * Append a routing rule that sends every literal IPv6 destination to the `block` (blackhole)
+     * outbound. The tun captures IPv6 (so apps can't leak their real IP straight out over v6), but the
+     * supplier nodes have no IPv6 egress; blackhole CLOSES the connection immediately, so the app's
+     * IPv6 connect fails fast and Happy Eyeballs retries over IPv4 (which goes through the tunnel).
+     * Appended last so it never shadows the DNS interception (:53) or an explicit bypass rule. With
+     * queryStrategy UseIPv4 named hosts resolve to IPv4 only, so this matches genuine IPv6 literals.
+     */
+    private fun appendIpv6BlockRule(document: JsonObject) {
+        val routing = document.getAsJsonObject("routing") ?: JsonObject().also { document.add("routing", it) }
+        val rules = routing.getAsJsonArray("rules") ?: JsonArray().also { routing.add("rules", it) }
+        val alreadyPresent = rules.any {
+            it.isJsonObject && it.asJsonObject.getAsJsonArray("ip")
+                ?.any { ip -> ip.isJsonPrimitive && ip.asString == "::/0" } == true
+        }
+        if (alreadyPresent) return
+        rules.add(JsonObject().apply {
+            addProperty("type", "field")
+            add("ip", JsonArray().apply { add("::/0") })
+            addProperty("outboundTag", "block")
+        })
     }
 
     private fun applyFingerprintOverride(document: JsonObject, fingerprint: String) {

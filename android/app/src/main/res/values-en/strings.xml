@@ -180,6 +180,7 @@
     <string name="err_fetch_servers_failed">Unable to load the server list. Check your connection and try again.</string>
     <string name="err_open_settings_failed">Unable to open Android settings on this device.</string>
     <string name="adaptive_reconnecting">Network unstable. Reconnecting...</string>
+    <string name="server_switch_reconnecting">Switching server…</string>
     <string name="adaptive_switching_route">Network unstable. Switching route...</string>
     <string name="adaptive_reconnect_give_up">Connection unstable. Choose another server or try again later.</string>
     <string name="imported_server_failing_refresh_hint">This imported server keeps failing. Try refreshing your subscription.</string>

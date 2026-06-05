@@ -180,6 +180,7 @@
     <string name="err_fetch_servers_failed">Не удалось загрузить список серверов. Проверьте соединение и повторите попытку.</string>
     <string name="err_open_settings_failed">Не удалось открыть настройки Android на этом устройстве.</string>
     <string name="adaptive_reconnecting">Сеть нестабильна. Переподключаемся...</string>
+    <string name="server_switch_reconnecting">Смена сервера…</string>
     <string name="adaptive_switching_route">Сеть нестабильна. Меняем маршрут...</string>
     <string name="adaptive_reconnect_give_up">Соединение нестабильно. Выберите другой сервер или повторите позже.</string>
     <string name="imported_server_failing_refresh_hint">Этот импортированный сервер постоянно даёт сбой. Попробуйте обновить подписку.</string>

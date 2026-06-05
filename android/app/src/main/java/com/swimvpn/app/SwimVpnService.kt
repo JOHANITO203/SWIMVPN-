@@ -610,13 +610,16 @@ class SwimVpnService : VpnService() {
         val builder = Builder()
             .setSession("SWIMVPN+ (${runtime.profile.displayName})")
             .addAddress("10.0.0.2", 24)
-            // IPv4-only tun. The IPv6 capture (an fd00:2::2 address + ::/0 route, added to close an
-            // IPv6 leak) is reverted: advertising IPv6 on the tun makes the OS treat the device as
-            // IPv6-capable, so dual-stack apps attempt IPv6 — which the supplier nodes can't egress →
-            // the packets blackhole instead of failing fast → "connected but no internet" on named
-            // (dual-stack) sites while IPv4 literals still work. The leak-closure must be redone so it
-            // FAST-REJECTS IPv6 (RST, letting Happy Eyeballs fall back) rather than blackholing.
+            // Capture IPv6 on the tun so dual-stack apps cannot leak their real IP straight out over
+            // IPv6 (the IPv4-only tun left literal-IPv6 / DoH-AAAA connections going direct). The prior
+            // capture blackholed because IPv6 was sent to the proxy outbound (no IPv6 egress) → 10s
+            // hang. Now xray routes literal IPv6 to the `block` (blackhole) outbound, which CLOSES the
+            // connection immediately → connect() fails fast → Happy Eyeballs falls back to IPv4 (which
+            // does go through the tunnel). FakeDNS + queryStrategy UseIPv4 already hands apps only A
+            // records, so named hosts never attempt IPv6 here; this only fast-rejects IPv6 literals.
+            .addAddress(VPN_IPV6_ADDRESS, 64)
             .addRoute("0.0.0.0", 0)
+            .addRoute("::", 0)
             .setMtu(DEFAULT_VPN_MTU)
 
         TunnelRuntimeAdapter.DEFAULT_IPV4_DNS_SERVERS.forEach { dns ->

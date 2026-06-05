@@ -1119,14 +1119,86 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             val current = _state.value
             if (current is AppState.Success) {
+                val previousActiveId = current.activeServer?.id
                 val activeConfigMetadata = resolveActiveConfigMetadata(server, current.profile)
-                _state.value = current.copy(
+                val nextState = current.copy(
                     activeServer = server,
                     activeConfigMetadata = activeConfigMetadata,
                     servers = current.servers.map { it.copy(isPinned = it.isPinned) },
                 )
+                _state.value = nextState
+                // If the VPN is live and the pick is a DIFFERENT server, reconnect to it automatically
+                // (the old behavior left the tunnel on the previous node until a manual disconnect).
+                if (server.id != previousActiveId) {
+                    switchActiveServerIfConnected(server, nextState)
+                }
             }
         }
+    }
+
+    /**
+     * Seamlessly re-point a LIVE tunnel at a newly selected server via ACTION_RESTART (stop the old
+     * tunnel, keep the foreground service, start the new one). No-op when disconnected or when the
+     * target is not connectable (locked premium / missing config) — the selection update still stands.
+     * Mirrors [restartRuntimeForModeChangeIfNeeded] but for a server change rather than a mode change.
+     */
+    private suspend fun switchActiveServerIfConnected(server: ServerNode, currentState: AppState.Success) {
+        val vpnState = VpnManager.state.value
+        if (vpnState != VpnState.CONNECTED && vpnState != VpnState.CONNECTING) return
+
+        val profile = currentState.profile
+        val rawInput = server.rawConfig ?: profile.subscriptionUrl
+        if ((!profile.isPremiumAllowed && server.source == "backend") || rawInput.isNullOrBlank()) {
+            // Not connectable: leave the running tunnel untouched (selection-only update).
+            return
+        }
+
+        val resolvedRuntimeConfig = configRepository.resolveRuntimeConfigForConnection(
+            input = rawInput,
+            sourceType = if (server.source == "backend") SourceType.BACKEND_API else SourceType.MANUAL_ENTRY,
+        ).getOrElse { error ->
+            val message = s(R.string.vpn_err_connection_failed, error.localizedMessage ?: s(R.string.vpn_err_unsupported_config))
+            Log.e("MainViewModel", "Switch config resolution failed for ${server.id}", error)
+            _effect.emit(AppSideEffect.ShowToast(message))
+            return
+        }.rawConfig
+
+        stopPremiumUsageReporting()
+        manualStopRequested = false
+        adaptiveReconnectAttempt = 0
+        adaptiveActiveServerId = server.id
+        lastAutoConnectSignature = null
+        AdaptiveEventLogger.log(
+            event = "server_switch_restart_requested",
+            details = mapOf("serverId" to server.id, "source" to server.source),
+        )
+        prefs.saveAutoConnectPayload(
+            AutoConnectPayload(
+                host = server.host,
+                port = server.port,
+                protocol = server.protocol,
+                runtimeConfig = rawInput,
+                runtimeMode = RuntimeMode.fromPersisted(currentStateRoutingModeName()),
+            )
+        )
+        _effect.emit(AppSideEffect.ShowToast(s(R.string.server_switch_reconnecting)))
+
+        val camouflage = resolveCamouflageProfile(server.id, currentState.agentEnabled)
+        val context = app.applicationContext
+        val restartIntent = Intent(context, SwimVpnService::class.java).apply {
+            action = SwimVpnService.ACTION_RESTART
+            putExtra(SwimVpnService.EXTRA_SERVER_HOST, server.host)
+            putExtra(SwimVpnService.EXTRA_SERVER_PORT, server.port)
+            putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
+            putExtra(SwimVpnService.EXTRA_URL, resolvedRuntimeConfig)
+            putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
+            putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_FP, camouflage.fingerprint)
+            val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
+            putExtra(SwimVpnService.EXTRA_DATA_LIMIT, limitBytes)
+            putExtra(SwimVpnService.EXTRA_DATA_USED, profile.parsedDataUsedBytes)
+        }
+        context.startService(restartIntent)
+        startPremiumUsageReporting(context.applicationContext, profile, server)
     }
 
     fun selectImportedProfile(profile: SwimVpnProfile) {
