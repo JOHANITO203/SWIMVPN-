@@ -60,7 +60,7 @@ const STATUS_EMOJIS: Record<string, string> = {
   UNKNOWN: '❓',
 };
 
-function getStatusEmoji(status?: string | null): string {
+export function getStatusEmoji(status?: string | null): string {
   if (!status) return STATUS_EMOJIS.UNKNOWN;
   return STATUS_EMOJIS[status] || STATUS_EMOJIS.UNKNOWN;
 }
@@ -81,6 +81,8 @@ const CATEGORY_SUPPLIER_CAPACITY: Record<string, number> = {
 
 export const ADMIN_BOT_COMMANDS = [
   { command: 'help', description: 'Show admin command list' },
+  { command: 'cockpit', description: 'Open the admin cockpit (menu)' },
+  { command: 'menu', description: 'Open the admin cockpit (menu)' },
   { command: 'whoami', description: 'Show your Telegram ids' },
   { command: 'status', description: 'Check admin bot status' },
   { command: 'stock', description: 'Show inventory by plan bucket' },
@@ -675,6 +677,52 @@ function formatSupplierCapacity(category: PlanCategory | string) {
   return `${capacity} internal capacity units`;
 }
 
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+export function paginate<T>(items: T[], page: number, size: number) {
+  const totalPages = Math.max(1, Math.ceil(items.length / size));
+  const p = Math.min(Math.max(0, page), totalPages - 1);
+  const start = p * size;
+  return { items: items.slice(start, start + size), page: p, totalPages, hasPrev: p > 0, hasNext: p < totalPages - 1 };
+}
+
+// ── Cockpit hub ───────────────────────────────────────────────────────────────
+
+export function formatCockpitHub(): string {
+  return [
+    '🎛️ *SWIMVPN — Cockpit admin*',
+    'Choisis une section ci-dessous.',
+  ].join('\n');
+}
+
+export function cockpitHubKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('📦 Stock', 'cockpit:stock'), Markup.button.callback('⚠️ Alertes', 'cockpit:alerts')],
+    [Markup.button.callback('📥 Import', 'cockpit:import'), Markup.button.callback('💰 Finance', 'cockpit:finance')],
+    [Markup.button.callback('🧩 Actions', 'cockpit:palette'), Markup.button.callback('🛑 Danger', 'cockpit:danger')],
+  ]);
+}
+
+// ── Actions palette ───────────────────────────────────────────────────────────
+
+export function formatCockpitPalette(): string {
+  return [
+    '🧩 *Actions du bot*',
+    'Tape un bouton — pas besoin de retenir les commandes.',
+  ].join('\n');
+}
+
+export function cockpitPaletteKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('📦 Stock', 'stock'), Markup.button.callback('📊 Santé stock', 'cockpit:stock_health')],
+    [Markup.button.callback('⏳ En attente', 'pending'), Markup.button.callback('🧾 Commandes', 'cockpit:orders')],
+    [Markup.button.callback('🔧 Gérer une config', 'cockpit:manage'), Markup.button.callback('♻️ Vérif santé', 'cockpit:healthcheck')],
+    [Markup.button.callback('📥 Importer', 'cockpit:import')],
+    [Markup.button.callback('💰 Finance', 'finance_refresh'), Markup.button.callback('➕ Dépense', 'add_expense_start')],
+    [Markup.button.callback('👥 Users', 'cockpit:users'), Markup.button.callback('⬅️ Retour', 'cockpit:home')],
+  ]);
+}
+
 // ── Continuity + stock-health formatters ──────────────────────────────────────
 
 export interface StockHealthItem {
@@ -733,4 +781,62 @@ export function formatStockHealth(items: StockHealthItem[], nowMs: number): stri
     if (avgLife !== null) lines.push(`Vie moy. ~${avgLife} j · ${expiringSoon} sous 7 j`);
   }
   return lines.join('\n');
+}
+
+// ── Cockpit alerts view ───────────────────────────────────────────────────────
+
+export interface RecentAlertEvent { event_type: string; payload_json: any; created_at: string | Date; }
+
+export function formatRecentAlerts(events: RecentAlertEvent[]): string {
+  if (!events.length) return '⚠️ *Alertes continuité/stock*\nAucune alerte récente.';
+  const lines = ['⚠️ *Alertes continuité/stock* (récentes)'];
+  for (const e of events.slice(0, 10)) {
+    const when = String(e.created_at).slice(0, 16).replace('T', ' ');
+    const cat = e.payload_json?.category ? ` ${e.payload_json.category}` : '';
+    lines.push(`• ${when} — \`${e.event_type}\`${cat}`);
+  }
+  return lines.join('\n');
+}
+
+// ── Cockpit import entry ──────────────────────────────────────────────────────
+
+export function cockpitImportKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('💳 Payant (forfait)', 'cockpit:import:paid')],
+    [Markup.button.callback('🧪 Trial', 'cockpit:import:trial')],
+    [Markup.button.callback('⬅️ Retour', 'cockpit:home')],
+  ]);
+}
+
+// ── Cockpit stock navigation ──────────────────────────────────────────────────
+
+export function cockpitStockCategoriesKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.callback('Basic 🟢', 'cockpit:stocklist:WEEK:0'), Markup.button.callback('Premium 💎', 'cockpit:stocklist:MONTH:0')],
+    [Markup.button.callback('Platinum 🏆', 'cockpit:stocklist:QUARTER:0')],
+    [Markup.button.callback('⬅️ Retour', 'cockpit:home')],
+  ]);
+}
+
+export interface CockpitStockListItem {
+  id: string;
+  folderCode?: string | null;
+  healthStatus: string;
+  usedResaleSlots: number;
+  maxResaleSlots: number;
+}
+
+export function cockpitStockListKeyboard(items: CockpitStockListItem[], category: string, page: number, totalPages: number) {
+  const rows: any[] = items.map((i) => [
+    Markup.button.callback(
+      `${getStatusEmoji(i.healthStatus)} ${i.folderCode || i.id.slice(0, 8)} (${i.usedResaleSlots}/${i.maxResaleSlots})`,
+      `review:paid:${i.id}`,
+    ),
+  ]);
+  const nav: any[] = [];
+  if (page > 0) nav.push(Markup.button.callback('◀️', `cockpit:stocklist:${category}:${page - 1}`));
+  if (page < totalPages - 1) nav.push(Markup.button.callback('▶️', `cockpit:stocklist:${category}:${page + 1}`));
+  if (nav.length) rows.push(nav);
+  rows.push([Markup.button.callback('⬅️ Forfaits', 'cockpit:stock'), Markup.button.callback('🏠 Hub', 'cockpit:home')]);
+  return Markup.inlineKeyboard(rows);
 }

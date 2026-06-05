@@ -39,6 +39,15 @@ import {
   parseReviewCommand,
   parseRetryCommand,
   formatStockHealth,
+  formatCockpitHub,
+  cockpitHubKeyboard,
+  formatCockpitPalette,
+  cockpitPaletteKeyboard,
+  paginate,
+  cockpitStockCategoriesKeyboard,
+  cockpitStockListKeyboard,
+  cockpitImportKeyboard,
+  formatRecentAlerts,
   type StockHealthItem,
 } from './admin-bot.formatter';
 
@@ -112,8 +121,10 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   private setupCommands() {
     if (!this.bot) return;
 
-    this.bot.start(async (ctx) => ctx.reply(this.helpText(), this.mainKeyboard()));
-    this.bot.command('help', async (ctx) => ctx.reply(this.helpText(), this.mainKeyboard()));
+    this.bot.start(async (ctx) => { await this.replyCockpitHub(ctx, false); });
+    this.bot.command('help', async (ctx) => { await this.replyCockpitHub(ctx, false); });
+    this.bot.command('cockpit', async (ctx) => { await this.replyCockpitHub(ctx, false); });
+    this.bot.command('menu', async (ctx) => { await this.replyCockpitHub(ctx, false); });
     this.bot.command('whoami', async (ctx) => ctx.reply(this.formatWhoami(ctx), { parse_mode: 'Markdown' }));
 
     this.bot.command('status', async (ctx) => {
@@ -139,32 +150,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('orders', async (ctx) => {
-      await ctx.reply('Reading recent orders...');
-      try {
-        const recentOrders = await this.prisma.order.findMany({
-          take: 5,
-          orderBy: { created_at: 'desc' },
-          include: { customer: true, plan: true },
-        });
-
-        if (recentOrders.length === 0) {
-          await ctx.reply('No orders found.');
-          return;
-        }
-
-        const message = recentOrders.map((order) => [
-          `📦 *Order:* \`${order.order_ref}\``,
-          `👤 *Customer:* \`${order.customer.public_id}\``,
-          `🏷️ *Plan:* ${order.plan.name}`,
-          `💰 *Amount:* ${order.amount_rub.toString()} RUB`,
-          `🚦 *Status:* ${order.status}`,
-        ].join('\n')).join('\n\n');
-
-        await ctx.reply(message, { parse_mode: 'Markdown' });
-      } catch (error) {
-        this.logger.error('Failed to fetch recent orders', error as Error);
-        await ctx.reply('Unable to fetch orders right now.');
-      }
+      await this.replyRecentOrders(ctx);
     });
 
     this.bot.command('pending', async (ctx) => {
@@ -247,35 +233,11 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.bot.command('users', async (ctx) => {
-      try {
-        const totalUsers = await this.prisma.customer.count();
-        const activeUsers = await this.prisma.order.groupBy({
-          by: ['customer_id'],
-          where: { status: 'FULFILLED' },
-        });
-
-        await ctx.reply([
-          'User statistics',
-          `Total registered: ${totalUsers}`,
-          `Active paid/trial customers: ${activeUsers.length}`,
-        ].join('\n'));
-      } catch (error) {
-        this.logger.error('Failed to fetch user stats', error as Error);
-        await ctx.reply('Unable to fetch user stats right now.');
-      }
+      await this.replyUsersStats(ctx);
     });
 
     this.bot.command('healthcheck', async (ctx) => {
-      await ctx.reply('Starting inventory health check...');
-      try {
-        const result = await firstValueFrom(
-          this.inventoryClient.send({ cmd: 'trigger_health_check' }, {}),
-        );
-        await ctx.reply(`Health check completed:\n${JSON.stringify(result, null, 2)}`);
-      } catch (error) {
-        this.logger.error('Health check failed', error as Error);
-        await ctx.reply('Health check failed.');
-      }
+      await this.runHealthcheckReply(ctx);
     });
 
     this.bot.command('expire', async (ctx) => {
@@ -584,6 +546,11 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Telegraf error for ${ctx.updateType}:`, error as Error);
     });
 
+    this.bot.action(/^cockpit:home$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await this.replyCockpitHub(ctx, true);
+    });
+
     this.bot.action(/^stock$/, async (ctx) => {
       await ctx.answerCbQuery();
       await this.replyStockOverview(ctx);
@@ -705,6 +672,11 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       await this.replyFinanceDashboard(ctx, true);
     });
 
+    this.bot.action(/^cockpit:finance$/, async (ctx) => {
+      await ctx.answerCbQuery('Finance...');
+      await this.replyFinanceDashboard(ctx, true);
+    });
+
     this.bot.action(/^profit_month_action$/, async (ctx) => {
       await ctx.answerCbQuery();
       // Logic from profit_month command but as action
@@ -742,6 +714,99 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     this.bot.action(/^add_expense_start$/, async (ctx) => {
       await ctx.answerCbQuery();
       await ctx.reply('Utilisez la commande: /add_expense <montant> <devise> <note>\nExemple: `/add_expense 5000 RUB Serveurs Mai`', { parse_mode: 'Markdown' });
+    });
+
+    this.bot.action(/^cockpit:palette$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(formatCockpitPalette(), { parse_mode: 'Markdown', ...cockpitPaletteKeyboard() });
+    });
+
+    this.bot.action(/^cockpit:stock_health$/, async (ctx) => {
+      await ctx.answerCbQuery('Lecture...');
+      await this.replyStockHealth(ctx);
+    });
+
+    this.bot.action(/^cockpit:orders$/, async (ctx) => {
+      await ctx.answerCbQuery('Lecture...');
+      await this.replyRecentOrders(ctx);
+    });
+
+    this.bot.action(/^cockpit:users$/, async (ctx) => {
+      await ctx.answerCbQuery('Lecture...');
+      await this.replyUsersStats(ctx);
+    });
+
+    this.bot.action(/^cockpit:healthcheck$/, async (ctx) => {
+      await ctx.answerCbQuery('Vérification...');
+      await this.runHealthcheckReply(ctx);
+    });
+
+    this.bot.action(/^cockpit:stock$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('📦 *Stock — choisis un forfait*', { parse_mode: 'Markdown', ...cockpitStockCategoriesKeyboard() });
+    });
+
+    this.bot.action(/^cockpit:manage$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('🔧 *Gérer une config — choisis un forfait*', { parse_mode: 'Markdown', ...cockpitStockCategoriesKeyboard() });
+    });
+
+    this.bot.action(/^cockpit:stocklist:(WEEK|MONTH|QUARTER):(\d+)$/, async (ctx) => {
+      await ctx.answerCbQuery('Chargement...');
+      const category = ctx.match[1];
+      const page = parseInt(ctx.match[2], 10) || 0;
+      try {
+        const overview = await firstValueFrom(this.inventoryClient.send({ cmd: 'list_inventory_overview' }, {}));
+        const items = (Array.isArray(overview) ? overview : []).filter((i: any) => i.category === category);
+        const pg = paginate(items, page, 5);
+        const text = `📦 *${category}* — ${items.length} config(s) · page ${pg.page + 1}/${pg.totalPages}`;
+        await ctx.editMessageText(text, { parse_mode: 'Markdown', ...cockpitStockListKeyboard(pg.items as any, category, pg.page, pg.totalPages) });
+      } catch (error) {
+        this.logger.error('Failed to load stock list', error as Error);
+        await ctx.editMessageText('Lecture du stock impossible.', { parse_mode: 'Markdown', ...cockpitStockCategoriesKeyboard() });
+      }
+    });
+
+    this.bot.action(/^cockpit:danger$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        '🛑 *Danger* — choisis une config à gérer (désactiver / expirer / supprimer se font depuis sa fiche).',
+        { parse_mode: 'Markdown', ...Markup.inlineKeyboard([[Markup.button.callback('🔧 Gérer une config', 'cockpit:manage')], [Markup.button.callback('⬅️ Retour', 'cockpit:home')]]) },
+      );
+    });
+
+    this.bot.action(/^cockpit:alerts$/, async (ctx) => {
+      await ctx.answerCbQuery('Lecture des alertes...');
+      try {
+        const events = await this.prisma.adminEvent.findMany({
+          where: { event_type: { in: ['REALLOCATION_FAILED_NO_STOCK', 'ASSIGNMENT_REALLOCATED', 'CONFIG_ASSIGNED'] } },
+          orderBy: { created_at: 'desc' },
+          take: 10,
+        });
+        const back = Markup.inlineKeyboard([[Markup.button.callback('⬅️ Retour', 'cockpit:home')]]);
+        await ctx.editMessageText(formatRecentAlerts(events as any), { parse_mode: 'Markdown', ...back });
+      } catch (error) {
+        this.logger.error('Failed to load alerts', error as Error);
+        const back = Markup.inlineKeyboard([[Markup.button.callback('⬅️ Retour', 'cockpit:home')]]);
+        await ctx.editMessageText('Lecture des alertes impossible.', { parse_mode: 'Markdown', ...back });
+      }
+    });
+
+    this.bot.action(/^cockpit:import$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText('📥 *Import* — paye ou trial ?', { parse_mode: 'Markdown', ...cockpitImportKeyboard() });
+    });
+
+    this.bot.action(/^cockpit:import:paid$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'category' });
+      await ctx.reply(formatImportWizardCategoryPrompt());
+    });
+
+    this.bot.action(/^cockpit:import:trial$/, async (ctx) => {
+      await ctx.answerCbQuery();
+      this.importWizardSessions.set(this.getWizardKey(ctx), { step: 'trial_config' });
+      await ctx.reply(formatTrialImportWizardConfigPrompt());
     });
   }
 
@@ -864,6 +929,67 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error('Failed to read stock health', error as Error);
       await ctx.reply('Lecture de la santé du stock impossible.');
+    }
+  }
+
+  private async replyRecentOrders(ctx: any) {
+    await ctx.reply('Reading recent orders...');
+    try {
+      const recentOrders = await this.prisma.order.findMany({
+        take: 5,
+        orderBy: { created_at: 'desc' },
+        include: { customer: true, plan: true },
+      });
+
+      if (recentOrders.length === 0) {
+        await ctx.reply('No orders found.');
+        return;
+      }
+
+      const message = recentOrders.map((order) => [
+        `📦 *Order:* \`${order.order_ref}\``,
+        `👤 *Customer:* \`${order.customer.public_id}\``,
+        `🏷️ *Plan:* ${order.plan.name}`,
+        `💰 *Amount:* ${order.amount_rub.toString()} RUB`,
+        `🚦 *Status:* ${order.status}`,
+      ].join('\n')).join('\n\n');
+
+      await ctx.reply(message, { parse_mode: 'Markdown' });
+    } catch (error) {
+      this.logger.error('Failed to fetch recent orders', error as Error);
+      await ctx.reply('Unable to fetch orders right now.');
+    }
+  }
+
+  private async replyUsersStats(ctx: any) {
+    try {
+      const totalUsers = await this.prisma.customer.count();
+      const activeUsers = await this.prisma.order.groupBy({
+        by: ['customer_id'],
+        where: { status: 'FULFILLED' },
+      });
+
+      await ctx.reply([
+        'User statistics',
+        `Total registered: ${totalUsers}`,
+        `Active paid/trial customers: ${activeUsers.length}`,
+      ].join('\n'));
+    } catch (error) {
+      this.logger.error('Failed to fetch user stats', error as Error);
+      await ctx.reply('Unable to fetch user stats right now.');
+    }
+  }
+
+  private async runHealthcheckReply(ctx: any) {
+    await ctx.reply('Starting inventory health check...');
+    try {
+      const result = await firstValueFrom(
+        this.inventoryClient.send({ cmd: 'trigger_health_check' }, {}),
+      );
+      await ctx.reply(`Health check completed:\n${JSON.stringify(result, null, 2)}`);
+    } catch (error) {
+      this.logger.error('Health check failed', error as Error);
+      await ctx.reply('Health check failed.');
     }
   }
 
@@ -1504,6 +1630,16 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error('Order retry failed', error as Error);
       await ctx.reply(`❌ Échec de la relance pour ${orderRef}.`);
+    }
+  }
+
+  private async replyCockpitHub(ctx: any, edit: boolean) {
+    const text = formatCockpitHub();
+    const kb = cockpitHubKeyboard();
+    if (edit && ctx.callbackQuery) {
+      await ctx.editMessageText(text, { parse_mode: 'Markdown', ...kb });
+    } else {
+      await ctx.reply(text, { parse_mode: 'Markdown', ...kb });
     }
   }
 
