@@ -1649,11 +1649,19 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
     const now = Date.now();
     const expiresAt = grant.expires_at?.toISOString?.() || assignment?.expires_at?.toISOString?.() || null;
     const isExpired = !!expiresAt && new Date(expiresAt).getTime() < now;
+    // A trial whose supplier config is dead cannot work and must not be exposed as active
+    // (nor leak its raw config), even when the grant's own expiry is later. Trials have no
+    // resupply path (unlike paid plans), so a dead supplier ends the trial.
+    const supplierExpiresAtMs = trialConfig?.supplier_expires_at
+      ? new Date(trialConfig.supplier_expires_at).getTime()
+      : null;
+    const isSupplierExpired = supplierExpiresAtMs !== null && supplierExpiresAtMs < now;
     if (isExpired && grant.status !== TrialGrantStatus.EXPIRED) {
       await this.persistExpiredTrialGrant(grant, customer.public_id, expiresAt);
     }
 
-    const isActive = grant.status === TrialGrantStatus.ACTIVE && !!trialConfig && !isExpired;
+    const isActive =
+      grant.status === TrialGrantStatus.ACTIVE && !!trialConfig && !isExpired && !isSupplierExpired;
     const isPending = !isExpired && grant.status === TrialGrantStatus.PENDING;
     const entitlementState = isActive
       ? 'ACTIVE_TRIAL'
