@@ -36,6 +36,7 @@ enum class DisconnectCause {
     PERMISSION_REVOKED,
     BATTERY_RESTRICTION,
     CONFIG_INVALID,
+    QUOTA_EXHAUSTED,
     UNKNOWN;
 
     companion object {
