@@ -550,7 +550,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
             putExtra(SwimVpnService.EXTRA_URL, runtimeConfig)
             putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, nextState.routingMode.name)
-            putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_FP, camouflage.fingerprint)
+            putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_PROFILE, camouflage.id)
         }
         context.startService(restartIntent)
     }
@@ -1192,7 +1192,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
             putExtra(SwimVpnService.EXTRA_URL, resolvedRuntimeConfig)
             putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
-            putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_FP, camouflage.fingerprint)
+            putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_PROFILE, camouflage.id)
             val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
             putExtra(SwimVpnService.EXTRA_DATA_LIMIT, limitBytes)
             putExtra(SwimVpnService.EXTRA_DATA_USED, profile.parsedDataUsedBytes)
@@ -1576,7 +1576,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     putExtra(SwimVpnService.EXTRA_PROTOCOL, server.protocol)
                     putExtra(SwimVpnService.EXTRA_URL, resolvedRuntimeConfig)
                     putExtra(SwimVpnService.EXTRA_RUNTIME_MODE, currentStateRoutingModeName())
-                    putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_FP, camouflage.fingerprint)
+                    putExtra(SwimVpnService.EXTRA_CAMOUFLAGE_PROFILE, camouflage.id)
 
                     val limitBytes = if (profile.hasMeasuredLimit) profile.dataLimitBytes else -1L
                     putExtra(SwimVpnService.EXTRA_DATA_LIMIT, limitBytes)

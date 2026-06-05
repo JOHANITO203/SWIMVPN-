@@ -67,7 +67,7 @@ object TunnelRuntimeAdapter {
         sourceType: SourceType = SourceType.BACKEND_API,
         runtimeMode: RuntimeMode = RuntimeMode.FULL_TUNNEL,
         routingOptions: RoutingOptions = RoutingOptions(),
-        camouflageFingerprint: String? = null,
+        camouflageProfileId: String? = null,
     ): Result<RuntimePreparationResult> {
         val parseResult = ConfigParserEngine.parseConfig(rawConfig, sourceType)
         if (!parseResult.isValid) {
@@ -82,7 +82,7 @@ object TunnelRuntimeAdapter {
             return Result.failure(IllegalStateException(support.second))
         }
 
-        val runtimeDocument = generateXrayRuntimeDocument(normalized, runtimeMode, routingOptions, camouflageFingerprint)
+        val runtimeDocument = generateXrayRuntimeDocument(normalized, runtimeMode, routingOptions, camouflageProfileId)
             ?: return Result.failure(IllegalStateException("Runtime config generation failed"))
 
         return Result.success(
@@ -104,10 +104,11 @@ object TunnelRuntimeAdapter {
         profile: SwimVpnProfile,
         runtimeMode: RuntimeMode = RuntimeMode.FULL_TUNNEL,
         routingOptions: RoutingOptions = RoutingOptions(),
-        // Camouflage: optional uTLS fingerprint override (chrome/firefox/safari/ios/randomized),
-        // applied post-build ONLY to outbounds whose streamSettings already use TLS/Reality. Null
-        // (default) leaves the document byte-for-byte unchanged — no regression.
-        camouflageFingerprint: String? = null,
+        // Camouflage: optional profile id (resolved via CamouflageProfileRepository). Applies the uTLS
+        // fingerprint override AND TLS shaping (sockopt.fragment/noises) post-build, ONLY to outbounds
+        // whose streamSettings already use TLS/Reality. AUTO/null leaves the document byte-for-byte
+        // unchanged — no regression.
+        camouflageProfileId: String? = null,
     ): JsonObject? {
         return try {
             val networkPolicy = policyForMode(runtimeMode).copy(routing = routingOptions)
@@ -127,7 +128,9 @@ object TunnelRuntimeAdapter {
             // Override the uTLS fingerprint ONLY when a browser profile is explicitly chosen (non-blank).
             // The default profile (AUTO) carries a blank fingerprint, so the link's own fp is preserved —
             // forcing chrome over a supplier's validated fp (e.g. Reality fp=random) broke premium nodes.
-            camouflageFingerprint?.takeIf { it.isNotBlank() }?.let { applyFingerprintOverride(document, it) }
+            val camouflageProfile = camouflageProfileId?.let { CamouflageProfileRepository.byId(it) }
+            camouflageProfile?.fingerprint?.takeIf { it.isNotBlank() }?.let { applyFingerprintOverride(document, it) }
+            camouflageProfile?.let { applyShaping(document, it) }
             // Dial the outbound server by IP. xray's in-process DNS (Go) resolves unreliably on Android
             // and falls back to public UDP resolvers (1.1.1.1/8.8.8.8) which Russia blocks → the server
             // lookup is "canceled" and the tunnel never connects. The Android system resolver (used here)
@@ -280,6 +283,39 @@ object TunnelRuntimeAdapter {
             add("ip", JsonArray().apply { add("::/0") })
             addProperty("outboundTag", "block")
         })
+    }
+
+    /**
+     * Inject client-side TLS shaping (xray sockopt.fragment / sockopt.noises) into every outbound that
+     * has a streamSettings block. No-op when the profile carries neither (AUTO) ⇒ byte-identical output.
+     * Operates below TLS, so it composes with REALITY/vision without touching fp/SNI (device-validated).
+     */
+    private fun applyShaping(document: JsonObject, profile: CamouflageProfile) {
+        if (profile.fragment == null && profile.noises.isNullOrEmpty()) return
+        val outbounds = document.getAsJsonArray("outbounds") ?: return
+        outbounds.forEach { element ->
+            val stream = element.takeIf { it.isJsonObject }
+                ?.asJsonObject?.getAsJsonObject("streamSettings") ?: return@forEach
+            val sockopt = stream.getAsJsonObject("sockopt") ?: JsonObject().also { stream.add("sockopt", it) }
+            profile.fragment?.let { f ->
+                sockopt.add("fragment", JsonObject().apply {
+                    addProperty("packets", f.packets)
+                    addProperty("length", f.length)
+                    addProperty("interval", f.interval)
+                })
+            }
+            profile.noises?.takeIf { it.isNotEmpty() }?.let { list ->
+                sockopt.add("noises", JsonArray().apply {
+                    list.forEach { n ->
+                        add(JsonObject().apply {
+                            addProperty("type", n.type)
+                            addProperty("packet", n.packet)
+                            addProperty("delay", n.delay)
+                        })
+                    }
+                })
+            }
+        }
     }
 
     private fun applyFingerprintOverride(document: JsonObject, fingerprint: String) {

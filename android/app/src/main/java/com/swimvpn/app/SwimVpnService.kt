@@ -139,7 +139,7 @@ class SwimVpnService : VpnService() {
         const val EXTRA_DATA_LIMIT = "DATA_LIMIT_BYTES"
         const val EXTRA_DATA_USED = "DATA_USED_BYTES"
         const val EXTRA_RUNTIME_MODE = "RUNTIME_MODE"
-        const val EXTRA_CAMOUFLAGE_FP = "CAMOUFLAGE_FP"
+        const val EXTRA_CAMOUFLAGE_PROFILE = "CAMOUFLAGE_PROFILE"
 
         private val SERVICE_RECONNECT_BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
         private const val MAX_SERVICE_RECONNECT_ATTEMPTS = 5
@@ -172,9 +172,10 @@ class SwimVpnService : VpnService() {
         // Such proxies are flaky/ephemeral → give up reconnecting fast + surface a proxy-specific
         // message instead of a generic "connection error".
         val isByoProxy: Boolean = false,
-        // Phase 3: camouflage uTLS fingerprint chosen by the VM (agent or manual). Carried so the
-        // service-driven reconnects reuse it. Null = no override (today's behavior).
-        val camouflageFingerprint: String? = null,
+        // Phase 3: camouflage PROFILE ID chosen by the VM (agent or manual). Carried so the
+        // service-driven reconnects reuse it; the adapter resolves the full profile (uTLS fp +
+        // TLS shaping) from it. Null = no override (today's behavior).
+        val camouflageProfileId: String? = null,
         // Sold-quota client cutoff: limit from the plan (-1 = unmetered), baseline = bytes already
         // used before this session started (so the meter continues across reconnects).
         val quotaLimitBytes: Long = -1L,
@@ -211,7 +212,7 @@ class SwimVpnService : VpnService() {
                     requestedMode = requestedMode,
                     rawConfig = intent.getStringExtra(EXTRA_URL),
                     isByoProxy = isByoProxyProtocol(intent.getStringExtra(EXTRA_PROTOCOL)),
-                    camouflageFingerprint = intent.getStringExtra(EXTRA_CAMOUFLAGE_FP),
+                    camouflageProfileId = intent.getStringExtra(EXTRA_CAMOUFLAGE_PROFILE),
                     quotaLimitBytes = intent.getLongExtra(EXTRA_DATA_LIMIT, -1L),
                     quotaBaselineBytes = intent.getLongExtra(EXTRA_DATA_USED, 0L),
                 )
@@ -232,7 +233,7 @@ class SwimVpnService : VpnService() {
                     requestedMode = requestedMode,
                     rawConfig = rawConfig,
                     isByoProxy = isByoProxyProtocol(intent.getStringExtra(EXTRA_PROTOCOL)) || (activeSession?.isByoProxy == true),
-                    camouflageFingerprint = intent.getStringExtra(EXTRA_CAMOUFLAGE_FP) ?: activeSession?.camouflageFingerprint,
+                    camouflageProfileId = intent.getStringExtra(EXTRA_CAMOUFLAGE_PROFILE) ?: activeSession?.camouflageProfileId,
                     quotaLimitBytes = intent.getLongExtra(EXTRA_DATA_LIMIT, activeSession?.quotaLimitBytes ?: -1L),
                     quotaBaselineBytes = intent.getLongExtra(EXTRA_DATA_USED, activeSession?.quotaBaselineBytes ?: 0L),
                 )
@@ -362,7 +363,7 @@ class SwimVpnService : VpnService() {
         requestedMode: RuntimeMode,
         rawConfig: String?,
         isByoProxy: Boolean = false,
-        camouflageFingerprint: String? = null,
+        camouflageProfileId: String? = null,
         quotaLimitBytes: Long = -1L,
         quotaBaselineBytes: Long = 0L,
     ) {
@@ -395,7 +396,7 @@ class SwimVpnService : VpnService() {
                 requestedMode = requestedMode,
                 rawConfig = rawConfig,
                 isByoProxy = isByoProxy,
-                camouflageFingerprint = camouflageFingerprint,
+                camouflageProfileId = camouflageProfileId,
                 quotaLimitBytes = quotaLimitBytes,
                 quotaBaselineBytes = quotaBaselineBytes,
             )
@@ -411,7 +412,7 @@ class SwimVpnService : VpnService() {
         requestedMode: RuntimeMode,
         rawConfig: String?,
         isByoProxy: Boolean = false,
-        camouflageFingerprint: String? = null,
+        camouflageProfileId: String? = null,
         quotaLimitBytes: Long = -1L,
         quotaBaselineBytes: Long = 0L,
     ) {
@@ -433,11 +434,11 @@ class SwimVpnService : VpnService() {
         if (requestedMode == RuntimeMode.FULL_TUNNEL) {
             fellBackToProxy = false
         }
-        // Preserve the chosen camouflage fingerprint across internal reconnect paths that re-enter
+        // Preserve the chosen camouflage profile id across internal reconnect paths that re-enter
         // startVpn without re-supplying it (they pass null): inherit the prior session's value, while
         // a fresh explicit value (user/VM connect) still takes precedence.
-        val effectiveCamouflageFingerprint = camouflageFingerprint ?: activeSession?.camouflageFingerprint
-        activeSession = ActiveSession(host, port, requestedMode, rawConfig, isByoProxy, effectiveCamouflageFingerprint, quotaLimitBytes, quotaBaselineBytes)
+        val effectiveCamouflageProfileId = camouflageProfileId ?: activeSession?.camouflageProfileId
+        activeSession = ActiveSession(host, port, requestedMode, rawConfig, isByoProxy, effectiveCamouflageProfileId, quotaLimitBytes, quotaBaselineBytes)
         if (sessionStartedAt == null) {
             sessionStartedAt = System.currentTimeMillis()
         }
@@ -502,7 +503,7 @@ class SwimVpnService : VpnService() {
                         sourceType = SourceType.BACKEND_API,
                         runtimeMode = requestedMode,
                         routingOptions = routingOptions,
-                        camouflageFingerprint = activeSession?.camouflageFingerprint,
+                        camouflageProfileId = activeSession?.camouflageProfileId,
                     ).getOrElse { error ->
                         throw IllegalStateException(
                             "Invalid runtime config: ${error.localizedMessage}",

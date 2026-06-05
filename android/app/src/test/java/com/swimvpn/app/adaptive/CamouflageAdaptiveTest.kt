@@ -54,6 +54,16 @@ class CamouflageAdaptiveTest {
         assertEquals("auto", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI).id)
     }
 
+    @Test
+    fun `agent can escalate to a fragment profile that has positive margin`() {
+        val score = ServerQualityScore(
+            "s",
+            profileSuccesses = mapOf("WIFI|frag_light" to 3),
+            profileFailures = mapOf("WIFI|auto" to 2, "WIFI|chrome" to 2),
+        )
+        assertEquals("frag_light", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI).id)
+    }
+
     // --- record by profile ---
 
     @Test
