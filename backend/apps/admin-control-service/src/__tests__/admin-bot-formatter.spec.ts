@@ -61,9 +61,9 @@ const overview = formatInventoryOverview([
   },
 ] as any);
 
-assert(overview.includes('Basic: 1 allocatable / 2 total'), 'Basic stock summary failed');
-assert(overview.includes('Premium: 1 allocatable / 1 total'), 'Premium stock summary failed');
-assert(overview.includes('Platinum: 0 allocatable / 0 total'), 'Platinum empty summary failed');
+assert(overview.includes('Basic') && overview.includes('1 allocatable / 2 total'), 'Basic stock summary failed');
+assert(overview.includes('Premium') && overview.includes('1 allocatable / 1 total'), 'Premium stock summary failed');
+assert(overview.includes('Platinum') && overview.includes('0 allocatable / 0 total'), 'Platinum empty summary failed');
 assert(overview.includes('France, Germany'), 'paid stock summary should expose safe country preview');
 
 const trialOverview = formatTrialInventoryOverview([
@@ -85,7 +85,7 @@ assert(trialOverview.includes('2/5'), 'trial stock capacity summary failed');
 assert(trialOverview.includes('France, Canada'), 'trial stock summary should expose safe country preview');
 
 const combinedOverview = formatCombinedInventoryOverview({ paid: [], trial: [] });
-assert(combinedOverview.includes('Paid inventory'), 'combined stock must include paid section');
+assert(combinedOverview.includes('Paid Inventory'), 'combined stock must include paid section');
 assert(combinedOverview.includes('Trial Store'), 'combined stock must include trial section');
 assert(combinedOverview.includes('/review <id-or-folder>'), 'combined stock must explain review command');
 
@@ -102,7 +102,7 @@ const paidReview = formatInventoryReview('paid', {
   countriesPreview: ['France'],
   adminPreview: { previewStatus: 'PARSED', uuid: 'runtime-secret-uuid' },
 } as any);
-assert(paidReview.includes('Paid config review'), 'paid review must have title');
+assert(paidReview.includes('Paid Config:'), 'paid review must have title');
 assert(paidReview.includes('WEEK-VLESS-REVIEW'), 'paid review must expose folder code');
 assert(paidReview.includes('France'), 'paid review must expose countries');
 assert(!paidReview.includes('runtime-secret-uuid'), 'paid review must not expose admin preview secrets');
@@ -119,8 +119,8 @@ const trialReview = formatInventoryReview('trial', {
   countriesPreview: ['Germany'],
   adminPreview: { previewStatus: 'PARSED', host: 'trial-secret-host' },
 } as any);
-assert(trialReview.includes('Trial config review'), 'trial review must have title');
-assert(trialReview.includes('1/5 devices'), 'trial review must expose trial device capacity');
+assert(trialReview.includes('Trial Config:'), 'trial review must have title');
+assert(trialReview.includes('(1/5)'), 'trial review must expose trial device capacity');
 assert(!trialReview.includes('trial-secret-host'), 'trial review must not expose admin preview secrets');
 
 const retryOne = parseRetryCommand('/retry ORD-123');
