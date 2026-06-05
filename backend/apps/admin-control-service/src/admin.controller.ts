@@ -3,6 +3,11 @@ import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import { AdminService } from './admin.service';
 import { AdminBotService } from './admin-bot.service';
 import {
+  formatContinuityNoStockAlert,
+  formatContinuityPassSummary,
+  formatLowStockAlert,
+} from './admin-bot.formatter';
+import {
   AdminLoginDto,
   CreatePlanDto,
   MoveAssignmentDto,
@@ -22,9 +27,21 @@ export class AdminController {
 
   @EventPattern('low_stock_alert')
   async handleLowStock(@Payload() data: { category: string; remaining: number }) {
-    await this.adminBotService.sendAdminAlert(
-      `LOW STOCK ALERT\nCategory: ${data.category}\nRemaining: ${data.remaining} configs.`,
-    );
+    await this.adminBotService.sendAdminAlert(formatLowStockAlert(data));
+  }
+
+  @EventPattern('continuity_alert')
+  async handleContinuityAlert(@Payload() data: { kind: string; category: string; assignmentId: string; reasons: string[] }) {
+    if (data.kind === 'NO_STOCK') {
+      await this.adminBotService.sendAdminAlert(
+        formatContinuityNoStockAlert({ category: data.category, count: 1 }),
+      );
+    }
+  }
+
+  @EventPattern('continuity_pass_summary')
+  async handleContinuityPassSummary(@Payload() data: { reallocated: number; failed: number }) {
+    await this.adminBotService.sendAdminAlert(formatContinuityPassSummary(data));
   }
 
   @EventPattern('order_fulfilled')

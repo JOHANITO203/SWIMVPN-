@@ -1484,7 +1484,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
   async sendAdminAlert(message: string) {
     if (!this.adminChatId || !this.bot) return;
     try {
-      await this.bot.telegram.sendMessage(this.adminChatId, message);
+      await this.bot.telegram.sendMessage(this.adminChatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
       this.logger.error('Failed to send admin alert', error as Error);
     }
