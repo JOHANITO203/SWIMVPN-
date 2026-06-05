@@ -278,6 +278,8 @@
     <string name="camouflage_safari">Safari</string>
     <string name="camouflage_ios">iOS</string>
     <string name="camouflage_randomized">Aléatoire</string>
+    <string name="camouflage_frag_light">Fragmenté (léger)</string>
+    <string name="camouflage_frag_aggressive">Fragmenté (agressif)</string>
     <string name="technical_camouflage_title">Camouflage</string>
     <string name="technical_camouflage_adaptive">Adaptatif · %1$s</string>
     <string name="camouflage_picker_title">Profil de camouflage</string>

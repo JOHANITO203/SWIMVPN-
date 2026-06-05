@@ -2,6 +2,12 @@ package com.swimvpn.app.config
 
 import com.swimvpn.app.R
 
+/** xray sockopt.fragment: split outgoing TLS records across TCP segments to blur SNI/size DPI. */
+data class FragmentSpec(val packets: String, val length: String, val interval: String)
+
+/** xray sockopt.noises: inject junk packets before the handshake. */
+data class NoiseSpec(val type: String, val packet: String, val delay: String)
+
 /**
  * A client-side camouflage profile. The ONLY camouflage knob that is safely tunable from the client
  * without server cooperation is the **uTLS fingerprint** (the ClientHello is made to look like a real
@@ -19,6 +25,8 @@ data class CamouflageProfile(
     val id: String,
     val displayNameRes: Int,
     val fingerprint: String,
+    val fragment: FragmentSpec? = null,
+    val noises: List<NoiseSpec>? = null,
 )
 
 object CamouflageProfileRepository {
@@ -36,10 +44,21 @@ object CamouflageProfileRepository {
     val IOS = CamouflageProfile("ios", R.string.camouflage_ios, "ios")
     val RANDOMIZED = CamouflageProfile("randomized", R.string.camouflage_randomized, "randomized")
 
+    // Fragmentation presets keep the link's own fp ("") and only ADD TLS fragmentation — completing
+    // the supplier fingerprint, never overriding it. Picker-only until device-validated (a later task).
+    val FRAG_LIGHT = CamouflageProfile(
+        "frag_light", R.string.camouflage_frag_light, "",
+        fragment = FragmentSpec("tlshello", "100-200", "10-20"),
+    )
+    val FRAG_AGGRESSIVE = CamouflageProfile(
+        "frag_aggressive", R.string.camouflage_frag_aggressive, "",
+        fragment = FragmentSpec("1-3", "40-80", "5-15"),
+    )
+
     /** Default = AUTO: respect the link's fingerprint unless a browser profile is explicitly chosen. */
     val DEFAULT: CamouflageProfile = AUTO
 
-    private val ALL: List<CamouflageProfile> = listOf(AUTO, CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED)
+    private val ALL: List<CamouflageProfile> = listOf(AUTO, CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED, FRAG_LIGHT, FRAG_AGGRESSIVE)
 
     /**
      * Order the adaptive agent prefers on ties / walks as a cascade when a profile keeps failing on a

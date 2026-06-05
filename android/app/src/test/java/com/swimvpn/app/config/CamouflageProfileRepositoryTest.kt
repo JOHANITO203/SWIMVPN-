@@ -16,11 +16,11 @@ class CamouflageProfileRepositoryTest {
     @Test
     fun `all presets present with matching fingerprints (auto excepted)`() {
         val ids = CamouflageProfileRepository.all().map { it.id }
-        assertEquals(listOf("auto", "chrome", "firefox", "safari", "ios", "randomized"), ids)
+        assertEquals(listOf("auto", "chrome", "firefox", "safari", "ios", "randomized", "frag_light", "frag_aggressive"), ids)
         // AUTO intentionally has a blank fingerprint (no override); browser profiles match their id.
         assertEquals("", CamouflageProfileRepository.AUTO.fingerprint)
         CamouflageProfileRepository.all()
-            .filter { it.id != "auto" }
+            .filter { it.id != "auto" && !it.id.startsWith("frag") }
             .forEach { assertEquals(it.id, it.fingerprint) }
     }
 
@@ -33,8 +33,32 @@ class CamouflageProfileRepositoryTest {
     }
 
     @Test
-    fun `fallback order starts with auto and contains every profile`() {
+    fun `fallback order starts with auto and contains cascade profiles (not shaping presets)`() {
         assertEquals("auto", CamouflageProfileRepository.fallbackOrder.first().id)
-        assertTrue(CamouflageProfileRepository.fallbackOrder.containsAll(CamouflageProfileRepository.all()))
+        val cascadeIds = listOf("auto", "chrome", "firefox", "safari", "ios", "randomized")
+        assertEquals(cascadeIds, CamouflageProfileRepository.fallbackOrder.map { it.id })
+    }
+
+    @Test
+    fun `auto carries no shaping (fragment and noises null)`() {
+        assertEquals(null, CamouflageProfileRepository.AUTO.fragment)
+        assertEquals(null, CamouflageProfileRepository.AUTO.noises)
+    }
+
+    @Test
+    fun `fragment presets respect the link fp and carry a fragment spec`() {
+        val light = CamouflageProfileRepository.byId("frag_light")
+        assertEquals("frag_light", light.id)
+        assertEquals("", light.fingerprint) // respect the link's fp — only add fragmentation
+        assertEquals("tlshello", light.fragment?.packets)
+        val aggressive = CamouflageProfileRepository.byId("frag_aggressive")
+        assertEquals("", aggressive.fingerprint)
+        assertEquals("1-3", aggressive.fragment?.packets)
+    }
+
+    @Test
+    fun `all includes the fragment presets for the manual picker`() {
+        val ids = CamouflageProfileRepository.all().map { it.id }
+        assertTrue(ids.containsAll(listOf("frag_light", "frag_aggressive")))
     }
 }
