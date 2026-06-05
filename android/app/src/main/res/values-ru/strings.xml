@@ -184,7 +184,6 @@
     <string name="adaptive_reconnect_give_up">Соединение нестабильно. Выберите другой сервер или повторите позже.</string>
     <string name="imported_server_failing_refresh_hint">Этот импортированный сервер постоянно даёт сбой. Попробуйте обновить подписку.</string>
     <string name="subscription_cancelled_success">Стандартный режим восстановлен.</string>
-    <string name="premium_access_finished_standard_mode">Premium-доступ завершён. Стандартный режим восстановлен.</string>
     <string name="premium_access_ended_upsell">Premium-доступ завершён. Продолжить с премиум?</string>
     <string name="premium_access_ended_subscribe">Оформить</string>
 

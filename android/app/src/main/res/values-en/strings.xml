@@ -184,7 +184,6 @@
     <string name="adaptive_reconnect_give_up">Connection unstable. Choose another server or try again later.</string>
     <string name="imported_server_failing_refresh_hint">This imported server keeps failing. Try refreshing your subscription.</string>
     <string name="subscription_cancelled_success">Standard mode restored.</string>
-    <string name="premium_access_finished_standard_mode">Premium access ended. Standard mode restored.</string>
     <string name="premium_access_ended_upsell">Premium access ended. Keep premium?</string>
     <string name="premium_access_ended_subscribe">Subscribe</string>
 

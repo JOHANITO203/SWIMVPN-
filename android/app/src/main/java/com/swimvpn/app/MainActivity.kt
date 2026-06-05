@@ -444,7 +444,66 @@ fun AppNavigation(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding(),
+        ) { data ->
+            SubscribeNudgeContent(
+                message = data.visuals.message,
+                actionLabel = data.visuals.actionLabel.orEmpty(),
+                onAction = { data.performAction() },
+            )
+        }
+    }
+}
+
+/**
+ * Design-aligned snackbar for the freemium subscribe nudge: the app's satin-glass card grammar
+ * (SurfaceHighlight → Shell gradient, subtle stroke, rounded) with a purple "S'abonner" action —
+ * unlike the old default toast which didn't match the design at all.
+ */
+@Composable
+internal fun SubscribeNudgeContent(
+    message: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        SwimDesignTokens.Color.SurfaceHighlight.copy(alpha = 0.72f),
+                        SwimDesignTokens.Material.ShellMid,
+                        SwimDesignTokens.Material.ShellBottom,
+                    )
+                )
+            )
+            .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, RoundedCornerShape(18.dp))
+            .padding(start = 18.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = message,
+            color = SwimDesignTokens.Color.TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            lineHeight = 17.sp,
+            modifier = Modifier.weight(1f),
         )
+        if (actionLabel.isNotBlank()) {
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = actionLabel,
+                color = SwimDesignTokens.Color.PurpleActive,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier
+                    .clip(SwimDesignTokens.Shape.Pill)
+                    .clickable { onAction() }
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
+            )
+        }
     }
 }
 

@@ -184,7 +184,6 @@
     <string name="adaptive_reconnect_give_up">Connexion instable. Choisissez un autre serveur ou réessayez plus tard.</string>
     <string name="imported_server_failing_refresh_hint">Ce serveur importé échoue à répétition. Essayez d\'actualiser votre abonnement.</string>
     <string name="subscription_cancelled_success">Mode standard rétabli.</string>
-    <string name="premium_access_finished_standard_mode">Accès Premium terminé. Mode standard rétabli.</string>
     <string name="premium_access_ended_upsell">Accès premium terminé. Continuer en premium ?</string>
     <string name="premium_access_ended_subscribe">S\'abonner</string>
 
