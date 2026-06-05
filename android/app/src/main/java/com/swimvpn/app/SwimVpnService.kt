@@ -610,14 +610,13 @@ class SwimVpnService : VpnService() {
         val builder = Builder()
             .setSession("SWIMVPN+ (${runtime.profile.displayName})")
             .addAddress("10.0.0.2", 24)
-            // Capture IPv6 too. Without an IPv6 address + ::/0 route the OS leaves IPv6 traffic on the
-            // underlying network — a real leak of the device's IPv6 address/traffic while "connected"
-            // (most large sites are dual-stack). tun2socks (hev) is already configured for IPv6
-            // (tunnel.ipv6), so captured IPv6 is forwarded through the proxy; if the server has no
-            // IPv6 egress it simply fails closed (no leak; apps fall back to IPv4 via Happy Eyeballs).
-            .addAddress(VPN_IPV6_ADDRESS, 64)
+            // IPv4-only tun. The IPv6 capture (an fd00:2::2 address + ::/0 route, added to close an
+            // IPv6 leak) is reverted: advertising IPv6 on the tun makes the OS treat the device as
+            // IPv6-capable, so dual-stack apps attempt IPv6 — which the supplier nodes can't egress →
+            // the packets blackhole instead of failing fast → "connected but no internet" on named
+            // (dual-stack) sites while IPv4 literals still work. The leak-closure must be redone so it
+            // FAST-REJECTS IPv6 (RST, letting Happy Eyeballs fall back) rather than blackholing.
             .addRoute("0.0.0.0", 0)
-            .addRoute("::", 0)
             .setMtu(DEFAULT_VPN_MTU)
 
         TunnelRuntimeAdapter.DEFAULT_IPV4_DNS_SERVERS.forEach { dns ->
