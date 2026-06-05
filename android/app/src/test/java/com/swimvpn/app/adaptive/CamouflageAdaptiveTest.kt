@@ -11,10 +11,10 @@ class CamouflageAdaptiveTest {
     // --- selectBestCamouflageProfile ---
 
     @Test
-    fun `defaults to chrome with no history`() {
-        assertEquals("chrome", AdaptiveDecisionAgent.selectBestCamouflageProfile(null, NetworkType.WIFI).id)
+    fun `defaults to auto (respect the link's fp) with no history`() {
+        assertEquals("auto", AdaptiveDecisionAgent.selectBestCamouflageProfile(null, NetworkType.WIFI).id)
         assertEquals(
-            "chrome",
+            "auto",
             AdaptiveDecisionAgent.selectBestCamouflageProfile(ServerQualityScore("s"), NetworkType.WIFI).id,
         )
     }
@@ -22,7 +22,7 @@ class CamouflageAdaptiveTest {
     @Test
     fun `unbucketed network returns default even with data`() {
         val score = ServerQualityScore("s", profileSuccesses = mapOf("WIFI|firefox" to 9))
-        assertEquals("chrome", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.UNKNOWN).id)
+        assertEquals("auto", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.UNKNOWN).id)
     }
 
     @Test
@@ -39,20 +39,19 @@ class CamouflageAdaptiveTest {
     fun `history is network-scoped`() {
         // Strong safari history on CELLULAR must NOT influence the WIFI choice.
         val score = ServerQualityScore("s", profileSuccesses = mapOf("CELLULAR|safari" to 9))
-        assertEquals("chrome", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI).id)
+        assertEquals("auto", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI).id)
     }
 
     @Test
     fun `failing profile is superseded - implicit cascade`() {
-        // chrome failed twice (margin -2), firefox once (margin -1) -> firefox wins (less bad), with the
-        // remaining no-data profiles at margin 0 actually preferred: safari (0) beats both.
+        // chrome failed twice (margin -2), firefox once (margin -1); the no-data profiles sit at margin 0.
         val score = ServerQualityScore(
             "s",
             profileFailures = mapOf("WIFI|chrome" to 2, "WIFI|firefox" to 1),
         )
-        // safari/ios/randomized have margin 0 (no data) > firefox(-1) > chrome(-2); fallback order
-        // tie-breaks to the first 0-margin profile = safari.
-        assertEquals("safari", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI).id)
+        // auto/safari/ios/randomized have margin 0 (no data) > firefox(-1) > chrome(-2); fallback order
+        // tie-breaks to the first 0-margin profile = auto (respect the link rather than guess a browser).
+        assertEquals("auto", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI).id)
     }
 
     // --- record by profile ---

@@ -62,8 +62,9 @@ class PreferencesManager(private val context: Context) {
         /** Resolves the persisted bypass-geo flag, defaulting to OFF when unset. Pure logic for unit tests. */
         fun resolveBypassGeoEnabled(persisted: Boolean?): Boolean = persisted ?: DEFAULT_BYPASS_GEO_ENABLED
 
-        // Default camouflage = chrome (matches the prior fixed behavior; Reality already defaulted to it).
-        const val DEFAULT_CAMOUFLAGE_PROFILE_ID = "chrome"
+        // Default camouflage = AUTO: keep the link's own uTLS fingerprint. Forcing chrome over a
+        // supplier's validated fp (e.g. Reality fp=random) broke premium nodes on DPI networks.
+        const val DEFAULT_CAMOUFLAGE_PROFILE_ID = "auto"
     }
 
     val userNumberFlow: Flow<String?> = context.dataStore.data

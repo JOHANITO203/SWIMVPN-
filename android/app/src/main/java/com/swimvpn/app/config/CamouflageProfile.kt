@@ -22,22 +22,31 @@ data class CamouflageProfile(
 )
 
 object CamouflageProfileRepository {
+    /**
+     * AUTO = keep the server/link's own uTLS fingerprint (empty [fingerprint] ⇒ no override). This is
+     * the default and the safe baseline: suppliers ship links with a fingerprint they have validated
+     * (e.g. Reality `fp=random`), and forcing a different one (the old chrome default) broke premium
+     * Reality nodes on DPI networks — the ClientHello no longer matched what the server/path expected.
+     * Camouflage only *overrides* the fingerprint when the user or the agent explicitly picks a browser.
+     */
+    val AUTO = CamouflageProfile("auto", R.string.camouflage_auto, "")
     val CHROME = CamouflageProfile("chrome", R.string.camouflage_chrome, "chrome")
     val FIREFOX = CamouflageProfile("firefox", R.string.camouflage_firefox, "firefox")
     val SAFARI = CamouflageProfile("safari", R.string.camouflage_safari, "safari")
     val IOS = CamouflageProfile("ios", R.string.camouflage_ios, "ios")
     val RANDOMIZED = CamouflageProfile("randomized", R.string.camouflage_randomized, "randomized")
 
-    /** Default profile = chrome, i.e. today's behavior (Reality already defaults to "chrome"). */
-    val DEFAULT: CamouflageProfile = CHROME
+    /** Default = AUTO: respect the link's fingerprint unless a browser profile is explicitly chosen. */
+    val DEFAULT: CamouflageProfile = AUTO
 
-    private val ALL: List<CamouflageProfile> = listOf(CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED)
+    private val ALL: List<CamouflageProfile> = listOf(AUTO, CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED)
 
     /**
      * Order the adaptive agent prefers on ties / walks as a cascade when a profile keeps failing on a
-     * network. chrome first (most common, blends in), then the others, randomized last (most distinct).
+     * network. AUTO first (respect the supplier's validated fingerprint), then the browser profiles as
+     * escalation when that keeps failing; randomized last (most distinct).
      */
-    val fallbackOrder: List<CamouflageProfile> = listOf(CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED)
+    val fallbackOrder: List<CamouflageProfile> = listOf(AUTO, CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED)
 
     fun all(): List<CamouflageProfile> = ALL
 

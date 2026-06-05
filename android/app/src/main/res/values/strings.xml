@@ -271,6 +271,7 @@
     <string name="bypass_geo_editor_remove">Retirer</string>
     <string name="bypass_geo_editor_save">Enregistrer</string>
     <string name="bypass_geo_editor_cancel">Annuler</string>
+    <string name="camouflage_auto">Auto (serveur)</string>
     <string name="camouflage_chrome">Chrome</string>
     <string name="camouflage_firefox">Firefox</string>
     <string name="camouflage_safari">Safari</string>
