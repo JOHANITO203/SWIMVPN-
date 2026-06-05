@@ -124,7 +124,25 @@ object TunnelRuntimeAdapter {
                     wrapOutboundIntoRuntime(outbound, networkPolicy)
                 }
             }
+            // Override the uTLS fingerprint ONLY when a browser profile is explicitly chosen (non-blank).
+            // The default profile (AUTO) carries a blank fingerprint, so the link's own fp is preserved —
+            // forcing chrome over a supplier's validated fp (e.g. Reality fp=random) broke premium nodes.
             camouflageFingerprint?.takeIf { it.isNotBlank() }?.let { applyFingerprintOverride(document, it) }
+            // Dial the outbound server by IP. xray's in-process DNS (Go) resolves unreliably on Android
+            // and falls back to public UDP resolvers (1.1.1.1/8.8.8.8) which Russia blocks → the server
+            // lookup is "canceled" and the tunnel never connects. The Android system resolver (used here)
+            // works, so we pre-resolve the server hostname to an IPv4 and keep the hostname as the TLS/
+            // Reality SNI. No DNS dependency left in xray to reach the server.
+            resolveOutboundServerAddresses(document)
+            // Answer the apps' DNS locally with FakeDNS instead of tunneling every query to the server.
+            // Without this, each DNS request to the advertised resolvers (1.1.1.1/8.8.8.8/…) is routed
+            // to the proxy outbound and opens its own connection to the server. On a censored network the
+            // server connection is intermittent, DNS responses stall, apps retry, and the resulting flood
+            // of hundreds of simultaneous connections saturates/rate-limits the server → "i/o timeout" on
+            // nearly all of them → tunnel never carries traffic. FakeDNS hands each query an instant
+            // synthetic IP; xray recovers the real hostname from the TLS/HTTP SNI (sniffing) and resolves
+            // it at the exit, so there is one connection per real destination and zero DNS round-trips.
+            applyFakeDnsInterception(document)
             document
         } catch (e: Exception) {
             Log.e(TAG, "Error generating full Xray runtime document", e)
@@ -138,6 +156,106 @@ object TunnelRuntimeAdapter {
      * and nothing else in the config changes). This runs on the final document so it covers all
      * production paths (normalized fragment, full document, fallback) uniformly.
      */
+    /**
+     * Replace each outbound's dial hostname (settings.vnext[].address / settings.servers[].address)
+     * with an IPv4 resolved by the Android system resolver, preserving the original hostname as the
+     * TLS/Reality SNI (serverName). This removes xray's reliance on its own DNS to reach the server,
+     * which is the failure mode behind "connected but no internet" on DNS-censored networks.
+     * Best-effort: any host that fails to resolve is left as-is (xray will try its own DNS).
+     */
+    private fun resolveOutboundServerAddresses(document: JsonObject) {
+        val outbounds = document.getAsJsonArray("outbounds") ?: return
+        outbounds.forEach { element ->
+            val outbound = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            val settings = outbound.getAsJsonObject("settings") ?: return@forEach
+            val stream = outbound.getAsJsonObject("streamSettings")
+            listOf("vnext", "servers").forEach { key ->
+                settings.getAsJsonArray(key)?.forEach { node ->
+                    val obj = node.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+                    val addr = obj.get("address")?.takeIf { it.isJsonPrimitive }?.asString ?: return@forEach
+                    if (addr.isBlank() || isIpLiteral(addr)) return@forEach
+                    val ip = resolveIpv4(addr) ?: return@forEach
+                    // Keep the original hostname as the SNI before swapping the dial address to the IP.
+                    stream?.getAsJsonObject("tlsSettings")?.let { t ->
+                        if (t.get("serverName")?.asString.isNullOrBlank()) t.addProperty("serverName", addr)
+                    }
+                    stream?.getAsJsonObject("realitySettings")?.let { r ->
+                        if (r.get("serverName")?.asString.isNullOrBlank()) r.addProperty("serverName", addr)
+                    }
+                    obj.addProperty("address", ip)
+                }
+            }
+        }
+    }
+
+    private fun isIpLiteral(host: String): Boolean =
+        host.contains(":") || host.matches(Regex("^\\d{1,3}(\\.\\d{1,3}){3}$"))
+
+    private fun resolveIpv4(host: String): String? = try {
+        java.net.InetAddress.getAllByName(host)
+            .firstOrNull { it is java.net.Inet4Address }
+            ?.hostAddress
+    } catch (e: Exception) {
+        Log.w(TAG, "Pre-resolve failed for host (leaving domain): $host", e)
+        null
+    }
+
+    /**
+     * Wire FakeDNS + sniffing into the final document so xray answers DNS locally instead of tunneling
+     * every query to the server (which storms/saturates the server connection on censored networks).
+     * Idempotent and additive: re-applying or running on a config that already has these pieces is a
+     * no-op. The outbound server itself is dialed by IP (see [resolveOutboundServerAddresses]), so
+     * adding "fakedns" to dns.servers never risks fake-resolving the server's own hostname.
+     */
+    private fun applyFakeDnsInterception(document: JsonObject) {
+        // 1. FakeDNS pool (top-level). 198.18.0.0/15 is the benchmarking range — safe, non-routable here.
+        if (!document.has("fakedns")) {
+            document.add("fakedns", JsonArray().apply {
+                add(JsonObject().apply {
+                    addProperty("ipPool", "198.18.0.0/15")
+                    addProperty("poolSize", 65535)
+                })
+            })
+        }
+        // 2. dns.servers: ensure "fakedns" resolves first (system/public resolvers stay as fallback).
+        val dns = document.getAsJsonObject("dns") ?: JsonObject().also { document.add("dns", it) }
+        val servers = dns.getAsJsonArray("servers") ?: JsonArray().also { dns.add("servers", it) }
+        if (!servers.any { it.isJsonPrimitive && it.asString == "fakedns" }) {
+            val rebuilt = JsonArray().apply { add("fakedns"); servers.forEach { add(it) } }
+            dns.add("servers", rebuilt)
+        }
+        // 3. inbounds: sniffing ON, with "fakedns" mapping first then SNI sniffers — recovers the real
+        //    hostname from the synthetic IP and/or the TLS/HTTP payload so traffic routes by domain.
+        document.getAsJsonArray("inbounds")?.forEach { el ->
+            val inbound = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            val sniff = inbound.getAsJsonObject("sniffing") ?: JsonObject().also { inbound.add("sniffing", it) }
+            sniff.addProperty("enabled", true)
+            val want = linkedSetOf("fakedns", "http", "tls", "quic")
+            inbound.getAsJsonObject("sniffing")?.getAsJsonArray("destOverride")
+                ?.forEach { if (it.isJsonPrimitive) want.add(it.asString) }
+            sniff.add("destOverride", JsonArray().apply { want.forEach { add(it) } })
+        }
+        // 4. outbounds: a DNS outbound that hands queries to xray's dns module (→ FakeDNS).
+        val outbounds = document.getAsJsonArray("outbounds") ?: return
+        if (!outbounds.any { it.isJsonObject && it.asJsonObject.get("tag")?.asString == "dns-out" }) {
+            outbounds.add(JsonObject().apply {
+                addProperty("tag", "dns-out")
+                addProperty("protocol", "dns")
+            })
+        }
+        // 5. routing: send all :53 traffic to dns-out (prepended so it wins over later rules).
+        val routing = document.getAsJsonObject("routing") ?: JsonObject().also { document.add("routing", it) }
+        val rules = routing.getAsJsonArray("rules") ?: JsonArray().also { routing.add("rules", it) }
+        if (!rules.any { it.isJsonObject && it.asJsonObject.get("outboundTag")?.asString == "dns-out" }) {
+            val dnsRule = JsonObject().apply {
+                addProperty("type", "field")
+                addProperty("port", 53)
+                addProperty("outboundTag", "dns-out")
+            }
+            routing.add("rules", JsonArray().apply { add(dnsRule); rules.forEach { add(it) } })
+        }
+    }
+
     private fun applyFingerprintOverride(document: JsonObject, fingerprint: String) {
         val outbounds = document.getAsJsonArray("outbounds") ?: return
         outbounds.forEach { element ->
