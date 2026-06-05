@@ -341,6 +341,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         maybeAutoConnect(app, _state.value as? AppState.Success ?: current)
                     }
                 }
+                DecisionActionType.MORPH_PROFILE -> {
+                    // Stage B morph wiring (apply targetProfileId + reconnect on same server) lands in a
+                    // later task. This caller does not yet pass currentProfileId/triedProfileIds, so the
+                    // agent never emits MORPH_PROFILE here today; this is a defensive no-op branch.
+                }
             }
         } finally {
             handlingAdaptiveFailure = false
