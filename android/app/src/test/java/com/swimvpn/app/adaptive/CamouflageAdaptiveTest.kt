@@ -133,6 +133,18 @@ class CamouflageAdaptiveTest {
     // --- MORPH_PROFILE cascade (Stage B) ---
 
     @Test
+    fun `soft degradation skips same-server retry and morphs immediately`() {
+        val action = AdaptiveDecisionAgent.planAfterFailure(
+            currentServerId = "s", candidates = listOf(), scores = emptyMap(),
+            reconnectAttempt = 0, nowMs = 1_000L, networkType = NetworkType.WIFI,
+            currentProfileId = "auto", triedProfileIds = setOf("auto"),
+            softDegradation = true,
+        )
+        assertEquals(DecisionActionType.MORPH_PROFILE, action.type)
+        assertEquals("chrome", action.targetProfileId)
+    }
+
+    @Test
     fun `morph is chosen after same-server retries when an untried profile exists`() {
         val action = AdaptiveDecisionAgent.planAfterFailure(
             currentServerId = "s",

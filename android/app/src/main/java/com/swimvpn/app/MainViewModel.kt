@@ -162,7 +162,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var adaptiveActiveServerId: String? = null
     private var manualStopRequested = false
     private var handlingAdaptiveFailure = false
-    private val healthSentinel = TunnelHealthSentinel(degradedThreshold = 3)
+    private val healthSentinel = TunnelHealthSentinel(degradedThreshold = 2)
     private var incidentTriedProfiles: Set<String> = emptySet()
     private var premiumUsageReportJob: Job? = null
     private var premiumUsageSessionBaselineBytes = 0L
@@ -180,7 +180,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         private const val PREMIUM_USAGE_REPORT_INTERVAL_MS = 30_000L
-        private const val HEALTH_PROBE_INTERVAL_MS = 15_000L
+        // ~16s to recover/escalate one step (2 probes × 8s). Probes only while connected + screen-on.
+        private const val HEALTH_PROBE_INTERVAL_MS = 8_000L
     }
 
     init {
@@ -289,10 +290,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (!connected) continue
                 if (!screenOnAndNotPowerSave()) continue
                 val healthy = probeTunnelHealthy()
-                when (healthSentinel.onProbe(healthy)) {
-                    HealthVerdict.DEGRADED -> handleAdaptiveRuntimeFailure() // into the one pipeline
-                    HealthVerdict.HEALTHY -> incidentTriedProfiles = emptySet() // recovered -> clear incident
-                    HealthVerdict.ALREADY_DEGRADED -> { /* keep probing; one action already fired */ }
+                // Clear the shaping incident only on a GENUINE probe success — NOT on verdict==HEALTHY,
+                // which merely means the debounce hasn't tripped yet (a failing probe below threshold is
+                // still HEALTHY). Resetting on the verdict wiped the tried-profile set every cycle, so the
+                // cascade re-tried the first profile forever and never escalated to a server switch.
+                if (healthy) incidentTriedProfiles = emptySet()
+                val verdict = healthSentinel.onProbe(healthy)
+                when (verdict) {
+                    HealthVerdict.DEGRADED -> {
+                        handleAdaptiveRuntimeFailure(triggeredBySentinel = true)
+                        // Re-arm the debounce so the NEW profile/server is judged fresh. The restart blip
+                        // is shorter than the probe interval, so without this the loop would stay latched
+                        // on ALREADY_DEGRADED forever and never escalate to the next morph / server switch.
+                        healthSentinel.reset()
+                    }
+                    HealthVerdict.HEALTHY, HealthVerdict.ALREADY_DEGRADED -> { /* keep probing */ }
                 }
             }
         }
@@ -317,13 +329,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         context.startService(intent)
     }
 
-    private suspend fun handleAdaptiveRuntimeFailure() {
+    private suspend fun handleAdaptiveRuntimeFailure(triggeredBySentinel: Boolean = false) {
         if (handlingAdaptiveFailure) return
         handlingAdaptiveFailure = true
 
         try {
             val current = _state.value as? AppState.Success ?: return
-            if (!current.autoConnect) return
+            AdaptiveEventLogger.log(
+                event = "adaptive_failure_entered",
+                details = mapOf(
+                    "sentinel" to triggeredBySentinel,
+                    "autoConnect" to current.autoConnect,
+                    "manualStop" to manualStopRequested,
+                    "agent" to current.agentEnabled,
+                ),
+            )
+            // The in-session health autopilot must run regardless of the auto-connect-at-launch setting.
+            if (!current.autoConnect && !triggeredBySentinel) return
             if (manualStopRequested) return
 
             val activeServer = current.activeServer ?: return
@@ -360,6 +382,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 networkType = currentNetworkType(),
                 currentProfileId = _activeCamouflageProfileId.value,
                 triedProfileIds = incidentTriedProfiles,
+                softDegradation = triggeredBySentinel,
             )
             // AI agent disabled: never switch servers automatically. Honor the user's manual
             // selection and only retry the same server (keeping the agent's backoff/give-up bounds).
@@ -391,6 +414,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val targetServer = current.servers.firstOrNull { it.id == action.targetServerId } ?: return
                     if (action.type == DecisionActionType.SWITCH_SERVER) {
                         prefs.setSelectedServerId(targetServer.id)
+                        incidentTriedProfiles = emptySet() // new server => fresh shaping incident
                         _state.value = current.copy(
                             activeServer = targetServer,
                             activeConfigMetadata = resolveActiveConfigMetadata(targetServer, current.profile),
@@ -404,8 +428,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     val vpnState = VpnManager.state.value
                     if (vpnState == VpnState.DISCONNECTED || vpnState == VpnState.ERROR) {
+                        // Hard failure: the tunnel is already down — reconnect via the auto-connect path.
                         lastAutoConnectSignature = null
                         maybeAutoConnect(app, _state.value as? AppState.Success ?: current)
+                    } else if (triggeredBySentinel) {
+                        // Soft degradation: the tunnel is still up, so it won't self-reconnect. Force a
+                        // restart to the target server with its best profile (ACTION_RESTART machinery).
+                        val nextProfile = resolveCamouflageProfile(targetServer.id, current.agentEnabled)
+                        restartActiveServerWithProfile(targetServer, current, nextProfile.id)
                     }
                 }
                 DecisionActionType.MORPH_PROFILE -> {

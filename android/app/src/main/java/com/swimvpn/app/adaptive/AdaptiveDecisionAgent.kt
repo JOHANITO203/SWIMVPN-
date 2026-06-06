@@ -276,6 +276,7 @@ object AdaptiveDecisionAgent {
         networkType: NetworkType = NetworkType.UNKNOWN,
         currentProfileId: String? = null,
         triedProfileIds: Set<String> = emptySet(),
+        softDegradation: Boolean = false,
     ): DecisionAction {
         if (currentServerId == null || reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
             return DecisionAction(
@@ -286,7 +287,10 @@ object AdaptiveDecisionAgent {
             )
         }
 
-        if (reconnectAttempt < SAME_SERVER_RETRY_LIMIT && !scores[currentServerId].isAvoided(nowMs)) {
+        // Soft degradation = "connected but unhealthy": the link IS up, so reconnecting the SAME server
+        // with the SAME (throttled) profile is pointless — skip straight to the morph phase. Hard
+        // failures keep the same-server retry first (transient blips often self-heal on reconnect).
+        if (!softDegradation && reconnectAttempt < SAME_SERVER_RETRY_LIMIT && !scores[currentServerId].isAvoided(nowMs)) {
             return DecisionAction(
                 type = DecisionActionType.RECONNECT_SAME,
                 targetServerId = currentServerId,
