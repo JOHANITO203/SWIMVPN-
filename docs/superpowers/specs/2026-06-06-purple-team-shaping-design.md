@@ -42,24 +42,36 @@ RST / dial-cancel frequency, throughput stability — the exact signals observab
 runtime logs. The adaptive agent learns which profile keeps the connection **healthy/connectable** per
 network. Same honest limit as Phase 3: we learn **reliability**, not stealth.
 
-## 4. Staged architecture (A → B → C)
+## 4. Staged architecture — PROGRAM CLOSED at A+B (2026-06-06)
 
-Three layers on the existing adaptive agent; each is independently shippable and testable.
+The program was scoped as three layers; it ships **A and B** and **deliberately does NOT build C**.
 
-- **Stage A — Adaptive shaping profiles (THIS SPEC).** Add the client-tunable anti-DPI knobs
-  (TLS fragmentation, optional pre-handshake noise) as an axis the agent learns, bundled with the
-  existing uTLS-fp axis. Default = AUTO = no shaping = byte-identical to today.
-- **Stage B — Closed-loop evasion autopilot (future spec).** A runtime *sentinel* reads the live
-  health signature; a *controller* detects DPI pressure and re-selects the profile in-session (via a
-  fast reconfigure+restart — xray does not hot-reload), learning per network which morph escapes the
-  throttle.
-- **Stage C — Budget-governed cover-shaping (future spec).** A sub-module of B's controller. Default
-  ≈ keepalive-cadence mimicry (near-zero cost); escalates under detected pressure within a **moderate
-  adaptive data/battery budget**; **target profile = the supplier's REALITY cover-domain** (so cover
-  amplifies the supplier's cover instead of contradicting it); reversible and self-disabling when it
-  does not measurably help. Hard problem to solve in C: the app is excluded from its own tun
-  (`addDisallowedApplication`), so injecting cover that traverses the tunnel needs a dedicated
-  non-excluded sender or tun-layer injection.
+- **Stage A — Adaptive shaping profiles. SHIPPED (merge fe4cbaf).** Client-tunable anti-DPI knobs
+  (TLS fragmentation; optional pre-handshake noise) as an agent-learned axis bundled with the uTLS-fp
+  axis. Default = AUTO = no shaping = byte-identical to today; presets device-validated to compose with
+  REALITY+vision.
+- **Stage B — Closed-loop evasion autopilot. SHIPPED (merge 6368717).** A runtime sentinel probes the
+  tunnel health through xray's local SOCKS; on measured degradation the controller morphs the shaping
+  profile in-session (ACTION_RESTART) and, if morphs are exhausted, switches server — learning per
+  network. Device-validated end-to-end (degraded → morph → morph → switch → recover).
+- **Stage C — Budget-governed cover-shaping. DELIBERATELY NOT BUILT (closing decision 2026-06-06).**
+  This is a reasoned non-build, not an oversight. Rationale, in the program's own no-theater terms:
+  1. **Unmeasurable.** Stealth cannot be measured client-side (the program's standing limit). A
+     steady-state cover layer would spend battery/data for an **unverifiable** benefit — the definition
+     of security theater for an anti-censorship tool.
+  2. **Weak justification.** A REALITY connection is meant to look like a visit to the supplier's
+     cover-domain (e.g. `tradingview.com`), which **itself** idles when the user isn't interacting — so
+     "don't look suspiciously silent" is not clearly necessary.
+  3. **Can hurt.** Poorly-shaped cover deviates from the cover-domain's real traffic pattern and makes
+     the flow *more* distinguishable, not less.
+  4. **Marginal after A+B.** REALITY+vision (server) + Stage A (fragmentation) + Stage B (measured
+     morph+switch) already cover the high-confidence levers; cover's marginal value is negligible, and
+     where the server connection is genuinely throttled, client uplink cover cannot unblock it.
+  The injection mechanism is no longer the blocker (Stage B proved the app can push traffic through the
+  tunnel via the SOCKS at `127.0.0.1:10808`); the blocker is that the lever isn't worth its cost.
+  **Future re-open condition:** only if we run our **own** server nodes — then bidirectional,
+  server-coordinated cover (which a classifier cannot trivially strip) becomes a real, testable lever.
+  Until then, C stays unbuilt.
 
 ## 5. Stage A — components
 
