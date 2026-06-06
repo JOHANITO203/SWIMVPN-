@@ -197,7 +197,7 @@ fun ProfileScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AccountActionPill(
-                    icon = FeatureGlyphs.Payment,
+                    icon = Icons.Outlined.CreditCard,
                     title = stringResource(R.string.menu_subscription),
                     subtitle = stringResource(R.string.profile_section_swimvpn_access),
                     onClick = onNavigateToSubscription,

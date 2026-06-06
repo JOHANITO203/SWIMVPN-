@@ -125,7 +125,17 @@ fun SupportScreen(
                     .fillMaxWidth()
                     .height(58.dp)
                     .clip(SwimDesignTokens.Shape.Pill)
-                    .background(purpleGradient())
+                    // Vertical gradient (not the radial purpleGradient) so the wide button has no bright
+                    // hotspot/halo in its centre.
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                SwimDesignTokens.Material.PurpleCoreTop,
+                                SwimDesignTokens.Material.PurpleCoreMid,
+                                SwimDesignTokens.Material.PurpleCoreBottom,
+                            )
+                        )
+                    )
                     .border(1.dp, SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.48f), SwimDesignTokens.Shape.Pill)
                     .clickable(onClick = onNavigateToSubscription),
                 contentAlignment = Alignment.Center,
@@ -355,7 +365,7 @@ private fun IconBowl(icon: ImageVector) {
             .size(44.dp)
             .clip(CircleShape)
             .background(SwimDesignTokens.Material.BowlBottom)
-            .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.72f), CircleShape),
+            .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
