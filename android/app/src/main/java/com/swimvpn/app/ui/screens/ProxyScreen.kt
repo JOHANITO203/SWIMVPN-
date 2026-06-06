@@ -60,6 +60,7 @@ import com.swimvpn.app.config.Protocol
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
 import com.swimvpn.app.data.network.ResidentialProxyProbe
+import com.swimvpn.app.ui.components.FeatureGlyphs
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.theme.SwimDesignTokens
 import kotlinx.coroutines.launch
@@ -218,7 +219,7 @@ fun ProxyScreen(
                         .border(1.dp, c.PurpleActive.copy(alpha = 0.30f), RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.Hub, contentDescription = null, tint = c.PurpleActive, modifier = Modifier.size(24.dp))
+                    Icon(FeatureGlyphs.ProxyHub, contentDescription = null, tint = c.PurpleActive, modifier = Modifier.size(24.dp))
                 }
             }
 

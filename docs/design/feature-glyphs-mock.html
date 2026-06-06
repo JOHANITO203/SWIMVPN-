@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SWIMVPN — Iconologie bespoke (validation)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#05070A;
+    --glyph:#F6F4FC;
+    --accent:#7B2FBE;
+    --accent-light:#B388FF;
+    --well-hi:#171322;
+    --well-lo:#0A0813;
+    --ink-muted:#6E6A82;
+    --ink-soft:#9C97B4;
+    --hairline:rgba(246,244,252,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--glyph);
+    font-family:"Space Mono",ui-monospace,monospace;
+    -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(1200px 600px at 80% -10%, rgba(123,47,190,.10), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(179,136,255,.06), transparent 55%);
+    background-attachment:fixed;
+    min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:64px 32px 96px;}
+
+  header.masthead{
+    border-bottom:1px solid var(--hairline);
+    padding-bottom:28px;margin-bottom:14px;
+    display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  }
+  .brand{
+    font-family:"Fraunces",serif;
+    font-weight:600;
+    font-size:clamp(28px,4vw,46px);
+    letter-spacing:-.01em;line-height:1;
+    margin:0;
+  }
+  .brand .swim{color:var(--glyph);}
+  .brand .sub{color:var(--accent-light);font-style:italic;font-weight:400;}
+  .masthead .meta{
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-muted);
+  }
+  .lede{
+    color:var(--ink-soft);font-size:13px;line-height:1.7;max-width:62ch;margin:0 0 48px;
+  }
+
+  .section-title{
+    font-family:"Fraunces",serif;font-weight:500;font-style:italic;
+    font-size:22px;letter-spacing:-.01em;color:var(--glyph);
+    margin:56px 0 6px;display:flex;align-items:center;gap:14px;
+  }
+  .section-title::after{content:"";flex:1;height:1px;background:var(--hairline);}
+  .section-kicker{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent-light);}
+
+  .active-rail{
+    margin:28px 0 8px;
+    border:1px solid var(--hairline);border-radius:20px;
+    background:linear-gradient(180deg, rgba(123,47,190,.07), rgba(5,7,10,0));
+    padding:26px 24px;
+  }
+  .active-rail .rail-head{
+    display:flex;align-items:center;gap:10px;margin-bottom:20px;
+  }
+  .active-rail .rail-head .dot{width:7px;height:7px;border-radius:50%;background:var(--accent-light);box-shadow:0 0 12px var(--accent-light);}
+  .active-rail .rail-head span{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-soft);}
+  .rail-grid{display:flex;gap:34px;flex-wrap:wrap;justify-content:center;}
+  .rail-item{display:flex;flex-direction:column;align-items:center;gap:12px;width:104px;text-align:center;}
+  .rail-item .name{font-size:11px;color:var(--glyph);letter-spacing:.02em;}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
+    gap:18px;margin-top:24px;
+  }
+  .card{
+    border:1px solid var(--hairline);
+    border-radius:18px;
+    background:linear-gradient(180deg, rgba(255,255,255,.012), rgba(255,255,255,0));
+    padding:24px 16px 18px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;
+    transition:border-color .25s ease, transform .25s ease;
+  }
+  .card:hover{border-color:rgba(179,136,255,.30);transform:translateY(-2px);}
+  .card .name{font-size:12px;color:var(--glyph);letter-spacing:.01em;line-height:1.3;}
+  .card .concept{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-muted);}
+
+  /* The recessed dark circular "well" */
+  .well{
+    --size:64px;
+    width:var(--size);height:var(--size);border-radius:50%;
+    position:relative;display:grid;place-items:center;
+    background:radial-gradient(circle at 50% 38%, var(--well-hi) 0%, var(--well-lo) 78%);
+    box-shadow:
+      inset 0 1px 1px rgba(255,255,255,.05),
+      inset 0 -3px 8px rgba(0,0,0,.6),
+      0 6px 14px rgba(0,0,0,.45);
+  }
+  .well::after{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    border:1px solid rgba(246,244,252,.07);
+    pointer-events:none;
+  }
+  .well svg{width:30px;height:30px;display:block;}
+  .well svg path,.well svg circle,.well svg rect{fill:var(--glyph);}
+
+  /* Active state: purple glow + tinted glyph */
+  .well.active{
+    background:radial-gradient(circle at 50% 40%, rgba(123,47,190,.55) 0%, rgba(40,16,66,.9) 60%, var(--well-lo) 90%);
+    box-shadow:
+      inset 0 1px 1px rgba(255,255,255,.08),
+      inset 0 -3px 8px rgba(0,0,0,.55),
+      0 0 0 1px rgba(179,136,255,.18),
+      0 0 26px 4px rgba(123,47,190,.55);
+  }
+  .well.active::after{border-color:rgba(179,136,255,.35);}
+  .well.active svg path,.well.active svg circle,.well.active svg rect{fill:var(--accent-light);}
+
+  .well.lg{--size:74px;}
+  .well.lg svg{width:36px;height:36px;}
+
+  footer{margin-top:72px;padding-top:24px;border-top:1px solid var(--hairline);
+    font-size:11px;color:var(--ink-muted);letter-spacing:.04em;line-height:1.7;}
+  footer b{color:var(--ink-soft);font-weight:400;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1 class="brand"><span class="swim">SWIMVPN</span> <span class="sub">— Iconologie bespoke</span></h1>
+    <div class="meta">Validation · 24×24 · fill #F6F4FC</div>
+  </header>
+  <p class="lede">
+    Jeu de glyphes géométriques pleins, dans la grammaire du dock existant (silhouettes blanches, angles arrondis, poids optique équilibré, aucun trait fin). Chaque fonctionnalité possède une forme unique — jamais réutilisée. À valider avant portage Android.
+  </p>
+
+  <!-- ACTIVE STATE RAIL -->
+  <div class="active-rail">
+    <div class="rail-head"><span class="dot"></span><span>État actif — teinte #B388FF sur halo violet</span></div>
+    <div class="rail-grid">
+
+      <div class="rail-item">
+        <div class="well lg active">
+          <!-- Kill Switch -->
+          <svg viewBox="0 0 24 24"><path d="M12 2.2 4.8 4.9a1.2 1.2 0 0 0-.8 1.12V11c0 4.7 3.05 8.2 7.55 10.6a1 1 0 0 0 .9 0C16.95 19.2 20 15.7 20 11V6.02a1.2 1.2 0 0 0-.8-1.12L12 2.2zM12.05 5.4a1 1 0 0 1 1 1v3.1a1 1 0 0 1-2 0V6.4a1 1 0 0 1 1-1zM8.9 7.2a1 1 0 0 1 .55 1.78A3.6 3.6 0 0 0 12 15.2a3.6 3.6 0 0 0 2.55-6.22 1 1 0 1 1 1.1-1.66A5.6 5.6 0 0 1 12 17.2a5.6 5.6 0 0 1-3.65-9.84A1 1 0 0 1 8.9 7.2z"/></svg>
+        </div>
+        <div class="name">Kill Switch</div>
+      </div>
+
+      <div class="rail-item">
+        <div class="well lg active">
+          <!-- Camouflage (mask) -->
+          <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M3.4 6.6c2.6-.7 5.2-1 8.6-1s6 .3 8.6 1a1 1 0 0 1 .74.85c.2 1.9.06 3.55-.5 4.9-.9 2.2-2.9 3.3-5.2 3.05-1.18-.13-2.05-.7-2.86-1.65a1.2 1.2 0 0 0-1.76 0C10.22 14.7 9.35 15.27 8.17 15.4 5.87 15.65 3.87 14.55 2.97 12.35c-.56-1.35-.7-3-.5-4.9a1 1 0 0 1 .93-.85zM7.4 9.1a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4zm9.2 0a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4z"/></svg>
+        </div>
+        <div class="name">Camouflage</div>
+      </div>
+
+      <div class="rail-item">
+        <div class="well lg active">
+          <!-- Agent IA (sparkle) -->
+          <svg viewBox="0 0 24 24"><path d="M13 2.6a1 1 0 0 0-1.9 0l-1.05 4.2a3 3 0 0 1-2.18 2.18L3.65 10a1 1 0 0 0 0 1.94l4.22 1.06a3 3 0 0 1 2.18 2.18l1.06 4.22a1 1 0 0 0 1.94 0l1.06-4.22a3 3 0 0 1 2.18-2.18l4.22-1.06a1 1 0 0 0 0-1.94l-4.22-1.05a3 3 0 0 1-2.18-2.18zM19.2 16.4a.7.7 0 0 0-1.34 0l-.3 1.05a1.4 1.4 0 0 1-.96.96l-1.06.3a.7.7 0 0 0 0 1.34l1.06.3a1.4 1.4 0 0 1 .96.96l.3 1.06a.7.7 0 0 0 1.34 0l.3-1.06a1.4 1.4 0 0 1 .96-.96l1.06-.3a.7.7 0 0 0 0-1.34l-1.06-.3a1.4 1.4 0 0 1-.96-.96z"/></svg>
+        </div>
+        <div class="name">Agent IA</div>
+      </div>
+
+      <div class="rail-item">
+        <div class="well lg active">
+          <!-- Paiement (card + chip) -->
+          <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M4.4 4.8h15.2A2.4 2.4 0 0 1 22 7.2v9.6a2.4 2.4 0 0 1-2.4 2.4H4.4A2.4 2.4 0 0 1 2 16.8V7.2a2.4 2.4 0 0 1 2.4-2.4zm.6 2.6a.8.8 0 0 0-.8.8v2.1c0 .44.36.8.8.8h3.2a.8.8 0 0 0 .8-.8V8.2a.8.8 0 0 0-.8-.8H5zm9.3 7.4a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2h-4z"/></svg>
+        </div>
+        <div class="name">Paiement</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SECTION: CONNEXION -->
+  <h2 class="section-title"><span class="section-kicker">Section 01</span> Connexion</h2>
+  <div class="grid">
+
+    <div class="card">
+      <div class="well">
+        <!-- 1. Kill Switch: shield with severed power symbol -->
+        <svg viewBox="0 0 24 24"><path d="M12 2.2 4.8 4.9a1.2 1.2 0 0 0-.8 1.12V11c0 4.7 3.05 8.2 7.55 10.6a1 1 0 0 0 .9 0C16.95 19.2 20 15.7 20 11V6.02a1.2 1.2 0 0 0-.8-1.12L12 2.2zM12.05 5.4a1 1 0 0 1 1 1v3.1a1 1 0 0 1-2 0V6.4a1 1 0 0 1 1-1zM8.9 7.2a1 1 0 0 1 .55 1.78A3.6 3.6 0 0 0 12 15.2a3.6 3.6 0 0 0 2.55-6.22 1 1 0 1 1 1.1-1.66A5.6 5.6 0 0 1 12 17.2a5.6 5.6 0 0 1-3.65-9.84A1 1 0 0 1 8.9 7.2z"/></svg>
+      </div>
+      <div class="name">Kill Switch</div>
+      <div class="concept">Coupure</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 2. Camouflage: domino mask -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M3.4 6.6c2.6-.7 5.2-1 8.6-1s6 .3 8.6 1a1 1 0 0 1 .74.85c.2 1.9.06 3.55-.5 4.9-.9 2.2-2.9 3.3-5.2 3.05-1.18-.13-2.05-.7-2.86-1.65a1.2 1.2 0 0 0-1.76 0C10.22 14.7 9.35 15.27 8.17 15.4 5.87 15.65 3.87 14.55 2.97 12.35c-.56-1.35-.7-3-.5-4.9a1 1 0 0 1 .93-.85zM7.4 9.1a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4zm9.2 0a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4z"/></svg>
+      </div>
+      <div class="name">Camouflage</div>
+      <div class="concept">Masque</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 3. Auto-connexion: power symbol + auto arrow -->
+        <svg viewBox="0 0 24 24"><path d="M12 3a1.1 1.1 0 0 1 1.1 1.1v5.2a1.1 1.1 0 0 1-2.2 0V4.1A1.1 1.1 0 0 1 12 3zM7.7 6.05a1.1 1.1 0 0 1 .35 1.74 5.6 5.6 0 1 0 7.9 0 1.1 1.1 0 1 1 1.56-1.55 7.8 7.8 0 1 1-11.02 0 1.1 1.1 0 0 1 1.21-.19zM18.1 4.1a.9.9 0 0 1 .9.9v2.6a.9.9 0 0 1-.9.9h-2.6a.9.9 0 0 1-.45-1.68l.62-.36a4.7 4.7 0 0 0-.7-.5.9.9 0 1 1 .9-1.56c.4.23.77.5 1.1.8V5a.9.9 0 0 1 .9-.9z"/></svg>
+      </div>
+      <div class="name">Auto-connexion</div>
+      <div class="concept">Auto</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 4. Optimisation batterie: battery + bolt -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M5 6.5h11A2.5 2.5 0 0 1 18.5 9v.5H20a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.5v.5A2.5 2.5 0 0 1 16 18.5H5A2.5 2.5 0 0 1 2.5 16V9A2.5 2.5 0 0 1 5 6.5zm6.9 2.1a.6.6 0 0 1 1.08.46l-.45 2.34h1.62a.6.6 0 0 1 .47.97l-3.5 4.5a.6.6 0 0 1-1.07-.46l.45-2.34H8.85a.6.6 0 0 1-.47-.98l3.52-4.49z"/></svg>
+      </div>
+      <div class="name">Optimisation batterie</div>
+      <div class="concept">Énergie</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 5. Agent IA: 4-point sparkle + small spark -->
+        <svg viewBox="0 0 24 24"><path d="M13 2.6a1 1 0 0 0-1.9 0l-1.05 4.2a3 3 0 0 1-2.18 2.18L3.65 10a1 1 0 0 0 0 1.94l4.22 1.06a3 3 0 0 1 2.18 2.18l1.06 4.22a1 1 0 0 0 1.94 0l1.06-4.22a3 3 0 0 1 2.18-2.18l4.22-1.06a1 1 0 0 0 0-1.94l-4.22-1.05a3 3 0 0 1-2.18-2.18zM19.2 16.4a.7.7 0 0 0-1.34 0l-.3 1.05a1.4 1.4 0 0 1-.96.96l-1.06.3a.7.7 0 0 0 0 1.34l1.06.3a1.4 1.4 0 0 1 .96.96l.3 1.06a.7.7 0 0 0 1.34 0l.3-1.06a1.4 1.4 0 0 1 .96-.96l1.06-.3a.7.7 0 0 0 0-1.34l-1.06-.3a1.4 1.4 0 0 1-.96-.96z"/></svg>
+      </div>
+      <div class="name">Agent adaptatif (IA)</div>
+      <div class="concept">Étincelle</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 6. Contournement géo: globe + deviating arrow -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M11 2.06A9 9 0 0 0 11.6 20a9 9 0 0 0 1.62-.15 1 1 0 0 1-.34-1.46l.3-.42a7 7 0 0 1-1.18.1 7 7 0 0 1-.5-13.98V6.5a1 1 0 0 0 0 2h1.4a7 7 0 0 1 1.3 2.5 1 1 0 0 0 1.94-.5 9 9 0 0 0-5.04-6.43 9 9 0 0 0-1.1-.05zM7.1 5.7a7 7 0 0 0-1.3 9.07 1 1 0 0 0 .9.55h1.9a1 1 0 0 0 1-1v-2a1 1 0 0 0-.6-.92l-1.7-.74a1 1 0 0 1-.4-1.55l.9-1.1a1 1 0 0 0-.6-1.6zM17.7 13.3a1 1 0 0 0-1.42 1.4l.8.8h-2.83a1 1 0 0 0 0 2h2.83l-.8.8a1 1 0 0 0 1.42 1.4l2.5-2.5a1 1 0 0 0 0-1.4z"/></svg>
+      </div>
+      <div class="name">Contournement géo</div>
+      <div class="concept">Détour</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 7. Liste de contournement: rows + pin accent -->
+        <svg viewBox="0 0 24 24"><path d="M3.2 5.4a1.2 1.2 0 0 1 1.2-1.2h7.6a1.2 1.2 0 0 1 0 2.4H4.4a1.2 1.2 0 0 1-1.2-1.2zM3.2 10.9a1.2 1.2 0 0 1 1.2-1.2h6.6a1.2 1.2 0 0 1 0 2.4H4.4a1.2 1.2 0 0 1-1.2-1.2zM3.2 16.4a1.2 1.2 0 0 1 1.2-1.2h5.6a1.2 1.2 0 0 1 0 2.4H4.4a1.2 1.2 0 0 1-1.2-1.2zM18.4 8.4c-2.1 0-3.8 1.66-3.8 3.7 0 2.55 3.06 5.62 3.4 5.96a.55.55 0 0 0 .8 0c.34-.34 3.4-3.41 3.4-5.96 0-2.04-1.7-3.7-3.8-3.7zm0 2.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5z"/></svg>
+      </div>
+      <div class="name">Liste de contournement</div>
+      <div class="concept">Règles</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 8. Routage (split tunnel): fork in a route -->
+        <svg viewBox="0 0 24 24"><path d="M9 2.4a3 3 0 0 0-1 5.83v3.02c0 .9.4 1.45 1.1 2.05l3.1 2.66c.3.26.5.5.5.94v.74a3 3 0 1 0 2.2 0v-.74c0-1.2-.55-2.06-1.4-2.78l-3.1-2.66a.9.9 0 0 1-.4-.7V8.23A3 3 0 0 0 9 2.4zm9 0a3 3 0 0 0-1 5.83v8.54a3 3 0 1 0 2.2 0V8.23A3 3 0 0 0 18 2.4z"/></svg>
+      </div>
+      <div class="name">Routage (split tunnel)</div>
+      <div class="concept">Bifurcation</div>
+    </div>
+
+  </div>
+
+  <!-- SECTION: APPLICATION -->
+  <h2 class="section-title"><span class="section-kicker">Section 02</span> Application</h2>
+  <div class="grid">
+
+    <div class="card">
+      <div class="well">
+        <!-- 9. Langue: speech bubble with two glyph marks (A + 文) -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M5 3.6h14A2.6 2.6 0 0 1 21.6 6.2v8.4A2.6 2.6 0 0 1 19 17.2H9.7l-3.5 3.06A1 1 0 0 1 4.5 19.5v-2.3H5A2.6 2.6 0 0 1 2.4 14.6V6.2A2.6 2.6 0 0 1 5 3.6zm3 3.3a.85.85 0 0 0-.8.56l-2 5.5a.85.85 0 0 0 1.6.58l.28-.78h1.84l.28.78a.85.85 0 0 0 1.6-.58l-2-5.5A.85.85 0 0 0 8 6.9zm0 2.95.46 1.28h-.92zM14 6.9a.9.9 0 0 0-.9.9v.2h-1a.85.85 0 0 0 0 1.7h.16c.2.66.55 1.27 1.02 1.8-.38.24-.8.42-1.26.52a.85.85 0 0 0 .36 1.66 5.3 5.3 0 0 0 2.02-.92 5.3 5.3 0 0 0 1.3.72.85.85 0 0 0 .6-1.6 3.6 3.6 0 0 1-.5-.24c.46-.53.82-1.14 1.02-1.94h.28a.85.85 0 0 0 0-1.7h-2.2v-.2A.9.9 0 0 0 14 6.9zm0 2.8h.86c-.13.34-.3.65-.5.9-.2-.25-.36-.56-.36-.9z"/></svg>
+      </div>
+      <div class="name">Langue</div>
+      <div class="concept">Traduire</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 10. Theme: disc split light/dark (half filled) -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2.6a9.4 9.4 0 1 0 0 18.8 9.4 9.4 0 0 0 0-18.8zm0 2.2v14.4a7.2 7.2 0 0 0 0-14.4z"/></svg>
+      </div>
+      <div class="name">Thème</div>
+      <div class="concept">Clair/Sombre</div>
+    </div>
+
+  </div>
+
+  <!-- SECTION: MON PROXY -->
+  <h2 class="section-title"><span class="section-kicker">Section 03</span> Mon proxy</h2>
+  <div class="grid">
+
+    <div class="card">
+      <div class="well">
+        <!-- 11. Proxy / Hub: central node + satellites -->
+        <svg viewBox="0 0 24 24"><path d="M12 8.7a3.3 3.3 0 1 0 0 6.6 3.3 3.3 0 0 0 0-6.6zM12 2.3a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zM12 16.9a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zM4.9 5.4a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zM19.1 5.4a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z"/></svg>
+      </div>
+      <div class="name">Proxy / Hub</div>
+      <div class="concept">Relais</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 12. Latence / vitesse: speedometer needle -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 4a9 9 0 0 0-7.8 13.5 1.4 1.4 0 0 0 1.22.7h13.16a1.4 1.4 0 0 0 1.22-.7A9 9 0 0 0 12 4zm0 2.2a1 1 0 0 1 1 1 1 1 0 0 1-2 0 1 1 0 0 1 1-1zM6.7 8.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm10.6 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-1.1 2.95a1.2 1.2 0 0 1 .26 1.84l-2.5 2.6a2 2 0 1 1-2.2-2.86l3.27-1.64a1.2 1.2 0 0 1 1.17.06z"/></svg>
+      </div>
+      <div class="name">Latence / vitesse</div>
+      <div class="concept">Jauge</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 13. Protection fuite / DNS: shield with droplet -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2.4 5.2 4.95a1.2 1.2 0 0 0-.8 1.12V11c0 4.55 2.95 7.95 7.25 10.35a1.1 1.1 0 0 0 1.06 0C16.95 18.95 19.6 15.55 19.6 11V6.07a1.2 1.2 0 0 0-.8-1.12L12 2.4zm0 5.1c.32 0 .6.16.78.42l1.6 2.36a2.95 2.95 0 1 1-4.86.07l1.7-2.43A.95.95 0 0 1 12 7.5zm0 3.05-.66.94a1.2 1.2 0 1 0 1.34-.05z"/></svg>
+      </div>
+      <div class="name">Protection fuite / DNS</div>
+      <div class="concept">Étanche</div>
+    </div>
+
+  </div>
+
+  <!-- SECTION: COMPTE -->
+  <h2 class="section-title"><span class="section-kicker">Section 04</span> Compte</h2>
+  <div class="grid">
+
+    <div class="card">
+      <div class="well">
+        <!-- 14. Offres / promo: price tag -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M11.2 3.1a2.4 2.4 0 0 0-1.7.7L3.4 9.9a2.4 2.4 0 0 0 0 3.4l7.3 7.3a2.4 2.4 0 0 0 3.4 0l6.1-6.1a2.4 2.4 0 0 0 .7-1.7V5.5a2.4 2.4 0 0 0-2.4-2.4h-7.3zm5.7 2.6a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4z"/></svg>
+      </div>
+      <div class="name">Offres / promo</div>
+      <div class="concept">Étiquette</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 15. Paiement: card + chip -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M4.4 4.8h15.2A2.4 2.4 0 0 1 22 7.2v9.6a2.4 2.4 0 0 1-2.4 2.4H4.4A2.4 2.4 0 0 1 2 16.8V7.2a2.4 2.4 0 0 1 2.4-2.4zm.6 2.6a.8.8 0 0 0-.8.8v2.1c0 .44.36.8.8.8h3.2a.8.8 0 0 0 .8-.8V8.2a.8.8 0 0 0-.8-.8H5zm9.3 7.4a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2h-4z"/></svg>
+      </div>
+      <div class="name">Paiement</div>
+      <div class="concept">Carte</div>
+    </div>
+
+    <div class="card">
+      <div class="well">
+        <!-- 16. Aide / support: life buoy -->
+        <svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2.4a9.6 9.6 0 1 0 0 19.2 9.6 9.6 0 0 0 0-19.2zm0 3.1c.62 0 1.22.08 1.78.24l-.96 2.96a3.6 3.6 0 0 0-1.64 0L10.22 5.74A6.5 6.5 0 0 1 12 5.5zm-3.62 1.1.96 2.96a3.6 3.6 0 0 0-1.02 1.3L5.36 8.94A6.55 6.55 0 0 1 8.38 6.6zm7.24 0a6.55 6.55 0 0 1 3.02 2.34l-2.96.96a3.6 3.6 0 0 0-1.02-1.3l.96-2.96zM12 9.6a2.4 2.4 0 1 1 0 4.8 2.4 2.4 0 0 1 0-4.8zm-6.5.36 2.96.96a3.6 3.6 0 0 0 0 2.16L5.5 14.04a6.5 6.5 0 0 1 0-4.08zm13 0a6.5 6.5 0 0 1 0 4.08l-2.96-.96a3.6 3.6 0 0 0 0-2.16zm-9.14 5.48a3.6 3.6 0 0 0 1.02 1.3l-.96 2.96A6.55 6.55 0 0 1 5.36 17.4zm7.28 0 2.96.96a6.55 6.55 0 0 1-3.02 2.34l-.96-2.96a3.6 3.6 0 0 0 1.02-1.3zm-4.46 1.92a3.6 3.6 0 0 0 1.64 0l.96 2.96a6.5 6.5 0 0 1-3.56 0z"/></svg>
+      </div>
+      <div class="name">Aide / support</div>
+      <div class="concept">Bouée</div>
+    </div>
+
+  </div>
+
+  <footer>
+    <b>Grammaire</b> — viewBox 24×24 · remplissage plein #F6F4FC · jonctions arrondies · fill-rule evenodd pour les évidements · aucun trait fin comme forme primaire.<br/>
+    <b>Puits (well)</b> — disque radial sombre #171322 → #0A0813, anneau interne 1px ; état actif = halo violet #7B2FBE + teinte glyphe #B388FF.<br/>
+    16 glyphes · 1 forme unique par fonctionnalité, jamais réutilisée.
+  </footer>
+
+</div>
+</body>
+</html>

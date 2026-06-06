@@ -51,9 +51,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
@@ -123,7 +125,17 @@ fun SupportScreen(
                     .fillMaxWidth()
                     .height(58.dp)
                     .clip(SwimDesignTokens.Shape.Pill)
-                    .background(purpleGradient())
+                    // Vertical gradient (not the radial purpleGradient) so the wide button has no bright
+                    // hotspot/halo in its centre.
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                SwimDesignTokens.Material.PurpleCoreTop,
+                                SwimDesignTokens.Material.PurpleCoreMid,
+                                SwimDesignTokens.Material.PurpleCoreBottom,
+                            )
+                        )
+                    )
                     .border(1.dp, SwimDesignTokens.Color.PurpleActive.copy(alpha = 0.48f), SwimDesignTokens.Shape.Pill)
                     .clickable(onClick = onNavigateToSubscription),
                 contentAlignment = Alignment.Center,
@@ -135,7 +147,7 @@ fun SupportScreen(
                         text = stringResource(R.string.btn_renew),
                         color = Color.White,
                         fontWeight = FontWeight.Black,
-                        fontSize = 13.sp,
+                        fontSize = fixedSp(13),
                     )
                 }
             }
@@ -160,19 +172,21 @@ private fun SupportHeader(onBack: () -> Unit) {
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.support_title),
                 color = SwimDesignTokens.Color.TextPrimary,
-                fontSize = 30.sp,
+                fontSize = fixedSp(24),
                 fontWeight = FontWeight.Black,
-                maxLines = 1,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = stringResource(R.string.support_header_subtitle),
                 color = SwimDesignTokens.Color.TextSecondary,
-                fontSize = 12.sp,
+                fontSize = fixedSp(12),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -202,14 +216,15 @@ private fun SupportHero() {
                 Text(
                     text = stringResource(R.string.support_hero_title),
                     color = SwimDesignTokens.Color.TextPrimary,
-                    fontSize = 20.sp,
+                    fontSize = fixedSp(20),
                     fontWeight = FontWeight.Black,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = stringResource(R.string.support_hero_subtitle),
                     color = SwimDesignTokens.Color.TextSecondary,
-                    fontSize = 12.sp,
+                    fontSize = fixedSp(12),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -237,7 +252,7 @@ private fun SupportFaqItem(title: String, description: String) {
                 text = title,
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontWeight = FontWeight.Black,
-                fontSize = 13.sp,
+                fontSize = fixedSp(13),
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -254,8 +269,8 @@ private fun SupportFaqItem(title: String, description: String) {
             Text(
                 text = description,
                 color = SwimDesignTokens.Color.TextSecondary,
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
+                fontSize = fixedSp(12),
+                lineHeight = fixedSp(18),
                 modifier = Modifier.padding(start = 56.dp),
             )
         }
@@ -287,14 +302,14 @@ private fun SupportActionRow(
                 text = title,
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontWeight = FontWeight.Black,
-                fontSize = 13.sp,
+                fontSize = fixedSp(13),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = subtitle,
                 color = SwimDesignTokens.Color.TextSecondary,
-                fontSize = 11.sp,
+                fontSize = fixedSp(11),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -336,7 +351,7 @@ private fun SupportSectionTitle(title: String) {
     Text(
         text = title.uppercase(),
         color = SwimDesignTokens.Color.PurpleActive,
-        fontSize = 12.sp,
+        fontSize = fixedSp(12),
         fontWeight = FontWeight.Black,
         letterSpacing = 1.1.sp,
         modifier = Modifier.padding(start = 6.dp, top = 10.dp),
@@ -350,7 +365,7 @@ private fun IconBowl(icon: ImageVector) {
             .size(44.dp)
             .clip(CircleShape)
             .background(SwimDesignTokens.Material.BowlBottom)
-            .border(1.dp, SwimDesignTokens.Highlight.BowlRim.copy(alpha = 0.72f), CircleShape),
+            .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -367,7 +382,7 @@ private fun HardwareCircleButton(onClick: () -> Unit, content: @Composable () ->
     Box(
         modifier = Modifier
             .size(48.dp)
-            .shadow(10.dp, CircleShape, clip = false)
+            .shadow(SwimDesignTokens.Shadow.HardwareButton, CircleShape, clip = false)
             .clip(CircleShape)
             .background(SwimDesignTokens.Material.BowlBottom)
             .border(1.dp, SwimDesignTokens.Color.StrokeSubtle, CircleShape)
@@ -386,6 +401,12 @@ private fun purpleGradient(): Brush =
             SwimDesignTokens.Material.PurpleCoreBottom,
         )
     )
+
+@Composable
+private fun fixedSp(value: Int): TextUnit {
+    val density = LocalDensity.current
+    return with(density) { value.dp.toSp() }
+}
 
 private fun openTelegramSupport(username: String, context: android.content.Context) {
     val cleanUsername = username.removePrefix("@")

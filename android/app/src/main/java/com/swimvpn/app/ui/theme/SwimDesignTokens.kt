@@ -402,18 +402,18 @@ object SwimDesignTokens {
         val TitleBottomGap = 18.dp
         val CardGap = 16.dp
         val BasicCardHeight = 184.dp
-        val PremiumCardHeight = 236.dp
-        val PlatinumCardHeight = 236.dp
+        val PremiumCardHeight = 220.dp
+        val PlatinumCardHeight = 248.dp
         val CompactBasicCardHeight = 172.dp
-        val CompactPremiumCardHeight = 222.dp
-        val CompactPlatinumCardHeight = 222.dp
+        val CompactPremiumCardHeight = 208.dp
+        val CompactPlatinumCardHeight = 232.dp
         val PlanIconSize = 62.dp
         val CompactPlanIconSize = 54.dp
         val CtaHeight = 48.dp
         val PaymentMethodHeight = 42.dp
         val GuaranteeIconSize = 42.dp
         val DockBottomPadding = 28.dp
-        val DockReservedHeight = 192.dp
+        val DockReservedHeight = 132.dp
     }
 }
 

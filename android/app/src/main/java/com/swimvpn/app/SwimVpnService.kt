@@ -609,7 +609,11 @@ class SwimVpnService : VpnService() {
         logRuntimeEvent("engine_started", mapOf("mode" to RuntimeMode.FULL_TUNNEL.name))
 
         val builder = Builder()
-            .setSession("SWIMVPN+ (${runtime.profile.displayName})")
+            // Neutral session name only. The per-profile displayName is derived from the config
+            // #fragment / host, which for premium servers is the upstream supplier's label — surfacing
+            // it here would leak the provider in the Android system VPN dialog (a system-level surface
+            // outside the app). A generic name protects the supplier sourcing on every server type.
+            .setSession("SWIMVPN+")
             .addAddress("10.0.0.2", 24)
             // Capture IPv6 on the tun so dual-stack apps cannot leak their real IP straight out over
             // IPv6 (the IPv4-only tun left literal-IPv6 / DoH-AAAA connections going direct). The prior

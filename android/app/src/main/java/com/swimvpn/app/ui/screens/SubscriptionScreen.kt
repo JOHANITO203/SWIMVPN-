@@ -32,7 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -89,6 +89,17 @@ enum class SubscriptionPlanTier {
     PREMIUM,
     PLATINUM,
 }
+
+/**
+ * Direction A — a muted per-tier "jewel" accent that tints the card material + its accents
+ * (price, rim, icon glow). Kept low-saturation so it stays inside the matte dark grammar.
+ */
+private fun SubscriptionPlanTier.accent(): Color =
+    when (this) {
+        SubscriptionPlanTier.BASIC -> Color(0xFF6FB7D4)    // cool steel-cyan
+        SubscriptionPlanTier.PREMIUM -> Color(0xFFB388FF)  // brand purple (light)
+        SubscriptionPlanTier.PLATINUM -> Color(0xFFD2B06A) // champagne violet-gold
+    }
 
 data class SubscriptionPlanUi(
     val id: String,
@@ -268,7 +279,10 @@ fun SubscriptionScreen(
                 if (uiState.showMoneyBackGuarantee) {
                     item {
                         StaggeredEnter(visible = entered, delayMs = 245) {
-                            GuaranteeRow(modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
+                            GuaranteeRow(
+                                supportedCurrencies = uiState.plans.firstOrNull()?.supportedCurrencies.orEmpty(),
+                                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+                            )
                         }
                     }
                 }
@@ -347,11 +361,7 @@ private fun SubscriptionPlanCard(
             .background(planSurfaceBrush(plan.isHighlighted))
             .border(
                 width = if (plan.isHighlighted) 1.4.dp else 1.dp,
-                color = if (plan.isHighlighted) {
-                    SwimDesignTokens.Color.StrokeActive
-                } else {
-                    SwimDesignTokens.Color.StrokeSubtle
-                },
+                color = plan.tier.accent().copy(alpha = if (plan.isHighlighted) 0.55f else 0.30f),
                 shape = shape,
             )
             .clickable(
@@ -369,18 +379,28 @@ private fun SubscriptionPlanCard(
                         size = Size(size.width, 0.9.dp.toPx()),
                     )
                 }
-                if (plan.isHighlighted) {
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.18f),
-                                Color.Transparent,
-                            ),
-                            center = Offset(size.width * 0.12f, size.height * 0.24f),
-                            radius = size.width * 0.42f,
+                // Direction A — per-tier jewel material tint (muted, on-grammar).
+                val planAccent = plan.tier.accent()
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            planAccent.copy(alpha = if (plan.isHighlighted) 0.16f else 0.11f),
+                            Color.Transparent,
                         ),
-                    )
-                }
+                        startY = 0f,
+                        endY = size.height * 0.9f,
+                    ),
+                )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            planAccent.copy(alpha = if (plan.isHighlighted) 0.20f else 0.14f),
+                            Color.Transparent,
+                        ),
+                        center = Offset(size.width * 0.14f, size.height * 0.22f),
+                        radius = size.width * 0.5f,
+                    ),
+                )
                 drawRect(
                     brush = Brush.verticalGradient(
                         colors = listOf(
@@ -464,26 +484,13 @@ private fun PriceBlock(plan: SubscriptionPlanUi, compact: Boolean) {
         }
         Text(
             text = plan.price,
-            color = SwimDesignTokens.Color.TextPrimary,
+            color = plan.tier.accent(),
             fontSize = fixedSp(if (compact) 16 else 18),
             fontWeight = FontWeight.Black,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Text(
-            text = plan.billingPeriod,
-            color = SwimDesignTokens.Color.TextSecondary,
-            fontSize = fixedSp(if (compact) 9 else 10),
-            maxLines = 1,
-        )
-        // Truthful: shows ONLY what SwimPay collects (supportedCurrencies, default ["RUB"]). Crypto is a SEPARATE option, never here.
-        val badges = plan.supportedCurrencies.ifEmpty { listOf("RUB") }.joinToString(" · ")
-        Text(
-            text = stringResource(R.string.pricing_swimpay_supports, badges),
-            color = SwimDesignTokens.Color.TextSecondary,
-            fontSize = fixedSp(if (compact) 8 else 9),
-            maxLines = 1,
-        )
+        // "/ période" intentionally removed — the plan duration is already stated on each offer's subtitle.
     }
 }
 
@@ -498,25 +505,23 @@ private fun PlanIconBadge(
         SubscriptionPlanTier.PREMIUM -> R.drawable.ic_plan_premium_sparkles
         SubscriptionPlanTier.PLATINUM -> R.drawable.ic_plan_platinum_diamond
     }
-    val tint = if (highlighted) SwimDesignTokens.Color.PurpleActive else SwimDesignTokens.Color.TextPrimary
+    val tint = tier.accent()
 
     Box(
         modifier = Modifier
             .size(size)
             .drawBehind {
                 val radius = this.size.minDimension / 2f
-                if (highlighted) {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.28f),
-                                Color.Transparent,
-                            ),
-                            center = center,
-                            radius = radius * 1.32f,
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            tier.accent().copy(alpha = if (highlighted) 0.30f else 0.18f),
+                            Color.Transparent,
                         ),
-                    )
-                }
+                        center = center,
+                        radius = radius * 1.32f,
+                    ),
+                )
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
@@ -698,8 +703,21 @@ private fun PaymentMethodPill(
     }
 }
 
+/** Renders a SwimPay-supported currency with its symbol, e.g. "₽ RUB", "$ USD", "CFA XOF". */
+private fun swimPayCurrencyBadge(code: String): String = when (code.trim().uppercase()) {
+    "RUB" -> "₽ RUB"
+    "USD" -> "$ USD"
+    "XOF" -> "CFA XOF"
+    else -> code.trim().uppercase()
+}
+
 @Composable
-private fun GuaranteeRow(modifier: Modifier = Modifier) {
+private fun GuaranteeRow(supportedCurrencies: List<String>, modifier: Modifier = Modifier) {
+    // Truthful payment note: communicates the currencies SwimPay actually collects, each with its
+    // symbol. The user picks the currency at the SwimPay checkout — no geolocation here. Crypto is a
+    // SEPARATE rail. Default reflects SwimPay's live rails: RUB, XOF, USD.
+    val badges = supportedCurrencies.ifEmpty { listOf("RUB", "XOF", "USD") }
+        .joinToString(" · ") { swimPayCurrencyBadge(it) }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -713,30 +731,21 @@ private fun GuaranteeRow(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.Security,
+                imageVector = Icons.Outlined.Payments,
                 contentDescription = null,
                 tint = SwimDesignTokens.Color.PurpleActive,
                 modifier = Modifier.size(24.dp),
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
-        Column {
-            Text(
-                text = "Garantie satisfait ou remboursé 30 jours",
-                color = SwimDesignTokens.Color.TextPrimary,
-                fontSize = fixedSp(13),
-                fontWeight = FontWeight.Black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = "Annulation possible à tout moment, sans justification.",
-                color = SwimDesignTokens.Color.TextMuted,
-                fontSize = fixedSp(12),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(
+            text = stringResource(R.string.pricing_swimpay_supports, badges),
+            color = SwimDesignTokens.Color.TextPrimary,
+            fontSize = fixedSp(13),
+            fontWeight = FontWeight.Black,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

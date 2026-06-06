@@ -82,6 +82,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.swimvpn.app.R
 import com.swimvpn.app.config.CamouflageProfileRepository
 import com.swimvpn.app.config.XrayRoutingBuilder
+import com.swimvpn.app.ui.components.FeatureGlyphs
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.drawSwimDarkMaterialSkin
 import com.swimvpn.app.ui.components.drawSwimLightCardTexture
@@ -195,7 +196,7 @@ fun TechnicalSettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsSwitchPill(
-                    icon = Icons.Outlined.PowerSettingsNew,
+                    icon = FeatureGlyphs.AutoConnect,
                     title = stringResource(R.string.technical_auto_connect_title),
                     subtitle = if (autoConnect) stringResource(R.string.technical_auto_connect_on) else stringResource(R.string.technical_auto_connect_off),
                     checked = autoConnect,
@@ -203,7 +204,7 @@ fun TechnicalSettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsActionPill(
-                    icon = Icons.Outlined.Security,
+                    icon = FeatureGlyphs.KillSwitch,
                     title = stringResource(R.string.technical_kill_switch_title),
                     subtitle = killSwitchStatusChip(killSwitchStatus),
                     enabled = externalActionsArmed,
@@ -231,7 +232,7 @@ fun TechnicalSettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsActionPill(
-                    icon = Icons.Outlined.PowerSettingsNew,
+                    icon = FeatureGlyphs.Battery,
                     title = stringResource(R.string.technical_battery_title),
                     subtitle = if (batteryOptimizationRequired) stringResource(R.string.technical_battery_required) else stringResource(R.string.technical_battery_optimized),
                     enabled = externalActionsArmed,
@@ -243,7 +244,7 @@ fun TechnicalSettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsSwitchPill(
-                    icon = Icons.Outlined.Speed,
+                    icon = FeatureGlyphs.AdaptiveAgent,
                     title = stringResource(R.string.technical_agent_title),
                     subtitle = if (agentEnabled) stringResource(R.string.technical_agent_on) else stringResource(R.string.technical_agent_off),
                     checked = agentEnabled,
@@ -251,7 +252,7 @@ fun TechnicalSettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 SettingsSwitchPill(
-                    icon = Icons.Outlined.Language,
+                    icon = FeatureGlyphs.GeoBypass,
                     title = stringResource(R.string.technical_bypass_geo_title),
                     subtitle = if (bypassGeoEnabled) stringResource(R.string.technical_bypass_geo_on) else stringResource(R.string.technical_bypass_geo_off),
                     checked = bypassGeoEnabled,
@@ -260,7 +261,7 @@ fun TechnicalSettingsScreen(
                 if (bypassGeoEnabled) {
                     Spacer(modifier = Modifier.height(12.dp))
                     SettingsActionPill(
-                        icon = Icons.AutoMirrored.Outlined.FormatListBulleted,
+                        icon = FeatureGlyphs.GeoBypassList,
                         title = stringResource(R.string.technical_bypass_geo_list_title),
                         subtitle = stringResource(R.string.technical_bypass_geo_list_subtitle, bypassGeoEntries.size),
                         enabled = true,
@@ -273,7 +274,7 @@ fun TechnicalSettingsScreen(
                 if (agentEnabled) {
                     // AI ON: the agent picks the profile per network — show the active one, read-only.
                     SettingsPillScaffold(
-                        icon = Icons.Outlined.Security,
+                        icon = FeatureGlyphs.Camouflage,
                         title = stringResource(R.string.technical_camouflage_title),
                         subtitle = stringResource(R.string.technical_camouflage_adaptive, activeCamouflageName),
                     ) {
@@ -282,7 +283,7 @@ fun TechnicalSettingsScreen(
                 } else {
                     // AI OFF: manual pick.
                     SettingsActionPill(
-                        icon = Icons.Outlined.Security,
+                        icon = FeatureGlyphs.Camouflage,
                         title = stringResource(R.string.technical_camouflage_title),
                         subtitle = stringResource(CamouflageProfileRepository.byId(camouflageProfileId).displayNameRes),
                         enabled = true,
@@ -522,7 +523,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
         Spacer(modifier = Modifier.width(14.dp))
         Column {
             Text(
-                text = "Paramètres",
+                text = stringResource(R.string.technical_screen_title),
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Black,
@@ -541,7 +542,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
 @Composable
 private fun LanguagePill(language: String, onLanguageChange: (String) -> Unit) {
     SettingsPillScaffold(
-        icon = Icons.Outlined.Language,
+        icon = FeatureGlyphs.Language,
         title = stringResource(R.string.technical_language_title),
         subtitle = languageDisplay(language),
     ) {
@@ -556,7 +557,7 @@ private fun LanguagePill(language: String, onLanguageChange: (String) -> Unit) {
 @Composable
 private fun ThemeSwitchPill(dark: Boolean, onChange: (Boolean) -> Unit) {
     SettingsPillScaffold(
-        icon = Icons.Outlined.Palette,
+        icon = FeatureGlyphs.Theme,
         title = stringResource(R.string.technical_theme_title),
         subtitle = if (dark) stringResource(R.string.technical_theme_dark_active) else stringResource(R.string.technical_theme_light_active),
     ) {
@@ -574,13 +575,13 @@ private fun RoutingPill(
     val activeMode = activeRuntimeMode?.let { normalizeRoutingMode(it) }
     val running = runtimeStatus.equals("RUNNING", ignoreCase = true)
     SettingsPillScaffold(
-        icon = Icons.Outlined.AccountTree,
+        icon = FeatureGlyphs.Routing,
         title = stringResource(R.string.label_routing),
         subtitle = routingChipLabel(selectedMode),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RouteLight(
-                label = "Tunnel",
+                label = stringResource(R.string.technical_route_tunnel),
                 selected = selectedMode == FULL_TUNNEL_MODE,
                 active = selectedMode == FULL_TUNNEL_MODE && (!running || activeMode == FULL_TUNNEL_MODE),
                 onClick = { onRoutingModeChange(FULL_TUNNEL_MODE) },
@@ -935,17 +936,19 @@ private fun normalizeThemeMode(themeMode: String): String =
         else -> AppThemePreference.DARK
     }
 
+@Composable
 private fun routingChipLabel(routingMode: String): String =
     when (normalizeRoutingMode(routingMode)) {
-        LOCAL_PROXY_MODE -> "Proxy local"
-        else -> "Tunnel complet"
+        LOCAL_PROXY_MODE -> stringResource(R.string.technical_routing_local_proxy)
+        else -> stringResource(R.string.technical_routing_full_tunnel)
     }
 
+@Composable
 private fun languageDisplay(language: String): String =
     when (language.lowercase()) {
-        "fr" -> "Français"
-        "ru" -> "Russe"
-        else -> "Anglais"
+        "fr" -> stringResource(R.string.lang_name_fr)
+        "ru" -> stringResource(R.string.lang_name_ru)
+        else -> stringResource(R.string.lang_name_en)
     }
 
 private fun readKillSwitchStatus(context: android.content.Context): KillSwitchStatus {

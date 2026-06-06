@@ -2,7 +2,11 @@
 package com.swimvpn.app
 
 import android.Manifest
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import android.content.res.Configuration
+import android.content.res.Resources
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -35,8 +39,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -95,8 +102,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        val initialLanguage = AppCompatDelegate.getApplicationLocales()[0]?.language
-            ?: VpnNotificationLanguage.DEFAULT_LANGUAGE
+        // Source of truth = persisted prefs. Sync the OS/non-Compose locale (Toasts, notifications)
+        // to it once at startup; live in-app changes are applied in-place via a localized Context
+        // below (no Activity recreate, so the user is never bounced out of their current screen).
+        val initialLanguage = runBlocking { prefs.languageFlow.first() }
         applyLocale(initialLanguage)
         logStartup("Activity.onCreate before setContent")
         setContent {
@@ -110,10 +119,6 @@ class MainActivity : AppCompatActivity() {
                 ThemeMode.LIGHT -> false
             }
 
-            LaunchedEffect(language) {
-                applyLocale(language)
-            }
-
             SideEffect {
                 if (!firstCompositionLogged) {
                     firstCompositionLogged = true
@@ -121,25 +126,58 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            SwimVpnTheme(darkTheme = darkTheme) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AppNavigation(
-                        viewModel = viewModel,
-                        onApplyLocale = ::applyLocale,
-                    )
+            // Apply the selected language IN-PLACE: a Context configured with the chosen locale is
+            // provided to the whole tree, so every stringResource recomposes in the new language
+            // without recreating the Activity (the user stays on whatever screen they were on).
+            val baseContext = LocalContext.current
+            val localizedContext = remember(language) {
+                // Wrap the ORIGINAL activity context (keep it as base, so LocalActivityResultRegistryOwner
+                // and the other owners still resolve up the ContextWrapper chain) and only swap resources
+                // to the chosen locale. Replacing LocalContext with createConfigurationContext() directly
+                // breaks that owner chain and crashes the NavHost.
+                LocalizedContextWrapper(baseContext, Locale(VpnNotificationLanguage.normalize(language)))
+            }
+            CompositionLocalProvider(
+                LocalContext provides localizedContext,
+                LocalConfiguration provides localizedContext.resources.configuration,
+            ) {
+                SwimVpnTheme(darkTheme = darkTheme) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        AppNavigation(
+                            viewModel = viewModel,
+                            onApplyLocale = ::applyLocale,
+                        )
+                    }
                 }
             }
         }
         logStartup("Activity.onCreate after setContent")
+        handlePaymentReturnDeepLink(intent)
     }
 
     override fun onResume() {
         super.onResume()
         viewModel.refreshAfterExternalCheckoutIfNeeded()
         viewModel.refreshSubscriptionsOnForeground()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePaymentReturnDeepLink(intent)
+    }
+
+    // swimvpn://pay/return (or /cancel) — the PSP redirects here after checkout. singleTask brings the
+    // existing app instance to the foreground; we force an entitlement refresh so a freshly purchased
+    // plan is reflected immediately (onResume also refreshes, this covers an expired refresh window).
+    private fun handlePaymentReturnDeepLink(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == "swimvpn" && data.host == "pay") {
+            viewModel.refreshAfterExternalCheckoutIfNeeded()
+        }
     }
 
     private fun applyLocale(langCode: String) {
@@ -226,9 +264,14 @@ fun AppNavigation(
 
     NavHost(navController = navController, startDestination = bootstrapDestination) {
         composable("onboarding") {
-            OnboardingScreen(onFinish = { 
-                viewModel.completeOnboarding()
-            }) 
+            val obLanguage = (state as? AppState.Success)?.language
+                ?: (state as? AppState.TrialSetup)?.language
+                ?: VpnNotificationLanguage.DEFAULT_LANGUAGE
+            OnboardingScreen(
+                onFinish = { viewModel.completeOnboarding() },
+                currentLanguage = obLanguage,
+                onLanguageChange = { viewModel.setLanguage(it) },
+            )
         }
         composable("home") { 
             val data = state as? AppState.Success ?: return@composable
@@ -238,7 +281,8 @@ fun AppNavigation(
                 onNavigateProfile = { navController.navigateProductRoot("profile") },
                 onNavigateServers = { navController.navigateProductRoot("servers") },
                 onNavigateSubscription = { navController.navigateProductRoot("subscription") },
-                onNavigateProxy = { navController.navigateProductRoot("proxy") }
+                onNavigateProxy = { navController.navigateProductRoot("proxy") },
+                onNavigateTechnical = { navController.navigateOnce("technical") },
             )
         }
         composable("servers") { 
@@ -259,7 +303,7 @@ fun AppNavigation(
                 onSubscribeClick = { navController.navigateProductRoot("subscription") },
                 onProfileClick = { navController.navigateProductRoot("profile") },
                 onHomeClick = { navController.navigateProductRoot("home") },
-                onSettingsClick = { navController.navigateProductRoot("profile") },
+                onSettingsClick = { navController.navigateOnce("technical") },
                 onProxyClick = { navController.navigateProductRoot("proxy") },
                 onPeriodicRefresh = { viewModel.refreshServerLatency() },
             )
@@ -345,7 +389,7 @@ fun AppNavigation(
                 onNavigateHome = { navController.navigateProductRoot("home") },
                 onNavigateServers = { navController.navigateProductRoot("servers") },
                 onNavigateProxy = { navController.navigateProductRoot("proxy") },
-                onNavigateSettings = { navController.navigateProductRoot("profile") },
+                onNavigateSettings = { navController.navigateOnce("technical") },
             )
         }
         composable("proxy") {
@@ -412,8 +456,9 @@ fun AppNavigation(
                 activeCamouflageProfileId = activeCamouflageProfileId,
                 onCamouflageProfileChange = { viewModel.setCamouflageProfile(it) },
                 onLanguageChange = {
+                    // Persist + update state only. The localized Context above re-renders the UI in the
+                    // new language in-place — no Activity recreate, so we stay on the current screen.
                     viewModel.setLanguage(it)
-                    onApplyLocale(it)
                 },
                 themeMode = themeMode.name,
                 onThemeModeChange = { viewModel.setThemeMode(ThemeMode.fromPersisted(it)) },
@@ -506,6 +551,21 @@ internal fun SubscribeNudgeContent(
             )
         }
     }
+}
+
+/**
+ * Context wrapper that keeps the wrapped (activity) context as its base — so LocalContext-based owner
+ * lookups (ActivityResultRegistryOwner, OnBackPressedDispatcherOwner, …) still resolve — while serving
+ * resources for the chosen locale. Used to switch the app language in-place without recreating the
+ * Activity (which would bounce the user back to the home destination).
+ */
+private class LocalizedContextWrapper(base: Context, locale: Locale) : ContextWrapper(base) {
+    private val localizedResources: Resources =
+        base.createConfigurationContext(
+            Configuration(base.resources.configuration).apply { setLocale(locale) }
+        ).resources
+
+    override fun getResources(): Resources = localizedResources
 }
 
 private fun NavHostController.navigateProductRoot(route: String) {

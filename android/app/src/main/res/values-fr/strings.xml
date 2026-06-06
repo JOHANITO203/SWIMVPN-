@@ -4,12 +4,14 @@
     <!-- Onboarding -->
     <string name="onboarding_next">SUIVANT</string>
     <string name="onboarding_start">COMMENCER</string>
-    <string name="ob_step1_title">SWIMVPN+</string>
-    <string name="ob_step1_desc">Accès rapide et sécurisé, conçu pour l’anonymat total.</string>
-    <string name="ob_step2_title">VITESSE FULGURANTE</string>
-    <string name="ob_step2_desc">Serveurs optimisés pour le streaming et le gaming sans latence.</string>
-    <string name="ob_step3_title">SÉCURITÉ MILITAIRE</string>
-    <string name="ob_step3_desc">Protocoles VLESS et SSH pour contourner toute censure.</string>
+    <string name="ob_step1_title">Invisible par design</string>
+    <string name="ob_step1_desc">Un camouflage adaptatif : ton trafic ressemble à du trafic normal.</string>
+    <string name="ob_step2_title">L’IA trouve le meilleur chemin</string>
+    <string name="ob_step2_desc">Un agent déterministe choisit le nœud le plus rapide et le plus sûr, en temps réel.</string>
+    <string name="ob_step3_title">Tes données, chiffrées</string>
+    <string name="ob_step3_desc">Un tunnel chiffré masque ton IP et ta localisation, partout.</string>
+    <string name="ob_step4_title">Zéro collecte</string>
+    <string name="ob_step4_desc">On ne stocke pas tes données. Ce qui t’appartient reste à toi.</string>
 
     <!-- Home -->
     <string name="status_connected">Connecté</string>
@@ -73,6 +75,9 @@
     <string name="import_qr_subtitle">Scanner l’accès</string>
     <string name="import_header_title">Importer l’accès</string>
     <string name="import_header_subtitle">Ajoutez des configurations gérées à vos serveurs</string>
+    <string name="import_already_imported">Cette configuration est déjà importée</string>
+    <string name="import_empty_title">Aucun accès importé</string>
+    <string name="import_empty_subtitle">Utilisez la saisie manuelle ou scannez un QR code pour ajouter des serveurs sélectionnables.</string>
     <string name="import_vault_title">Coffre d’accès</string>
     <string name="import_vault_subtitle">Saisie manuelle et QR code uniquement</string>
     <string name="import_saved_count">%1$d enregistrée(s)</string>
@@ -229,6 +234,7 @@
     <string name="subscription_feature_data">%1$s inclus</string>
     <string name="subscription_feature_devices">Jusqu’à %1$d appareils</string>
     <string name="subscription_feature_ai">Agent IA : meilleurs nœuds en temps réel</string>
+    <string name="subscription_money_back_guarantee">Garantie satisfait ou remboursé 30 jours</string>
     <string name="subscription_current_plan">Actuel</string>
     <string name="pricing_swimpay_supports">Payable via SwimPay — %1$s</string>
     <string name="subscription_cancel_plan">Annuler l’abonnement</string>
@@ -247,6 +253,13 @@
 
     <!-- Technical -->
     <string name="label_routing">ROUTAGE</string>
+    <string name="technical_screen_title">Paramètres</string>
+    <string name="technical_route_tunnel">Tunnel</string>
+    <string name="technical_routing_local_proxy">Proxy local</string>
+    <string name="technical_routing_full_tunnel">Tunnel complet</string>
+    <string name="lang_name_fr">Français</string>
+    <string name="lang_name_ru">Russe</string>
+    <string name="lang_name_en">Anglais</string>
     <string name="kill_switch_chip_system">SYSTÈME</string>
     <string name="kill_switch_chip_always_on">TOUJOURS ACTIF</string>
     <string name="kill_switch_chip_lockdown">VERROUILLAGE</string>

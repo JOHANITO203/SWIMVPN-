@@ -47,6 +47,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -79,6 +80,7 @@ fun ConfigImportScreen(
     showToast: (String) -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var showImportDialog by remember { mutableStateOf(false) }
     var showQrScanner by remember { mutableStateOf(false) }
@@ -213,7 +215,7 @@ fun ConfigImportScreen(
                             showToast("Erreur d’import : ${result.errors.firstOrNull() ?: "Erreur inconnue"}")
                         }
                         is com.swimvpn.app.config.ImportResult.Duplicate -> {
-                            showToast("Cette configuration est déjà importée")
+                            showToast(context.getString(R.string.import_already_imported))
                         }
                     }
                 }
@@ -243,7 +245,7 @@ fun ConfigImportScreen(
                                 showToast("Erreur d’import QR : ${result.errors.firstOrNull() ?: "Erreur inconnue"}")
                             }
                             is com.swimvpn.app.config.ImportResult.Duplicate -> {
-                                showToast("Cette configuration est déjà importée")
+                                showToast(context.getString(R.string.import_already_imported))
                             }
                         }
                     }
@@ -578,13 +580,13 @@ private fun EmptyImportState() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Aucun accès importé",
+            text = stringResource(R.string.import_empty_title),
             color = SwimDesignTokens.Color.TextPrimary,
             fontSize = importFixedSp(16),
             fontWeight = FontWeight.Black,
         )
         Text(
-            text = "Utilisez la saisie manuelle ou scannez un QR code pour ajouter des serveurs sélectionnables.",
+            text = stringResource(R.string.import_empty_subtitle),
             color = SwimDesignTokens.Color.TextSecondary,
             fontSize = importFixedSp(12),
             maxLines = 2,

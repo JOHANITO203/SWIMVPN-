@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWIMVPN — Redesign cartes d'abonnement (3 directions)</title>
+<style>
+  /* ============================================================
+     SWIMVPN — Plan card redesign mock
+     Visual grammar (NON-NEGOTIABLE):
+       bg true-black #05070A · purple #7B2FBE / #B388FF / #2A1840
+       green #3FD68C · text #F6F4FC / #9C97B4 / #6E6A82
+       matte rubber/hardware, satin glass, 1px top rim, recessed wells
+       NO white speckle, NO neon radial hotspots — vertical gradients only
+     ============================================================ */
+
+  :root{
+    --bg:#05070A;
+    --p:#7B2FBE; --p-light:#B388FF; --p-deep:#2A1840;
+    --green:#3FD68C;
+    --t1:#F6F4FC; --t2:#9C97B4; --t3:#6E6A82;
+
+    /* per-tier jewel tones, muted into the matte system */
+    --steel:#5FB4D6;   --steel-deep:#10212B;   /* Basic  — cool steel/cyan   */
+    --viol:#B388FF;    --viol-deep:#2A1840;     /* Premium — house purple     */
+    --gold:#E3C27E;    --gold-deep:#2B2114;     /* Platine — champagne/violet */
+    --magenta:#C77BD6; --magenta-deep:#241430;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  html,body{
+    background:var(--bg);
+    color:var(--t1);
+    font-family:"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+
+  /* subtle non-speckle atmosphere: faint vertical wash, top-down */
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(120% 60% at 50% -10%, rgba(123,47,190,0.10), transparent 60%),
+      var(--bg);
+    padding:40px 0 80px;
+  }
+
+  .phone{
+    width:430px;
+    margin:0 auto;
+    padding:0 22px;
+  }
+
+  .page-title{
+    font-size:13px;
+    letter-spacing:0.34em;
+    text-transform:uppercase;
+    color:var(--t3);
+    font-weight:600;
+    text-align:center;
+    margin-bottom:6px;
+  }
+  .page-sub{
+    text-align:center;
+    color:var(--t2);
+    font-size:13px;
+    margin-bottom:34px;
+  }
+
+  .dir-head{
+    margin:42px 0 18px;
+    padding-bottom:12px;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+  }
+  .dir-head .lbl{
+    font-size:11px;
+    letter-spacing:0.28em;
+    text-transform:uppercase;
+    color:var(--p-light);
+    font-weight:700;
+  }
+  .dir-head .name{
+    font-size:19px;
+    font-weight:700;
+    color:var(--t1);
+    margin-top:5px;
+    letter-spacing:-0.01em;
+  }
+  .dir-head .desc{
+    font-size:12.5px;
+    color:var(--t2);
+    margin-top:4px;
+    line-height:1.45;
+  }
+
+  /* ---------- CARD BASE (shared matte-rubber chassis) ---------- */
+  .card{
+    position:relative;
+    border-radius:26px;
+    padding:16px 18px;
+    margin-bottom:16px;
+    overflow:hidden;
+    isolation:isolate;
+    border:1px solid rgba(255,255,255,0.045);
+    box-shadow:
+      0 18px 40px -18px rgba(0,0,0,0.85),
+      0 2px 0 0 rgba(0,0,0,0.4);
+  }
+  /* 1px light top rim */
+  .card::before{
+    content:"";
+    position:absolute;inset:0;
+    border-radius:inherit;
+    padding:1px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0) 42%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;
+            mask-composite:exclude;
+    pointer-events:none;
+    z-index:3;
+  }
+
+  .card-head{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    position:relative;
+    z-index:2;
+  }
+
+  /* recessed dark icon well: radial #15151A->#030305 + inner shadow */
+  .well{
+    flex:0 0 auto;
+    border-radius:16px;
+    display:grid;
+    place-items:center;
+    background:radial-gradient(120% 120% at 50% 30%, #15151A, #030305 80%);
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,0.9),
+      inset 0 -1px 1px rgba(255,255,255,0.04),
+      0 1px 0 rgba(255,255,255,0.03);
+  }
+  .well svg{display:block}
+
+  .titles{flex:1 1 auto;min-width:0}
+  .pname{
+    font-weight:700;
+    color:var(--t1);
+    letter-spacing:-0.01em;
+    line-height:1.1;
+  }
+  .psub{
+    color:var(--t2);
+    margin-top:3px;
+    line-height:1.2;
+  }
+  .price{
+    text-align:right;
+    font-weight:800;
+    color:var(--t1);
+    letter-spacing:-0.02em;
+    line-height:1;
+    white-space:nowrap;
+  }
+
+  .feats{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    position:relative;
+    z-index:2;
+  }
+  .feat{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    color:var(--t2);
+    line-height:1.2;
+  }
+  .feat svg{flex:0 0 auto}
+  .feat b{color:var(--t1);font-weight:600}
+
+  /* full-width CTA pill — vertical gradient, NO radial hotspot */
+  .cta{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    border:none;
+    border-radius:999px;
+    color:#fff;
+    font-weight:700;
+    letter-spacing:0.01em;
+    cursor:pointer;
+    position:relative;
+    z-index:2;
+    box-shadow:
+      0 8px 18px -8px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.18);
+  }
+
+  /* popular badge */
+  .badge{
+    position:absolute;
+    top:12px;right:14px;
+    z-index:4;
+    font-size:9.5px;
+    font-weight:700;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    padding:4px 9px;
+    border-radius:999px;
+    color:var(--viol);
+    background:linear-gradient(180deg, rgba(179,136,255,0.18), rgba(179,136,255,0.06));
+    border:1px solid rgba(179,136,255,0.32);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+
+  /* ---------- CRESCENDO SIZE STEPS (per direction) ----------
+     Basic ~92px / Premium ~108px / Platine ~126px target heights.
+     We scale paddings, icon well, type, gaps. */
+  .t-basic   { --pad:14px; --well:42px; --iname:14.5px; --isub:11px; --iprice:18px; --ifeat:11.5px; --icta:13px; --ctapad:11px; --ico:18; }
+  .t-premium { --pad:17px; --well:48px; --iname:16px;   --isub:11.5px;--iprice:21px; --ifeat:12px;   --icta:14px; --ctapad:13px; --ico:20; }
+  .t-platine { --pad:21px; --well:56px; --iname:18px;   --isub:12px;  --iprice:25px; --ifeat:12.5px; --icta:15px; --ctapad:15px; --ico:22; }
+
+  .card{padding:var(--pad)}
+  .well{width:var(--well);height:var(--well)}
+  .pname{font-size:var(--iname)}
+  .psub{font-size:var(--isub)}
+  .price{font-size:var(--iprice)}
+  .feats{margin-top:var(--pad);font-size:var(--ifeat)}
+  .feat{font-size:var(--ifeat)}
+  .cta{margin-top:var(--pad);font-size:var(--icta);padding:var(--ctapad) 16px}
+
+  /* =========================================================
+     DIRECTION A — "Teinte de matériau"
+     Whole satin gradient tinted per jewel tone; accents match.
+     ========================================================= */
+  .A.t-basic{
+    background:linear-gradient(170deg, #0E1A22 0%, #0A1117 55%, #070C10 100%);
+  }
+  .A.t-basic .cta{background:linear-gradient(180deg,#3E7E98,#1E4658)}
+  .A.t-basic .price{color:#BFE6F4}
+  .A.t-basic .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), inset 0 -1px 1px rgba(95,180,214,0.18), 0 0 0 1px rgba(95,180,214,0.10)}
+
+  .A.t-premium{
+    background:linear-gradient(170deg, #241433 0%, #190E26 55%, #0E0816 100%);
+  }
+  .A.t-premium .cta{background:linear-gradient(180deg,#8B43CE,#5A1E94)}
+  .A.t-premium .price{color:#D9C4FF}
+  .A.t-premium .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), inset 0 -1px 1px rgba(179,136,255,0.20), 0 0 0 1px rgba(179,136,255,0.12)}
+
+  .A.t-platine{
+    background:linear-gradient(170deg, #2A1E33 0%, #1C1426 55%, #100B16 100%);
+  }
+  .A.t-platine .cta{background:linear-gradient(180deg,#B97FBE,#7A3F9A)}
+  .A.t-platine .price{color:#F0DCB8}
+  .A.t-platine .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), inset 0 -1px 1px rgba(227,194,126,0.18), 0 0 0 1px rgba(227,194,126,0.12)}
+
+  /* =========================================================
+     DIRECTION B — "Bord lumineux + médaille"
+     Near-uniform dark body; tier color reads from edge rim + well.
+     ========================================================= */
+  .B{
+    background:linear-gradient(180deg, #0D0F14 0%, #090B10 100%);
+  }
+  /* colored edge-light overrides the neutral top rim */
+  .B.t-basic::before{
+    background:linear-gradient(180deg, rgba(95,180,214,0.55), rgba(95,180,214,0) 38%),
+               linear-gradient(0deg, rgba(95,180,214,0.18), rgba(95,180,214,0) 30%);
+  }
+  .B.t-basic{box-shadow:0 18px 40px -18px rgba(0,0,0,0.85), 0 0 22px -10px rgba(95,180,214,0.35)}
+  .B.t-basic .cta{background:linear-gradient(180deg,#3E7E98,#1E4658)}
+  .B.t-basic .price{color:#BFE6F4}
+  .B.t-basic .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), 0 0 0 1px rgba(95,180,214,0.30), 0 0 14px -4px rgba(95,180,214,0.45)}
+
+  .B.t-premium::before{
+    background:linear-gradient(180deg, rgba(179,136,255,0.6), rgba(179,136,255,0) 38%),
+               linear-gradient(0deg, rgba(179,136,255,0.2), rgba(179,136,255,0) 30%);
+  }
+  .B.t-premium{box-shadow:0 18px 40px -18px rgba(0,0,0,0.85), 0 0 26px -10px rgba(123,47,190,0.5)}
+  .B.t-premium .cta{background:linear-gradient(180deg,#8B43CE,#5A1E94)}
+  .B.t-premium .price{color:#D9C4FF}
+  .B.t-premium .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), 0 0 0 1px rgba(179,136,255,0.34), 0 0 16px -4px rgba(179,136,255,0.5)}
+
+  .B.t-platine::before{
+    background:linear-gradient(180deg, rgba(227,194,126,0.6), rgba(227,194,126,0) 38%),
+               linear-gradient(0deg, rgba(227,194,126,0.2), rgba(227,194,126,0) 30%);
+  }
+  .B.t-platine{box-shadow:0 18px 40px -18px rgba(0,0,0,0.85), 0 0 28px -10px rgba(227,194,126,0.4)}
+  .B.t-platine .cta{background:linear-gradient(180deg,#C79A53,#7A5A28)}
+  .B.t-platine .price{color:#F0DCB8}
+  .B.t-platine .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), 0 0 0 1px rgba(227,194,126,0.32), 0 0 16px -4px rgba(227,194,126,0.45)}
+
+  /* =========================================================
+     DIRECTION C — "Carte premium graduée"
+     Basic understated · Premium full purple · Platine richest material
+     (diagonal sheen + gold-violet) — luxury catalogue feel.
+     ========================================================= */
+  .C.t-basic{
+    background:linear-gradient(170deg, #11141A 0%, #0B0E13 100%);
+  }
+  .C.t-basic .cta{background:linear-gradient(180deg,#2E3B45,#1A242C)}
+  .C.t-basic .price{color:#AFC9D6}
+  .C.t-basic .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), inset 0 -1px 1px rgba(95,180,214,0.12)}
+
+  .C.t-premium{
+    background:linear-gradient(170deg, #2A1840 0%, #1B0F2B 55%, #0E0816 100%);
+  }
+  .C.t-premium .cta{background:linear-gradient(180deg,#9248D6,#5A1E94)}
+  .C.t-premium .price{color:#DCC8FF}
+  .C.t-premium .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), inset 0 -1px 1px rgba(179,136,255,0.24), 0 0 0 1px rgba(179,136,255,0.16)}
+
+  .C.t-platine{
+    background:linear-gradient(165deg, #2E2238 0%, #211733 48%, #130D1C 100%);
+  }
+  /* faint diagonal sheen layer — gold->violet, no white speckle */
+  .C.t-platine::after{
+    content:"";
+    position:absolute;inset:0;
+    border-radius:inherit;
+    background:linear-gradient(115deg,
+      rgba(227,194,126,0) 30%,
+      rgba(227,194,126,0.10) 47%,
+      rgba(179,136,255,0.10) 53%,
+      rgba(179,136,255,0) 70%);
+    z-index:1;
+    pointer-events:none;
+  }
+  .C.t-platine .card-head,.C.t-platine .feats,.C.t-platine .cta{z-index:2}
+  .C.t-platine .cta{
+    background:linear-gradient(180deg,#C79A53,#6E3F8C);
+  }
+  .C.t-platine .price{
+    background:linear-gradient(180deg,#F2E1BB,#D9B97E);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .C.t-platine .well{box-shadow:inset 0 2px 4px rgba(0,0,0,0.9), inset 0 -1px 1px rgba(227,194,126,0.22), 0 0 0 1px rgba(227,194,126,0.16)}
+
+  .foot{
+    text-align:center;
+    color:var(--t3);
+    font-size:11px;
+    margin-top:50px;
+    letter-spacing:0.04em;
+  }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="page-title">SWIMVPN · Abonnements</div>
+    <div class="page-sub">Redesign cartes — 3 directions à valider</div>
+
+    <!-- =================== DIRECTION A =================== -->
+    <div class="dir-head">
+      <div class="lbl">Direction A</div>
+      <div class="name">Teinte de matériau</div>
+      <div class="desc">Même structure. Le dégradé satiné de chaque carte est teinté d'un ton joaillier distinct (acier, violet, or-violet) ; prix, CTA et puits d'icône s'accordent. Subtil.</div>
+    </div>
+
+    <!-- BASIC -->
+    <div class="card A t-basic">
+      <div class="card-head">
+        <div class="well" style="--ic:var(--steel)">
+          <!-- medal -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5FB4D6" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5"/><path d="M12 12.5v5M9.5 15h5" opacity="0"/><path d="M8.5 9.5 6 3h4l1.5 4M15.5 9.5 18 3h-4l-1.5 4"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Basic</div>
+          <div class="psub">7 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$3.49</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>50 GB</b> inclus</span></div>
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>1</b> appareil</span></div>
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Basic</button>
+    </div>
+
+    <!-- PREMIUM -->
+    <div class="card A t-premium">
+      <span class="badge">★ Populaire</span>
+      <div class="card-head">
+        <div class="well">
+          <!-- sparkles -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B388FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/><path d="M18.5 14l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Premium</div>
+          <div class="psub">30 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$7.99</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>150 GB</b> inclus</span></div>
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>2</b> appareils</span></div>
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Premium</button>
+    </div>
+
+    <!-- PLATINE -->
+    <div class="card A t-platine">
+      <div class="card-head">
+        <div class="well">
+          <!-- diamond -->
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E3C27E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12l3 5-9 11L3 9l3-5z"/><path d="M3 9h18M9 4l-3 5 6 11 6-11-3-5M12 4l3 5M12 4l-3 5"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Platine</div>
+          <div class="psub">90 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$21.99</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>500 GB</b> inclus</span></div>
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>3</b> appareils</span></div>
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Platine</button>
+    </div>
+
+
+    <!-- =================== DIRECTION B =================== -->
+    <div class="dir-head">
+      <div class="lbl">Direction B</div>
+      <div class="name">Bord lumineux + médaille</div>
+      <div class="desc">Corps sombre quasi-uniforme. La couleur du palier vient d'un liseré 1px lumineux et du puits d'icône coloré ; le corps reste noir mat. Net et lisible.</div>
+    </div>
+
+    <!-- BASIC -->
+    <div class="card B t-basic">
+      <div class="card-head">
+        <div class="well">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5FB4D6" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5"/><path d="M8.5 9.5 6 3h4l1.5 4M15.5 9.5 18 3h-4l-1.5 4"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Basic</div>
+          <div class="psub">7 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$3.49</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>50 GB</b> inclus</span></div>
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>1</b> appareil</span></div>
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Basic</button>
+    </div>
+
+    <!-- PREMIUM -->
+    <div class="card B t-premium">
+      <span class="badge">★ Populaire</span>
+      <div class="card-head">
+        <div class="well">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B388FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/><path d="M18.5 14l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Premium</div>
+          <div class="psub">30 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$7.99</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>150 GB</b> inclus</span></div>
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>2</b> appareils</span></div>
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Premium</button>
+    </div>
+
+    <!-- PLATINE -->
+    <div class="card B t-platine">
+      <div class="card-head">
+        <div class="well">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E3C27E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12l3 5-9 11L3 9l3-5z"/><path d="M3 9h18M9 4l-3 5 6 11 6-11-3-5M12 4l3 5M12 4l-3 5"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Platine</div>
+          <div class="psub">90 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$21.99</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>500 GB</b> inclus</span></div>
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>3</b> appareils</span></div>
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Platine</button>
+    </div>
+
+
+    <!-- =================== DIRECTION C =================== -->
+    <div class="dir-head">
+      <div class="lbl">Direction C</div>
+      <div class="name">Carte premium graduée</div>
+      <div class="desc">Plus marqué. Basic discret, Premium pleinement violet, Platine reçoit un matériau plus riche (léger reflet diagonal + accent or-violet, prix doré). Les tailles montent franchement. Esprit « catalogue luxe ».</div>
+    </div>
+
+    <!-- BASIC -->
+    <div class="card C t-basic">
+      <div class="card-head">
+        <div class="well">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8FA9B5" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="5"/><path d="M8.5 9.5 6 3h4l1.5 4M15.5 9.5 18 3h-4l-1.5 4"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Basic</div>
+          <div class="psub">7 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$3.49</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>50 GB</b> inclus</span></div>
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>1</b> appareil</span></div>
+        <div class="feat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Basic</button>
+    </div>
+
+    <!-- PREMIUM -->
+    <div class="card C t-premium">
+      <span class="badge">★ Populaire</span>
+      <div class="card-head">
+        <div class="well">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C7A6FF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3z"/><path d="M18.5 14l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Premium</div>
+          <div class="psub">30 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$7.99</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>150 GB</b> inclus</span></div>
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>2</b> appareils</span></div>
+        <div class="feat"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Premium</button>
+    </div>
+
+    <!-- PLATINE -->
+    <div class="card C t-platine">
+      <div class="card-head">
+        <div class="well">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F0D89E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12l3 5-9 11L3 9l3-5z"/><path d="M3 9h18M9 4l-3 5 6 11 6-11-3-5M12 4l3 5M12 4l-3 5"/></svg>
+        </div>
+        <div class="titles">
+          <div class="pname">Platine</div>
+          <div class="psub">90 jours · accès sécurisé</div>
+        </div>
+        <div class="price">$21.99</div>
+      </div>
+      <div class="feats">
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>500 GB</b> inclus</span></div>
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span><b>3</b> appareils</span></div>
+        <div class="feat"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FD68C" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4 4 10-11"/></svg><span>Agent IA</span></div>
+      </div>
+      <button class="cta">Choisir Platine</button>
+    </div>
+
+    <div class="foot">Mock statique · grammaire SWIMVPN (true-black · matte rubber · puits encastrés · liserés 1px)</div>
+  </div>
+</body>
+</html>
