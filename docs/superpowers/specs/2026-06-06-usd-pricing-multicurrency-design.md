@@ -12,10 +12,12 @@
 - **No geo-detection.** A VPN structurally breaks IP geolocation (the product hides the user's
   country), so we do NOT detect country/currency. **The user chooses how to pay at the SwimPay
   checkout.** This repo never guesses a currency.
-- **Truthful "supported currencies" indicator.** The pricing surfaces a clear note that SwimPay
+- **Truthful "supported currencies" indicator.** The pricing surfaces a clear note that **SwimPay**
   accepts multiple currencies (USD · RUB · XOF) to reassure the buyer and promote the aggregator. The
   list is **data-driven by actual SwimPay capability**, never hardcoded — we never advertise a
-  currency SwimPay cannot yet collect.
+  currency SwimPay cannot yet collect. **Crypto is NOT part of SwimPay:** the repo has a separate
+  `crypto-pay.service` rail. The indicator labels only SwimPay's fiat currencies; crypto, if kept, is
+  shown as its own independent payment option, never under the SwimPay label.
 - **SwimPay owns the rest.** SwimPay reads the catalog (USD price + supported currencies), presents
   the payment-method/currency choice, collects, and reports the paid currency+amount back.
 
@@ -67,13 +69,14 @@
 - **SwimPay reports back** on a confirmed payment: `{ planId, userRef, paidCurrency, paidAmount,
   providerRef, ... }` → this repo records it on the `Order` (currency + amount) and fulfils as today.
 - Until SwimPay supports a given currency, that currency is absent from `supportedCurrencies` → the
-  indicator doesn't show it, and the only live rails remain whatever SwimPay currently has (RUB +
-  crypto). No false promises.
+  indicator doesn't show it. Today SwimPay collects **RUB** only; the separate `crypto-pay` rail
+  remains its own option. No false promises.
 
 ## 7. Out of scope / deferred
 
-- All SwimPay internals: rails (mobile money / card / crypto), currency selection UX, conversion,
-  collection, settlement (Grey/Payoneer/stablecoin treasury).
+- All SwimPay internals: its fiat rails (mobile money / card / SwimPay-RUB), currency selection UX,
+  conversion, collection, settlement (Grey/Payoneer/stablecoin treasury). Crypto is the separate,
+  existing `crypto-pay` rail — neither part of SwimPay nor changed by this spec.
 - PPP / local-amount calibration (the user handles any non-USD amount logic in SwimPay).
 - **Admin revenue-report normalization** across currencies: deferred until multi-currency orders
   actually exist. When they do, the admin bot's RUB sums must normalize multi-currency orders to one
@@ -84,5 +87,6 @@
 This repo's piece is small and is **not independently valuable** — a USD price + an honest "we accept
 USD/RUB/XOF" note does nothing until SwimPay actually collects those currencies. Its value is to make
 the catalog + buyer-facing promise USD-anchored and truthful so SwimPay can plug in. Sequencing-wise it
-can ship anytime (it degrades gracefully: today the indicator shows only what SwimPay collects, i.e.
-RUB + crypto), and lights up as the user turns rails on in SwimPay.
+can ship anytime (it degrades gracefully: today the SwimPay indicator shows only RUB — what SwimPay
+actually collects — while the separate crypto-pay rail stays its own option), and the USD/XOF labels
+light up as the user turns those rails on in SwimPay.
