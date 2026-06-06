@@ -83,6 +83,7 @@ fun HomeScreen(
     onNavigateServers: () -> Unit,
     onNavigateSubscription: () -> Unit,
     onNavigateProxy: () -> Unit = {},
+    onNavigateTechnical: () -> Unit = {},
 ) {
     val profile = data.profile
     val activeServer = data.activeServer
@@ -315,7 +316,7 @@ fun HomeScreen(
                 onServers = onNavigateServers,
                 onProxy = onNavigateProxy,
                 onSubscription = onNavigateSubscription,
-                onSettings = onNavigateProfile,
+                onSettings = onNavigateTechnical,
                 height = dockHeight,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
