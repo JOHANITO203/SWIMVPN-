@@ -330,6 +330,7 @@ fun AppNavigation(
             val data = state as? AppState.Success ?: return@composable
             SubscriptionScreen(
                 plans = data.plans,
+                supportedCurrencies = data.supportedCurrencies,
                 paymentEmail = data.profile.email,
                 activeOfferCode = data.profile.offerCode,
                 onCancelSubscription = { viewModel.cancelCurrentSubscription(context) },

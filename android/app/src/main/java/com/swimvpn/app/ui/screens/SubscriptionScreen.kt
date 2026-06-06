@@ -96,6 +96,8 @@ data class SubscriptionPlanUi(
     val title: String,
     val subtitle: String,
     val price: String,
+    val priceUsd: String? = null,
+    val supportedCurrencies: List<String> = emptyList(),
     val billingPeriod: String,
     val features: List<String>,
     val ctaLabel: String,
@@ -121,6 +123,7 @@ data class SubscriptionScreenUiState(
 @Composable
 fun SubscriptionScreen(
     plans: List<Plan>,
+    supportedCurrencies: List<String> = emptyList(),
     paymentEmail: String?,
     onCheckoutClick: (planId: String, paymentMethod: String) -> Unit,
     onCancelSubscription: () -> Unit = {},
@@ -138,8 +141,8 @@ fun SubscriptionScreen(
             .filter { plan -> plan.priceRub.toBigDecimalOrNull()?.compareTo(BigDecimal.ZERO) == 1 }
             .sortedWith(compareBy<Plan> { plan -> plan.code.toSubscriptionTier().order }.thenBy { it.displayOrder })
     }
-    val uiPlans = remember(visiblePlans, activeOfferCode, resources) {
-        visiblePlans.map { plan -> plan.toSubscriptionPlanUi(activeOfferCode, resources) }
+    val uiPlans = remember(visiblePlans, activeOfferCode, supportedCurrencies, resources) {
+        visiblePlans.map { plan -> plan.toSubscriptionPlanUi(activeOfferCode, supportedCurrencies, resources) }
     }
     var selectedPaymentMethod by remember { mutableStateOf(PaymentMethodPolicy.DEFAULT_METHOD) }
     var pendingPlan by remember { mutableStateOf<SubscriptionPlanUi?>(null) }
@@ -471,6 +474,14 @@ private fun PriceBlock(plan: SubscriptionPlanUi, compact: Boolean) {
             text = plan.billingPeriod,
             color = SwimDesignTokens.Color.TextSecondary,
             fontSize = fixedSp(if (compact) 9 else 10),
+            maxLines = 1,
+        )
+        // Truthful: shows ONLY what SwimPay collects (supportedCurrencies, default ["RUB"]). Crypto is a SEPARATE option, never here.
+        val badges = plan.supportedCurrencies.ifEmpty { listOf("RUB") }.joinToString(" · ")
+        Text(
+            text = stringResource(R.string.pricing_swimpay_supports, badges),
+            color = SwimDesignTokens.Color.TextSecondary,
+            fontSize = fixedSp(if (compact) 8 else 9),
             maxLines = 1,
         )
     }
@@ -938,7 +949,11 @@ private fun StaggeredEnter(
     }
 }
 
-private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?, resources: Resources): SubscriptionPlanUi {
+private fun Plan.toSubscriptionPlanUi(
+    activeOfferCode: String?,
+    supportedCurrencies: List<String>,
+    resources: Resources,
+): SubscriptionPlanUi {
     val tier = code.toSubscriptionTier()
     val activeTier = activeOfferCode?.toSubscriptionTierOrNull()
     val planTitle = name.ifBlank { tier.displayName(resources) }.toLocalizedPlanTitle(tier, resources)
@@ -947,7 +962,9 @@ private fun Plan.toSubscriptionPlanUi(activeOfferCode: String?, resources: Resou
         tier = tier,
         title = planTitle,
         subtitle = durationLabel.toPlanSubtitle(tier, resources),
-        price = formatPlanPrice(priceRub),
+        price = formatPlanPriceUsd(priceUsd).ifEmpty { formatPlanPrice(priceRub) },
+        priceUsd = priceUsd,
+        supportedCurrencies = supportedCurrencies,
         billingPeriod = durationLabel.toBillingPeriod(resources),
         features = buildPlanFeatureBullets(tier = tier, quotaLabel = quotaLabel, resources = resources),
         ctaLabel = resources.getString(R.string.subscription_choose_plan, planTitle),
@@ -1134,6 +1151,11 @@ private fun secondaryCtaBrush(): Brush =
             SwimDesignTokens.Material.ShellBottom,
         ),
     )
+
+private fun formatPlanPriceUsd(priceUsd: String?): String {
+    val v = priceUsd?.replace(',', '.')?.toBigDecimalOrNull() ?: return ""
+    return "$" + v.stripTrailingZeros().toPlainString()
+}
 
 private fun formatPlanPrice(priceRub: String): String {
     val normalized = priceRub.replace(',', '.')

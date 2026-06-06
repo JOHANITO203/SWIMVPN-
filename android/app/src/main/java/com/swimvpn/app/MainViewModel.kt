@@ -96,6 +96,7 @@ sealed class AppState {
         val servers: List<ServerNode>,
         val serverGroups: List<ServerGroup>,
         val plans: List<com.swimvpn.app.data.model.Plan>,
+        val supportedCurrencies: List<String> = emptyList(),
         val isOnboardingDone: Boolean,
         val routingMode: RuntimeMode,
         val autoConnect: Boolean,
@@ -1918,11 +1919,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        var supportedCurrencies: List<String> = emptyList()
         val plans = if (!loadStorePlans) {
             plansFallback
         } else {
             try {
-                api.getPlans()
+                val plansResponse = api.getPlans()
+                supportedCurrencies = plansResponse.supportedCurrencies
+                plansResponse.plans
             } catch (e: Exception) {
                 Log.e("MainViewModel", "API Error fetching plans; continuing app shell without store plans", e)
                 plansFallback
@@ -1942,6 +1946,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             servers = servers,
             serverGroups = serverGroups,
             plans = plans,
+            supportedCurrencies = supportedCurrencies,
             isOnboardingDone = isOnboardingDone,
             routingMode = routingMode,
             autoConnect = autoConnect,
