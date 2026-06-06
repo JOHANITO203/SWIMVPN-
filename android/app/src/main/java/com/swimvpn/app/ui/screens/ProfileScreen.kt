@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.swimvpn.app.R
 import com.swimvpn.app.config.ActiveConfigMetadata
 import com.swimvpn.app.data.network.AccessProfileResponse
+import com.swimvpn.app.ui.components.FeatureGlyphs
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.components.drawSwimLightCardTexture
 import com.swimvpn.app.ui.theme.LocalSwimVisualTokens
@@ -159,7 +160,7 @@ fun ProfileScreen(
                     if (profile.isTrialAvailable && profile.trialEligible && onActivateTrial != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         AccountActionPill(
-                            icon = Icons.Outlined.LocalOffer,
+                            icon = FeatureGlyphs.Offers,
                             title = stringResource(R.string.profile_activate_trial),
                             subtitle = stringResource(R.string.profile_status_trial_available),
                             highlighted = true,
@@ -175,7 +176,7 @@ fun ProfileScreen(
             AccountSectionTitle(stringResource(R.string.label_management))
             AccountCanvas {
                 AccountActionPill(
-                    icon = Icons.Outlined.Hub,
+                    icon = FeatureGlyphs.ProxyHub,
                     title = stringResource(R.string.menu_proxy_title),
                     subtitle = stringResource(R.string.menu_proxy_subtitle),
                     onClick = onNavigateToProxy,
@@ -189,14 +190,14 @@ fun ProfileScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AccountActionPill(
-                    icon = Icons.AutoMirrored.Outlined.HelpOutline,
+                    icon = FeatureGlyphs.Help,
                     title = stringResource(R.string.menu_support),
                     subtitle = stringResource(R.string.profile_menu_support_subtitle),
                     onClick = onNavigateToSupport,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 AccountActionPill(
-                    icon = Icons.Outlined.CreditCard,
+                    icon = FeatureGlyphs.Payment,
                     title = stringResource(R.string.menu_subscription),
                     subtitle = stringResource(R.string.profile_section_swimvpn_access),
                     onClick = onNavigateToSubscription,
