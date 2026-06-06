@@ -90,6 +90,17 @@ enum class SubscriptionPlanTier {
     PLATINUM,
 }
 
+/**
+ * Direction A — a muted per-tier "jewel" accent that tints the card material + its accents
+ * (price, rim, icon glow). Kept low-saturation so it stays inside the matte dark grammar.
+ */
+private fun SubscriptionPlanTier.accent(): Color =
+    when (this) {
+        SubscriptionPlanTier.BASIC -> Color(0xFF6FB7D4)    // cool steel-cyan
+        SubscriptionPlanTier.PREMIUM -> Color(0xFFB388FF)  // brand purple (light)
+        SubscriptionPlanTier.PLATINUM -> Color(0xFFD2B06A) // champagne violet-gold
+    }
+
 data class SubscriptionPlanUi(
     val id: String,
     val tier: SubscriptionPlanTier,
@@ -350,11 +361,7 @@ private fun SubscriptionPlanCard(
             .background(planSurfaceBrush(plan.isHighlighted))
             .border(
                 width = if (plan.isHighlighted) 1.4.dp else 1.dp,
-                color = if (plan.isHighlighted) {
-                    SwimDesignTokens.Color.StrokeActive
-                } else {
-                    SwimDesignTokens.Color.StrokeSubtle
-                },
+                color = plan.tier.accent().copy(alpha = if (plan.isHighlighted) 0.55f else 0.30f),
                 shape = shape,
             )
             .clickable(
@@ -372,18 +379,28 @@ private fun SubscriptionPlanCard(
                         size = Size(size.width, 0.9.dp.toPx()),
                     )
                 }
-                if (plan.isHighlighted) {
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.18f),
-                                Color.Transparent,
-                            ),
-                            center = Offset(size.width * 0.12f, size.height * 0.24f),
-                            radius = size.width * 0.42f,
+                // Direction A — per-tier jewel material tint (muted, on-grammar).
+                val planAccent = plan.tier.accent()
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            planAccent.copy(alpha = if (plan.isHighlighted) 0.16f else 0.11f),
+                            Color.Transparent,
                         ),
-                    )
-                }
+                        startY = 0f,
+                        endY = size.height * 0.9f,
+                    ),
+                )
+                drawRect(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            planAccent.copy(alpha = if (plan.isHighlighted) 0.20f else 0.14f),
+                            Color.Transparent,
+                        ),
+                        center = Offset(size.width * 0.14f, size.height * 0.22f),
+                        radius = size.width * 0.5f,
+                    ),
+                )
                 drawRect(
                     brush = Brush.verticalGradient(
                         colors = listOf(
@@ -467,18 +484,13 @@ private fun PriceBlock(plan: SubscriptionPlanUi, compact: Boolean) {
         }
         Text(
             text = plan.price,
-            color = SwimDesignTokens.Color.TextPrimary,
+            color = plan.tier.accent(),
             fontSize = fixedSp(if (compact) 16 else 18),
             fontWeight = FontWeight.Black,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Text(
-            text = plan.billingPeriod,
-            color = SwimDesignTokens.Color.TextSecondary,
-            fontSize = fixedSp(if (compact) 9 else 10),
-            maxLines = 1,
-        )
+        // "/ période" intentionally removed — the plan duration is already stated on each offer's subtitle.
     }
 }
 
@@ -493,25 +505,23 @@ private fun PlanIconBadge(
         SubscriptionPlanTier.PREMIUM -> R.drawable.ic_plan_premium_sparkles
         SubscriptionPlanTier.PLATINUM -> R.drawable.ic_plan_platinum_diamond
     }
-    val tint = if (highlighted) SwimDesignTokens.Color.PurpleActive else SwimDesignTokens.Color.TextPrimary
+    val tint = tier.accent()
 
     Box(
         modifier = Modifier
             .size(size)
             .drawBehind {
                 val radius = this.size.minDimension / 2f
-                if (highlighted) {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                SwimDesignTokens.Color.PurplePrimary.copy(alpha = 0.28f),
-                                Color.Transparent,
-                            ),
-                            center = center,
-                            radius = radius * 1.32f,
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            tier.accent().copy(alpha = if (highlighted) 0.30f else 0.18f),
+                            Color.Transparent,
                         ),
-                    )
-                }
+                        center = center,
+                        radius = radius * 1.32f,
+                    ),
+                )
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(
@@ -733,7 +743,7 @@ private fun GuaranteeRow(supportedCurrencies: List<String>, modifier: Modifier =
             color = SwimDesignTokens.Color.TextPrimary,
             fontSize = fixedSp(13),
             fontWeight = FontWeight.Black,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }
