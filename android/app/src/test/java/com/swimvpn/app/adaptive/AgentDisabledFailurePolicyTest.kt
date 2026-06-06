@@ -69,4 +69,24 @@ class AgentDisabledFailurePolicyTest {
         )
         assertEquals(planned, resolved)
     }
+
+    @Test
+    fun `agent off downgrades MORPH_PROFILE to same-server reconnect`() {
+        val planned = DecisionAction(
+            type = DecisionActionType.MORPH_PROFILE,
+            targetServerId = "s",
+            delayMs = 0L,
+            reason = "x",
+            targetProfileId = "chrome",
+        )
+        val resolved = AgentDisabledFailurePolicy.resolve(agentEnabled = false, currentServerId = "s", plannedAction = planned)
+        assertEquals(DecisionActionType.RECONNECT_SAME, resolved.type)
+        assertEquals(null, resolved.targetProfileId)
+    }
+
+    @Test
+    fun `agent on leaves MORPH_PROFILE unchanged`() {
+        val planned = DecisionAction(DecisionActionType.MORPH_PROFILE, "s", 0L, "x", "chrome")
+        assertEquals(planned, AgentDisabledFailurePolicy.resolve(true, "s", planned))
+    }
 }

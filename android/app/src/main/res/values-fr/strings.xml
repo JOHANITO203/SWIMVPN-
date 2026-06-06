@@ -180,6 +180,7 @@
     <string name="err_fetch_servers_failed">Impossible de charger la liste des serveurs. Vérifiez votre connexion et réessayez.</string>
     <string name="err_open_settings_failed">Impossible d’ouvrir les paramètres Android sur cet appareil.</string>
     <string name="adaptive_reconnecting">Réseau instable. Reconnexion...</string>
+    <string name="adaptive_optimizing">Optimisation de la connexion…</string>
     <string name="server_switch_reconnecting">Bascule de serveur…</string>
     <string name="adaptive_switching_route">Réseau instable. Changement de route...</string>
     <string name="adaptive_reconnect_give_up">Connexion instable. Choisissez un autre serveur ou réessayez plus tard.</string>

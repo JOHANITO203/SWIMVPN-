@@ -129,4 +129,60 @@ class CamouflageAdaptiveTest {
         assertEquals(true, fields["success"])
         assertFalse("no failure cause on success", fields.containsKey("cause"))
     }
+
+    // --- MORPH_PROFILE cascade (Stage B) ---
+
+    @Test
+    fun `soft degradation skips same-server retry and morphs immediately`() {
+        val action = AdaptiveDecisionAgent.planAfterFailure(
+            currentServerId = "s", candidates = listOf(), scores = emptyMap(),
+            reconnectAttempt = 0, nowMs = 1_000L, networkType = NetworkType.WIFI,
+            currentProfileId = "auto", triedProfileIds = setOf("auto"),
+            softDegradation = true,
+        )
+        assertEquals(DecisionActionType.MORPH_PROFILE, action.type)
+        assertEquals("chrome", action.targetProfileId)
+    }
+
+    @Test
+    fun `morph is chosen after same-server retries when an untried profile exists`() {
+        val action = AdaptiveDecisionAgent.planAfterFailure(
+            currentServerId = "s",
+            candidates = listOf(),
+            scores = emptyMap(),
+            reconnectAttempt = 2,
+            nowMs = 1_000L,
+            networkType = NetworkType.WIFI,
+            currentProfileId = "auto",
+            triedProfileIds = setOf("auto"),
+        )
+        assertEquals(DecisionActionType.MORPH_PROFILE, action.type)
+        assertEquals("s", action.targetServerId)
+        assertEquals("chrome", action.targetProfileId) // next untried in fallbackOrder after auto
+    }
+
+    @Test
+    fun `morph stops after the limit and falls through to switch-or-retry`() {
+        val action = AdaptiveDecisionAgent.planAfterFailure(
+            currentServerId = "s",
+            candidates = listOf(),
+            scores = emptyMap(),
+            reconnectAttempt = 2,
+            nowMs = 1_000L,
+            networkType = NetworkType.WIFI,
+            currentProfileId = "firefox",
+            triedProfileIds = setOf("auto", "chrome", "firefox"),
+        )
+        assertEquals(DecisionActionType.RECONNECT_SAME, action.type) // no fallback candidate -> retry current
+    }
+
+    @Test
+    fun `same-server retry still precedes any morph`() {
+        val action = AdaptiveDecisionAgent.planAfterFailure(
+            currentServerId = "s", candidates = listOf(), scores = emptyMap(),
+            reconnectAttempt = 0, nowMs = 1_000L, networkType = NetworkType.WIFI,
+            currentProfileId = "auto", triedProfileIds = setOf("auto"),
+        )
+        assertEquals(DecisionActionType.RECONNECT_SAME, action.type)
+    }
 }

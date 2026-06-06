@@ -55,6 +55,7 @@ data class ServerQualityScore(
 enum class DecisionActionType {
     RECONNECT_SAME,
     SWITCH_SERVER,
+    MORPH_PROFILE,
     GIVE_UP,
 }
 
@@ -77,11 +78,13 @@ data class DecisionAction(
     val targetServerId: String?,
     val delayMs: Long,
     val reason: String,
+    val targetProfileId: String? = null,
 )
 
 object AdaptiveDecisionAgent {
     const val MAX_RECONNECT_ATTEMPTS = 5
     private const val SAME_SERVER_RETRY_LIMIT = 2
+    private const val SHAPING_MORPH_LIMIT = 2
     private const val AVOID_AFTER_CONSECUTIVE_FAILURES = 2
     private const val AVOID_DURATION_MS = 10 * 60 * 1000L
     private const val FAILURE_RECOVERY_DECAY_MS = 30 * 60 * 1000L
@@ -271,6 +274,9 @@ object AdaptiveDecisionAgent {
         reconnectAttempt: Int,
         nowMs: Long,
         networkType: NetworkType = NetworkType.UNKNOWN,
+        currentProfileId: String? = null,
+        triedProfileIds: Set<String> = emptySet(),
+        softDegradation: Boolean = false,
     ): DecisionAction {
         if (currentServerId == null || reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
             return DecisionAction(
@@ -281,12 +287,32 @@ object AdaptiveDecisionAgent {
             )
         }
 
-        if (reconnectAttempt < SAME_SERVER_RETRY_LIMIT && !scores[currentServerId].isAvoided(nowMs)) {
+        // Soft degradation = "connected but unhealthy": the link IS up, so reconnecting the SAME server
+        // with the SAME (throttled) profile is pointless — skip straight to the morph phase. Hard
+        // failures keep the same-server retry first (transient blips often self-heal on reconnect).
+        if (!softDegradation && reconnectAttempt < SAME_SERVER_RETRY_LIMIT && !scores[currentServerId].isAvoided(nowMs)) {
             return DecisionAction(
                 type = DecisionActionType.RECONNECT_SAME,
                 targetServerId = currentServerId,
                 delayMs = backoffFor(reconnectAttempt),
                 reason = "retry_same_server_before_fallback",
+            )
+        }
+
+        // Stage B: before abandoning the (premium) server, try the next untried shaping profile on it.
+        // Morphs are bounded by SHAPING_MORPH_LIMIT and do NOT consume the reconnect-attempt budget.
+        // No-op for non-Stage-B callers (currentProfileId == null) => old cascade unchanged.
+        val morph = if (currentProfileId != null && !scores[currentServerId].isAvoided(nowMs) &&
+            triedProfileIds.size <= SHAPING_MORPH_LIMIT) {
+            nextUntriedProfile(triedProfileIds)
+        } else null
+        if (morph != null) {
+            return DecisionAction(
+                type = DecisionActionType.MORPH_PROFILE,
+                targetServerId = currentServerId,
+                delayMs = backoffFor(reconnectAttempt),
+                reason = "try_next_shaping_profile_before_switching_server",
+                targetProfileId = morph.id,
             )
         }
 
@@ -527,6 +553,10 @@ object AdaptiveDecisionAgent {
      *
      * NOTE: this optimizes connection RELIABILITY, not stealth (which the client cannot measure).
      */
+    /** The most-preferred shaping profile not yet tried this incident, or null if all are exhausted. */
+    fun nextUntriedProfile(triedProfileIds: Set<String>): CamouflageProfile? =
+        CamouflageProfileRepository.fallbackOrder.firstOrNull { it.id !in triedProfileIds }
+
     fun selectBestCamouflageProfile(
         score: ServerQualityScore?,
         networkType: NetworkType,
