@@ -1154,6 +1154,9 @@ private fun secondaryCtaBrush(): Brush =
 
 private fun formatPlanPriceUsd(priceUsd: String?): String {
     val v = priceUsd?.replace(',', '.')?.toBigDecimalOrNull() ?: return ""
+    // Treat 0 (the DB default before a USD price is set) as "unset" so the headline falls back to RUB
+    // instead of showing "$0" in the window between the migration and the price backfill.
+    if (v <= java.math.BigDecimal.ZERO) return ""
     return "$" + v.stripTrailingZeros().toPlainString()
 }
 

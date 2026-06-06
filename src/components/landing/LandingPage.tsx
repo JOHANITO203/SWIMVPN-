@@ -23,9 +23,9 @@ import {
   isLandingLocale,
 } from './landingContent';
 
-// Headline price shown on the landing, in USD. The user sets/finalizes this
-// figure here — it is the single source of truth for the displayed amount.
-const USD_PRICE = '4.99';
+// Headline price shown on the landing, in USD — the flagship monthly plan (matches the "/month"
+// suffix). Validated tiers: $3.49 week / $7.99 month / $21.99 quarter. Single source of truth here.
+const USD_PRICE = '7.99';
 
 // Currencies SwimPay can actually settle in today. This MUST stay truthful:
 // flip to add 'USD', 'XOF' (etc.) only once SwimPay's rails for them go live.
