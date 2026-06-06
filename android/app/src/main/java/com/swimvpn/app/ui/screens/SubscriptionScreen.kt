@@ -32,7 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -268,7 +268,10 @@ fun SubscriptionScreen(
                 if (uiState.showMoneyBackGuarantee) {
                     item {
                         StaggeredEnter(visible = entered, delayMs = 245) {
-                            GuaranteeRow(modifier = Modifier.padding(top = 2.dp, bottom = 8.dp))
+                            GuaranteeRow(
+                                supportedCurrencies = uiState.plans.firstOrNull()?.supportedCurrencies.orEmpty(),
+                                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+                            )
                         }
                     }
                 }
@@ -474,14 +477,6 @@ private fun PriceBlock(plan: SubscriptionPlanUi, compact: Boolean) {
             text = plan.billingPeriod,
             color = SwimDesignTokens.Color.TextSecondary,
             fontSize = fixedSp(if (compact) 9 else 10),
-            maxLines = 1,
-        )
-        // Truthful: shows ONLY what SwimPay collects (supportedCurrencies, default ["RUB"]). Crypto is a SEPARATE option, never here.
-        val badges = plan.supportedCurrencies.ifEmpty { listOf("RUB") }.joinToString(" · ")
-        Text(
-            text = stringResource(R.string.pricing_swimpay_supports, badges),
-            color = SwimDesignTokens.Color.TextSecondary,
-            fontSize = fixedSp(if (compact) 8 else 9),
             maxLines = 1,
         )
     }
@@ -698,8 +693,21 @@ private fun PaymentMethodPill(
     }
 }
 
+/** Renders a SwimPay-supported currency with its symbol, e.g. "₽ RUB", "$ USD", "CFA XOF". */
+private fun swimPayCurrencyBadge(code: String): String = when (code.trim().uppercase()) {
+    "RUB" -> "₽ RUB"
+    "USD" -> "$ USD"
+    "XOF" -> "CFA XOF"
+    else -> code.trim().uppercase()
+}
+
 @Composable
-private fun GuaranteeRow(modifier: Modifier = Modifier) {
+private fun GuaranteeRow(supportedCurrencies: List<String>, modifier: Modifier = Modifier) {
+    // Truthful payment note: communicates the currencies SwimPay actually collects, each with its
+    // symbol. The user picks the currency at the SwimPay checkout — no geolocation here. Crypto is a
+    // SEPARATE rail. Default reflects SwimPay's live rails: RUB, XOF, USD.
+    val badges = supportedCurrencies.ifEmpty { listOf("RUB", "XOF", "USD") }
+        .joinToString(" · ") { swimPayCurrencyBadge(it) }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -713,30 +721,21 @@ private fun GuaranteeRow(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.Security,
+                imageVector = Icons.Outlined.Payments,
                 contentDescription = null,
                 tint = SwimDesignTokens.Color.PurpleActive,
                 modifier = Modifier.size(24.dp),
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
-        Column {
-            Text(
-                text = stringResource(R.string.subscription_money_back_guarantee),
-                color = SwimDesignTokens.Color.TextPrimary,
-                fontSize = fixedSp(13),
-                fontWeight = FontWeight.Black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = "Annulation possible à tout moment, sans justification.",
-                color = SwimDesignTokens.Color.TextMuted,
-                fontSize = fixedSp(12),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(
+            text = stringResource(R.string.pricing_swimpay_supports, badges),
+            color = SwimDesignTokens.Color.TextPrimary,
+            fontSize = fixedSp(13),
+            fontWeight = FontWeight.Black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

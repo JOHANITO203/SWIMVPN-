@@ -27,9 +27,9 @@ import {
 // suffix). Validated tiers: $3.49 week / $7.99 month / $21.99 quarter. Single source of truth here.
 const USD_PRICE = '7.99';
 
-// Currencies SwimPay can actually settle in today. This MUST stay truthful:
-// flip to add 'USD', 'XOF' (etc.) only once SwimPay's rails for them go live.
-const SWIMPAY_CURRENCIES = ['RUB'] as const;
+// Currencies SwimPay actually settles in, each with its symbol. Truthful: SwimPay's live rails today
+// are RUB, XOF, USD. Keep in sync with the app (swimPayCurrencyBadge) and the backend default.
+const SWIMPAY_CURRENCIES = ['₽ RUB', 'CFA XOF', '$ USD'] as const;
 
 const ui = {
   page:
@@ -308,7 +308,7 @@ const LandingPage = () => {
                 <span className="text-sm font-bold text-[#625B70]">{copy.payments.priceSuffix}</span>
               </div>
               <div className="mt-2 text-xs font-bold text-[#7B57E8]">
-                {copy.payments.swimpayVia} {SWIMPAY_CURRENCIES.join(', ')}
+                {copy.payments.swimpayVia} {SWIMPAY_CURRENCIES.join(' · ')}
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
