@@ -73,6 +73,9 @@
     <string name="import_qr_subtitle">Scan access</string>
     <string name="import_header_title">Import access</string>
     <string name="import_header_subtitle">Add managed configurations to your servers</string>
+    <string name="import_already_imported">This configuration is already imported</string>
+    <string name="import_empty_title">No imported access</string>
+    <string name="import_empty_subtitle">Use manual entry or scan a QR code to add selectable servers.</string>
     <string name="import_vault_title">Access vault</string>
     <string name="import_vault_subtitle">Manual input and QR code only</string>
     <string name="import_saved_count">%1$d saved</string>
@@ -229,6 +232,7 @@
     <string name="subscription_feature_data">%1$s included</string>
     <string name="subscription_feature_devices">Up to %1$d devices</string>
     <string name="subscription_feature_ai">AI Agent: best nodes in real time</string>
+    <string name="subscription_money_back_guarantee">30-day money-back guarantee</string>
     <string name="subscription_current_plan">Current</string>
     <string name="pricing_swimpay_supports">Pay via SwimPay — %1$s</string>
     <string name="subscription_cancel_plan">Cancel subscription</string>

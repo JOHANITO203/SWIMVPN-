@@ -73,6 +73,9 @@
     <string name="import_qr_subtitle">Сканировать доступ</string>
     <string name="import_header_title">Импорт доступа</string>
     <string name="import_header_subtitle">Добавьте управляемые конфигурации к вашим серверам</string>
+    <string name="import_already_imported">Эта конфигурация уже импортирована</string>
+    <string name="import_empty_title">Нет импортированного доступа</string>
+    <string name="import_empty_subtitle">Используйте ручной ввод или отсканируйте QR-код, чтобы добавить серверы для выбора.</string>
     <string name="import_vault_title">Хранилище доступа</string>
     <string name="import_vault_subtitle">Только ручной ввод и QR-код</string>
     <string name="import_saved_count">%1$d сохранено</string>
@@ -229,6 +232,7 @@
     <string name="subscription_feature_data">%1$s включено</string>
     <string name="subscription_feature_devices">До %1$d устройств</string>
     <string name="subscription_feature_ai">AI Agent: лучшие узлы в реальном времени</string>
+    <string name="subscription_money_back_guarantee">Гарантия возврата денег 30 дней</string>
     <string name="subscription_current_plan">Активен</string>
     <string name="pricing_swimpay_supports">Оплата через SwimPay — %1$s</string>
     <string name="subscription_cancel_plan">Отменить подписку</string>

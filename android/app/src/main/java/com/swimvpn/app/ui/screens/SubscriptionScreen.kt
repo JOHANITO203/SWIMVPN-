@@ -722,7 +722,7 @@ private fun GuaranteeRow(modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.width(14.dp))
         Column {
             Text(
-                text = "Garantie satisfait ou remboursé 30 jours",
+                text = stringResource(R.string.subscription_money_back_guarantee),
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontSize = fixedSp(13),
                 fontWeight = FontWeight.Black,
