@@ -4,12 +4,14 @@
     <!-- Onboarding -->
     <string name="onboarding_next">ДАЛЕЕ</string>
     <string name="onboarding_start">НАЧАТЬ</string>
-    <string name="ob_step1_title">SWIMVPN+</string>
-    <string name="ob_step1_desc">Быстрый и безопасный доступ, созданный для полной анонимности.</string>
-    <string name="ob_step2_title">МАКСИМАЛЬНАЯ СКОРОСТЬ</string>
-    <string name="ob_step2_desc">Оптимизированные серверы для стриминга и игр без задержек.</string>
-    <string name="ob_step3_title">ВОЕННАЯ БЕЗОПАСНОСТЬ</string>
-    <string name="ob_step3_desc">Протоколы VLESS и SSH для обхода любой цензуры.</string>
+    <string name="ob_step1_title">Невидимость по умолчанию</string>
+    <string name="ob_step1_desc">Адаптивный камуфляж: ваш трафик выглядит как обычный.</string>
+    <string name="ob_step2_title">ИИ находит лучший путь</string>
+    <string name="ob_step2_desc">Детерминированный агент выбирает самый быстрый и надёжный узел в реальном времени.</string>
+    <string name="ob_step3_title">Ваши данные зашифрованы</string>
+    <string name="ob_step3_desc">Зашифрованный туннель скрывает ваш IP и местоположение везде.</string>
+    <string name="ob_step4_title">Ноль сбора данных</string>
+    <string name="ob_step4_desc">Мы не храним ваши данные. Ваше остаётся вашим.</string>
 
     <!-- Home -->
     <string name="status_connected">Подключено</string>
@@ -251,6 +253,13 @@
 
     <!-- Technical -->
     <string name="label_routing">МАРШРУТИЗАЦИЯ</string>
+    <string name="technical_screen_title">Настройки</string>
+    <string name="technical_route_tunnel">Туннель</string>
+    <string name="technical_routing_local_proxy">Локальный прокси</string>
+    <string name="technical_routing_full_tunnel">Полный туннель</string>
+    <string name="lang_name_fr">Французский</string>
+    <string name="lang_name_ru">Русский</string>
+    <string name="lang_name_en">Английский</string>
     <string name="kill_switch_chip_system">СИСТЕМА</string>
     <string name="kill_switch_chip_always_on">ВСЕГДА АКТИВНО</string>
     <string name="kill_switch_chip_lockdown">БЛОКИРОВКА</string>

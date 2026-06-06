@@ -523,7 +523,7 @@ private fun SettingsHeader(onBack: () -> Unit) {
         Spacer(modifier = Modifier.width(14.dp))
         Column {
             Text(
-                text = "Paramètres",
+                text = stringResource(R.string.technical_screen_title),
                 color = SwimDesignTokens.Color.TextPrimary,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Black,
@@ -581,7 +581,7 @@ private fun RoutingPill(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RouteLight(
-                label = "Tunnel",
+                label = stringResource(R.string.technical_route_tunnel),
                 selected = selectedMode == FULL_TUNNEL_MODE,
                 active = selectedMode == FULL_TUNNEL_MODE && (!running || activeMode == FULL_TUNNEL_MODE),
                 onClick = { onRoutingModeChange(FULL_TUNNEL_MODE) },
@@ -936,17 +936,19 @@ private fun normalizeThemeMode(themeMode: String): String =
         else -> AppThemePreference.DARK
     }
 
+@Composable
 private fun routingChipLabel(routingMode: String): String =
     when (normalizeRoutingMode(routingMode)) {
-        LOCAL_PROXY_MODE -> "Proxy local"
-        else -> "Tunnel complet"
+        LOCAL_PROXY_MODE -> stringResource(R.string.technical_routing_local_proxy)
+        else -> stringResource(R.string.technical_routing_full_tunnel)
     }
 
+@Composable
 private fun languageDisplay(language: String): String =
     when (language.lowercase()) {
-        "fr" -> "Français"
-        "ru" -> "Russe"
-        else -> "Anglais"
+        "fr" -> stringResource(R.string.lang_name_fr)
+        "ru" -> stringResource(R.string.lang_name_ru)
+        else -> stringResource(R.string.lang_name_en)
     }
 
 private fun readKillSwitchStatus(context: android.content.Context): KillSwitchStatus {

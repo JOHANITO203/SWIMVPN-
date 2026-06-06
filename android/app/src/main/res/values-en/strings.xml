@@ -4,12 +4,14 @@
     <!-- Onboarding -->
     <string name="onboarding_next">NEXT</string>
     <string name="onboarding_start">START</string>
-    <string name="ob_step1_title">SWIMVPN+</string>
-    <string name="ob_step1_desc">Fast, secure access built for total anonymity.</string>
-    <string name="ob_step2_title">LIGHTNING SPEED</string>
-    <string name="ob_step2_desc">Servers optimized for streaming and gaming without latency.</string>
-    <string name="ob_step3_title">MILITARY-GRADE SECURITY</string>
-    <string name="ob_step3_desc">VLESS and SSH protocols to bypass any censorship.</string>
+    <string name="ob_step1_title">Invisible by design</string>
+    <string name="ob_step1_desc">Adaptive camouflage: your traffic looks like ordinary traffic.</string>
+    <string name="ob_step2_title">AI finds the best path</string>
+    <string name="ob_step2_desc">A deterministic agent picks the fastest, safest node in real time.</string>
+    <string name="ob_step3_title">Your data, encrypted</string>
+    <string name="ob_step3_desc">An encrypted tunnel hides your IP and location, everywhere.</string>
+    <string name="ob_step4_title">Zero data collection</string>
+    <string name="ob_step4_desc">We don’t store your data. What’s yours stays yours.</string>
 
     <!-- Home -->
     <string name="status_connected">Connected</string>
@@ -251,6 +253,13 @@
 
     <!-- Technical -->
     <string name="label_routing">ROUTING</string>
+    <string name="technical_screen_title">Settings</string>
+    <string name="technical_route_tunnel">Tunnel</string>
+    <string name="technical_routing_local_proxy">Local proxy</string>
+    <string name="technical_routing_full_tunnel">Full tunnel</string>
+    <string name="lang_name_fr">French</string>
+    <string name="lang_name_ru">Russian</string>
+    <string name="lang_name_en">English</string>
     <string name="kill_switch_chip_system">SYSTEM</string>
     <string name="kill_switch_chip_always_on">ALWAYS ON</string>
     <string name="kill_switch_chip_lockdown">LOCKDOWN</string>

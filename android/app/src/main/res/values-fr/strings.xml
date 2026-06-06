@@ -4,12 +4,14 @@
     <!-- Onboarding -->
     <string name="onboarding_next">SUIVANT</string>
     <string name="onboarding_start">COMMENCER</string>
-    <string name="ob_step1_title">SWIMVPN+</string>
-    <string name="ob_step1_desc">Accès rapide et sécurisé, conçu pour l’anonymat total.</string>
-    <string name="ob_step2_title">VITESSE FULGURANTE</string>
-    <string name="ob_step2_desc">Serveurs optimisés pour le streaming et le gaming sans latence.</string>
-    <string name="ob_step3_title">SÉCURITÉ MILITAIRE</string>
-    <string name="ob_step3_desc">Protocoles VLESS et SSH pour contourner toute censure.</string>
+    <string name="ob_step1_title">Invisible par design</string>
+    <string name="ob_step1_desc">Un camouflage adaptatif : ton trafic ressemble à du trafic normal.</string>
+    <string name="ob_step2_title">L’IA trouve le meilleur chemin</string>
+    <string name="ob_step2_desc">Un agent déterministe choisit le nœud le plus rapide et le plus sûr, en temps réel.</string>
+    <string name="ob_step3_title">Tes données, chiffrées</string>
+    <string name="ob_step3_desc">Un tunnel chiffré masque ton IP et ta localisation, partout.</string>
+    <string name="ob_step4_title">Zéro collecte</string>
+    <string name="ob_step4_desc">On ne stocke pas tes données. Ce qui t’appartient reste à toi.</string>
 
     <!-- Home -->
     <string name="status_connected">Connecté</string>
@@ -251,6 +253,13 @@
 
     <!-- Technical -->
     <string name="label_routing">ROUTAGE</string>
+    <string name="technical_screen_title">Paramètres</string>
+    <string name="technical_route_tunnel">Tunnel</string>
+    <string name="technical_routing_local_proxy">Proxy local</string>
+    <string name="technical_routing_full_tunnel">Tunnel complet</string>
+    <string name="lang_name_fr">Français</string>
+    <string name="lang_name_ru">Russe</string>
+    <string name="lang_name_en">Anglais</string>
     <string name="kill_switch_chip_system">SYSTÈME</string>
     <string name="kill_switch_chip_always_on">TOUJOURS ACTIF</string>
     <string name="kill_switch_chip_lockdown">VERROUILLAGE</string>
