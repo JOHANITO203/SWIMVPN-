@@ -23,6 +23,14 @@ import {
   isLandingLocale,
 } from './landingContent';
 
+// Headline price shown on the landing, in USD. The user sets/finalizes this
+// figure here — it is the single source of truth for the displayed amount.
+const USD_PRICE = '4.99';
+
+// Currencies SwimPay can actually settle in today. This MUST stay truthful:
+// flip to add 'USD', 'XOF' (etc.) only once SwimPay's rails for them go live.
+const SWIMPAY_CURRENCIES = ['RUB'] as const;
+
 const ui = {
   page:
     'min-h-screen overflow-hidden bg-[#050505] text-[#0A0A0D] selection:bg-[#8A6AF1]/30 selection:text-white',
@@ -293,6 +301,16 @@ const LandingPage = () => {
           <motion.article {...motionProps} id="payments" className={`${ui.lightCard} min-h-[260px] p-7 lg:col-span-4`}>
             <div className="mb-6 text-sm font-black uppercase tracking-[0.18em] text-[#7B57E8]">{copy.payments.title}</div>
             <p className="mb-6 text-sm font-medium leading-relaxed text-[#625B70]">{copy.payments.text}</p>
+            <div className="mb-6">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-bold text-[#625B70]">{copy.payments.priceLabel}</span>
+                <span className="text-4xl font-black tracking-[-0.05em] text-black">${USD_PRICE}</span>
+                <span className="text-sm font-bold text-[#625B70]">{copy.payments.priceSuffix}</span>
+              </div>
+              <div className="mt-2 text-xs font-bold text-[#7B57E8]">
+                {copy.payments.swimpayVia} {SWIMPAY_CURRENCIES.join(', ')}
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {copy.payments.methods.map((method) => (
                 <div key={method.name} className="rounded-2xl bg-white p-5 shadow-[0_14px_34px_rgba(35,29,58,0.10)]">
@@ -384,7 +402,8 @@ function setJsonLd(copy: (typeof LANDING_COPY)[LandingLocale], locale: LandingLo
     image: LANDING_OG_IMAGE_URL,
     offers: {
       '@type': 'Offer',
-      priceCurrency: 'RUB',
+      price: USD_PRICE,
+      priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
     },
     publisher: {
