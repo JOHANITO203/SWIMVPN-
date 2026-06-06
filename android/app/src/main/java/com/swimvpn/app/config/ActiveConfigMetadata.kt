@@ -130,7 +130,9 @@ data class ActiveConfigMetadata(
             server: ServerNode,
             isActive: Boolean = true,
         ): ActiveConfigMetadata {
-            val displayName = server.city.ifBlank { server.country.ifBlank { server.host } }
+            // Never fall back to the raw host for a managed (premium) server — it identifies the
+            // upstream supplier. City → country → a generic premium label, but never the domain.
+            val displayName = server.city.ifBlank { server.country.ifBlank { "SWIMVPN Premium" } }
 
             return ActiveConfigMetadata(
                 source = ActiveConfigSource.SWIMVPN_MANAGED,

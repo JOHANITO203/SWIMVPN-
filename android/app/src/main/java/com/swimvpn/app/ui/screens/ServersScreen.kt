@@ -1185,7 +1185,11 @@ private fun List<ServerNode>.toNodeUi(
         ServerNodeUi(
             id = server.id,
             countryName = server.country.ifBlank { server.city.ifBlank { resources.getString(R.string.servers_unknown_country) } },
-            cityLabel = server.city.ifBlank { server.providerName ?: server.groupName ?: resources.getString(R.string.servers_location_unavailable) },
+            cityLabel = server.city.ifBlank {
+                // Backend (premium) servers never fall back to the supplier provider/group name.
+                if (server.source == "backend") resources.getString(R.string.servers_location_unavailable)
+                else server.providerName ?: server.groupName ?: resources.getString(R.string.servers_location_unavailable)
+            },
             detailLabel = server.buildServerDetailLabel(resources),
             flagEmoji = getFlagEmoji(server.countryCode.orEmpty()),
             pingLabel = server.buildPingLabel(resources),
@@ -1222,17 +1226,25 @@ private fun ServerNode.buildPingLabel(resources: Resources): String =
     }
 
 private fun ServerNode.buildServerDetailLabel(resources: Resources): String {
+    // Premium (backend) servers must never reveal the upstream supplier: the provider/group label and
+    // the raw host both identify the reseller's source. Only neutral facts (protocol/load/availability)
+    // are shown, and the blank-fallback uses a generic label instead of the host. Imported configs are
+    // the user's own, so their provider/group/host stay visible.
+    val isManaged = source == "backend"
     val parts = buildList {
-        providerName?.takeIf { it.isNotBlank() }?.let { add(it) }
-        if (providerName.isNullOrBlank()) {
-            groupName?.takeIf { it.isNotBlank() }?.let { add(it) }
+        if (!isManaged) {
+            providerName?.takeIf { it.isNotBlank() }?.let { add(it) }
+            if (providerName.isNullOrBlank()) {
+                groupName?.takeIf { it.isNotBlank() }?.let { add(it) }
+            }
         }
         protocol.takeIf { it.isNotBlank() }?.uppercase(Locale.ROOT)?.let { add(it) }
         load?.let { add(resources.getString(R.string.servers_load_percent, it)) }
         availabilityStatus?.takeIf { it.isNotBlank() }?.lowercase(Locale.ROOT)?.replaceFirstChar { char -> char.titlecase(Locale.ROOT) }?.let { add(it) }
     }
     return parts.distinct().take(3).joinToString(resources.getString(R.string.servers_detail_separator)).ifBlank {
-        host.takeIf { it.isNotBlank() } ?: resources.getString(R.string.servers_details_pending)
+        if (isManaged) resources.getString(R.string.servers_details_pending)
+        else host.takeIf { it.isNotBlank() } ?: resources.getString(R.string.servers_details_pending)
     }
 }
 

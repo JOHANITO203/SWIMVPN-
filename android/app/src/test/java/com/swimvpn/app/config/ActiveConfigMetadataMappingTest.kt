@@ -4,6 +4,7 @@ import com.swimvpn.app.config.subscriptionparser.ParsedSubscription
 import com.swimvpn.app.config.subscriptionparser.ParsedVpnProfile
 import com.swimvpn.app.data.network.ServerNode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -113,6 +114,27 @@ class ActiveConfigMetadataMappingTest {
         assertNull(metadata.trafficTotalBytes)
         assertNull(metadata.expiresAt)
         assertEquals(emptyList<String>(), metadata.warnings)
+    }
+
+    @Test
+    fun `managed server display name never falls back to the supplier host`() {
+        val metadata = ActiveConfigMetadata.fromManagedServer(
+            server = ServerNode(
+                id = "backend-no-geo",
+                country = "",
+                city = "",
+                host = "wb.router.ru",
+                port = 443,
+                protocol = "vless",
+                tags = listOf("managed"),
+                planScope = "month",
+                source = "backend",
+            ),
+            isActive = true,
+        )
+
+        assertEquals("SWIMVPN Premium", metadata.displayName)
+        assertNotEquals("wb.router.ru", metadata.displayName)
     }
 
     @Test
