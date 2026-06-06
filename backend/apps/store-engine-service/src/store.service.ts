@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom, timeout } from 'rxjs';
+import { resolveSupportedCurrencies } from './payment-capability';
 
 type RuntimeEndpoint = {
   host: string;
@@ -139,13 +140,20 @@ export class StoreService {
   ) {}
 
   async getActivePlans() {
-    return this.prisma.plan.findMany({
+    // Plan rows already carry price_rub AND price_usd (both Decimal(10,2)); findMany returns
+    // them natively, so both serialize identically over transport — no manual mapping needed.
+    const plans = await this.prisma.plan.findMany({
       where: {
         active: true,
         price_rub: { gt: 0 },
       },
       orderBy: { display_order: 'asc' },
     });
+
+    return {
+      plans,
+      supportedCurrencies: resolveSupportedCurrencies(process.env.SWIMPAY_SUPPORTED_CURRENCIES),
+    };
   }
 
   async getServers(data: { userNumber: string; deviceId?: string }) {
