@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom, timeout } from 'rxjs';
+import { resolveSupportedCurrencies } from './payment-capability';
 
 type RuntimeEndpoint = {
   host: string;
@@ -139,13 +140,21 @@ export class StoreService {
   ) {}
 
   async getActivePlans() {
-    return this.prisma.plan.findMany({
+    // BACKWARD-COMPAT: this endpoint MUST return a bare ARRAY of plans. Installed apps
+    // (v1.0.6/1.0.7) Retrofit-decode it as List<Plan>; an object envelope breaks their Gson.
+    // Plan rows already carry price_rub AND price_usd (both Decimal(10,2)); findMany returns
+    // them natively. supportedCurrencies is attached PER-PLAN as an extra field — old apps
+    // ignore unknown fields, new apps read it off any plan.
+    const supportedCurrencies = resolveSupportedCurrencies(process.env.SWIMPAY_SUPPORTED_CURRENCIES);
+    const plans = await this.prisma.plan.findMany({
       where: {
         active: true,
         price_rub: { gt: 0 },
       },
       orderBy: { display_order: 'asc' },
     });
+
+    return plans.map((p) => ({ ...p, supportedCurrencies }));
   }
 
   async getServers(data: { userNumber: string; deviceId?: string }) {

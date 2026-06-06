@@ -82,6 +82,9 @@ export type LandingCopy = {
   payments: {
     title: string;
     text: string;
+    priceLabel: string;
+    priceSuffix: string;
+    swimpayVia: string;
     methods: Array<{ name: string; text: string; icon: 'swimpay' | 'crypto' }>;
   };
   finalCta: {
@@ -180,6 +183,9 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       title: 'SwimPay и Crypto — два способа оплаты внутри SWIMVPN.',
       text:
         'Мы показываем эти методы прямо в продукте, потому что это не обычные публичные модули. Пользователь знакомится с ними в контексте покупки VPN-доступа.',
+      priceLabel: 'от',
+      priceSuffix: '/ мес',
+      swimpayVia: 'Оплата через SwimPay —',
       methods: [
         { name: 'SwimPay', text: 'Основной встроенный способ оплаты для доступа SWIMVPN.', icon: 'swimpay' },
         { name: 'Crypto', text: 'Альтернативный способ для пользователей, которым удобнее крипто-оплата.', icon: 'crypto' },
@@ -284,6 +290,9 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
       title: 'SwimPay et Crypto, deux moyens de paiement dans SWIMVPN.',
       text:
         'Ces modules ne sont pas des produits grand public séparés. On les présente dans le contexte SWIMVPN pour rendre le paiement plus concret et plus rassurant.',
+      priceLabel: 'dès',
+      priceSuffix: '/ mois',
+      swimpayVia: 'Payable via SwimPay —',
       methods: [
         { name: 'SwimPay', text: 'Le moyen intégré principal pour acheter un accès SWIMVPN.', icon: 'swimpay' },
         { name: 'Crypto', text: 'Une alternative pour les utilisateurs qui préfèrent payer en crypto.', icon: 'crypto' },

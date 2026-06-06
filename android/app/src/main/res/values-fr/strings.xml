@@ -230,6 +230,7 @@
     <string name="subscription_feature_devices">Jusqu’à %1$d appareils</string>
     <string name="subscription_feature_ai">Agent IA : meilleurs nœuds en temps réel</string>
     <string name="subscription_current_plan">Actuel</string>
+    <string name="pricing_swimpay_supports">Payable via SwimPay — %1$s</string>
     <string name="subscription_cancel_plan">Annuler l’abonnement</string>
     <string name="subscription_included_in_current_plan">Inclus dans votre offre</string>
     <string name="subscription_content_basic">Forfait basique</string>
