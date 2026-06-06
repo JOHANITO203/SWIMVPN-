@@ -1924,9 +1924,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             plansFallback
         } else {
             try {
-                val plansResponse = api.getPlans()
-                supportedCurrencies = plansResponse.supportedCurrencies
-                plansResponse.plans
+                val fetchedPlans = api.getPlans()
+                supportedCurrencies = fetchedPlans.firstOrNull()?.supportedCurrencies ?: emptyList()
+                fetchedPlans
             } catch (e: Exception) {
                 Log.e("MainViewModel", "API Error fetching plans; continuing app shell without store plans", e)
                 plansFallback

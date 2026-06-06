@@ -12,12 +12,8 @@ data class Plan(
     @SerializedName("price_usd") val priceUsd: String? = null,
     @SerializedName("active") val active: Boolean,
     @SerializedName("display_order") val displayOrder: Int,
-    @SerializedName("slot_count") val slotCount: Int? = null
-)
-
-data class ActivePlansResponse(
-    @SerializedName("plans") val plans: List<Plan> = emptyList(),
-    @SerializedName("supportedCurrencies") val supportedCurrencies: List<String> = emptyList(),
+    @SerializedName("slot_count") val slotCount: Int? = null,
+    @SerializedName("supportedCurrencies") val supportedCurrencies: List<String>? = null
 )
 
 object PaymentMethodPolicy {
