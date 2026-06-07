@@ -2,7 +2,6 @@ package com.swimvpn.app.config
 
 import com.swimvpn.app.vpn.RuntimeMode
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -13,16 +12,31 @@ import org.junit.Test
 class TunnelRuntimeAdapterRoutingTest {
 
     @Test
-    fun `default routing leaves rules empty and sniffing disabled`() {
+    fun `default full tunnel routes dns to fakedns, fast-rejects ipv6, and sniffs for SNI recovery`() {
+        // FakeDNS (shipped in the "connected but no internet" fix) answers DNS locally and recovers the
+        // real hostname from the TLS/HTTP SNI, so the default full-tunnel path now ALWAYS carries a
+        // dns-out (:53) rule, an IPv6 fast-reject (::/0 -> block) rule, and sniffing enabled. This guards
+        // that contract; it previously asserted the obsolete pre-FakeDNS empty-routing / no-sniff behavior.
         val doc = TunnelRuntimeAdapter.generateXrayRuntimeDocument(
             profile = vlessRealityProfile(),
             runtimeMode = RuntimeMode.FULL_TUNNEL,
         ) ?: error("runtime document must be generated")
 
-        assertEquals(0, doc.getAsJsonObject("routing").getAsJsonArray("rules").size())
+        val rules = doc.getAsJsonObject("routing").getAsJsonArray("rules")
+        assertTrue(
+            "default full tunnel must route :53 to dns-out (FakeDNS)",
+            rules.any { it.asJsonObject.get("outboundTag")?.asString == "dns-out" },
+        )
+        assertTrue(
+            "default full tunnel must blackhole literal IPv6 (::/0 -> block)",
+            rules.any { r ->
+                r.asJsonObject.get("outboundTag")?.asString == "block" &&
+                    r.asJsonObject.getAsJsonArray("ip")?.any { it.asString == "::/0" } == true
+            },
+        )
         doc.getAsJsonArray("inbounds").forEach { inbound ->
-            assertFalse(
-                "full tunnel default must not sniff",
+            assertTrue(
+                "FakeDNS recovers the hostname from SNI, so full tunnel must sniff",
                 inbound.asJsonObject.getAsJsonObject("sniffing")["enabled"].asBoolean,
             )
         }
