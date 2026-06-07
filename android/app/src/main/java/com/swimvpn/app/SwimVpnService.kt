@@ -126,8 +126,6 @@ class SwimVpnService : VpnService() {
 
     companion object {
         private const val DEFAULT_VPN_MTU = 1280
-        // Unique-local IPv6 address for the tun, so IPv6 is captured (not leaked) — see startTunnelInterface.
-        private const val VPN_IPV6_ADDRESS = "fd00:2::2"
         const val ACTION_START = "com.swimvpn.app.START_VPN"
         const val ACTION_RESTART = "com.swimvpn.app.RESTART_VPN"
         const val ACTION_STOP = "com.swimvpn.app.STOP_VPN"
@@ -615,16 +613,13 @@ class SwimVpnService : VpnService() {
             // outside the app). A generic name protects the supplier sourcing on every server type.
             .setSession("SWIMVPN+")
             .addAddress("10.0.0.2", 24)
-            // Capture IPv6 on the tun so dual-stack apps cannot leak their real IP straight out over
-            // IPv6 (the IPv4-only tun left literal-IPv6 / DoH-AAAA connections going direct). The prior
-            // capture blackholed because IPv6 was sent to the proxy outbound (no IPv6 egress) → 10s
-            // hang. Now xray routes literal IPv6 to the `block` (blackhole) outbound, which CLOSES the
-            // connection immediately → connect() fails fast → Happy Eyeballs falls back to IPv4 (which
-            // does go through the tunnel). FakeDNS + queryStrategy UseIPv4 already hands apps only A
-            // records, so named hosts never attempt IPv6 here; this only fast-rejects IPv6 literals.
-            .addAddress(VPN_IPV6_ADDRESS, 64)
+            // IPv6 is intentionally NOT assigned or routed on the tun. Our REALITY/SOCKS outbound is
+            // IPv4-only, so routing ::/0 into the tun black-holes IPv6 on IPv6-capable networks
+            // (notably mobile data) → dual-stack apps stall ("connected, no internet"). With no IPv6
+            // on the tun, the framework installs `::/0 unreachable` for this non-bypassable VPN → the
+            // OS drops IPv6 outright and apps fall back to IPv4 (which goes through the tunnel). This
+            // both prevents the IPv6 leak and avoids the black-hole. (Matches a known-good client.)
             .addRoute("0.0.0.0", 0)
-            .addRoute("::", 0)
             .setMtu(DEFAULT_VPN_MTU)
 
         TunnelRuntimeAdapter.DEFAULT_IPV4_DNS_SERVERS.forEach { dns ->
@@ -1538,12 +1533,14 @@ class SwimVpnService : VpnService() {
             }
         }
         networkCallback = callback
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
-            .build()
-        runCatching { connectivityManager.registerNetworkCallback(request, callback) }
-            .onFailure { error -> Log.w("SwimVpnService", "Unable to register network callback", error) }
+        // Track ONLY the system default network (the one actually carrying traffic) instead of every
+        // available network. A plain registerNetworkCallback() matches wifi AND cellular at once; on
+        // multi-network devices (e.g. dual-SIM MIUI) both keep firing callbacks and each
+        // setUnderlyingNetworks() flips the VPN underlying wifi↔cellular, repeatedly breaking the
+        // protect()-bound REALITY socket → page loads stall even on wifi. The default-network callback
+        // reports a single network and a clean handover when the OS actually switches the default.
+        runCatching { connectivityManager.registerDefaultNetworkCallback(callback) }
+            .onFailure { error -> Log.w("SwimVpnService", "Unable to register default network callback", error) }
     }
 
     private fun unregisterNetworkCallback() {
