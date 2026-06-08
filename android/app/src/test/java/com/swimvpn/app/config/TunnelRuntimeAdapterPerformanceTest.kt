@@ -21,7 +21,10 @@ class TunnelRuntimeAdapterPerformanceTest {
     }
 
     @Test
-    fun `generated full tunnel runtime disables inbound sniffing when routing rules are empty`() {
+    fun `generated full tunnel runtime enables sniffing for FakeDNS hostname recovery`() {
+        // FakeDNS serves synthetic IPs, so xray must sniff the TLS/HTTP SNI to recover the real hostname
+        // and resolve it at the exit. Sniffing in the default full-tunnel path is therefore required, not
+        // a perf waste; this test previously asserted the obsolete pre-FakeDNS no-sniff contract.
         val document = TunnelRuntimeAdapter.generateXrayRuntimeDocument(
             profile = vlessRealityProfile(),
             runtimeMode = RuntimeMode.FULL_TUNNEL,
@@ -31,7 +34,11 @@ class TunnelRuntimeAdapterPerformanceTest {
         assertTrue("expected standard inbounds", inbounds.size() > 0)
         inbounds.forEach { inbound ->
             val sniffing = inbound.asJsonObject.getAsJsonObject("sniffing")
-            assertFalse("empty-routing runtime should not sniff inbound traffic", sniffing["enabled"].asBoolean)
+            assertTrue("FakeDNS requires sniffing to recover the hostname from SNI", sniffing["enabled"].asBoolean)
+            assertTrue(
+                "fakedns must be a destOverride target",
+                sniffing.getAsJsonArray("destOverride").any { it.asString == "fakedns" },
+            )
         }
     }
 

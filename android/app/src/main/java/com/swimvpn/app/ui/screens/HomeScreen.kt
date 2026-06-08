@@ -68,6 +68,8 @@ import com.swimvpn.app.ui.components.SwimPillSurface
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.orb.VpnOrbState
 import com.swimvpn.app.ui.theme.SwimDesignTokens
+import com.swimvpn.app.vpn.ConnectionActivity
+import com.swimvpn.app.vpn.ConnectionLiveness
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.RuntimeStatus
@@ -94,6 +96,29 @@ fun HomeScreen(
     val bytesIn by VpnManager.bytesIn.collectAsState()
     val bytesOut by VpnManager.bytesOut.collectAsState()
     val errorMessage by VpnManager.errorMessage.collectAsState()
+    // Honest liveness: claim "active" only on RECENT inbound, not cumulative bytesIn (which never falls,
+    // so it would stay "active" after a working link dies). Samples the existing counters on a timer —
+    // NO network probe. Re-baselined on every connection-state change.
+    var connectionActivity by remember { mutableStateOf(ConnectionActivity.INACTIVE) }
+    LaunchedEffect(inMemoryVpnState) {
+        var lastIn = VpnManager.bytesIn.value
+        var lastOut = VpnManager.bytesOut.value
+        var lastInAt = 0L
+        var lastOutAt = 0L
+        while (true) {
+            val now = System.currentTimeMillis()
+            val nowIn = VpnManager.bytesIn.value
+            val nowOut = VpnManager.bytesOut.value
+            if (nowIn > lastIn) { lastIn = nowIn; lastInAt = now }
+            if (nowOut > lastOut) { lastOut = nowOut; lastOutAt = now }
+            connectionActivity = ConnectionLiveness.derive(
+                connected = VpnManager.state.value == VpnState.CONNECTED,
+                recentInbound = now - lastInAt <= LIVENESS_WINDOW_MS,
+                recentOutbound = now - lastOutAt <= LIVENESS_WINDOW_MS,
+            )
+            delay(LIVENESS_SAMPLE_MS)
+        }
+    }
     val context = LocalContext.current
     // Honor OS battery-saver / "remove animations" so the Halo Pulse aurora doesn't burn GPU and
     // battery on low-end devices: the reduced-motion path freezes drift/spin and holds a mid bloom.
@@ -147,7 +172,14 @@ fun HomeScreen(
     }
 
     val connectionSubtitle = when (vpnState) {
-        VpnState.CONNECTED -> stringResource(R.string.home_connected)
+        // Honest: reflect RECENT traffic, not cumulative bytes. ACTIVE = receiving; STALLED = sending with
+        // no reply (left coverage / dead link) → must update, not stay "Connected"; IDLE = protected but
+        // no live traffic (a probe-free idle link can't be proven alive, so claim only "protected").
+        VpnState.CONNECTED -> when (connectionActivity) {
+            ConnectionActivity.ACTIVE -> stringResource(R.string.home_connected)
+            ConnectionActivity.STALLED -> stringResource(R.string.home_status_no_response)
+            else -> stringResource(R.string.home_status_awaiting_traffic)
+        }
         VpnState.CONNECTING -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
             stringResource(R.string.home_starting_proxy)
         } else {
@@ -193,7 +225,7 @@ fun HomeScreen(
         }
     }
 
-    val orbState = mapVpnConnectionStateToOrbState(vpnState, runtimeStatus)
+    val orbState = mapVpnConnectionStateToOrbState(vpnState, runtimeStatus, connectionActivity == ConnectionActivity.STALLED)
     val statusText = when (vpnState) {
         VpnState.CONNECTED -> stringResource(R.string.status_connected)
         VpnState.CONNECTING -> stringResource(R.string.status_connecting)
@@ -303,7 +335,7 @@ fun HomeScreen(
                 SwimStatsCard(
                     bytesIn = bytesIn,
                     bytesOut = bytesOut,
-                    connected = vpnState == VpnState.CONNECTED,
+                    activity = connectionActivity,
                     height = statsHeight,
                     compact = compact,
                     modifier = Modifier.fillMaxWidth(),
@@ -459,7 +491,7 @@ private fun SwimServerPill(
 private fun SwimStatsCard(
     bytesIn: Long,
     bytesOut: Long,
-    connected: Boolean,
+    activity: ConnectionActivity,
     height: Dp,
     compact: Boolean,
     modifier: Modifier = Modifier,
@@ -491,7 +523,12 @@ private fun SwimStatsCard(
             SwimStatsItem(
                 icon = Icons.Default.SettingsInputAntenna,
                 label = stringResource(R.string.status_connected),
-                value = if (connected) stringResource(R.string.home_antenna_active) else stringResource(R.string.home_antenna_idle),
+                value = when (activity) {
+                    ConnectionActivity.ACTIVE -> stringResource(R.string.home_antenna_active)
+                    ConnectionActivity.STALLED -> stringResource(R.string.home_antenna_no_response)
+                    ConnectionActivity.IDLE -> stringResource(R.string.home_antenna_awaiting)
+                    ConnectionActivity.INACTIVE -> stringResource(R.string.home_antenna_idle)
+                },
                 compact = compact,
             )
         }
@@ -563,8 +600,13 @@ private fun vpnStateForRuntimeStatus(status: RuntimeStatus): VpnState {
     }
 }
 
-private fun mapVpnConnectionStateToOrbState(vpnState: VpnState, runtimeStatus: RuntimeStatus): VpnOrbState {
+private const val LIVENESS_WINDOW_MS = 12_000L
+private const val LIVENESS_SAMPLE_MS = 2_000L
+
+private fun mapVpnConnectionStateToOrbState(vpnState: VpnState, runtimeStatus: RuntimeStatus, stalled: Boolean): VpnOrbState {
     return when {
+        // Sending with no reply on a connected tunnel: surface it as UNSTABLE, never a confident "Connected".
+        stalled -> VpnOrbState.UNSTABLE
         runtimeStatus == RuntimeStatus.RECONNECTING || runtimeStatus == RuntimeStatus.DEGRADED -> VpnOrbState.UNSTABLE
         vpnState == VpnState.UNSTABLE -> VpnOrbState.UNSTABLE
         vpnState == VpnState.CONNECTED -> VpnOrbState.CONNECTED

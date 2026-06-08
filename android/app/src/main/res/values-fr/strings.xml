@@ -303,6 +303,10 @@
     <string name="home_status_unprotected">Non protégé</string>
     <string name="home_antenna_active">Actif</string>
     <string name="home_antenna_idle">Repos</string>
+    <string name="home_antenna_awaiting">En attente</string>
+    <string name="home_status_awaiting_traffic">Protégé · en attente de trafic</string>
+    <string name="home_status_no_response">Sans réponse · vérifie ta connexion</string>
+    <string name="home_antenna_no_response">Sans réponse</string>
     <string name="servers_ping_live">live</string>
     <string name="servers_ping_probe">sonde</string>
     <string name="servers_empty_imported">Aucun serveur importé</string>

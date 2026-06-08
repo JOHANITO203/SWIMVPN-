@@ -93,6 +93,12 @@ class SwimVpnService : VpnService() {
     private var pendingProxyFallback: Triple<String, Int, String?>? = null
     private var startedOnUnvalidatedNetwork = false
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    // DETECTION-ONLY monitor of usable non-VPN underlying networks. registerDefaultNetworkCallback does
+    // not report the underlying onLost while the tun is up (the tun masks the default), so wifi loss went
+    // unseen and the UI froze on "Connected". This monitor surfaces it. It never drives
+    // setUnderlyingNetworks, so the dual-SIM flapping fix is preserved.
+    private var underlyingNetworkMonitorCallback: ConnectivityManager.NetworkCallback? = null
+    private val underlyingNetworks = java.util.concurrent.ConcurrentHashMap.newKeySet<Network>()
     // One-shot callback that re-triggers the connect once a usable network appears
     // after a NO_NETWORK pre-flight refusal (R2). Self-unregisters after firing.
     private var pendingConnectNetworkCallback: ConnectivityManager.NetworkCallback? = null
@@ -1541,6 +1547,7 @@ class SwimVpnService : VpnService() {
         // reports a single network and a clean handover when the OS actually switches the default.
         runCatching { connectivityManager.registerDefaultNetworkCallback(callback) }
             .onFailure { error -> Log.w("SwimVpnService", "Unable to register default network callback", error) }
+        registerUnderlyingNetworkMonitor()
     }
 
     private fun unregisterNetworkCallback() {
@@ -1550,7 +1557,70 @@ class SwimVpnService : VpnService() {
         activeNetworkHandoffJob?.cancel()
         activeNetworkHandoffJob = null
         activeUnderlyingNetwork = null
+        unregisterUnderlyingNetworkMonitor()
         networkCallback = null
+    }
+
+    // Detection-only: counts usable non-VPN underlying networks. When the count hits zero on an active
+    // session, the carrier under the tun is gone (registerDefaultNetworkCallback won't report it while
+    // the tun is up) → DEGRADED + debounced reconnect, so the UI updates instead of staying "Connected".
+    // Never calls setUnderlyingNetworks → no revival of the dual-SIM flapping the default callback fixed.
+    private fun registerUnderlyingNetworkMonitor() {
+        if (underlyingNetworkMonitorCallback != null) return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        underlyingNetworks.clear()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (!isUsableUnderlyingNetwork(connectivityManager.getNetworkCapabilities(network))) return
+                val wasEmpty = underlyingNetworks.isEmpty()
+                underlyingNetworks.add(network)
+                if (wasEmpty &&
+                    NetworkHandoffPolicy.onUnderlyingNetworksChanged(
+                        underlyingNetworks.size, stoppedByUser, VpnManager.runtimeStatus.value,
+                    ).action == NetworkHandoffAction.CANCEL_DEBOUNCE
+                ) {
+                    cancelNetworkHandoffReconnect("underlying_restored")
+                }
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                if (isUsableUnderlyingNetwork(networkCapabilities)) underlyingNetworks.add(network)
+                else underlyingNetworks.remove(network)
+            }
+
+            override fun onLost(network: Network) {
+                underlyingNetworks.remove(network)
+                val decision = NetworkHandoffPolicy.onUnderlyingNetworksChanged(
+                    underlyingCount = underlyingNetworks.size,
+                    stoppedByUser = stoppedByUser,
+                    currentStatus = VpnManager.runtimeStatus.value,
+                )
+                if (decision.action != NetworkHandoffAction.DEBOUNCE_RECONNECT) return
+                // No usable underlying network left: the tunnel lost its carrier. Clear the stale active
+                // underlying so the grace-expiry sees no network, and surface UNSTABLE instead of a frozen
+                // "Connected".
+                activeUnderlyingNetwork = null
+                logRuntimeEvent("underlying_network_lost", mapOf("remaining" to underlyingNetworks.size.toString()))
+                updateRuntimeStatus(RuntimeStatus.DEGRADED, VpnManager.runtimeMode.value, cause = DisconnectCause.NETWORK_LOST)
+                updateNotification()
+                scheduleNetworkHandoffReconnect(decision)
+            }
+        }
+        underlyingNetworkMonitorCallback = callback
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .build()
+        runCatching { connectivityManager.registerNetworkCallback(request, callback) }
+            .onFailure { error -> Log.w("SwimVpnService", "Unable to register underlying network monitor", error) }
+    }
+
+    private fun unregisterUnderlyingNetworkMonitor() {
+        val callback = underlyingNetworkMonitorCallback ?: return
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+        underlyingNetworkMonitorCallback = null
+        underlyingNetworks.clear()
     }
 
     // R2: after a NO_NETWORK pre-flight refusal, watch for the first usable network and
