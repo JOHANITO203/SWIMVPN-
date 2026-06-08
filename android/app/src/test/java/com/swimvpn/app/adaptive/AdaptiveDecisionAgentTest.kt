@@ -50,6 +50,45 @@ class AdaptiveDecisionAgentTest {
     }
 
     @Test
+    fun `recordSuccess bumps successMass and decays a stale failureMass`() {
+        val base = 1_000_000L
+        // A prior row with one failure mass, last updated exactly one half-life ago.
+        val prior = ServerQualityScore(
+            serverId = "server-a",
+            failureMass = 4.0,
+            successMass = 0.0,
+            massUpdatedAtMs = base,
+        )
+        val now = base + BanditPolicy.DEFAULT_HALF_LIFE_MS
+
+        val updated = AdaptiveDecisionAgent.recordSuccess(prior, nowMs = now)
+
+        // Success adds 1.0 to the (decayed-from-zero) success mass.
+        assertEquals(1.0, updated.successMass, 1e-9)
+        // The stale failure mass decays by exactly one half-life (×0.5) — not reset, not frozen.
+        assertEquals(2.0, updated.failureMass, 1e-9)
+        assertEquals(now, updated.massUpdatedAtMs)
+    }
+
+    @Test
+    fun `recordFailure bumps failureMass and decays a stale successMass`() {
+        val base = 2_000_000L
+        val prior = ServerQualityScore(
+            serverId = "server-a",
+            successMass = 8.0,
+            failureMass = 0.0,
+            massUpdatedAtMs = base,
+        )
+        val now = base + BanditPolicy.DEFAULT_HALF_LIFE_MS
+
+        val updated = AdaptiveDecisionAgent.recordFailure(prior, nowMs = now)
+
+        assertEquals(1.0, updated.failureMass, 1e-9)
+        assertEquals(4.0, updated.successMass, 1e-9)
+        assertEquals(now, updated.massUpdatedAtMs)
+    }
+
+    @Test
     fun `premium blocked and configless candidates are ignored`() {
         val selected = AdaptiveDecisionAgent.selectBestServer(
             candidates = listOf(

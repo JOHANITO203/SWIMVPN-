@@ -48,6 +48,12 @@ data class ServerQualityScore(
     // server+network — NOT stealth (unmeasurable client-side). Only WIFI/CELLULAR/ETHERNET bucketed.
     val profileSuccesses: Map<String, Int> = emptyMap(),
     val profileFailures: Map<String, Int> = emptyMap(),
+    // Phase 2 (bandit): time-decayed success/failure MASS for UCB ranking. Decayed to [massUpdatedAtMs]
+    // on each update (continuous forgetting, no binary cliff, no unbounded saturation). Seeded from the
+    // legacy counts for pre-v7 rows so no learning is lost.
+    val successMass: Double = 0.0,
+    val failureMass: Double = 0.0,
+    val massUpdatedAtMs: Long = 0L,
 ) {
     fun isAvoided(nowMs: Long): Boolean = avoidUntilMs > nowMs
 }
@@ -165,6 +171,10 @@ object AdaptiveDecisionAgent {
             score.profileFailures
         }
 
+        // Bandit masses: decay both to now, then add this failure (Phase 2 — recorded, used by the
+        // ranker in Phase 2b; no behavior change yet).
+        val decayedSuccessMass = BanditPolicy.decay(score.successMass, score.massUpdatedAtMs, nowMs)
+        val decayedFailureMass = BanditPolicy.decay(score.failureMass, score.massUpdatedAtMs, nowMs)
         return score.copy(
             failureCount = score.failureCount + 1,
             consecutiveFailures = nextConsecutiveFailures,
@@ -173,6 +183,9 @@ object AdaptiveDecisionAgent {
             networkFailures = nextNetworkFailures,
             failureByHour = incrementHour(score.failureByHour, hourOfDay),
             profileFailures = nextProfileFailures,
+            successMass = decayedSuccessMass,
+            failureMass = decayedFailureMass + 1.0,
+            massUpdatedAtMs = nowMs,
         )
     }
 
@@ -254,6 +267,10 @@ object AdaptiveDecisionAgent {
             score.profileSuccesses to score.profileFailures
         }
 
+        // Bandit masses: decay both to now, then add this success (Phase 2 — recorded, used by the
+        // ranker in Phase 2b; no behavior change yet).
+        val decayedSuccessMass = BanditPolicy.decay(score.successMass, score.massUpdatedAtMs, nowMs)
+        val decayedFailureMass = BanditPolicy.decay(score.failureMass, score.massUpdatedAtMs, nowMs)
         return score.copy(
             successCount = score.successCount + 1,
             consecutiveFailures = 0,
@@ -264,6 +281,9 @@ object AdaptiveDecisionAgent {
             successByHour = incrementHour(score.successByHour, hourOfDay),
             profileSuccesses = nextProfileSuccesses,
             profileFailures = nextProfileFailures,
+            successMass = decayedSuccessMass + 1.0,
+            failureMass = decayedFailureMass,
+            massUpdatedAtMs = nowMs,
         )
     }
 

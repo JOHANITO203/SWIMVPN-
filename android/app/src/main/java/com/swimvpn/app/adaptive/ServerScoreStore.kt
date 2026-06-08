@@ -84,7 +84,7 @@ class ServerScoreStore(context: Context) {
  */
 object ServerScoreCodec {
     const val SEPARATOR = ""
-    const val VERSION = "v6"
+    const val VERSION = "v7"
     private const val LEGACY_FIELD_COUNT = 7
     // Sub-separators for the networkFailures field. Distinct from SEPARATOR () so they cannot
     // collide with the field framing: "WIFI:2;CELLULAR:1".
@@ -111,6 +111,10 @@ object ServerScoreCodec {
         // v6: per-(network×camouflage-profile) outcome maps, composite string keys "WIFI|firefox:3".
         encodeProfileMap(score.profileSuccesses),
         encodeProfileMap(score.profileFailures),
+        // v7: time-decayed bandit masses + their decay reference time.
+        score.successMass,
+        score.failureMass,
+        score.massUpdatedAtMs,
     ).joinToString(SEPARATOR)
 
     // Omit zero/negative entries; empty map -> "". Stable order for deterministic encoding/tests.
@@ -152,13 +156,20 @@ object ServerScoreCodec {
     // unknown trailing fields from a newer version are simply ignored, never rejected.
     private fun decodeVersioned(parts: List<String>): ServerQualityScore? {
         val serverId = parts.getOrNull(1)?.takeIf { it.isNotEmpty() } ?: return null
+        val successCount = parts.intAt(2)
+        val failureCount = parts.intAt(3)
+        val lastSuccessAtMs = parts.longAt(5)
+        val lastFailureAtMs = parts.longAt(6)
+        // v7 mass fields; absent in v2..v6 rows -> SEED from the legacy counts (no learning lost),
+        // stamped at the last known outcome so decay has a real reference time.
+        val hasMass = parts.size > 16
         return ServerQualityScore(
             serverId = serverId,
-            successCount = parts.intAt(2),
-            failureCount = parts.intAt(3),
+            successCount = successCount,
+            failureCount = failureCount,
             consecutiveFailures = parts.intAt(4),
-            lastSuccessAtMs = parts.longAt(5),
-            lastFailureAtMs = parts.longAt(6),
+            lastSuccessAtMs = lastSuccessAtMs,
+            lastFailureAtMs = lastFailureAtMs,
             avoidUntilMs = parts.longAt(7),
             // v3 fields; absent in v2 rows -> defaults so older rows upgrade losslessly.
             manualSelectionCount = parts.intAt(8),
@@ -172,6 +183,9 @@ object ServerScoreCodec {
             // v6 fields; absent in v2..v5 rows -> emptyMap so older rows upgrade losslessly.
             profileSuccesses = decodeProfileMap(parts.getOrNull(14)),
             profileFailures = decodeProfileMap(parts.getOrNull(15)),
+            successMass = if (hasMass) parts.doubleAt(16) else successCount.toDouble(),
+            failureMass = if (hasMass) parts.doubleAt(17) else failureCount.toDouble(),
+            massUpdatedAtMs = if (hasMass) parts.longAt(18) else maxOf(lastSuccessAtMs, lastFailureAtMs),
         )
     }
 
@@ -234,4 +248,6 @@ object ServerScoreCodec {
     private fun List<String>.intAt(index: Int): Int = getOrNull(index)?.toIntOrNull() ?: 0
 
     private fun List<String>.longAt(index: Int): Long = getOrNull(index)?.toLongOrNull() ?: 0L
+
+    private fun List<String>.doubleAt(index: Int): Double = getOrNull(index)?.toDoubleOrNull() ?: 0.0
 }
