@@ -230,33 +230,35 @@ class AdaptiveDecisionAgentTest {
     }
 
     @Test
-    fun `success history beats recent failure history`() {
+    fun `bandit prefers the proven server over a fresh failer with a better ping`() {
+        // Phase 2b: ranking is driven by the time-decayed UCB mass, not the old unbounded history
+        // penalty. The proven server (high recent success mass) must win despite a slightly worse ping
+        // over a server that keeps failing — the learned reliability outranks a moderate ping advantage.
         val now = 240_000L
 
         val selected = AdaptiveDecisionAgent.selectBestServer(
             candidates = listOf(
                 candidate(
                     id = "recent-failures",
-                    ping = 40,
+                    ping = 50,
                     latencyMeasuredAtMs = now - 2_000L,
                 ),
                 candidate(
                     id = "proven",
-                    ping = 55,
+                    ping = 70,
                     latencyMeasuredAtMs = now - 2_000L,
                 ),
             ),
             scores = mapOf(
                 "recent-failures" to ServerQualityScore(
                     serverId = "recent-failures",
-                    failureCount = 3,
-                    consecutiveFailures = 1,
-                    lastFailureAtMs = now - 5_000L,
+                    failureMass = 5.0,
+                    massUpdatedAtMs = now,
                 ),
                 "proven" to ServerQualityScore(
                     serverId = "proven",
-                    successCount = 4,
-                    lastSuccessAtMs = now - 4_000L,
+                    successMass = 8.0,
+                    massUpdatedAtMs = now,
                 ),
             ),
             currentServerId = null,
@@ -264,6 +266,112 @@ class AdaptiveDecisionAgentTest {
         )
 
         assertEquals("proven", selected?.serverId)
+    }
+
+    @Test
+    fun `bandit decays old failure mass so a recovered server can be reselected`() {
+        // The decayed-mass model is the recovery mechanism (replacing the old binary 30-min reset):
+        // a server that failed heavily LONG ago has its failure mass faded by decay, so its slightly
+        // worse ping is no longer outweighed. With FRESH failure mass it would lose; after many
+        // half-lives it recovers and wins.
+        val base = 1_000_000L
+        val recoveredScore = ServerQualityScore(
+            serverId = "recovered",
+            failureMass = 12.0,
+            massUpdatedAtMs = base,
+        )
+        // "recovered" has the BETTER ping (40 < 60); only its heavy fresh failure mass holds it back.
+        val candidates = listOf(
+            candidate("recovered", ping = 40, latencyMeasuredAtMs = base + 1_000L),
+            candidate("clean", ping = 60, latencyMeasuredAtMs = base + 1_000L),
+        )
+
+        // FRESH failure mass (no decay): the heavy failures hold "recovered" back, "clean" wins.
+        val whileFailing = AdaptiveDecisionAgent.selectBestServer(
+            candidates = candidates,
+            scores = mapOf("recovered" to recoveredScore),
+            currentServerId = null,
+            nowMs = base + 1_000L,
+        )
+        assertEquals("clean", whileFailing?.serverId)
+
+        // Ten half-lives later the failure mass has faded to ~0; "recovered" is no longer penalized,
+        // so its better ping wins it back.
+        val afterDecay = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate("recovered", ping = 40, latencyMeasuredAtMs = base + 10 * BanditPolicy.DEFAULT_HALF_LIFE_MS),
+                candidate("clean", ping = 60, latencyMeasuredAtMs = base + 10 * BanditPolicy.DEFAULT_HALF_LIFE_MS),
+            ),
+            scores = mapOf("recovered" to recoveredScore),
+            currentServerId = null,
+            nowMs = base + 10 * BanditPolicy.DEFAULT_HALF_LIFE_MS,
+        )
+        assertEquals("recovered", afterDecay?.serverId)
+    }
+
+    @Test
+    fun `bandit term never resurrects an avoided server no matter how high its mass`() {
+        // I6 lock: the hard avoidance pre-filter runs BEFORE scoring. Even an enormous success mass and
+        // a great ping cannot bring an avoided server back — it is simply not a candidate.
+        val now = 5_000_000L
+        val selected = AdaptiveDecisionAgent.selectBestServer(
+            candidates = listOf(
+                candidate("avoided-but-amazing", ping = 5, latencyMeasuredAtMs = now - 1_000L),
+                candidate("mediocre", ping = 120, latencyMeasuredAtMs = now - 1_000L),
+            ),
+            scores = mapOf(
+                "avoided-but-amazing" to ServerQualityScore(
+                    serverId = "avoided-but-amazing",
+                    successMass = 1_000.0,
+                    massUpdatedAtMs = now,
+                    avoidUntilMs = now + 60_000L,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+        )
+
+        assertEquals("mediocre", selected?.serverId)
+    }
+
+    @Test
+    fun `bandit term is suppressed under global outage`() {
+        // Under a likely global outage the failures are the network's fault, not the servers'. The
+        // bandit term is suppressed (like the old history penalty), so ranking falls back to ping and
+        // the lower-latency server wins even though it carries the heavier recent failure mass.
+        val now = 300_000L
+        val candidates = listOf(
+            candidate(
+                id = "fast-but-recently-failed",
+                ping = 40,
+                latencyMeasuredAtMs = now - 1_000L,
+                latencyProbeFailed = true,
+                latencyProbeFailureReason = ProbeFailureReason.TIMEOUT,
+            ),
+            candidate(
+                id = "slow",
+                ping = 90,
+                latencyMeasuredAtMs = now - 1_000L,
+                latencyProbeFailed = true,
+                latencyProbeFailureReason = ProbeFailureReason.NETWORK_UNREACHABLE,
+            ),
+        )
+
+        val selected = AdaptiveDecisionAgent.recommendServer(
+            candidates = candidates,
+            scores = mapOf(
+                "fast-but-recently-failed" to ServerQualityScore(
+                    serverId = "fast-but-recently-failed",
+                    failureMass = 30.0,
+                    massUpdatedAtMs = now,
+                ),
+            ),
+            currentServerId = null,
+            nowMs = now,
+        )?.candidate
+
+        assertTrue(AdaptiveDecisionAgent.isLikelyGlobalOutage(candidates))
+        assertEquals("fast-but-recently-failed", selected?.serverId)
     }
 
     @Test
@@ -349,28 +457,9 @@ class AdaptiveDecisionAgentTest {
         assertEquals("known-low-load", selected?.serverId)
     }
 
-    @Test
-    fun `old failure history decays so recovered low latency server can be selected`() {
-        val selected = AdaptiveDecisionAgent.selectBestServer(
-            candidates = listOf(
-                candidate("recovered", ping = 30),
-                candidate("slow", ping = 220),
-            ),
-            scores = mapOf(
-                "recovered" to ServerQualityScore(
-                    serverId = "recovered",
-                    failureCount = 6,
-                    consecutiveFailures = 3,
-                    lastFailureAtMs = 10_000L,
-                    avoidUntilMs = 610_000L,
-                ),
-            ),
-            currentServerId = null,
-            nowMs = 3_700_000L,
-        )
-
-        assertEquals("recovered", selected?.serverId)
-    }
+    // NOTE: the legacy "old failure history decays..." test was removed in Phase 2b. The recovery
+    // intent it expressed (old failures must fade) is now driven by time-decayed mass and covered by
+    // `bandit decays old failure mass so a recovered server can be reselected` above.
 
     @Test
     fun `max reconnect attempts stops adaptive loop`() {
