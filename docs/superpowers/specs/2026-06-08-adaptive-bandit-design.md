@@ -69,11 +69,18 @@ Each arm keeps a decayed success/failure mass:
   stored masses by `0.5^(Δt / H)` before adding the new outcome. Recent outcomes dominate; old ones fade
   continuously (no binary cliff).
 
-### Selection: Thompson sampling
-For each surviving (pre-filtered) candidate, sample `θ_a ~ Beta(α_a, β_a)`; pick `argmax θ_a`.
-- Under-sampled arm → wide Beta → occasionally sampled high → **natural, bounded exploration**.
-- Well-sampled recent arm → narrow Beta → **converges to exploit**.
-- Pure local math, instant. Randomness via an **injectable `Random`** → deterministic unit tests.
+### Selection: UCB1 (deterministic), gentle exploration — IMPLEMENTED
+Implemented as **UCB1** over the decayed masses (not Thompson): `score_a = mean_a + c·sqrt(ln(N+1)/(n_a+1))`,
+pick `argmax`. Chosen over Thompson for the implementation because it is **deterministic** (trivially
+unit-testable and easy to verify against the invariants — no RNG / Gamma sampler to get subtly wrong),
+with the same exploration / uncertainty / cold-start properties.
+- **Gentle exploration `c = 0.2` (deliberate):** a selection's exploration cost is the user's REAL
+  session (I1/I2), so we **exploit by default** — the bonus only gives a never-tried arm a fair chance and
+  breaks near-ties; it does **not** let a thin arm dethrone a strongly-proven one. Tunable on device.
+- Under-sampled / never-tried arm → larger bonus → fair chance; well-sampled recent arm → bonus shrinks →
+  converges to exploit. Pure local math, instant, no RNG.
+- Thompson sampling remains a drop-in alternative behind the same interface if richer exploration is ever
+  wanted (would add an injectable `Random` + Beta/Gamma sampler).
 
 ### Cold-start prior
 The server arm's prior is nudged by the **existing background ping** (fast+reachable → mild favorable
@@ -133,7 +140,9 @@ bounded to safe candidates, can be added later if data is too sparse — but off
 
 ## 7. Open parameters (to confirm before/while shaping)
 - Half-life `H`: 48 h proposed (24 h = faster forgetting / more reactive; 72 h = steadier).
-- Thompson vs epsilon-greedy vs UCB: **Thompson recommended** (cold-start + uncertainty in one mechanism,
-  seeded-RNG testable).
+- Thompson vs epsilon-greedy vs UCB: **UCB1 chosen for the implementation** (deterministic → easiest to
+  test + verify the invariants; same exploration/uncertainty/cold-start). Thompson deferred (drop-in).
+- Exploration strength `c`: **0.2 (gentle)** chosen — exploit-for-the-user by default; raise only if data
+  is too sparse, lower toward 0 for near-pure-greedy.
 - Fragmentation arm granularity: `{none, light, aggressive}` (matches existing presets).
 - Active connect-time ε: **off by default** (exploit-for-user); revisit only if data is too sparse.
