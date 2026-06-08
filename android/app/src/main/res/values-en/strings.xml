@@ -303,6 +303,8 @@
     <string name="home_status_unprotected">Unprotected</string>
     <string name="home_antenna_active">Active</string>
     <string name="home_antenna_idle">Idle</string>
+    <string name="home_antenna_awaiting">Awaiting</string>
+    <string name="home_status_awaiting_traffic">Protected · awaiting traffic</string>
     <string name="servers_ping_live">live</string>
     <string name="servers_ping_probe">probe</string>
     <string name="servers_empty_imported">No imported servers</string>

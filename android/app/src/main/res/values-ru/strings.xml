@@ -303,6 +303,8 @@
     <string name="home_status_unprotected">Не защищено</string>
     <string name="home_antenna_active">Активно</string>
     <string name="home_antenna_idle">Покой</string>
+    <string name="home_antenna_awaiting">Ожидание</string>
+    <string name="home_status_awaiting_traffic">Защищено · ожидание трафика</string>
     <string name="servers_ping_live">live</string>
     <string name="servers_ping_probe">зонд</string>
     <string name="servers_empty_imported">Нет импортированных серверов</string>

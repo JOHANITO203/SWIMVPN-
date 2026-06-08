@@ -68,6 +68,8 @@ import com.swimvpn.app.ui.components.SwimPillSurface
 import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.orb.VpnOrbState
 import com.swimvpn.app.ui.theme.SwimDesignTokens
+import com.swimvpn.app.vpn.ConnectionActivity
+import com.swimvpn.app.vpn.ConnectionLiveness
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStateStore
 import com.swimvpn.app.vpn.RuntimeStatus
@@ -147,7 +149,13 @@ fun HomeScreen(
     }
 
     val connectionSubtitle = when (vpnState) {
-        VpnState.CONNECTED -> stringResource(R.string.home_connected)
+        // Honest: "Connecté" implies a working link. Until inbound bytes are observed (idle OR a
+        // silently-dead tunnel), say "protégé · en attente de trafic" instead of claiming connectivity.
+        VpnState.CONNECTED -> if (bytesIn > 0L) {
+            stringResource(R.string.home_connected)
+        } else {
+            stringResource(R.string.home_status_awaiting_traffic)
+        }
         VpnState.CONNECTING -> if (selectedRuntimeMode == RuntimeMode.LOCAL_PROXY) {
             stringResource(R.string.home_starting_proxy)
         } else {
@@ -491,7 +499,11 @@ private fun SwimStatsCard(
             SwimStatsItem(
                 icon = Icons.Default.SettingsInputAntenna,
                 label = stringResource(R.string.status_connected),
-                value = if (connected) stringResource(R.string.home_antenna_active) else stringResource(R.string.home_antenna_idle),
+                value = when (ConnectionLiveness.derive(connected, bytesIn)) {
+                    ConnectionActivity.ACTIVE -> stringResource(R.string.home_antenna_active)
+                    ConnectionActivity.AWAITING_TRAFFIC -> stringResource(R.string.home_antenna_awaiting)
+                    ConnectionActivity.INACTIVE -> stringResource(R.string.home_antenna_idle)
+                },
                 compact = compact,
             )
         }
