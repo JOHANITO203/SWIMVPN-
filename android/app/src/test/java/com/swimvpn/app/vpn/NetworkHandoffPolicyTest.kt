@@ -60,4 +60,49 @@ class NetworkHandoffPolicyTest {
         assertEquals(NetworkHandoffAction.DEBOUNCE_RECONNECT, decision.action)
         assertEquals(NetworkHandoffPolicy.NETWORK_HANDOFF_GRACE_MS, decision.delayMs)
     }
+
+    @Test
+    fun `zero underlying networks while running schedules debounced reconnect`() {
+        val decision = NetworkHandoffPolicy.onUnderlyingNetworksChanged(
+            underlyingCount = 0,
+            stoppedByUser = false,
+            currentStatus = RuntimeStatus.RUNNING,
+        )
+
+        assertEquals(NetworkHandoffAction.DEBOUNCE_RECONNECT, decision.action)
+        assertEquals(NetworkHandoffPolicy.NETWORK_HANDOFF_GRACE_MS, decision.delayMs)
+    }
+
+    @Test
+    fun `at least one underlying network cancels a pending handoff`() {
+        val decision = NetworkHandoffPolicy.onUnderlyingNetworksChanged(
+            underlyingCount = 1,
+            stoppedByUser = false,
+            currentStatus = RuntimeStatus.RUNNING,
+        )
+
+        assertEquals(NetworkHandoffAction.CANCEL_DEBOUNCE, decision.action)
+    }
+
+    @Test
+    fun `zero underlying networks while idle is ignored`() {
+        val decision = NetworkHandoffPolicy.onUnderlyingNetworksChanged(
+            underlyingCount = 0,
+            stoppedByUser = false,
+            currentStatus = RuntimeStatus.IDLE,
+        )
+
+        assertEquals(NetworkHandoffAction.IGNORE, decision.action)
+    }
+
+    @Test
+    fun `zero underlying networks but user stopped is ignored`() {
+        val decision = NetworkHandoffPolicy.onUnderlyingNetworksChanged(
+            underlyingCount = 0,
+            stoppedByUser = true,
+            currentStatus = RuntimeStatus.RUNNING,
+        )
+
+        assertEquals(NetworkHandoffAction.IGNORE, decision.action)
+    }
 }
