@@ -61,6 +61,10 @@ class ServerScoreCodecTest {
                 manualSelectionCount = 0,
                 lastManualSelectionAtMs = 0L,
                 networkFailures = emptyMap(),
+                // v7 masses seeded from the legacy counts; reference time = latest outcome.
+                successMass = 3.0,
+                failureMass = 2.0,
+                massUpdatedAtMs = 222L,
             ),
             decoded,
         )
@@ -150,6 +154,10 @@ class ServerScoreCodecTest {
                 manualSelectionCount = 5,
                 lastManualSelectionAtMs = 55L,
                 networkFailures = mapOf(NetworkType.WIFI to 3),
+                // v7 masses seeded from the legacy counts; reference time = latest outcome.
+                successMass = 7.0,
+                failureMass = 1.0,
+                massUpdatedAtMs = 20L,
             ),
             decoded,
         )
@@ -222,6 +230,10 @@ class ServerScoreCodecTest {
                 ),
                 // v4 field defaults losslessly when absent from a v3 row.
                 networkSuccesses = emptyMap(),
+                // v7 masses seeded from the legacy counts; reference time = latest outcome.
+                successMass = 6.0,
+                failureMass = 2.0,
+                massUpdatedAtMs = 20L,
             ),
             decoded,
         )
@@ -270,11 +282,78 @@ class ServerScoreCodecTest {
         )
 
         val encoded = ServerScoreCodec.encode(original)
-        // Current codec version (bumped to v6 in Phase 3); round-trip semantics below are unchanged.
-        assertEquals("v6", encoded.split(ServerScoreCodec.SEPARATOR).first())
+        // The encoder always writes the latest VERSION token; this v5-shaped score round-trips losslessly.
+        assertEquals(ServerScoreCodec.VERSION, encoded.split(ServerScoreCodec.SEPARATOR).first())
 
         val decoded = ServerScoreCodec.decode(encoded)
         assertEquals(original, decoded)
+    }
+
+    @Test
+    fun `v7 round trip preserves bandit masses`() {
+        val original = ServerQualityScore(
+            serverId = "server-v7",
+            successCount = 9,
+            failureCount = 3,
+            consecutiveFailures = 0,
+            lastSuccessAtMs = 111L,
+            lastFailureAtMs = 222L,
+            avoidUntilMs = 333L,
+            manualSelectionCount = 2,
+            lastManualSelectionAtMs = 444L,
+            networkFailures = mapOf(NetworkType.CELLULAR to 2),
+            networkSuccesses = mapOf(NetworkType.WIFI to 5),
+            successByHour = mapOf(9 to 2),
+            failureByHour = mapOf(3 to 1),
+            profileSuccesses = mapOf("WIFI|chrome" to 4),
+            profileFailures = mapOf("CELLULAR|firefox" to 1),
+            successMass = 7.25,
+            failureMass = 1.5,
+            massUpdatedAtMs = 555L,
+        )
+
+        val encoded = ServerScoreCodec.encode(original)
+        assertEquals(ServerScoreCodec.VERSION, encoded.split(ServerScoreCodec.SEPARATOR).first())
+
+        val decoded = ServerScoreCodec.decode(encoded)
+        assertEquals(original, decoded)
+        // Round-trip is idempotent: re-encoding the decoded row yields the identical string.
+        assertEquals(encoded, ServerScoreCodec.encode(decoded!!))
+    }
+
+    @Test
+    fun `v6 row seeds bandit masses from legacy counts so no learning is lost`() {
+        // A genuine v6 row: token + score fields + both network maps + both hour maps + both profile
+        // maps, but NO mass fields. The masses must be SEEDED from the legacy success/failure counts,
+        // stamped at the latest outcome time so decay has a real reference.
+        val v6 = listOf(
+            "v6",
+            "server-v6row",
+            8,   // successCount
+            3,   // failureCount
+            0,
+            900L, // lastSuccessAtMs (the later outcome)
+            200L, // lastFailureAtMs
+            0L,
+            1,
+            55L,
+            "CELLULAR:1",
+            "WIFI:4",
+            "9:2",
+            "3:1",
+            "WIFI|chrome:4",
+            "CELLULAR|firefox:1",
+        ).joinToString(ServerScoreCodec.SEPARATOR)
+
+        val decoded = ServerScoreCodec.decode(v6)
+
+        assertEquals(8.0, decoded?.successMass)
+        assertEquals(3.0, decoded?.failureMass)
+        // Seeded reference time = max(lastSuccessAtMs, lastFailureAtMs).
+        assertEquals(900L, decoded?.massUpdatedAtMs)
+        // The legacy counts themselves are untouched.
+        assertEquals(8, decoded?.successCount)
+        assertEquals(3, decoded?.failureCount)
     }
 
     @Test
@@ -316,6 +395,10 @@ class ServerScoreCodecTest {
                 // v5 fields default losslessly when absent from a v4 row.
                 successByHour = emptyMap(),
                 failureByHour = emptyMap(),
+                // v7 masses seeded from the legacy counts; reference time = latest outcome.
+                successMass = 6.0,
+                failureMass = 2.0,
+                massUpdatedAtMs = 20L,
             ),
             decoded,
         )

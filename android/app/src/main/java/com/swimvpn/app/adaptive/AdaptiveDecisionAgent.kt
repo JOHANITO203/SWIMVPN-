@@ -48,6 +48,12 @@ data class ServerQualityScore(
     // server+network — NOT stealth (unmeasurable client-side). Only WIFI/CELLULAR/ETHERNET bucketed.
     val profileSuccesses: Map<String, Int> = emptyMap(),
     val profileFailures: Map<String, Int> = emptyMap(),
+    // Phase 2 (bandit): time-decayed success/failure MASS for UCB ranking. Decayed to [massUpdatedAtMs]
+    // on each update (continuous forgetting, no binary cliff, no unbounded saturation). Seeded from the
+    // legacy counts for pre-v7 rows so no learning is lost.
+    val successMass: Double = 0.0,
+    val failureMass: Double = 0.0,
+    val massUpdatedAtMs: Long = 0L,
 ) {
     fun isAvoided(nowMs: Long): Boolean = avoidUntilMs > nowMs
 }
@@ -70,7 +76,9 @@ enum class ServerRuntimeQualityState {
 data class ServerRecommendationResult(
     val candidate: ServerDecisionCandidate,
     val qualityState: ServerRuntimeQualityState,
-    val score: Int,
+    // Lower = more preferred. Double because the bandit term (Phase 2b) contributes a continuous,
+    // decayed-mass-derived value rather than the old integer history penalty.
+    val score: Double,
 )
 
 data class DecisionAction(
@@ -87,7 +95,6 @@ object AdaptiveDecisionAgent {
     private const val SHAPING_MORPH_LIMIT = 2
     private const val AVOID_AFTER_CONSECUTIVE_FAILURES = 2
     private const val AVOID_DURATION_MS = 10 * 60 * 1000L
-    private const val FAILURE_RECOVERY_DECAY_MS = 30 * 60 * 1000L
     // Discrete freshness window that gates the UI "validated recommendation" badge.
     // A recommendation within this window reports qualityState == FRESH.
     private const val FRESH_LATENCY_WINDOW_MS = 2 * 60 * 1000L
@@ -135,6 +142,19 @@ object AdaptiveDecisionAgent {
     private const val LOAD_PENALTY_DIVISOR = 2
     private const val UNKNOWN_LOAD_PENALTY = 20
     private const val CONGESTED_AVAILABILITY_PENALTY = 50
+    // Phase 2b bandit term calibration. The UCB score (≈[0,1.3]) is mapped to score units by BANDIT_SCALE
+    // and HARD-CAPPED at BANDIT_TERM_CAP, kept strictly below MISSING_PING_PENALTY (300) so the learned
+    // signal ranks survivors but never overcomes the hard correctness penalties or resurrects a filtered
+    // server (spec I6). The resulting swing (~200) is comparable to the per-network reward it sits beside.
+    private const val BANDIT_SCALE = 200.0
+    private const val BANDIT_TERM_CAP = 200.0
+    // Cold-start prior (Beta-style uninformative mean) for the UCB. DELIBERATELY FLAT and NOT ping-derived:
+    // ping/load/availability are already strong real-time terms in the additive score, so folding ping
+    // into the prior would double-count it and perturb the finely-calibrated load/availability tie-breaks.
+    // With a flat prior, zero-mass arms get an IDENTICAL bandit term (it cancels), so the bandit changes
+    // ranking ONLY once real outcomes accrue — exactly the learned signal we want, no regression on the
+    // real-time ordering. The exploration bonus still gives an under-sampled arm a fair chance (spec I2).
+    private const val PRIOR_NEUTRAL = 0.5
     private val BACKOFF_MS = longArrayOf(1_000L, 3_000L, 5_000L, 10_000L, 30_000L)
 
     fun recordFailure(
@@ -165,6 +185,10 @@ object AdaptiveDecisionAgent {
             score.profileFailures
         }
 
+        // Bandit masses: decay both to now, then add this failure (Phase 2 — recorded, used by the
+        // ranker in Phase 2b; no behavior change yet).
+        val decayedSuccessMass = BanditPolicy.decay(score.successMass, score.massUpdatedAtMs, nowMs)
+        val decayedFailureMass = BanditPolicy.decay(score.failureMass, score.massUpdatedAtMs, nowMs)
         return score.copy(
             failureCount = score.failureCount + 1,
             consecutiveFailures = nextConsecutiveFailures,
@@ -173,6 +197,9 @@ object AdaptiveDecisionAgent {
             networkFailures = nextNetworkFailures,
             failureByHour = incrementHour(score.failureByHour, hourOfDay),
             profileFailures = nextProfileFailures,
+            successMass = decayedSuccessMass,
+            failureMass = decayedFailureMass + 1.0,
+            massUpdatedAtMs = nowMs,
         )
     }
 
@@ -254,6 +281,10 @@ object AdaptiveDecisionAgent {
             score.profileSuccesses to score.profileFailures
         }
 
+        // Bandit masses: decay both to now, then add this success (Phase 2 — recorded, used by the
+        // ranker in Phase 2b; no behavior change yet).
+        val decayedSuccessMass = BanditPolicy.decay(score.successMass, score.massUpdatedAtMs, nowMs)
+        val decayedFailureMass = BanditPolicy.decay(score.failureMass, score.massUpdatedAtMs, nowMs)
         return score.copy(
             successCount = score.successCount + 1,
             consecutiveFailures = 0,
@@ -264,6 +295,9 @@ object AdaptiveDecisionAgent {
             successByHour = incrementHour(score.successByHour, hourOfDay),
             profileSuccesses = nextProfileSuccesses,
             profileFailures = nextProfileFailures,
+            successMass = decayedSuccessMass + 1.0,
+            failureMass = decayedFailureMass,
+            massUpdatedAtMs = nowMs,
         )
     }
 
@@ -394,12 +428,16 @@ object AdaptiveDecisionAgent {
         hourOfDay: Int = -1,
     ): ServerRecommendationResult? {
         val globalOutage = isLikelyGlobalOutage(candidates)
-        return candidates
-            .asSequence()
+        // Materialize the survivors of the HARD pre-filters (spec I6) BEFORE scoring: the bandit's UCB
+        // "N" is the summed decayed mass across exactly these candidates, so it must be known up front.
+        val survivors = candidates
             .filter { it.serverId != currentServerId }
             .filter { it.hasRuntimeConfig && !it.premiumBlocked }
             .filter { candidate -> globalOutage || !scores[candidate.serverId].isAvoided(nowMs) }
-            .map { candidate -> recommendationFor(candidate, scores[candidate.serverId], nowMs, globalOutage, networkType, hourOfDay) }
+        val totalMass = survivors.sumOf { decayedTotalMass(scores[it.serverId], nowMs) }
+        return survivors
+            .asSequence()
+            .map { candidate -> recommendationFor(candidate, scores[candidate.serverId], nowMs, globalOutage, networkType, hourOfDay, totalMass) }
             .filter { globalOutage || it.qualityState != ServerRuntimeQualityState.FRESH_PROBE_FAILED }
             .minWithOrNull(
                 compareBy<ServerRecommendationResult> { it.score }
@@ -418,12 +456,20 @@ object AdaptiveDecisionAgent {
         globalOutage: Boolean = false,
         networkType: NetworkType = NetworkType.UNKNOWN,
         hourOfDay: Int = -1,
+        // The UCB "N": summed decayed mass across the surviving candidates. 0.0 when called without
+        // a precomputed total (e.g. single-candidate helpers); the bonus then collapses to ~0.
+        totalMass: Double = 0.0,
     ): ServerRecommendationResult {
         val qualityState = qualityState(candidate, nowMs)
         // During a likely global outage the failures are not the servers' fault, so neither the
         // heavy probe penalty nor the accumulated failure history is held against them.
         val qualityPenalty = if (globalOutage) 0 else qualityPenalty(qualityState, candidate, nowMs)
-        val historyPenalty = if (globalOutage) 0 else historyPenalty(score, nowMs)
+        // Phase 2b: the unbounded, saturating server-level history penalty is replaced by a bounded,
+        // time-decayed UCB term (recency + uncertainty). Subtracted from the score (higher UCB =>
+        // lower score => more preferred). Suppressed under a global outage exactly like the old
+        // history penalty was, so an outage's failures never poison a server's standing. The per-network
+        // penalty/reward below are KEPT (bounded, orthogonal per-network signal — not the saturation bug).
+        val banditTerm = if (globalOutage) 0.0 else banditTerm(score, nowMs, totalMass)
         // Per-network penalty is suppressed under a global outage like the other failure penalties.
         val networkPenalty = if (globalOutage) 0 else networkFailurePenalty(score, networkType)
         // "Works-here" reward: prefer a server proven to succeed on the current network. Suppressed
@@ -439,22 +485,51 @@ object AdaptiveDecisionAgent {
         // history-derived signals, and applied after filtering so it can never resurrect a filtered
         // server. hourOfDay = -1 yields 0 (ranking unchanged).
         val hourlyNudge = if (globalOutage) 0 else hourlyNudge(score, hourOfDay)
-        val totalScore = normalizedPing(candidate.pingMs) +
-            qualityPenalty +
-            loadPenalty(candidate.load) +
-            availabilityPenalty(candidate.availabilityStatus) +
-            historyPenalty +
-            networkPenalty +
-            hourlyNudge -
-            (if (candidate.isPinned) PINNED_REWARD else 0) -
-            manualReward -
-            networkSuccessReward
+        val totalScore = (
+            normalizedPing(candidate.pingMs) +
+                qualityPenalty +
+                loadPenalty(candidate.load) +
+                availabilityPenalty(candidate.availabilityStatus) +
+                networkPenalty +
+                hourlyNudge -
+                (if (candidate.isPinned) PINNED_REWARD else 0) -
+                manualReward -
+                networkSuccessReward
+            ).toDouble() - banditTerm
 
         return ServerRecommendationResult(
             candidate = candidate,
             qualityState = qualityState,
             score = totalScore,
         )
+    }
+
+    /**
+     * Phase 2b bandit ranking term (subtracted from the score; higher = more preferred).
+     *
+     * UCB1 over the server arm's TIME-DECAYED success/failure mass, with a flat [PRIOR_NEUTRAL] cold-start
+     * prior (ping/load/availability already rank cold-start arms via the additive terms — see PRIOR_NEUTRAL).
+     * The result is mapped to score units and HARD-CAPPED at [BANDIT_TERM_CAP] (< [MISSING_PING_PENALTY]),
+     * so the learned signal ranks survivors but can NEVER overcome the hard correctness penalties (missing
+     * ping / fresh probe failure) or resurrect a pre-filtered server (those are removed before scoring —
+     * spec I6). Pure + deterministic.
+     */
+    private fun banditTerm(
+        score: ServerQualityScore?,
+        nowMs: Long,
+        totalMass: Double,
+    ): Double {
+        val successMass = BanditPolicy.decay(score?.successMass ?: 0.0, score?.massUpdatedAtMs ?: 0L, nowMs)
+        val failureMass = BanditPolicy.decay(score?.failureMass ?: 0.0, score?.massUpdatedAtMs ?: 0L, nowMs)
+        val ucb = BanditPolicy.ucbScore(successMass, failureMass, totalMass, PRIOR_NEUTRAL)
+        return (BANDIT_SCALE * ucb).coerceIn(0.0, BANDIT_TERM_CAP)
+    }
+
+    /** Summed decayed (success + failure) mass for a server arm — the per-arm contribution to UCB's N. */
+    private fun decayedTotalMass(score: ServerQualityScore?, nowMs: Long): Double {
+        if (score == null) return 0.0
+        return BanditPolicy.decay(score.successMass, score.massUpdatedAtMs, nowMs) +
+            BanditPolicy.decay(score.failureMass, score.massUpdatedAtMs, nowMs)
     }
 
     /**
@@ -574,18 +649,6 @@ object AdaptiveDecisionAgent {
             }
         }
         return best
-    }
-
-    private fun historyPenalty(score: ServerQualityScore?, nowMs: Long): Int {
-        if (score == null) return 0
-        val recovered = score.lastFailureAtMs > 0L &&
-            nowMs - score.lastFailureAtMs >= FAILURE_RECOVERY_DECAY_MS &&
-            !score.isAvoided(nowMs)
-        val consecutiveFailures = if (recovered) 0 else score.consecutiveFailures
-        val failureCount = if (recovered) 0 else score.failureCount
-        val failurePenalty = consecutiveFailures * 250 + failureCount * 25
-        val successReward = score.successCount * 10
-        return failurePenalty - successReward
     }
 
     private fun qualityState(candidate: ServerDecisionCandidate, nowMs: Long): ServerRuntimeQualityState {
