@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.swimvpn.app.adaptive.AdaptiveDecisionAgent
+import com.swimvpn.app.adaptive.SustainedHealthGate
 import com.swimvpn.app.adaptive.AgentDisabledFailurePolicy
 import com.swimvpn.app.adaptive.AdaptiveEventLogger
 import com.swimvpn.app.adaptive.BenchmarkCollector
@@ -164,6 +165,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var manualStopRequested = false
     private var handlingAdaptiveFailure = false
     private val healthSentinel = TunnelHealthSentinel(degradedThreshold = 2)
+    // Honest per-profile credit: only after sustained sentinel health this session, never on RUNNING.
+    private val sustainedHealthGate = SustainedHealthGate(threshold = 2)
     private var incidentTriedProfiles: Set<String> = emptySet()
     private var premiumUsageReportJob: Job? = null
     private var premiumUsageSessionBaselineBytes = 0L
@@ -234,19 +237,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun onAdaptiveRuntimeRunning() {
         val serverId = adaptiveActiveServerId ?: (_state.value as? AppState.Success)?.activeServer?.id
         if (serverId != null) {
+            // Server REACHABILITY only (profileId = null): a handshake proves the server was reached, NOT
+            // that the profile carries traffic. The per-profile success credit is honest — it comes from
+            // sustained sentinel health (creditSustainedHealth), never from RUNNING (the old false oracle
+            // that let chrome-on-REALITY look "successful" and kept getting re-picked).
             serverScoreStore.recordSuccess(
                 serverId,
                 networkType = currentNetworkType(),
                 hourOfDay = currentHourOfDay(),
-                profileId = _activeCamouflageProfileId.value,
-            )
-            BenchmarkCollector.record(
-                SessionBenchmarkRecord(
-                    transport = (_state.value as? AppState.Success)?.activeServer?.protocol ?: "unknown",
-                    profileId = _activeCamouflageProfileId.value,
-                    networkType = currentNetworkType(),
-                    success = true,
-                )
+                profileId = null,
             )
             // A successful handshake resets the failing-server alert gate so a future streak can
             // alert again without spamming during the current healthy session.
@@ -286,7 +285,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             while (true) {
                 delay(HEALTH_PROBE_INTERVAL_MS)
                 val connected = VpnManager.state.value == VpnState.CONNECTED
-                if (connected && !wasConnected) healthSentinel.reset() // fresh session
+                if (connected && !wasConnected) {
+                    healthSentinel.reset() // fresh session
+                    sustainedHealthGate.reset()
+                }
                 wasConnected = connected
                 if (!connected) continue
                 if (!screenOnAndNotPowerSave()) continue
@@ -295,7 +297,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // which merely means the debounce hasn't tripped yet (a failing probe below threshold is
                 // still HEALTHY). Resetting on the verdict wiped the tried-profile set every cycle, so the
                 // cascade re-tried the first profile forever and never escalated to a server switch.
-                if (healthy) incidentTriedProfiles = emptySet()
+                if (healthy) {
+                    incidentTriedProfiles = emptySet()
+                    creditSustainedHealth()
+                } else {
+                    sustainedHealthGate.onUnhealthy()
+                }
                 val verdict = healthSentinel.onProbe(healthy)
                 when (verdict) {
                     HealthVerdict.DEGRADED -> {
@@ -309,6 +316,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    /** Honest per-profile reliability credit: fired once per session, only after the sentinel has seen
+     * sustained healthy traffic (real egress via the EXISTING gstatic probe — no new I/O), never on a
+     * bare handshake. This is what breaks the vicious cycle where a profile that handshakes but carries
+     * no traffic (e.g. an fp-override on REALITY) kept being credited and re-selected. */
+    private fun creditSustainedHealth() {
+        sustainedHealthGate.onHealthy()
+        if (!sustainedHealthGate.shouldCredit()) return
+        val serverId = adaptiveActiveServerId ?: (_state.value as? AppState.Success)?.activeServer?.id ?: return
+        val profileId = _activeCamouflageProfileId.value
+        serverScoreStore.recordSuccess(
+            serverId,
+            networkType = currentNetworkType(),
+            hourOfDay = currentHourOfDay(),
+            profileId = profileId,
+        )
+        val transport = (_state.value as? AppState.Success)?.activeServer?.protocol ?: "unknown"
+        BenchmarkCollector.record(SessionBenchmarkRecord(transport, profileId, currentNetworkType(), success = true))
+        AdaptiveEventLogger.log(
+            "sustained_healthy_credit",
+            mapOf("serverId" to serverId, "profile" to profileId, "network" to currentNetworkType().name),
+        )
     }
 
     private suspend fun restartActiveServerWithProfile(server: ServerNode, current: AppState.Success, profileId: String) {
