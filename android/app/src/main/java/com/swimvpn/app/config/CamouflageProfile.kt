@@ -61,12 +61,24 @@ object CamouflageProfileRepository {
     private val ALL: List<CamouflageProfile> = listOf(AUTO, CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED, FRAG_LIGHT, FRAG_AGGRESSIVE)
 
     /**
-     * Order the adaptive agent prefers on ties / walks as a cascade when a profile keeps failing on a
-     * network. AUTO first (respect the supplier's validated fingerprint), then the browser profiles, then
-     * the device-validated TLS-fragmentation presets as a last-resort escalation when nothing else holds.
+     * Canonical FULL preference ordering of every profile (AUTO first, then browser fps, then the
+     * fragmentation presets). Used for completeness/ordering only. NOTE: the adaptive agent and the
+     * MORPH cascade do NOT walk this — they are restricted to [adaptiveShapingOrder] (fp-preserving,
+     * spec I4). Browser fps in this list are reachable by an explicit MANUAL user choice only.
      */
     val fallbackOrder: List<CamouflageProfile> =
         listOf(AUTO, CHROME, FIREFOX, SAFARI, IOS, RANDOMIZED, FRAG_LIGHT, FRAG_AGGRESSIVE)
+
+    /**
+     * The candidate set the ADAPTIVE agent and the failure-recovery MORPH cascade are allowed to pick
+     * from autonomously. DELIBERATELY fp-PRESERVING ONLY (spec I4): AUTO + the two TLS-fragmentation
+     * presets, all with an empty [CamouflageProfile.fingerprint] so they NEVER override the supplier's
+     * validated uTLS fingerprint. Browser fingerprints (chrome/firefox/safari/ios/randomized) override
+     * the link's fp — which broke premium REALITY nodes on DPI networks — so they are reachable ONLY by
+     * an explicit MANUAL user choice, never by the agent or the cascade. The only autonomously-learned
+     * shaping axis is therefore the TLS-fragmentation level.
+     */
+    val adaptiveShapingOrder: List<CamouflageProfile> = listOf(AUTO, FRAG_LIGHT, FRAG_AGGRESSIVE)
 
     fun all(): List<CamouflageProfile> = ALL
 
