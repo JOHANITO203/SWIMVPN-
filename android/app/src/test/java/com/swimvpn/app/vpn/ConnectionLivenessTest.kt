@@ -4,22 +4,27 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ConnectionLivenessTest {
-    @Test fun `not connected is inactive regardless of bytes`() {
-        assertEquals(ConnectionActivity.INACTIVE, ConnectionLiveness.derive(connected = false, bytesIn = 0L))
-        assertEquals(ConnectionActivity.INACTIVE, ConnectionLiveness.derive(connected = false, bytesIn = 5_000L))
+    @Test fun `not connected is inactive whatever the traffic`() {
+        assertEquals(ConnectionActivity.INACTIVE, ConnectionLiveness.derive(false, recentInbound = true, recentOutbound = true))
+        assertEquals(ConnectionActivity.INACTIVE, ConnectionLiveness.derive(false, recentInbound = false, recentOutbound = false))
     }
 
-    @Test fun `connected with no inbound is awaiting, never active`() {
-        assertEquals(ConnectionActivity.AWAITING_TRAFFIC, ConnectionLiveness.derive(connected = true, bytesIn = 0L))
+    @Test fun `recent inbound is active even alongside outbound`() {
+        assertEquals(ConnectionActivity.ACTIVE, ConnectionLiveness.derive(true, recentInbound = true, recentOutbound = true))
+        assertEquals(ConnectionActivity.ACTIVE, ConnectionLiveness.derive(true, recentInbound = true, recentOutbound = false))
     }
 
-    @Test fun `connected with inbound bytes is active`() {
-        assertEquals(ConnectionActivity.ACTIVE, ConnectionLiveness.derive(connected = true, bytesIn = 1L))
-        assertEquals(ConnectionActivity.ACTIVE, ConnectionLiveness.derive(connected = true, bytesIn = 9_999_999L))
+    @Test fun `sending recently but nothing back is stalled (the dead-link case)`() {
+        assertEquals(ConnectionActivity.STALLED, ConnectionLiveness.derive(true, recentInbound = false, recentOutbound = true))
     }
 
-    @Test fun `active is claimed only when inbound is strictly positive`() {
-        // The honesty lock: zero inbound must never read as ACTIVE, only AWAITING_TRAFFIC.
-        assertEquals(ConnectionActivity.AWAITING_TRAFFIC, ConnectionLiveness.derive(connected = true, bytesIn = 0L))
+    @Test fun `no recent traffic either way is idle, never falsely active`() {
+        assertEquals(ConnectionActivity.IDLE, ConnectionLiveness.derive(true, recentInbound = false, recentOutbound = false))
+    }
+
+    @Test fun `a link that worked then died is never ACTIVE - recency only`() {
+        // Cumulative bytesIn would still be > 0 here; recency must NOT read that as ACTIVE.
+        assertEquals(ConnectionActivity.STALLED, ConnectionLiveness.derive(true, recentInbound = false, recentOutbound = true))
+        assertEquals(ConnectionActivity.IDLE, ConnectionLiveness.derive(true, recentInbound = false, recentOutbound = false))
     }
 }

@@ -1,25 +1,27 @@
 package com.swimvpn.app.vpn
 
 /**
- * Honest derivation of what the UI may CLAIM about a VPN session, from signals already available
- * locally — NO network probe (an in-session probe was found to destabilize the live tunnel).
+ * Honest derivation of what the UI may CLAIM about a VPN session, from RECENT traffic deltas the app
+ * already has locally — NO network probe (an in-session probe destabilizes the live tunnel).
+ *
+ * RECENCY, not cumulative totals: bytesIn/bytesOut are running totals that never decrease, so
+ * "ever received" (bytesIn > 0) wrongly stays true after a working link dies (e.g. you leave coverage).
+ * The honest signal is whether inbound/outbound INCREASED within a recent window — computed by the caller.
  *
  *  - INACTIVE: not connected.
- *  - AWAITING_TRAFFIC: connected (tunnel up + kill-switch armed = protected) but no inbound byte has
- *    been observed yet. Honest for BOTH an idle user and a silently-dead tunnel — in neither case is
- *    data actually flowing, so the UI must not claim "active traffic".
- *  - ACTIVE: inbound bytes observed → data really flowed IN through the tunnel.
- *
- * "Protected" (no-leak) stays true for the whole connected session and is surfaced separately; this
- * type governs only the "is traffic actually flowing" claim. Inbound (not outbound) is the proof: a
- * dead tunnel can still send outbound bytes that never get a reply.
+ *  - ACTIVE: inbound increased recently → data is really flowing IN.
+ *  - STALLED: connected, we sent recently but got NOTHING back → "no response" (left coverage, captive,
+ *    dead server while apps keep trying). This is the state that must UPDATE, not stay "Connected".
+ *  - IDLE: connected, no recent traffic either way → protected but idle. A live-idle link and a silently
+ *    dead one are indistinguishable without a probe, so we claim nothing more than "protected / awaiting".
  */
-enum class ConnectionActivity { INACTIVE, AWAITING_TRAFFIC, ACTIVE }
+enum class ConnectionActivity { INACTIVE, IDLE, STALLED, ACTIVE }
 
 object ConnectionLiveness {
-    fun derive(connected: Boolean, bytesIn: Long): ConnectionActivity = when {
+    fun derive(connected: Boolean, recentInbound: Boolean, recentOutbound: Boolean): ConnectionActivity = when {
         !connected -> ConnectionActivity.INACTIVE
-        bytesIn > 0L -> ConnectionActivity.ACTIVE
-        else -> ConnectionActivity.AWAITING_TRAFFIC
+        recentInbound -> ConnectionActivity.ACTIVE
+        recentOutbound -> ConnectionActivity.STALLED
+        else -> ConnectionActivity.IDLE
     }
 }
