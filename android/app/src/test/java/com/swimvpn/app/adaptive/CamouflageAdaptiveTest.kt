@@ -26,13 +26,30 @@ class CamouflageAdaptiveTest {
     }
 
     @Test
-    fun `prefers best margin on the current network`() {
+    fun `prefers the best-margin fragmentation level on the current network`() {
         val score = ServerQualityScore(
             "s",
-            profileSuccesses = mapOf("WIFI|firefox" to 3),
-            profileFailures = mapOf("WIFI|chrome" to 2),
+            profileSuccesses = mapOf("WIFI|frag_aggressive" to 3),
+            profileFailures = mapOf("WIFI|auto" to 2),
         )
-        assertEquals("firefox", AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI).id)
+        assertEquals(
+            "frag_aggressive",
+            AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI).id,
+        )
+    }
+
+    @Test
+    fun `agent never picks a browser fingerprint even with strong browser history (I4)`() {
+        // Browser fps override the link's validated fingerprint (broke REALITY) -> manual-only. Even an
+        // overwhelming chrome/firefox history must NOT make the agent choose them: it stays in the
+        // fp-preserving set {auto, frag_light, frag_aggressive}.
+        val score = ServerQualityScore(
+            "s",
+            profileSuccesses = mapOf("WIFI|chrome" to 50, "WIFI|firefox" to 30),
+        )
+        val picked = AdaptiveDecisionAgent.selectBestCamouflageProfile(score, NetworkType.WIFI)
+        assertEquals("auto", picked.id)
+        assertEquals("", picked.fingerprint) // fp-preserving (no override)
     }
 
     @Test
@@ -141,7 +158,7 @@ class CamouflageAdaptiveTest {
             softDegradation = true,
         )
         assertEquals(DecisionActionType.MORPH_PROFILE, action.type)
-        assertEquals("chrome", action.targetProfileId)
+        assertEquals("frag_light", action.targetProfileId) // fp-preserving escalation, never a browser fp
     }
 
     @Test
@@ -158,7 +175,7 @@ class CamouflageAdaptiveTest {
         )
         assertEquals(DecisionActionType.MORPH_PROFILE, action.type)
         assertEquals("s", action.targetServerId)
-        assertEquals("chrome", action.targetProfileId) // next untried in fallbackOrder after auto
+        assertEquals("frag_light", action.targetProfileId) // next untried fp-preserving profile after auto
     }
 
     @Test
@@ -170,10 +187,25 @@ class CamouflageAdaptiveTest {
             reconnectAttempt = 2,
             nowMs = 1_000L,
             networkType = NetworkType.WIFI,
-            currentProfileId = "firefox",
-            triedProfileIds = setOf("auto", "chrome", "firefox"),
+            currentProfileId = "frag_aggressive",
+            triedProfileIds = setOf("auto", "frag_light", "frag_aggressive"),
         )
         assertEquals(DecisionActionType.RECONNECT_SAME, action.type) // no fallback candidate -> retry current
+    }
+
+    @Test
+    fun `morph cascade only ever escalates fragmentation, never a browser fp`() {
+        // Walk the untried-profile cascade from scratch: it must yield ONLY fp-preserving profiles
+        // (auto -> frag_light -> frag_aggressive -> exhausted), never chrome/firefox/safari/ios/randomized.
+        val tried = mutableSetOf<String>()
+        val walked = mutableListOf<String>()
+        while (true) {
+            val next = AdaptiveDecisionAgent.nextUntriedProfile(tried) ?: break
+            assertEquals("fp-preserving only", "", next.fingerprint)
+            walked += next.id
+            tried += next.id
+        }
+        assertEquals(listOf("auto", "frag_light", "frag_aggressive"), walked)
     }
 
     @Test

@@ -616,26 +616,34 @@ object AdaptiveDecisionAgent {
     }
 
     /**
-     * Phase 3: pick the camouflage profile that has CONNECTED most reliably for this server on the
-     * current concrete network. Pure and deterministic.
+     * Phase 2c: pick the camouflage profile that has CONNECTED most reliably for this server on the
+     * current concrete network, AMONG THE fp-PRESERVING SET ONLY. Pure and deterministic.
      *
-     * Profiles are walked in [CamouflageProfileRepository.fallbackOrder] (preference order) and scored
-     * by margin = successes − failures for the "NETWORK|profileId" bucket. Strict-greater keeps the
-     * earlier (more-preferred) profile on ties, so with no history it returns the default (chrome) and
-     * a failing profile is naturally superseded by the next as its margin drops — an implicit DPI
-     * fallback cascade, with recovery as successes accrue. Returns [CamouflageProfileRepository.DEFAULT]
-     * when the score is null or the network isn't bucketed (no per-network learning possible).
+     * Profiles default to [CamouflageProfileRepository.adaptiveShapingOrder] = {AUTO, FRAG_LIGHT,
+     * FRAG_AGGRESSIVE} — all keep the link's validated uTLS fingerprint (spec I4); the agent NEVER picks
+     * a browser fp (those override the fp and broke premium REALITY nodes — manual-only). Scored by margin
+     * = successes − failures for the "NETWORK|profileId" bucket. Strict-greater keeps the earlier
+     * (more-preferred) profile on ties, so with no history it returns AUTO (respect the link) and a failing
+     * fragmentation level is naturally superseded by the next as its margin drops — an implicit cascade,
+     * with recovery as successes accrue. Returns [CamouflageProfileRepository.DEFAULT] when the score is
+     * null or the network isn't bucketed (no per-network learning possible).
      *
      * NOTE: this optimizes connection RELIABILITY, not stealth (which the client cannot measure).
      */
-    /** The most-preferred shaping profile not yet tried this incident, or null if all are exhausted. */
-    fun nextUntriedProfile(triedProfileIds: Set<String>): CamouflageProfile? =
-        CamouflageProfileRepository.fallbackOrder.firstOrNull { it.id !in triedProfileIds }
+    /**
+     * The most-preferred UNtried shaping profile this incident, or null if all are exhausted. Walks the
+     * fp-PRESERVING [CamouflageProfileRepository.adaptiveShapingOrder] (spec I4): the MORPH cascade
+     * escalates AUTO → fragmentation levels, NEVER a browser fingerprint.
+     */
+    fun nextUntriedProfile(
+        triedProfileIds: Set<String>,
+        profiles: List<CamouflageProfile> = CamouflageProfileRepository.adaptiveShapingOrder,
+    ): CamouflageProfile? = profiles.firstOrNull { it.id !in triedProfileIds }
 
     fun selectBestCamouflageProfile(
         score: ServerQualityScore?,
         networkType: NetworkType,
-        profiles: List<CamouflageProfile> = CamouflageProfileRepository.fallbackOrder,
+        profiles: List<CamouflageProfile> = CamouflageProfileRepository.adaptiveShapingOrder,
     ): CamouflageProfile {
         if (score == null || !isBucketedNetwork(networkType)) return CamouflageProfileRepository.DEFAULT
         var best = CamouflageProfileRepository.DEFAULT
