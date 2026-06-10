@@ -17,8 +17,15 @@ export const LANDING_OG_IMAGE_URL = `${LANDING_BASE_URL}${LANDING_OG_IMAGE_PATH}
 
 export const LANDING_DOWNLOAD_URL = `${LANDING_BASE_URL}/downloads/swimvpn.apk`;
 
+// Path-based locale routing (better for SEO than a ?lang query param): default locale at "/",
+// others at "/<locale>" (e.g. "/fr"). The prerender writes one static HTML per path, and nginx's
+// `try_files $uri $uri/ /index.html` serves "/fr/" from "dist/fr/index.html".
+export function getLandingPath(locale: LandingLocale): string {
+  return locale === LANDING_DEFAULT_LOCALE ? '/' : `/${locale}`;
+}
+
 export function getLandingUrl(locale: LandingLocale): string {
-  return locale === LANDING_DEFAULT_LOCALE ? `${LANDING_BASE_URL}/` : `${LANDING_BASE_URL}/?lang=${locale}`;
+  return `${LANDING_BASE_URL}${getLandingPath(locale)}`;
 }
 
 export type LandingCopy = {

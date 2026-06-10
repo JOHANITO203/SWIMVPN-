@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import LandingPage from './components/landing/LandingPage';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
 import TermsOfService from './components/legal/TermsOfService';
+import { LandingLocale } from './components/landing/landingContent';
 
-export default function App() {
-  const [hash, setHash] = useState(window.location.hash);
+// `initialLocale` is only supplied by the build-time prerender (Node, no `window`); on the client it
+// is undefined and the locale is detected from the URL/storage. The `window` guard lets the tree
+// render to static markup in Node without a browser.
+export default function App({ initialLocale }: { initialLocale?: LandingLocale } = {}) {
+  const [hash, setHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
 
   useEffect(() => {
     const handleHashChange = () => setHash(window.location.hash);
@@ -21,7 +25,7 @@ export default function App() {
       content = <TermsOfService />;
       break;
     default:
-      content = <LandingPage />;
+      content = <LandingPage initialLocale={initialLocale} />;
   }
 
   return (
