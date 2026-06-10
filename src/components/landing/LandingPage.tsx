@@ -19,6 +19,7 @@ import {
   LANDING_LOCALE_LABELS,
   LANDING_OG_IMAGE_URL,
   LandingLocale,
+  getLandingPath,
   getLandingUrl,
   isLandingLocale,
 } from './landingContent';
@@ -52,8 +53,14 @@ const paymentIconSrc = {
   crypto: '/payments/crypto.svg',
 } as const;
 
-function getInitialLocale(): LandingLocale {
-  if (typeof window === 'undefined') return LANDING_DEFAULT_LOCALE;
+function getInitialLocale(initialLocale?: LandingLocale): LandingLocale {
+  // SSR/prerender: no window — use the locale the build passed in.
+  if (typeof window === 'undefined') return initialLocale ?? LANDING_DEFAULT_LOCALE;
+
+  // Path-based locale first (e.g. "/fr"), so a visitor landing on the prerendered "/fr" page keeps
+  // French after hydration; then the legacy ?lang query, then the stored preference.
+  const pathLocale = window.location.pathname.split('/').filter(Boolean)[0];
+  if (isLandingLocale(pathLocale)) return pathLocale;
 
   const queryLocale = new URLSearchParams(window.location.search).get('lang');
   if (isLandingLocale(queryLocale)) return queryLocale;
@@ -64,9 +71,9 @@ function getInitialLocale(): LandingLocale {
   return LANDING_DEFAULT_LOCALE;
 }
 
-const LandingPage = () => {
+const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) => {
   const shouldReduceMotion = useReducedMotion();
-  const [locale, setLocale] = useState<LandingLocale>(getInitialLocale);
+  const [locale, setLocale] = useState<LandingLocale>(() => getInitialLocale(initialLocale));
   const copy = LANDING_COPY[locale];
 
   useEffect(() => {
@@ -89,9 +96,10 @@ const LandingPage = () => {
 
   const setLanguage = (nextLocale: LandingLocale) => {
     setLocale(nextLocale);
+    // Path-based switch ("/" <-> "/fr") to match the prerendered, indexable URLs. SPA replaceState
+    // (no reload); the effect above re-syncs <head>. The legacy ?lang is dropped to avoid duplicates.
     const url = new URL(window.location.href);
-    url.searchParams.set('lang', nextLocale);
-    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    window.history.replaceState({}, '', `${getLandingPath(nextLocale)}${url.hash}`);
   };
 
   const motionProps = shouldReduceMotion
