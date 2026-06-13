@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
+import com.swimvpn.app.AccessDataSource
 import com.swimvpn.app.AppState
 import com.swimvpn.app.MainViewModel
 import com.swimvpn.app.R
@@ -266,6 +267,24 @@ fun HomeScreen(
                     .align(Alignment.TopEnd)
                     .padding(top = if (compact) 48.dp else 54.dp, end = horizontalPadding),
             )
+
+            // Offline-access: honest banner when the data is served from the local cache (backend
+            // unreachable). Not an error — the app stays usable; the backend remains the real gate.
+            if (data.dataSource == AccessDataSource.CACHED) {
+                SwimPillSurface(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = if (compact) 50.dp else 56.dp),
+                    minHeight = 30.dp,
+                ) {
+                    Text(
+                        text = stringResource(R.string.offline_cached_banner),
+                        color = SwimDesignTokens.Color.HomeTextSecondary,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    )
+                }
+            }
 
             Column(
                 modifier = Modifier

@@ -23,6 +23,8 @@ import com.swimvpn.app.adaptive.TunnelHealthSentinel
 import com.swimvpn.app.adaptive.ServerDecisionCandidate
 import com.swimvpn.app.adaptive.ServerScoreStore
 import com.swimvpn.app.data.local.PreferencesManager
+import com.swimvpn.app.data.local.AccessCacheStore
+import com.swimvpn.app.data.local.CachedAccess
 import com.swimvpn.app.data.local.AutoConnectPayload
 import com.swimvpn.app.data.local.DeviceIdentityProvider
 import com.swimvpn.app.data.network.AccessProfileResponse
@@ -76,6 +78,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
+/**
+ * Where the resolved [AppState.Success] data came from. LIVE = fresh from the backend; CACHED = the
+ * last persisted snapshot, served because the API was unreachable/offline (offline-access feature).
+ * The UI shows an honest "cached / offline" banner for CACHED — the backend stays the real gate.
+ */
+enum class AccessDataSource { LIVE, CACHED }
+
 sealed class AppState {
     object Loading : AppState()
     data class TrialSetup(
@@ -109,6 +118,10 @@ sealed class AppState {
         val isRecommendedServerValidated: Boolean = false,
         val preferredNetworkByServerId: Map<String, NetworkType?> = emptyMap(),
         val currentNetworkType: NetworkType = NetworkType.UNKNOWN,
+        // Offline-access: LIVE by default; CACHED when served from the local snapshot because the
+        // backend was unreachable. cachedAtMs = when that snapshot was taken (for the UI banner).
+        val dataSource: AccessDataSource = AccessDataSource.LIVE,
+        val cachedAtMs: Long? = null,
     ) : AppState()
 
     data class Error(val message: String) : AppState()
@@ -129,6 +142,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val api = RetrofitClient.apiService
     private val configRepository = ConfigRepository(application)
     private val serverScoreStore = ServerScoreStore(application)
+    private val accessCacheStore = AccessCacheStore(application)
 
     private val _state = MutableStateFlow<AppState>(AppState.Loading)
     val state: StateFlow<AppState> = _state.asStateFlow()
@@ -483,6 +497,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Offline-access: when the bootstrap can't reach a working backend (offline / blocked / 5xx), build
+     * a Success state from the last encrypted local snapshot instead of an Error screen. Returns null if
+     * there is no usable cache (then the caller keeps the normal Error). Fully local: no network calls
+     * (servers are injected from cache, plans skipped). Marked CACHED so the UI shows an honest banner.
+     */
+    private suspend fun restoreAccessFromCache(
+        isOnboardingDone: Boolean,
+        routingMode: RuntimeMode,
+        autoConnect: Boolean,
+        agentEnabled: Boolean,
+        language: String,
+        themeMode: ThemeMode,
+    ): AppState.Success? {
+        val cached = accessCacheStore.load() ?: return null
+        if (cached.profile.requiresProfileCompletion) return null
+        return buildSuccessState(
+            profile = cached.profile,
+            isOnboardingDone = isOnboardingDone,
+            routingMode = routingMode,
+            autoConnect = autoConnect,
+            agentEnabled = agentEnabled,
+            language = language,
+            themeMode = themeMode,
+            loadImportedProfiles = true,
+            loadStorePlans = false,
+            failOnBackendServerError = false,
+            injectedBackendServers = cached.servers,
+            dataSource = AccessDataSource.CACHED,
+            cachedAtMs = cached.savedAtMs,
+        )
+    }
+
     private fun initApp() {
         viewModelScope.launch {
             try {
@@ -524,15 +571,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         s(R.string.err_bootstrap_failed)
                     }
-                    _state.value = AppState.Error(msg)
+                    // 5xx = backend down → offline-access cache is appropriate; 4xx = app/auth issue → keep Error.
+                    val cachedState = if (e.code() >= 500) {
+                        restoreAccessFromCache(isOnboardingDone, routingMode, autoConnect, agentEnabled, language, themeMode)
+                    } else null
+                    _state.value = cachedState ?: AppState.Error(msg)
+                    if (cachedState != null) logStartup("offline cache served (http ${e.code()})")
                     return@launch
                 } catch (e: java.net.SocketTimeoutException) {
                     Log.e("MainViewModel", "Timeout bootstrapping access", e)
-                    _state.value = AppState.Error(s(R.string.err_network_timeout))
+                    val cachedState = restoreAccessFromCache(isOnboardingDone, routingMode, autoConnect, agentEnabled, language, themeMode)
+                    _state.value = cachedState ?: AppState.Error(s(R.string.err_network_timeout))
+                    if (cachedState != null) logStartup("offline cache served (timeout)")
                     return@launch
                 } catch (e: Exception) {
                     Log.e("MainViewModel", "API Error bootstrapping access", e)
-                    _state.value = AppState.Error(s(R.string.err_bootstrap_failed))
+                    // Generic failure covers offline (UnknownHost/IOException) — serve the cache if we have one.
+                    val cachedState = restoreAccessFromCache(isOnboardingDone, routingMode, autoConnect, agentEnabled, language, themeMode)
+                    _state.value = cachedState ?: AppState.Error(s(R.string.err_bootstrap_failed))
+                    if (cachedState != null) logStartup("offline cache served (network error)")
                     return@launch
                 }
 
@@ -1913,6 +1970,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadImportedProfiles: Boolean = true,
         loadStorePlans: Boolean = true,
         failOnBackendServerError: Boolean = true,
+        // Offline-access: when non-null, use these cached servers instead of calling the API (no network).
+        injectedBackendServers: List<ServerNode>? = null,
+        dataSource: AccessDataSource = AccessDataSource.LIVE,
+        cachedAtMs: Long? = null,
     ): AppState.Success? {
         val pinnedIds = prefs.pinnedServerIdsFlow.first()
         val importedGroups = if (loadImportedProfiles) {
@@ -1921,30 +1982,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             emptyList()
         }
         val deviceId = getDeviceId()
-        val backendServers = if (!loadBackendServers) {
-            emptyList()
-        } else {
-            try {
-                if (deviceId == null) {
-                    if (profile.isPremiumAllowed && failOnBackendServerError) {
-                        Log.e("MainViewModel", "Device identity unavailable while loading premium servers")
-                        _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
-                        return null
+        val backendServers = when {
+            // Offline-access restore: serve the cached snapshot, no API call.
+            injectedBackendServers != null -> injectedBackendServers
+            !loadBackendServers -> emptyList()
+            else -> {
+                try {
+                    if (deviceId == null) {
+                        if (profile.isPremiumAllowed && failOnBackendServerError) {
+                            Log.e("MainViewModel", "Device identity unavailable while loading premium servers")
+                            _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
+                            return null
+                        }
+                        emptyList()
+                    } else {
+                        val fetched = api.getServers(profile.userNumber, deviceId)
+                        // Offline-access: persist this fresh snapshot (profile + servers, encrypted) so the
+                        // app can show/connect to them later when the API is unreachable.
+                        accessCacheStore.save(profile, fetched, System.currentTimeMillis())
+                        fetched
                     }
-                    emptyList()
-                } else {
-                    api.getServers(profile.userNumber, deviceId)
-                }
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "API Error fetching servers", e)
-                if (profile.isPremiumAllowed) {
-                    if (failOnBackendServerError) {
-                        _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
-                        return null
+                } catch (e: Exception) {
+                    Log.e("MainViewModel", "API Error fetching servers", e)
+                    if (profile.isPremiumAllowed) {
+                        if (failOnBackendServerError) {
+                            _state.value = AppState.Error(s(R.string.err_fetch_servers_failed))
+                            return null
+                        }
+                        emptyList()
+                    } else {
+                        emptyList()
                     }
-                    emptyList()
-                } else {
-                    emptyList()
                 }
             }
         }
@@ -1984,6 +2052,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             language = language,
             themeMode = themeMode,
             activeServer = activeServer,
+            dataSource = dataSource,
+            cachedAtMs = cachedAtMs,
         ).let(::applyAdaptiveRecommendation)
     }
 

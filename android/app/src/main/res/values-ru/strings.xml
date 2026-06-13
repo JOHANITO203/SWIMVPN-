@@ -379,4 +379,5 @@
     <string name="proxy_screen_unreachable_short">Недоступен</string>
     <string name="proxy_screen_untested">Не проверен</string>
     <string name="proxy_screen_pool_footer">Ручное переключение в один тап. Авто-переключение скоро.</string>
+    <string name="offline_cached_banner">Офлайн · данные из кэша</string>
 </resources>

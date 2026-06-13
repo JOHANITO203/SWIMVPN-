@@ -379,4 +379,5 @@
     <string name="proxy_screen_unreachable_short">Injoignable</string>
     <string name="proxy_screen_untested">Non testé</string>
     <string name="proxy_screen_pool_footer">Bascule manuelle en un tap. L\'auto-bascule arrive bientôt.</string>
+    <string name="offline_cached_banner">Hors-ligne · données en cache</string>
 </resources>
