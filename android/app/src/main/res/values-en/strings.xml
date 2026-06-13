@@ -379,4 +379,5 @@
     <string name="proxy_screen_unreachable_short">Unreachable</string>
     <string name="proxy_screen_untested">Not tested</string>
     <string name="proxy_screen_pool_footer">Manual switch in one tap. Auto-switch is coming soon.</string>
+    <string name="offline_cached_banner">Offline · cached data</string>
 </resources>
