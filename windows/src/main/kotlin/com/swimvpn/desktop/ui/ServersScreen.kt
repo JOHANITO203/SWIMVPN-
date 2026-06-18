@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -109,16 +110,24 @@ fun ServersScreen(app: AppController) {
     if (showImport) {
         var draft by remember { mutableStateOf("") }
         var error by remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(app.importResult) {
+            val r = app.importResult ?: return@LaunchedEffect
+            if (r.added > 0) { app.importResult = null; showImport = false } else error = r.message
+        }
         AlertDialog(
-            onDismissRequest = { showImport = false },
+            onDismissRequest = { if (!app.importBusy) showImport = false },
             title = { Text("Importer une configuration") },
             text = {
                 Column {
                     OutlinedTextField(
                         value = draft, onValueChange = { draft = it; error = null },
-                        label = { Text("vless:// · vmess:// · trojan:// · ss:// · abonnement") },
+                        label = { Text("vless:// · vmess:// · trojan:// · ss:// · abonnement (https://…)") },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    if (app.importBusy) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("Téléchargement de l'abonnement…", color = tokens.color.homeTextMuted, fontSize = 12.sp)
+                    }
                     error?.let {
                         Spacer(Modifier.height(8.dp))
                         Text(it, color = tokens.color.homeDanger, fontSize = 12.sp)
@@ -126,12 +135,9 @@ fun ServersScreen(app: AppController) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    if (draft.isNotBlank()) {
-                        val result = app.importConfig(draft.trim())
-                        if (result.added > 0) showImport = false else error = result.message
-                    }
-                }) { Text("Importer") }
+                TextButton(enabled = !app.importBusy, onClick = {
+                    if (draft.isNotBlank()) { error = null; app.importConfig(draft.trim()) }
+                }) { Text(if (app.importBusy) "…" else "Importer") }
             },
             dismissButton = { TextButton(onClick = { showImport = false }) { Text("Annuler") } },
         )

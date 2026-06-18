@@ -11,6 +11,8 @@ import com.swimvpn.app.config.VpnConfigLinkExtractor
 import com.swimvpn.desktop.vpn.VpnController
 import com.swimvpn.desktop.vpn.VpnState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 enum class NavTab { HOME, SERVERS, SUBSCRIPTION, ACCOUNT }
 
@@ -18,7 +20,7 @@ enum class NavTab { HOME, SERVERS, SUBSCRIPTION, ACCOUNT }
  * The desktop "view-model": owns navigation, the imported config list (parsed by the SHARED
  * Android engine), selection, settings, and the VPN lifecycle — persisted locally.
  */
-class AppController(scope: CoroutineScope) {
+class AppController(private val scope: CoroutineScope) {
     val vpn = VpnController(scope)
 
     var tab by mutableStateOf(NavTab.HOME)
@@ -44,9 +46,43 @@ class AppController(scope: CoroutineScope) {
         System.getenv("LOCALAPPDATA") ?: System.getProperty("java.io.tmpdir"), "SWIMVPN",
     ).apply { mkdirs() }
 
-    /** Import one or many links (subscription blobs are split by the shared extractor). NEVER
-     *  silent: returns a result + logs the raw input and per-entry outcome to import.log. */
-    fun importConfig(blob: String): ImportResult {
+    var importBusy by mutableStateOf(false)
+        private set
+    var importResult by mutableStateOf<ImportResult?>(null)
+
+    /** Import from a pasted link/blob OR a subscription URL (http(s):// is fetched first). Async;
+     *  exposes importBusy + importResult as state. Never silent (logs to import.log). */
+    fun importConfig(input: String) {
+        if (importBusy) return
+        importBusy = true
+        importResult = null
+        scope.launch(Dispatchers.IO) {
+            val payload = runCatching {
+                if (input.startsWith("http://", true) || input.startsWith("https://", true)) {
+                    fetchSubscription(input)
+                } else input
+            }.getOrElse { e ->
+                runCatching { java.io.File(appDir, "import.log").appendText("FETCH FAIL $input: ${e.message}\n") }
+                importResult = ImportResult(0, 1, "Échec téléchargement abonnement : ${e.message}")
+                importBusy = false
+                return@launch
+            }
+            importResult = processImport(payload)
+            importBusy = false
+        }
+    }
+
+    private fun fetchSubscription(url: String): String {
+        val conn = java.net.URI(url).toURL().openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 12_000
+        conn.readTimeout = 12_000
+        conn.instanceFollowRedirects = true
+        conn.setRequestProperty("User-Agent", "SWIMVPN-Windows/1.0")
+        return conn.inputStream.bufferedReader().use { it.readText() }
+    }
+
+    /** Parses a pasted/fetched payload (links, base64 blob, or subscription body). Never silent. */
+    private fun processImport(blob: String): ImportResult {
         val entries = VpnConfigLinkExtractor.extractEntries(blob).ifEmpty { listOf(blob.trim()) }
         val log = StringBuilder("=== import (${blob.length} chars, ${entries.size} entries) ===\n")
         log.append("raw: ${blob.take(400)}\n")
