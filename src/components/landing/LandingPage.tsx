@@ -26,6 +26,23 @@ const PAL_THEMES = [
   { bg: '#080F1A', ink: '#ffffff', accent: '#38BDF8' },
 ];
 
+// Bento layout for the 5 capability tiles: a wide feature tile + a dark accent
+// tile (the AI pilot) among the rest. Indexes match SHOWCASE_COPY.scrollCaps.
+const POINT_LAYOUT = ['span4 feature', 'span2', 'span2 accent', 'span2', 'span2'];
+
+const ico = (children: React.ReactNode) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+    {children}
+  </svg>
+);
+const POINT_ICONS = [
+  ico(<><path d="M7 11V8a5 5 0 0 1 9.9-1" /><rect x="3" y="11" width="18" height="10" rx="2" /></>), // unlock — bypass blocks
+  ico(<><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18" /></>), // globe — worldwide
+  ico(<><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" rx="1" /><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3" /></>), // cpu — AI pilot
+  ico(<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />), // shield — protocols
+  ico(<><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18" /><path d="M15 15h2" /></>), // card — payment
+];
+
 function getInitialLocale(initialLocale?: LandingLocale): LandingLocale {
   if (typeof window === 'undefined') return initialLocale ?? LANDING_DEFAULT_LOCALE;
   const pathLocale = window.location.pathname.split('/').filter(Boolean)[0];
@@ -333,11 +350,12 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
         <div className="scrollhint">{c.hero.scrollHint}</div>
       </section>
 
-      {/* CAPABILITIES — clean stacked points (video dropped) */}
+      {/* CAPABILITIES — bento grid (varied tiles, icons, one accent tile) */}
       <section id="showcase" className="points-sec">
         <div className="wrap points-grid">
           {c.scrollCaps.map((cap, i) => (
-            <div className="point rv" data-d={String((i % 3) + 1)} key={i}>
+            <div className={`point rv ${POINT_LAYOUT[i] || 'span2'}`} data-d={String((i % 3) + 1)} key={i}>
+              <span className="point-ico" aria-hidden="true">{POINT_ICONS[i]}</span>
               <span className="k">{cap.k}</span>
               <h3>{cap.h3}</h3>
               <p>{cap.p}</p>

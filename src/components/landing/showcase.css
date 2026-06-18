@@ -503,15 +503,37 @@
     html{scroll-behavior:auto}
   }
 
-  /* ---- capabilities: clean bento points (replaced the scroll-scrub video) ---- */
+  /* ---- capabilities: BENTO grid (varied tiles + icons + dark accent) ---- */
   .points-sec{padding:clamp(72px,8vw,110px) 0}
-  .points-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
-  .point{background:var(--card);border:1px solid var(--hair);border-radius:var(--radius);
-    padding:clamp(26px,3vw,34px) clamp(24px,2.6vw,30px);box-shadow:var(--shadow)}
-  .point .k{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8B5CF6;font-weight:600}
+  .points-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;grid-auto-rows:1fr}
+  .point{position:relative;background:var(--card);border:1px solid var(--hair);border-radius:var(--radius);
+    padding:clamp(26px,3vw,34px) clamp(24px,2.6vw,30px);box-shadow:var(--shadow);
+    grid-column:span 2;display:flex;flex-direction:column}
+  .point.span4{grid-column:span 4}
+  .point.span2{grid-column:span 2}
+  .point-ico{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;
+    border-radius:12px;background:rgba(139,92,246,.1);color:#8B5CF6;margin-bottom:18px}
+  .point-ico svg{width:21px;height:21px}
+  .point .k{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8B5CF6;font-weight:600}
   .point h3{font-size:clamp(19px,2.2vw,25px);letter-spacing:-.025em;line-height:1.2;margin:12px 0 10px;font-weight:700;color:var(--ink)}
   .point p{color:var(--ink-2);font-size:14.5px;line-height:1.62;font-weight:300;margin:0}
-  @media(max-width:600px){.points-grid{grid-template-columns:1fr}}
+  .point.feature h3{font-size:clamp(24px,2.9vw,34px);max-width:16ch}
+  .point.feature p{font-size:15.5px;max-width:44ch}
+  /* dark accent tile — the AI pilot */
+  .point.accent{background:linear-gradient(150deg,#1c1530 0%,#15151A 58%,#0e0e13 100%);border-color:rgba(139,92,246,.3);color:#fff}
+  .point.accent .k{color:#B89AFF}
+  .point.accent h3{color:#fff}
+  .point.accent p{color:rgba(255,255,255,.62)}
+  .point.accent .point-ico{background:rgba(139,92,246,.22);color:#B89AFF}
+  @media(max-width:900px){
+    .points-grid{grid-template-columns:repeat(4,1fr)}
+    .point.span4{grid-column:span 4}
+    .point.span2{grid-column:span 2}
+  }
+  @media(max-width:600px){
+    .points-grid{grid-template-columns:1fr}
+    .point.span4,.point.span2{grid-column:span 1}
+  }
 
   /* ---- HERO video (surveillance robot, eyes track the cursor) ---- */
   .hero-v{position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden}
