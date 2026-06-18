@@ -144,72 +144,11 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
     );
     document.querySelectorAll('.rv').forEach((el) => io.observe(el));
 
-    // scroll-scrub stage + header hide/rewind
+    // header hide on scroll-down, rewind on scroll-up
     const hdr = document.getElementById('hdr');
-    const sec = document.querySelector<HTMLElement>('.scrollstage');
-    const v = document.getElementById('scrub') as HTMLVideoElement | null;
-    const caps = [...document.querySelectorAll<HTMLElement>('.cap')];
-    const dots = [...document.querySelectorAll<HTMLElement>('.segdots i')];
-    let dur = 0;
-    let idle: ReturnType<typeof setTimeout>;
-    const onMeta = () => { if (v) dur = v.duration || 0; };
-    v?.addEventListener('loadedmetadata', onMeta);
-
-    // Lazy-load the heavy clip (~9MB) only when its section nears the viewport,
-    // instead of preloading it on every page visit. Poster shows meanwhile.
-    let vLoaded = false;
-    const vio = new IntersectionObserver(
-      (es) => es.forEach((e) => {
-        if (e.isIntersecting && v && !vLoaded) {
-          vLoaded = true;
-          if (v.dataset.src && !v.src) v.src = v.dataset.src;
-          v.load();
-          v.play().catch(() => {});
-          vio.disconnect();
-        }
-      }),
-      { rootMargin: '400px 0px' },
-    );
-    if (sec) vio.observe(sec);
-
-    const setSeg = (i: number) => {
-      caps.forEach((cap) => cap.classList.toggle('on', Number(cap.dataset.seg) === i));
-      dots.forEach((d, k) => d.classList.toggle('on', k === i));
-    };
-    setSeg(0);
-
-    let cachedSecTop = 0;
-    let cachedSecH = 0;
-    const refreshLayout = () => {
-      if (!sec) return;
-      cachedSecTop = sec.getBoundingClientRect().top + window.scrollY;
-      cachedSecH = sec.offsetHeight;
-    };
-    refreshLayout();
-
     let hdrHidden = false;
     let lastY = 0;
     const DZONE = 5;
-    const updateHdr = (y: number) => {
-      if (!hdr) return;
-      const featTop = cachedSecTop - 16;
-      const goingDown = y > lastY + DZONE;
-      const goingUp = y < lastY - DZONE;
-      if (goingDown && y >= featTop && !hdrHidden) {
-        hdr.classList.remove('hdr-rewind');
-        void hdr.offsetWidth;
-        hdr.classList.add('hdr-hidden');
-        hdrHidden = true;
-      } else if (goingUp && hdrHidden) {
-        hdr.classList.remove('hdr-hidden');
-        void hdr.offsetWidth;
-        hdr.classList.add('hdr-rewind');
-        hdrHidden = false;
-      }
-      if (Math.abs(y - lastY) > DZONE) lastY = y;
-      hdr.classList.toggle('scrolled', y > 8 && !hdrHidden);
-    };
-
     let ticking = false;
     const onScroll = () => {
       if (ticking) return;
@@ -217,25 +156,25 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
       requestAnimationFrame(() => {
         ticking = false;
         const y = window.scrollY;
-        updateHdr(y);
-        if (!sec || !v) return;
-        const top = cachedSecTop - y;
-        const pinned = top <= 0 && top + cachedSecH >= window.innerHeight;
-        if (pinned) {
-          const total = cachedSecH - window.innerHeight;
-          const prog = Math.min(1, Math.max(0, -top / total));
-          if (!v.paused) v.pause();
-          if (dur) v.currentTime = Math.min(dur - 0.05, prog * dur);
-          setSeg(Math.min(caps.length - 1, Math.floor(prog * caps.length)));
-          clearTimeout(idle);
-          idle = setTimeout(() => v.play().catch(() => {}), 220);
-        } else if (v.paused) {
-          v.play().catch(() => {});
+        if (!hdr) return;
+        const goingDown = y > lastY + DZONE;
+        const goingUp = y < lastY - DZONE;
+        if (goingDown && y > window.innerHeight * 0.6 && !hdrHidden) {
+          hdr.classList.remove('hdr-rewind');
+          void hdr.offsetWidth;
+          hdr.classList.add('hdr-hidden');
+          hdrHidden = true;
+        } else if (goingUp && hdrHidden) {
+          hdr.classList.remove('hdr-hidden');
+          void hdr.offsetWidth;
+          hdr.classList.add('hdr-rewind');
+          hdrHidden = false;
         }
+        if (Math.abs(y - lastY) > DZONE) lastY = y;
+        hdr.classList.toggle('scrolled', y > 8 && !hdrHidden);
       });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', refreshLayout, { passive: true });
     onScroll();
 
     // palette stage auto-cycle
@@ -262,11 +201,7 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
 
     return () => {
       io.disconnect();
-      vio.disconnect();
-      v?.removeEventListener('loadedmetadata', onMeta);
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', refreshLayout);
-      clearTimeout(idle);
       clearInterval(palTimer);
     };
   }, [locale]);
@@ -341,37 +276,16 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
         <div className="scrollhint">{c.hero.scrollHint}</div>
       </section>
 
-      {/* SCROLL-SCRUB STAGE */}
-      <section id="showcase" className="scrollstage">
-        <div className="stage-sticky">
-          <div className="wrap" style={{ display: 'contents' }}>
-            <div className="stage-caps">
-              {c.scrollCaps.map((cap, i) => (
-                <div className={`cap${i === 0 ? ' on' : ''}`} data-seg={i} key={i}>
-                  <span className="k">{cap.k}</span>
-                  <h3>{cap.h3}</h3>
-                  <p>{cap.p}</p>
-                </div>
-              ))}
+      {/* CAPABILITIES — clean stacked points (video dropped) */}
+      <section id="showcase" className="points-sec">
+        <div className="wrap points-grid">
+          {c.scrollCaps.map((cap, i) => (
+            <div className="point rv" data-d={String((i % 3) + 1)} key={i}>
+              <span className="k">{cap.k}</span>
+              <h3>{cap.h3}</h3>
+              <p>{cap.p}</p>
             </div>
-            <div className="stage-video">
-              <video
-                id="scrub"
-                data-src="/assets/app-tour-scrub.mp4"
-                poster="/assets/app-tour-poster.jpg"
-                muted
-                loop
-                playsInline
-                preload="none"
-                disablePictureInPicture
-              />
-            </div>
-          </div>
-          <div className="segdots">
-            {c.scrollCaps.map((_, i) => (
-              <i className={i === 0 ? 'on' : ''} key={i} />
-            ))}
-          </div>
+          ))}
         </div>
       </section>
 
