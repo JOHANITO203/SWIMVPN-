@@ -305,7 +305,9 @@
      screen — switch the final section to a clean vertical stack (words then CTA). */
   @media(max-width:600px){
     .final{height:auto;overflow:visible}
-    .final-content{position:static;height:auto;display:flex;flex-direction:column;align-items:flex-start;padding:116px 20px 72px}
+    /* relative + z-index so content paints ABOVE the absolute .final-overlay
+       (static would let the dark overlay cover the words → invisible block) */
+    .final-content{position:relative;z-index:1;height:auto;display:flex;flex-direction:column;align-items:flex-start;padding:116px 20px 72px}
     .final-word{position:static;font-size:17vw;line-height:0.98;margin:0}
     .fw1,.fw2,.fw3{position:static;left:auto;right:auto;top:auto;bottom:auto}
     .final-cta{position:static;left:auto;right:auto;bottom:auto;margin-top:30px;width:100%;max-width:none}

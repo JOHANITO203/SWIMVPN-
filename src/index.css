@@ -8,8 +8,10 @@
 }
 
 /* Light-only design: opt out of browser/OS auto-dark (Chrome Android "Auto Dark
-   Theme" would otherwise invert and break the light grammar). */
-html { color-scheme: light; }
+   Theme" would otherwise invert and break the light grammar). "only light" is the
+   strong opt-out. NB: if the user enabled chrome://flags force-dark, no site CSS
+   can override it — that's a device setting. */
+html { color-scheme: only light; }
 
 /* The landing design system (showcase.css) owns the body background + base type
    for the light-dominant grammar. Legal/offer pages set their own surfaces. */
