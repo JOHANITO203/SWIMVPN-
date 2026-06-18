@@ -41,3 +41,6 @@ swimsignature
 *.log
 .env*
 !.env.example
+
+# Design mocks — local-only working references (not deployed; the live UI is in src/)
+docs/design/
