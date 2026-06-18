@@ -512,3 +512,24 @@
   .point h3{font-size:clamp(19px,2.2vw,25px);letter-spacing:-.025em;line-height:1.2;margin:12px 0 10px;font-weight:700;color:var(--ink)}
   .point p{color:var(--ink-2);font-size:14.5px;line-height:1.62;font-weight:300;margin:0}
   @media(max-width:600px){.points-grid{grid-template-columns:1fr}}
+
+  /* ---- HERO video (surveillance robot, eyes track the cursor) ---- */
+  .hero-v{position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden}
+  .hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:75% center;z-index:0}
+  .hero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(to right,var(--bg) 2%,rgba(246,246,248,.74) 33%,rgba(246,246,248,.14) 60%,transparent 80%)}
+  .hero-v-inner{position:relative;z-index:2;width:100%;max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,5vw,28px);text-align:left}
+  .hero-v .eyebrow{display:block;text-align:left}
+  .hero-v h1{text-align:left;margin:16px 0 0;max-width:13ch}
+  .hero-v .lead{text-align:left;margin:18px 0 26px;max-width:44ch;font-weight:300}
+  .hero-v .hero-cta{justify-content:flex-start}
+  .hero-v .hero-trust{text-align:left}
+  .hero-v .scrollhint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:2;margin:0}
+  @media(max-width:760px){
+    .hero-v{align-items:flex-end;padding-bottom:54px}
+    .hero-video{object-position:60% center}
+    .hero-scrim{background:linear-gradient(to top,var(--bg) 5%,rgba(246,246,248,.85) 30%,rgba(246,246,248,.28) 56%,transparent 82%)}
+    .hero-v h1{max-width:none}
+    .hero-v .lead{max-width:none}
+    .hero-v .scrollhint{display:none}
+  }

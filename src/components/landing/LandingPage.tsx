@@ -206,6 +206,50 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
     };
   }, [locale]);
 
+  // Hero robot: desktop → eyes track the mouse (scrub the clip by horizontal
+  // movement); touch/no-mouse → just loop-play (no cursor to follow).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const v = document.getElementById('heroVid') as HTMLVideoElement | null;
+    if (!v) return;
+
+    const fine = window.matchMedia('(pointer: fine)').matches;
+    if (!fine) {
+      v.loop = true;
+      const play = () => v.play().catch(() => {});
+      if (v.readyState >= 2) play();
+      else v.addEventListener('loadeddata', play, { once: true });
+      return;
+    }
+
+    let prevX: number | null = null;
+    let targetTime = 0;
+    let seeking = false;
+    const SENS = 0.8;
+    const seekNext = () => {
+      if (!v.duration) { seeking = false; return; }
+      if (Math.abs(v.currentTime - targetTime) < 0.012) { seeking = false; return; }
+      seeking = true;
+      v.currentTime = targetTime;
+    };
+    const onMove = (e: MouseEvent) => {
+      if (!v.duration) return;
+      if (prevX === null) { prevX = e.clientX; return; }
+      const delta = e.clientX - prevX;
+      prevX = e.clientX;
+      targetTime = Math.min(v.duration - 0.05, Math.max(0, targetTime + (delta / window.innerWidth) * SENS * v.duration));
+      if (!seeking) seekNext();
+    };
+    const onSeeked = () => seekNext();
+    v.addEventListener('seeked', onSeeked);
+    window.addEventListener('mousemove', onMove, { passive: true });
+    v.load();
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      v.removeEventListener('seeked', onSeeked);
+    };
+  }, []);
+
   const goToOffers = (e: React.FormEvent) => {
     e.preventDefault();
     const email = (document.getElementById('finalEmail') as HTMLInputElement | null)?.value.trim();
@@ -263,16 +307,29 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
         </div>
       </header>
 
-      {/* HERO */}
-      <section className="hero wrap">
-        <span className="eyebrow">{c.hero.eyebrow}</span>
-        <h1>{c.hero.title}</h1>
-        <p className="lead">{c.hero.lead}</p>
-        <div className="hero-cta">
-          <GlassBtn href="#download" label={c.hero.ctaDownload} />
-          <GlassBtn href="#showcase" label={c.hero.ctaHow} variant="ghost" />
+      {/* HERO — surveillance robot video (eyes track the mouse), SWIMVPN copy */}
+      <section className="hero-v">
+        <video
+          id="heroVid"
+          className="hero-video"
+          src="/assets/hero-robot.mp4"
+          poster="/assets/hero-robot-poster.jpg"
+          muted
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+        />
+        <div className="hero-scrim" aria-hidden="true" />
+        <div className="hero-v-inner">
+          <span className="eyebrow">{c.hero.eyebrow}</span>
+          <h1>{c.hero.title}</h1>
+          <p className="lead">{c.hero.lead}</p>
+          <div className="hero-cta">
+            <GlassBtn href="#download" label={c.hero.ctaDownload} />
+            <GlassBtn href="#showcase" label={c.hero.ctaHow} variant="ghost" />
+          </div>
+          <div className="hero-trust"><b>{c.hero.trust}</b> · app.swimvpn.pro</div>
         </div>
-        <div className="hero-trust"><b>{c.hero.trust}</b> · app.swimvpn.pro</div>
         <div className="scrollhint">{c.hero.scrollHint}</div>
       </section>
 
