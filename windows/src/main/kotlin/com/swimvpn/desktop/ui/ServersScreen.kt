@@ -108,20 +108,29 @@ fun ServersScreen(app: AppController) {
 
     if (showImport) {
         var draft by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf<String?>(null) }
         AlertDialog(
             onDismissRequest = { showImport = false },
             title = { Text("Importer une configuration") },
             text = {
-                OutlinedTextField(
-                    value = draft, onValueChange = { draft = it },
-                    label = { Text("vless:// · vmess:// · trojan:// · ss:// · abonnement") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column {
+                    OutlinedTextField(
+                        value = draft, onValueChange = { draft = it; error = null },
+                        label = { Text("vless:// · vmess:// · trojan:// · ss:// · abonnement") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    error?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, color = tokens.color.homeDanger, fontSize = 12.sp)
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (draft.isNotBlank()) app.importConfig(draft.trim())
-                    showImport = false
+                    if (draft.isNotBlank()) {
+                        val result = app.importConfig(draft.trim())
+                        if (result.added > 0) showImport = false else error = result.message
+                    }
                 }) { Text("Importer") }
             },
             dismissButton = { TextButton(onClick = { showImport = false }) { Text("Annuler") } },
