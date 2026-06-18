@@ -489,3 +489,16 @@
   /* ---- palette cascade hover (ported from the mock's JS to pure CSS) ---- */
   .cword:hover{color:var(--pal-accent,#8B5CF6)}
   .cword:hover .cchar{transform:translateY(-1.1em)}
+
+  /* ---- perf: skip off-screen rendering of heavy decorative sections ----
+     (pauses their continuous animations + saves paint when not in view) */
+  #themes{content-visibility:auto;contain-intrinsic-size:auto 620px}
+  #pricing{content-visibility:auto;contain-intrinsic-size:auto 900px}
+
+  /* ---- perf/a11y: honour reduced-motion — kill the continuous loops ---- */
+  @media (prefers-reduced-motion: reduce){
+    .feat-stars,.feat-horizon,.feat-h2{animation:none !important}
+    .rv{transition:none !important;opacity:1 !important;transform:none !important;filter:none !important}
+    .cchar{transition:none !important}
+    html{scroll-behavior:auto}
+  }

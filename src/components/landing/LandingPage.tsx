@@ -155,6 +155,23 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
     const onMeta = () => { if (v) dur = v.duration || 0; };
     v?.addEventListener('loadedmetadata', onMeta);
 
+    // Lazy-load the heavy clip (~9MB) only when its section nears the viewport,
+    // instead of preloading it on every page visit. Poster shows meanwhile.
+    let vLoaded = false;
+    const vio = new IntersectionObserver(
+      (es) => es.forEach((e) => {
+        if (e.isIntersecting && v && !vLoaded) {
+          vLoaded = true;
+          if (v.dataset.src && !v.src) v.src = v.dataset.src;
+          v.load();
+          v.play().catch(() => {});
+          vio.disconnect();
+        }
+      }),
+      { rootMargin: '400px 0px' },
+    );
+    if (sec) vio.observe(sec);
+
     const setSeg = (i: number) => {
       caps.forEach((cap) => cap.classList.toggle('on', Number(cap.dataset.seg) === i));
       dots.forEach((d, k) => d.classList.toggle('on', k === i));
@@ -245,6 +262,7 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
 
     return () => {
       io.disconnect();
+      vio.disconnect();
       v?.removeEventListener('loadedmetadata', onMeta);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', refreshLayout);
@@ -339,12 +357,12 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
             <div className="stage-video">
               <video
                 id="scrub"
-                src="/assets/app-tour-scrub.mp4"
+                data-src="/assets/app-tour-scrub.mp4"
+                poster="/assets/app-tour-poster.jpg"
                 muted
                 loop
                 playsInline
-                autoPlay
-                preload="auto"
+                preload="none"
                 disablePictureInPicture
               />
             </div>

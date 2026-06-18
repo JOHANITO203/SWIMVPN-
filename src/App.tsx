@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import LandingPage from './components/landing/LandingPage';
-import OfferPage from './components/landing/OfferPage';
-import PrivacyPolicy from './components/legal/PrivacyPolicy';
-import TermsOfService from './components/legal/TermsOfService';
 import { LandingLocale } from './components/landing/landingContent';
 
-// `initialLocale` is only supplied by the build-time prerender (Node, no `window`); on the client it
-// is undefined and the locale is detected from the URL/storage. The `window` guard lets the tree
-// render to static markup in Node without a browser.
+// Landing is the default + prerendered route → stays statically imported.
+// The other routes are client-only (hash-triggered) → code-split so their JS
+// is not shipped in the initial landing bundle.
+const OfferPage = lazy(() => import('./components/landing/OfferPage'));
+const PrivacyPolicy = lazy(() => import('./components/legal/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./components/legal/TermsOfService'));
+
 export default function App({ initialLocale }: { initialLocale?: LandingLocale } = {}) {
   const [hash, setHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
 
@@ -32,7 +33,11 @@ export default function App({ initialLocale }: { initialLocale?: LandingLocale }
       content = <LandingPage initialLocale={initialLocale} />;
   }
 
-  // The landing's design system (showcase.css) owns the page background (light grammar);
-  // legal pages set their own surface via LegalLayout. No forced dark wrapper here.
-  return <div className="font-sans">{content}</div>;
+  // Design system (showcase.css) owns the page background. Suspense covers the
+  // lazy routes; the default landing renders synchronously (no fallback flash).
+  return (
+    <div className="font-sans">
+      <Suspense fallback={null}>{content}</Suspense>
+    </div>
+  );
 }
