@@ -105,7 +105,7 @@ fun HomeScreen(controller: VpnController) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = controller.activeConfig?.label
+                    text = controller.activeLabel
                         ?: if (config.isBlank()) "Importer une configuration" else "Configuration prête",
                     color = tokens.color.homeTextPrimary,
                     fontSize = 15.sp,

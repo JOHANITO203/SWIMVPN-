@@ -3,6 +3,7 @@ package com.swimvpn.desktop
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -26,6 +27,7 @@ fun main() = application {
         },
         state = windowState,
         title = "SWIMVPN",
+        icon = painterResource("icons/app.png"),
     ) {
         SwimVpnTheme(dark = true) {
             Surface(modifier = Modifier.fillMaxSize()) {

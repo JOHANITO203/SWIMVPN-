@@ -22,7 +22,7 @@ class VpnController(private val scope: CoroutineScope) {
         private set
     var statusDetail by mutableStateOf("")
         private set
-    var activeConfig by mutableStateOf<VlessConfig?>(null)
+    var activeLabel by mutableStateOf<String?>(null)
         private set
 
     private val xray = XrayProcess()
@@ -35,16 +35,16 @@ class VpnController(private val scope: CoroutineScope) {
             state = VpnState.CONNECTING
             statusDetail = "Démarrage du moteur…"
             try {
-                val cfg = XrayConfig.parseVless(vlessUrl)
-                activeConfig = cfg
-                withContext(Dispatchers.IO) { xray.start(XrayConfig.render(cfg)) }
+                val built = EngineConfig.build(vlessUrl)
+                activeLabel = built.label
+                withContext(Dispatchers.IO) { xray.start(built.configJson) }
                 statusDetail = "Application du proxy système…"
                 withContext(Dispatchers.IO) { SystemProxy.enable() }
                 statusDetail = "Vérification du tunnel…"
-                val ok = withContext(Dispatchers.IO) { probeTraffic(cfg.host, cfg.port) }
+                val ok = withContext(Dispatchers.IO) { probeTraffic(built.host, built.port) }
                 if (ok && xray.isAlive()) {
                     state = VpnState.CONNECTED
-                    statusDetail = cfg.label
+                    statusDetail = built.label
                 } else {
                     fail(if (!xray.isAlive()) "Le moteur s'est arrêté" else "Aucun trafic à travers le tunnel")
                 }
