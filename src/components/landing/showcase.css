@@ -547,7 +547,7 @@
   .hero-v .hero-cta{justify-content:flex-start}
   .hero-v .hero-trust{text-align:left}
   .hero-v .scrollhint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);z-index:2;margin:0}
-  @media(max-width:760px){
+  @media(max-width:860px){
     .hero-v{align-items:flex-end;padding-bottom:54px}
     .hero-video{object-position:60% center}
     .hero-scrim{background:linear-gradient(to top,var(--bg) 5%,rgba(246,246,248,.85) 30%,rgba(246,246,248,.28) 56%,transparent 82%)}

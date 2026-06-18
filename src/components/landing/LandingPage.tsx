@@ -232,11 +232,62 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
 
     const fine = window.matchMedia('(pointer: fine)').matches;
     if (!fine) {
+      // Touch device → the gaze follows the phone's tilt (gyroscope), the mobile
+      // equivalent of "eyes follow the cursor". Loop-play until the sensor kicks in;
+      // if unsupported / permission denied, it just keeps looping.
       v.loop = true;
       const play = () => v.play().catch(() => {});
       if (v.readyState >= 2) play();
       else v.addEventListener('loadeddata', play, { once: true });
-      return;
+
+      let target = 0;
+      let seeking = false;
+      let gyroOn = false;
+      const seekNext = () => {
+        if (!gyroOn || !v.duration) { seeking = false; return; }
+        if (Math.abs(v.currentTime - target) < 0.02) { seeking = false; return; }
+        seeking = true;
+        v.currentTime = target;
+      };
+      const onSeeked = () => seekNext();
+      const onOrient = (e: DeviceOrientationEvent) => {
+        if (e.gamma == null || !v.duration) return;
+        if (!gyroOn) {
+          gyroOn = true;
+          v.loop = false;
+          v.pause();
+          v.addEventListener('seeked', onSeeked);
+        }
+        const g = Math.max(-38, Math.min(38, e.gamma)); // left-right tilt
+        target = ((g + 38) / 76) * (v.duration - 0.05);
+        if (!seeking) seekNext();
+      };
+      const DOE = window.DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+        requestPermission?: () => Promise<'granted' | 'denied'>;
+      };
+      const enableGyro = () => {
+        if (!DOE) return;
+        if (typeof DOE.requestPermission === 'function') {
+          DOE.requestPermission().then((s) => {
+            if (s === 'granted') window.addEventListener('deviceorientation', onOrient);
+          }).catch(() => {});
+        } else {
+          window.addEventListener('deviceorientation', onOrient);
+        }
+      };
+      // iOS needs a user gesture to grant the sensor → arm it on first touch.
+      let armer: (() => void) | null = null;
+      if (DOE && typeof DOE.requestPermission === 'function') {
+        armer = () => { enableGyro(); };
+        window.addEventListener('touchend', armer, { once: true });
+      } else {
+        enableGyro();
+      }
+      return () => {
+        window.removeEventListener('deviceorientation', onOrient);
+        v.removeEventListener('seeked', onSeeked);
+        if (armer) window.removeEventListener('touchend', armer);
+      };
     }
 
     let prevX: number | null = null;
