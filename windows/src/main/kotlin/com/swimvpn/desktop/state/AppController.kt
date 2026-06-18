@@ -13,6 +13,8 @@ import com.swimvpn.desktop.vpn.VpnState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.swing.Swing
+import kotlinx.coroutines.withContext
 
 enum class NavTab { HOME, SERVERS, SUBSCRIPTION, ACCOUNT }
 
@@ -56,10 +58,12 @@ class AppController(private val scope: CoroutineScope) {
         if (importBusy) return
         importBusy = true
         importResult = null
-        scope.launch(Dispatchers.IO) {
+        // Run on the UI (Swing) dispatcher so Compose state mutations (configs list, result)
+        // recompose the screen; only the blocking network fetch hops to IO.
+        scope.launch(Dispatchers.Swing) {
             val payload = runCatching {
                 if (input.startsWith("http://", true) || input.startsWith("https://", true)) {
-                    fetchSubscription(input)
+                    withContext(Dispatchers.IO) { fetchSubscription(input) }
                 } else input
             }.getOrElse { e ->
                 runCatching { java.io.File(appDir, "import.log").appendText("FETCH FAIL $input: ${e.message}\n") }
