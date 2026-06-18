@@ -352,7 +352,17 @@ object ConfigParserEngine {
             val withoutQuery = withoutFragment.substringBefore('?')
 
             val decodedCore = if (withoutQuery.contains("@")) {
-                withoutQuery
+                // SIP002: ss://base64(method:password)@host:port — the userinfo before '@' is
+                // Base64. Legacy-with-'@' may instead be plaintext method:password (contains ':').
+                val at = withoutQuery.lastIndexOf('@')
+                val userInfo = withoutQuery.substring(0, at)
+                val hostPart = withoutQuery.substring(at + 1)
+                val methodPassword = if (userInfo.contains(':')) {
+                    userInfo
+                } else {
+                    runCatching { decodeBase64Flexible(userInfo) }.getOrDefault(userInfo)
+                }
+                "$methodPassword@$hostPart"
             } else {
                 decodeBase64Flexible(withoutQuery)
             }
@@ -1191,7 +1201,13 @@ object ConfigParserEngine {
     // huge value, which silently connects to a wrong port) and reject anything outside the valid
     // TCP port range.
     private fun jsonPortOrNull(value: Any?): Int? {
-        val n = (value as? Number)?.toLong() ?: return null
+        // Standard vmess:// JSON stores every field as a STRING (e.g. "port":"443"), so accept both
+        // a JSON number and a numeric string. Anything else / out of range -> null.
+        val n = when (value) {
+            is Number -> value.toLong()
+            is String -> value.trim().toLongOrNull() ?: return null
+            else -> return null
+        }
         return if (n in 1L..65535L) n.toInt() else null
     }
 
