@@ -552,6 +552,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 Log.d("MainViewModel", "Bootstrapping access for locale: $language")
 
+                // Cache-first cold-start: if a prior good snapshot exists, open the UI from it
+                // IMMEDIATELY and kick off the optimistic auto-connect, instead of blocking the
+                // whole launch on a backend call that can hang for seconds on a slow/flaky
+                // cellular path (the "app opens after a while on 4G" symptom). The
+                // bootstrapAccess call below then reconciles the state in the same coroutine
+                // (UI already shown); maybeAutoConnect dedups by signature so it never
+                // double-connects. The backend stays the gate: a definitive 4xx still corrects
+                // the state to Error below; only an unreachable backend (5xx/timeout/network)
+                // keeps the cache.
+                var servedCacheFirst = false
+                if (isOnboardingDone) {
+                    val cachedSeed = restoreAccessFromCache(
+                        isOnboardingDone, routingMode, autoConnect, agentEnabled, language, themeMode,
+                    )
+                    if (cachedSeed is AppState.Success) {
+                        _state.value = cachedSeed
+                        servedCacheFirst = true
+                        Log.i("MainViewModel", "cache-first: instant open + optimistic connect")
+                        maybeAutoConnect(app, cachedSeed)
+                    } else {
+                        Log.i("MainViewModel", "cache-first SKIPPED: no usable cached snapshot")
+                    }
+                } else {
+                    Log.i("MainViewModel", "cache-first SKIPPED: onboarding not done")
+                }
+
                 val bootstrap = try {
                     api.bootstrapAccess(
                         BootstrapAccessRequest(
@@ -565,6 +591,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         Log.e("MainViewModel", "HTTP ${e.code()} bootstrapping access: $errorBody", e)
                     } else {
                         Log.e("MainViewModel", "HTTP ${e.code()} bootstrapping access", e)
+                    }
+                    // Cache-first already showed + started connecting from a valid snapshot.
+                    // 5xx = backend unreachable → keep the cache (offline-access). 4xx falls
+                    // through below to overwrite with Error (definitive entitlement rejection).
+                    if (servedCacheFirst && e.code() >= 500) {
+                        logStartup("revalidation http ${e.code()}, keeping cache-first")
+                        return@launch
                     }
                     val msg = if (e.code() >= 500) {
                         s(R.string.err_server_maintenance, e.code())
@@ -580,12 +613,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     return@launch
                 } catch (e: java.net.SocketTimeoutException) {
                     Log.e("MainViewModel", "Timeout bootstrapping access", e)
+                    if (servedCacheFirst) {
+                        logStartup("revalidation timeout, keeping cache-first")
+                        return@launch
+                    }
                     val cachedState = restoreAccessFromCache(isOnboardingDone, routingMode, autoConnect, agentEnabled, language, themeMode)
                     _state.value = cachedState ?: AppState.Error(s(R.string.err_network_timeout))
                     if (cachedState != null) logStartup("offline cache served (timeout)")
                     return@launch
                 } catch (e: Exception) {
                     Log.e("MainViewModel", "API Error bootstrapping access", e)
+                    if (servedCacheFirst) {
+                        logStartup("revalidation network error, keeping cache-first")
+                        return@launch
+                    }
                     // Generic failure covers offline (UnknownHost/IOException) — serve the cache if we have one.
                     val cachedState = restoreAccessFromCache(isOnboardingDone, routingMode, autoConnect, agentEnabled, language, themeMode)
                     _state.value = cachedState ?: AppState.Error(s(R.string.err_bootstrap_failed))
@@ -2031,7 +2072,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        val resolvedBackendServers = resolveBackendServers(profile, backendServers, pinnedIds)
+        // Cache-restore must stay FULLY offline. resolveBackendServers re-fetches the remote
+        // premium subscription URL over the network (resolveRuntimeProfilesForConnection) even
+        // when cached servers are injected — that blocking fetch is what made cache-first hang
+        // ~40s on slow 4G (the whole point of cache-first is to NOT touch the network). With
+        // cached servers present, use them directly, applying the same pin/group mapping the
+        // non-remote branch of resolveBackendServers applies.
+        val resolvedBackendServers = if (injectedBackendServers != null) {
+            injectedBackendServers.map { server ->
+                server.copy(
+                    isPinned = server.id in pinnedIds,
+                    groupId = "backend:${profile.userNumber}",
+                    groupName = s(R.string.server_group_access),
+                    source = "backend",
+                )
+            }
+        } else {
+            resolveBackendServers(profile, backendServers, pinnedIds)
+        }
         val serverGroups = buildServerGroups(profile, resolvedBackendServers, importedGroups, pinnedIds)
         val servers = serverGroups.flatMap { it.servers }
         val savedServerId = prefs.selectedServerIdFlow.first()
