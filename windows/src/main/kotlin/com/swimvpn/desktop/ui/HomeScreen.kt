@@ -7,12 +7,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -117,6 +121,29 @@ fun HomeScreen(controller: VpnController) {
             TextButton(onClick = { showImport = true }) {
                 Text(if (config.isBlank()) "Coller une config VLESS" else "Changer de config",
                     color = tokens.color.homePurplePrimary)
+            }
+
+            // Data-path mode: TUN (all traffic, like Android — needs admin) vs system proxy.
+            val enabled = controller.state == VpnState.DISCONNECTED || controller.state == VpnState.ERROR
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Tout le trafic (TUN)",
+                    color = if (enabled) tokens.color.homeTextSecondary else tokens.color.homeTextDisabled,
+                    fontSize = 13.sp,
+                )
+                Spacer(Modifier.width(10.dp))
+                Switch(
+                    checked = controller.fullTunnel,
+                    onCheckedChange = { if (enabled) controller.fullTunnel = it },
+                    enabled = enabled,
+                    colors = SwitchDefaults.colors(checkedThumbColor = tokens.color.homePurplePrimary),
+                )
+            }
+            if (controller.fullTunnel && !controller.isElevated()) {
+                Text(
+                    "⚠ Mode TUN : relance SWIMVPN en administrateur (sinon bascule sur « proxy »).",
+                    color = tokens.color.homeWarning, fontSize = 11.sp, textAlign = TextAlign.Center,
+                )
             }
 
             if (!controller.isBinaryAvailable()) {

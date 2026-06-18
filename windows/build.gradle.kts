@@ -55,6 +55,51 @@ val syncEngine by tasks.registering(Copy::class) {
 sourceSets["main"].kotlin.srcDir(engineGenRoot)
 tasks.named("compileKotlin") { dependsOn(syncEngine) }
 
+// --- Bundle the TUN stack (full-traffic mode) ------------------------------------------------
+// tun2socks (xjasonlyu) bridges a WinTUN virtual adapter to xray's local SOCKS, so ALL traffic
+// is captured (like Android's VpnService+tun2socks) — not just proxy-aware apps. wintun.dll is
+// the WireGuard userspace TUN driver. Both downloaded at build time, never committed.
+val tun2socksVersion = "v2.5.2"
+val wintunVersion = "0.14.1"
+
+val fetchTunnel by tasks.registering {
+    val binDir = xrayResDir.get().asFile.resolve("bin")
+    outputs.dir(xrayResDir)
+    doLast {
+        binDir.mkdirs()
+        val t2s = File(binDir, "tun2socks.exe")
+        if (!t2s.exists() || t2s.length() == 0L) {
+            val zip = File(binDir, "tun2socks.zip")
+            ant.withGroovyBuilder {
+                "get"(
+                    "src" to "https://github.com/xjasonlyu/tun2socks/releases/download/$tun2socksVersion/tun2socks-windows-amd64.zip",
+                    "dest" to zip.absolutePath, "verbose" to true, "usetimestamp" to true,
+                )
+            }
+            copy { from(zipTree(zip)); into(binDir) }
+            File(binDir, "tun2socks-windows-amd64.exe").takeIf { it.exists() }?.renameTo(t2s)
+            zip.delete()
+        }
+        val wintun = File(binDir, "wintun.dll")
+        if (!wintun.exists() || wintun.length() == 0L) {
+            val zip = File(binDir, "wintun.zip")
+            ant.withGroovyBuilder {
+                "get"(
+                    "src" to "https://www.wintun.net/builds/wintun-$wintunVersion.zip",
+                    "dest" to zip.absolutePath, "verbose" to true, "usetimestamp" to true,
+                )
+            }
+            copy {
+                from(zipTree(zip)) { include("wintun/bin/amd64/wintun.dll") }
+                into(binDir); includeEmptyDirs = false
+                eachFile { path = name } // flatten into bin/wintun.dll
+            }
+            zip.delete()
+        }
+    }
+}
+tasks.named("processResources") { dependsOn(fetchXray, fetchTunnel) }
+
 // Use the launching JDK (Android Studio jbr 21) — no toolchain auto-provisioning. Target 17
 // bytecode for both Java and Kotlin so the compileJava/compileKotlin targets stay consistent.
 java {
@@ -94,6 +139,7 @@ val fetchXray by tasks.registering {
             from(zipTree(zip)) { include("xray.exe", "geoip.dat", "geosite.dat") }
             into(binDir)
         }
+        zip.delete()
     }
 }
 

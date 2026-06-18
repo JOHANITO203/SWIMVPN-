@@ -24,8 +24,10 @@
 ## Transport du tunnel (la vraie différence d'OS)
 | Élément | Android | Windows v1 | Parité |
 |---|---|---|---|
-| Capture du trafic | `VpnService` + tun2socks → **tout le trafic** (TUN) | **proxy système WinINet** → apps proxy-aware | 🟡 → 🔴 TUN global = M3 (wintun) |
-| Élévation | service VPN (consent OS) | aucune (v1) ; admin requis pour wintun (M3) | 🟰 |
+| Capture du trafic | `VpnService` + tun2socks → **tout le trafic** (TUN) | **TUN global (WinTUN + tun2socks) → tout le trafic** (`WintunTunnel`, mode par défaut) ; **proxy système** = repli sélectionnable | 🟰 (TUN implémenté) |
+| tun2socks | hev-socks5-tunnel (compilé NDK) | tun2socks (xjasonlyu) + `wintun.dll` — équivalent fonctionnel, bridge TUN↔SOCKS | 🟰 |
+| Routage | géré par l'OS (VpnService) | **split-default `0/1`+`128/1`** (override sans supprimer la route par défaut) + bypass `/32` du serveur via la vraie gateway + DNS via TUN ; **teardown restaure tout** | 🟰 |
+| Élévation | service VPN (consent OS) | **admin requis** pour le TUN (détecté ; sinon avertit + repli proxy) ; auto-elevation de l'exe packagé = à affiner | 🟰 |
 | Sonde de trafic au démarrage | preuve SOCKS (`awaitStartupHealthProof`) | **même approche** (`VpnController.probeTraffic`, 5×2.8s) | 🟰 |
 
 ## UI
@@ -48,5 +50,6 @@
 | Auto-update | (landing) | 🔴 (M3) |
 
 ## Synthèse
-- **Garantie liens/configs = OK** : le parsing et la construction du config Xray sont le **même code source** que l'app Android (copié au build, zéro drift) + même Xray-core. Tout lien/config accepté sur Android l'est sur Windows.
-- **Différences restantes = surtout le transport** (proxy système vs TUN global) et les **features périphériques** (agent/camouflage, backend, signature) → roadmap **M3**.
+- **Garantie liens/configs = OK** : parsing + construction du config Xray = **même code source** qu'Android (copié au build, zéro drift) + même Xray-core. Tout lien/config accepté sur Android l'est sur Windows.
+- **Transport = parité atteinte** : le **TUN global** (WinTUN + tun2socks) route désormais **tout le trafic** comme Android (mode par défaut, repli proxy sélectionnable). Requiert l'admin (détecté).
+- **Différences restantes = features périphériques** : post-traitements runtime (override fp / DNS / FakeDNS de `TunnelRuntimeAdapter`), agent adaptatif + camouflage, backend (auth/abonnement/SwimPay), écrans secondaires, signature EV → roadmap **M3**.
