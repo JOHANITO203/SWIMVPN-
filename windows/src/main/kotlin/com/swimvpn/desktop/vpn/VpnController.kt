@@ -45,7 +45,7 @@ class VpnController(private val scope: CoroutineScope) {
             state = VpnState.CONNECTING
             statusDetail = "Démarrage du moteur…"
             try {
-                val built = EngineConfig.build(link)
+                val built = EngineConfig.build(link, fullTunnel)
                 activeLabel = built.label
                 withContext(Dispatchers.IO) { xray.start(built.configJson) }
 
