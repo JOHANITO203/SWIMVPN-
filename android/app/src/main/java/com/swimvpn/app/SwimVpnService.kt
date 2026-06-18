@@ -131,7 +131,10 @@ class SwimVpnService : VpnService() {
     private val notificationId = 1
 
     companion object {
-        private const val DEFAULT_VPN_MTU = 1280
+        // Cellular paths (e.g. Beeline RU underlying MTU ~1300) drop the encapsulated
+        // tunnel packets when tun MTU + TLS/VLESS/REALITY overhead exceeds the path MTU —
+        // handshake (small) passes but bulk data dies. 1200 leaves headroom under ~1300.
+        private const val DEFAULT_VPN_MTU = 1200
         const val ACTION_START = "com.swimvpn.app.START_VPN"
         const val ACTION_RESTART = "com.swimvpn.app.RESTART_VPN"
         const val ACTION_STOP = "com.swimvpn.app.STOP_VPN"
@@ -153,6 +156,13 @@ class SwimVpnService : VpnService() {
         private const val LIVENESS_POLL_INTERVAL_MS = 500L
         private const val TRAFFIC_PROBE_TIMEOUT_MS = 1_200
         private const val TRAFFIC_PROBE_RETRY_DELAY_MS = 300L
+        // Cold-start on an unvalidated/cellular network (e.g. Beeline 4G): the REALITY
+        // handshake through the tunnel is much slower than on wifi, so the default
+        // ~2.7s probe budget rejects a tunnel that would actually come up (proven by
+        // the wifi→4G handoff working). Give the slow path a longer window before failing.
+        private const val UNVALIDATED_PROBE_ATTEMPTS = 5
+        private const val UNVALIDATED_PROBE_TIMEOUT_MS = 2_800
+        private const val UNVALIDATED_PROBE_RETRY_DELAY_MS = 600L
         // Passive watchdog: how long a confirmed-running session may show outbound
         // bytes with zero inbound bytes before being demoted to DEGRADED (NO_TRAFFIC).
         private const val TRAFFIC_STALL_THRESHOLD_MS = 15_000L
@@ -1205,7 +1215,18 @@ class SwimVpnService : VpnService() {
         // routed through the tun), so there is no recursion and no protect() needed.
         val engineLive = xrayAlive && (!requireTun2Socks || tun2SocksAlive)
         val trafficConfirmed = if (engineLive) {
-            probeTrafficThroughProxy(socksPort, serverHost, serverPort)
+            if (startedOnUnvalidatedNetwork) {
+                // Slow cellular cold-start: longer probe budget so a working-but-slow
+                // tunnel isn't rejected (returns as soon as one connect succeeds).
+                probeTrafficThroughProxy(
+                    socksPort, serverHost, serverPort,
+                    attempts = UNVALIDATED_PROBE_ATTEMPTS,
+                    timeoutMs = UNVALIDATED_PROBE_TIMEOUT_MS,
+                    retryDelayMs = UNVALIDATED_PROBE_RETRY_DELAY_MS,
+                )
+            } else {
+                probeTrafficThroughProxy(socksPort, serverHost, serverPort)
+            }
         } else {
             false
         }
@@ -1262,6 +1283,9 @@ class SwimVpnService : VpnService() {
         socksPort: Int,
         serverHost: String,
         serverPort: Int,
+        attempts: Int = 2,
+        timeoutMs: Int = TRAFFIC_PROBE_TIMEOUT_MS,
+        retryDelayMs: Long = TRAFFIC_PROBE_RETRY_DELAY_MS,
     ): Boolean {
         if (serverHost.isBlank() || serverHost == "unknown" || serverPort <= 0) {
             // R1: a blank/unknown host or non-positive port is a config problem, not a
@@ -1278,17 +1302,17 @@ class SwimVpnService : VpnService() {
             java.net.Proxy.Type.SOCKS,
             java.net.InetSocketAddress("127.0.0.1", socksPort),
         )
-        repeat(2) { attempt ->
+        repeat(attempts) { attempt ->
             val success = runCatching {
                 java.net.Socket(proxy).use { socket ->
                     socket.connect(
                         java.net.InetSocketAddress(serverHost, serverPort),
-                        TRAFFIC_PROBE_TIMEOUT_MS,
+                        timeoutMs,
                     )
                 }
             }.isSuccess
             if (success) return true
-            if (attempt == 0) delay(TRAFFIC_PROBE_RETRY_DELAY_MS)
+            if (attempt < attempts - 1) delay(retryDelayMs)
         }
         return false
     }
