@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import com.swimvpn.app.config.ConfigParserEngine
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
-import com.swimvpn.app.config.VpnConfigLinkExtractor
+import com.swimvpn.app.config.subscriptionparser.SubscriptionPayloadDecoder
 import com.swimvpn.desktop.vpn.VpnController
 import com.swimvpn.desktop.vpn.VpnState
 import kotlinx.coroutines.CoroutineScope
@@ -83,7 +83,10 @@ class AppController(private val scope: CoroutineScope) {
 
     /** Parses a pasted/fetched payload (links, base64 blob, or subscription body). Never silent. */
     private fun processImport(blob: String): ImportResult {
-        val entries = VpnConfigLinkExtractor.extractEntries(blob).ifEmpty { listOf(blob.trim()) }
+        // Same subscription parsing level as Android: carrier-decode (base64 multi-pass /
+        // URL-encoded / Happ) then extract entries (SIP008 JSON, Clash YAML, sing-box, links).
+        val decoded = SubscriptionPayloadDecoder.decode(blob).payload
+        val entries = SubscriptionPayloadDecoder.extractEntries(decoded).ifEmpty { listOf(blob.trim()) }
         val log = StringBuilder("=== import (${blob.length} chars, ${entries.size} entries) ===\n")
         log.append("raw: ${blob.take(400)}\n")
         var added = 0; var failed = 0
