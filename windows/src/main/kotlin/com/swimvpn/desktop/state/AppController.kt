@@ -40,6 +40,19 @@ class AppController(private val scope: CoroutineScope) {
         vpn.fullTunnel = s.fullTunnel
         s.configs.forEach { addParsed(it) }
         selectedId = configs.getOrNull(s.selectedIndex)?.id ?: configs.firstOrNull()?.id
+
+        // Server failover: when a server is exhausted, rotate to the next imported config.
+        vpn.onExhausted = {
+            if (configs.size <= 1) {
+                null
+            } else {
+                val cur = configs.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
+                val next = configs[(cur + 1).mod(configs.size)]
+                selectedId = next.id
+                persist()
+                next.rawConfig
+            }
+        }
     }
 
     data class ImportResult(val added: Int, val failed: Int, val message: String)
