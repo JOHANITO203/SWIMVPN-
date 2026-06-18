@@ -7,8 +7,8 @@
    ==================================================================== */
 
 :root{
-    --bg:#F4EDE8; --ink:#14130F; --ink-2:#6B6862; --hair:#E4DDD8;
-    --card:#FBF7F5; --card-2:#FFFFFF; --radius:22px; --maxw:1160px;
+    --bg:#F6F6F8; --ink:#15151A; --ink-2:#6B6B73; --hair:#E7E7EC;
+    --card:#FFFFFF; --card-2:#FFFFFF; --radius:22px; --maxw:1160px;
     --shadow:0 1px 0 rgba(0,0,0,.02), 0 24px 60px -34px rgba(20,19,15,.28);
   }
   *{box-sizing:border-box}
@@ -23,9 +23,9 @@
   .btn{display:inline-flex;align-items:center;gap:9px;height:50px;padding:0 26px;border-radius:999px;font-weight:600;font-size:15.5px;border:1px solid transparent;cursor:pointer;transition:transform .18s ease, background .18s}
   .btn:active{transform:translateY(1px)}
   .btn-primary{background:var(--ink);color:#fff}.btn-primary:hover{background:#000}
-  .btn-ghost{background:transparent;color:var(--ink);border-color:var(--hair)}.btn-ghost:hover{border-color:#cfccc3}
+  .btn-ghost{background:transparent;color:var(--ink);border-color:var(--hair)}.btn-ghost:hover{border-color:#d4d4dc}
 
-  header{position:sticky;top:0;z-index:50;background:rgba(244,237,232,.72);backdrop-filter:blur(12px);border-bottom:1px solid transparent;will-change:transform;transition:border-color .2s,transform .22s cubic-bezier(.4,0,1,1)}
+  header{position:sticky;top:0;z-index:50;background:rgba(246,246,248,.72);backdrop-filter:blur(12px);border-bottom:1px solid transparent;will-change:transform;transition:border-color .2s,transform .22s cubic-bezier(.4,0,1,1)}
   header.scrolled{border-color:var(--hair)}
   header.hdr-hidden{transform:translateY(-110%);pointer-events:none;transition:border-color .2s,transform .22s cubic-bezier(.4,0,1,1)}
   header.hdr-rewind{animation:hdr-rewind .54s cubic-bezier(.22,1,.36,1) forwards;pointer-events:auto}
@@ -63,7 +63,7 @@
   .stage-video{display:flex;align-items:center;justify-content:center;height:100vh}
   .stage-video video{height:86vh;width:auto;max-width:100%;border-radius:18px}
   .segdots{position:absolute;left:50%;bottom:5vh;transform:translateX(-50%);display:flex;gap:8px;z-index:2}
-  .segdots i{width:7px;height:7px;border-radius:99px;background:#cdc9bf;transition:background .3s,width .3s}
+  .segdots i{width:7px;height:7px;border-radius:99px;background:#d2d2da;transition:background .3s,width .3s}
   .segdots i.on{background:var(--ink);width:22px}
   /* Mobile: drop the pinned scroll-scrub (janky on touch, one caption at a time)
      for a clean stacked flow — video on top, all five captions readable below. */
