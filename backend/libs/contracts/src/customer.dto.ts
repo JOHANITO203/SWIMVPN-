@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsEmail, IsNumber, Min } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEmail, IsNumber, Min, IsObject } from 'class-validator';
 
 export const ENTITLEMENT_STATES = [
   'PROFILE_INCOMPLETE',
@@ -54,9 +54,21 @@ export interface CheckoutResponse {
   orderRef: string;
   status: string;
   amountRub: string;
-  paymentMethod: 'CRYPTO' | 'SWIMPAY';
+  paymentMethod: 'CRYPTO' | 'SWIMPAY' | 'TRIBUTE';
   redirectUrl: string | null;
   message: string;
+}
+
+// Telegram Login Widget payload (web-only Tribute flow). Validated server-side
+// against the bot token before the pending order is created.
+export interface TelegramAuthPayload {
+  id: number | string;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number | string;
+  hash: string;
 }
 
 export class BootstrapAccessDto {
@@ -177,11 +189,23 @@ export class CreateCheckoutDto {
 
   @IsString()
   @IsNotEmpty()
-  paymentMethod: 'CRYPTO' | 'SWIMPAY';
+  paymentMethod: 'CRYPTO' | 'SWIMPAY' | 'TRIBUTE';
 
   @IsString()
   @IsOptional()
   cryptoAsset?: string;
+
+  // Web-only Tribute flow: the Telegram user id (verified server-side from telegramAuth)
+  // is the correlation key for the payment webhook. Ignored for other methods.
+  @IsString()
+  @IsOptional()
+  telegramUserId?: string;
+
+  // Raw Telegram Login Widget payload. Required for TRIBUTE; its hash is validated
+  // against the bot token before the order is created (anti-spoof of telegramUserId).
+  @IsObject()
+  @IsOptional()
+  telegramAuth?: TelegramAuthPayload;
 }
 
 export class CryptoWebhookDto {

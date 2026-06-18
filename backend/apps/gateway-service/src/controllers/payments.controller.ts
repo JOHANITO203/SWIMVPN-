@@ -34,6 +34,16 @@ export class PaymentsController {
       message: 'Return received. Payment is confirmed only after the signed SwimPay webhook.',
     };
   }
+
+  @Post('tribute/webhook')
+  handleTributeWebhook(
+    @Req() request: Request & { rawBody?: Buffer },
+    @Body() body: Record<string, unknown>,
+    @Headers() headers: Record<string, string | string[] | number | undefined>,
+  ) {
+    const rawBody = request.rawBody?.toString('utf8') || JSON.stringify(body || {});
+    return this.customerClient.send({ cmd: 'handle_tribute_webhook' }, { rawBody, headers });
+  }
 }
 
 @Controller('webhooks')

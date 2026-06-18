@@ -1,27 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Readex+Pro:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
+@import "./components/landing/showcase.css";
 
 @theme {
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Readex Pro", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  @apply bg-[#050505] text-[#F3F1F6] antialiased selection:bg-[#8A6AF1]/30 selection:text-white;
-  background-image: 
-    radial-gradient(circle at 70% 20%, rgba(138, 106, 241, 0.14) 0%, transparent 34%),
-    radial-gradient(circle at 20% 60%, rgba(93, 59, 216, 0.10) 0%, transparent 30%),
-    linear-gradient(180deg, #07070B 0%, #050505 54%, #010101 100%);
-  background-size: 100% 100%;
-}
+/* The landing design system (showcase.css) owns the body background + base type
+   for the light-dominant grammar. Legal/offer pages set their own surfaces. */
 
 @layer utilities {
   .text-glow-violet {
-    text-shadow: 0 0 24px rgba(138, 106, 241, 0.36);
+    text-shadow: 0 0 24px rgba(139, 92, 246, 0.36);
   }
   .border-glass {
     @apply border border-white/10 backdrop-blur-xl bg-white/5;

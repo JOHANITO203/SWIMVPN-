@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import LandingPage from './components/landing/LandingPage';
+import OfferPage from './components/landing/OfferPage';
 import PrivacyPolicy from './components/legal/PrivacyPolicy';
 import TermsOfService from './components/legal/TermsOfService';
 import { LandingLocale } from './components/landing/landingContent';
@@ -24,13 +25,14 @@ export default function App({ initialLocale }: { initialLocale?: LandingLocale }
     case '#terms':
       content = <TermsOfService />;
       break;
+    case '#offres':
+      content = <OfferPage />;
+      break;
     default:
       content = <LandingPage initialLocale={initialLocale} />;
   }
 
-  return (
-    <div className="min-h-screen bg-[#050505] font-sans">
-      {content}
-    </div>
-  );
+  // The landing's design system (showcase.css) owns the page background (light grammar);
+  // legal pages set their own surface via LegalLayout. No forced dark wrapper here.
+  return <div className="font-sans">{content}</div>;
 }

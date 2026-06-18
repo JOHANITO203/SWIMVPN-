@@ -26,6 +26,7 @@ import {
 } from '@app/contracts';
 import { CryptoPayService } from './crypto-pay.service';
 import { SwimPayService } from './swim-pay.service';
+import { TributePayService } from './tribute-pay.service';
 import {
   SWIMPAY_RECONCILE_MIN_ORDER_AGE_MS,
   mapSwimPayStatusToAction,
@@ -47,6 +48,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
     @Inject('VPN_CONFIG_SERVICE') private readonly vpnConfigClient: ClientProxy,
     private readonly cryptoPayService: CryptoPayService,
     private readonly swimPayService?: SwimPayService,
+    private readonly tributePayService?: TributePayService,
   ) {}
 
   private reconcileTimer?: NodeJS.Timeout;
@@ -204,12 +206,24 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
 
   async createCheckout(data: CreateCheckoutDto) {
     try {
+      // Tribute (web-only): validate the Telegram Login Widget BEFORE creating the order,
+      // and trust ONLY the verified id — never the client-sent telegramUserId (anti-spoof).
+      let verifiedTelegramUserId: string | undefined;
+      if (data.paymentMethod === 'TRIBUTE') {
+        if (!this.tributePayService?.isConfigured()) {
+          this.fail('Tribute is not configured');
+        }
+        const verified = this.tributePayService.verifyLoginWidget(data.telegramAuth);
+        verifiedTelegramUserId = verified.telegramUserId;
+      }
+
       const checkout = await this.preparePendingOrder({
         email: data.email,
         phone: data.phone,
         planId: data.planId,
         userNumber: data.userNumber,
         deviceId: data.deviceId,
+        telegramUserId: verifiedTelegramUserId,
       });
 
       if (data.paymentMethod === 'CRYPTO') {
@@ -263,6 +277,30 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
           paymentMethod: 'SWIMPAY',
           redirectUrl: swimPayCheckout.checkoutUrl,
           message: 'SwimPay checkout created',
+        };
+      }
+
+      if (data.paymentMethod === 'TRIBUTE') {
+        // No checkout API on Tribute: we point the buyer at the plan's fixed product link.
+        // The order stays PENDING until the signed Tribute webhook confirms payment and
+        // is matched back by telegram_user_id + product.
+        const planCode = String(checkout.plan.code);
+        const redirectUrl = this.tributePayService.resolveProductLink(planCode);
+
+        await this.prisma.order.update({
+          where: { id: checkout.order.id },
+          data: {
+            payment_ref: `TRIBUTE_PENDING:${verifiedTelegramUserId}:${planCode}`,
+          },
+        });
+
+        return {
+          orderRef: checkout.order.order_ref,
+          status: checkout.order.status,
+          amountRub: checkout.plan.price_rub.toString(),
+          paymentMethod: 'TRIBUTE',
+          redirectUrl,
+          message: 'Tribute order pending — complete payment in Telegram',
         };
       }
 
@@ -1300,6 +1338,103 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  async handleTributeWebhook(data: {
+    rawBody: string;
+    headers: Record<string, string | string[] | number | undefined>;
+  }) {
+    if (!this.tributePayService?.isConfigured()) {
+      throw new Error('Tribute is not configured');
+    }
+
+    const event = this.tributePayService.verifyWebhook(data.rawBody, data.headers);
+    const purchase = this.tributePayService.extractPurchase(event);
+    if (!purchase) {
+      // Renewal / cancellation / donation / non-purchase — acknowledged, not acted on.
+      return { received: true, ignored: true };
+    }
+
+    // Idempotency: dedup on Tribute's purchase id.
+    const existingEvent = await this.prisma.adminEvent.findFirst({
+      where: {
+        event_type: 'TRIBUTE_WEBHOOK_RECEIVED',
+        entity_id: purchase.purchaseId,
+      },
+    }).catch(() => null);
+    if (existingEvent) {
+      return { received: true, duplicate: true, purchaseId: purchase.purchaseId };
+    }
+
+    const planCode = this.tributePayService.resolvePlanCodeFromProduct(purchase.productId);
+    const order = await this.findTributePendingOrder(purchase.telegramUserId, planCode);
+
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'TRIBUTE_WEBHOOK_RECEIVED',
+        entity_type: 'PAYMENT_WEBHOOK',
+        entity_id: purchase.purchaseId,
+        payload_json: {
+          eventName: purchase.eventName,
+          telegramUserId: purchase.telegramUserId,
+          productId: purchase.productId,
+          resolvedPlanCode: planCode || null,
+          matchedOrderRef: order?.order_ref || null,
+          amount: purchase.amount || null,
+          currency: purchase.currency || null,
+          receivedAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+
+    if (!order) {
+      // No pending web order for this Telegram user + product. Logged above for manual
+      // reconciliation; we never fabricate fulfillment.
+      return {
+        received: true,
+        unmatched: true,
+        purchaseId: purchase.purchaseId,
+        telegramUserId: purchase.telegramUserId,
+        productId: purchase.productId,
+      };
+    }
+
+    // Record the paid currency/amount as reported by Tribute (best-effort; see unit note
+    // in TributePayService.extractPurchase). Does not gate fulfillment.
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        currency: purchase.currency ?? order.currency,
+        amount: purchase.amount ? new Prisma.Decimal(purchase.amount) : order.amount,
+      },
+    }).catch(() => undefined);
+
+    const result = await this.fulfillOrderByRef(
+      order.order_ref,
+      `TRIBUTE_PAID:${purchase.purchaseId}:${purchase.productId}`,
+    );
+
+    return { received: true, purchaseId: purchase.purchaseId, ...result };
+  }
+
+  // Match a Tribute payment (Telegram identity + product) back to its pending web order.
+  // Prefers an order whose plan matches the purchased product; falls back to the most
+  // recent pending order for that Telegram user.
+  private async findTributePendingOrder(telegramUserId: string, planCode?: string) {
+    const orders = await this.prisma.order.findMany({
+      where: {
+        telegram_user_id: telegramUserId,
+        status: { in: [OrderStatus.PENDING, OrderStatus.PENDING_FULFILLMENT] },
+      },
+      orderBy: { created_at: 'desc' },
+      include: { plan: true },
+    });
+    if (orders.length === 0) return null;
+    if (planCode) {
+      const matched = orders.find((o) => String(o.plan.code) === planCode);
+      if (matched) return matched;
+    }
+    return orders[0];
+  }
+
   private async validateSwimPayWebhookOrder(
     orderRef: string,
     event: ReturnType<SwimPayService['verifyWebhook']>,
@@ -1384,6 +1519,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
     planId: string;
     userNumber?: string;
     deviceId?: string;
+    telegramUserId?: string;
   }) {
     const plan = await this.prisma.plan.findUnique({
       where: { id: data.planId },
@@ -1414,6 +1550,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
         plan_id: plan.id,
         amount_rub: plan.price_rub,
         status: OrderStatus.PENDING,
+        telegram_user_id: data.telegramUserId,
       },
     });
 

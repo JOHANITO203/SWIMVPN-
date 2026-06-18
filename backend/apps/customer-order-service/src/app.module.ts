@@ -6,6 +6,7 @@ import { CustomerController } from './customer.controller';
 import { CustomerService } from './customer.service';
 import { CryptoPayService } from './crypto-pay.service';
 import { SwimPayService } from './swim-pay.service';
+import { TributePayService } from './tribute-pay.service';
 
 @Module({
   imports: [
@@ -34,7 +35,7 @@ import { SwimPayService } from './swim-pay.service';
     ]),
   ],
   controllers: [CustomerController],
-  providers: [CustomerService, CryptoPayService, SwimPayService],
+  providers: [CustomerService, CryptoPayService, SwimPayService, TributePayService],
   exports: [CustomerService],
 })
 export class AppModule {}

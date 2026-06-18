@@ -103,4 +103,11 @@ export class CustomerController {
     return this.customerService.handleSwimPayWebhook(data);
   }
 
-} 
+  @MessagePattern({ cmd: 'handle_tribute_webhook' })
+  async handleTributeWebhook(
+    @Payload() data: { rawBody: string; headers: Record<string, string | string[] | number | undefined> },
+  ) {
+    return this.customerService.handleTributeWebhook(data);
+  }
+
+}
