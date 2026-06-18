@@ -109,13 +109,13 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
   ru: {
     seo: {
       htmlLang: 'ru',
-      title: 'SWIMVPN — Android VPN, покупка конфигов в приложении и импорт Xray/V2Ray',
+      title: 'SWIMVPN — VPN для Android: обход блокировок и защита от слежки',
       description:
-        'SWIMVPN — Android VPN в предрелизе: покупайте VPN-доступ внутри приложения, используйте trial или импортируйте свои VLESS, VMess, Trojan, Shadowsocks, Xray и V2Ray конфиги.',
+        'Ваш VPN показывает «защищено» — но вы не защищены. SWIMVPN обходит блокировки через Xray/REALITY, ИИ-агент сам выбирает сервер, оплата в приложении или криптой. Туннель за минуту, без магазина, без логов.',
       ogLocale: 'ru_RU',
-      ogTitle: 'SWIMVPN — Android VPN с покупкой конфигов и импортом Xray/V2Ray',
+      ogTitle: 'SWIMVPN — обход блокировок и приватность на Android',
       ogDescription:
-        'Скачайте APK предрелиза, активируйте trial, покупайте доступ в приложении или используйте собственные VPN-конфиги.',
+        'Обход цензуры через Xray/REALITY, ИИ-агент для выбора сервера, оплата в приложении или криптой. Туннель активен меньше чем за минуту. Без логов.',
     },
     nav: {
       ariaHome: 'SWIMVPN главная',
@@ -216,13 +216,13 @@ export const LANDING_COPY: Record<LandingLocale, LandingCopy> = {
   fr: {
     seo: {
       htmlLang: 'fr',
-      title: 'SWIMVPN — VPN Android, achat in-app et import Xray/V2Ray',
+      title: 'SWIMVPN — VPN Android anti-censure : contournez les blocages',
       description:
-        'SWIMVPN est un VPN Android en pré-release: achetez vos accès dans l’app, testez le trial ou importez vos configs VLESS, VMess, Trojan, Shadowsocks, Xray et V2Ray.',
+        'Votre VPN affiche « protégé » — vous ne l’êtes pas. SWIMVPN contourne les blocages via Xray/REALITY, un agent IA choisit le serveur, paiement dans l’app ou en crypto. Tunnel en moins d’une minute, sans store, sans log.',
       ogLocale: 'fr_FR',
-      ogTitle: 'SWIMVPN — VPN Android avec achat in-app et import Xray/V2Ray',
+      ogTitle: 'SWIMVPN — VPN Android anti-censure & vie privée',
       ogDescription:
-        'Téléchargez l’APK pré-release, activez le trial, achetez vos accès dans l’app ou utilisez vos propres configs VPN.',
+        'Contournez la censure via Xray/REALITY, agent IA pour le choix du serveur, paiement dans l’app ou crypto. Tunnel actif en moins d’une minute. Sans log.',
     },
     nav: {
       ariaHome: 'SWIMVPN accueil',
