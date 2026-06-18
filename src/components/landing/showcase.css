@@ -61,7 +61,13 @@
   .cap h3{font-size:clamp(26px,3.4vw,40px);letter-spacing:-.03em;margin:10px 0 10px;font-weight:700;max-width:14ch}
   .cap p{color:var(--ink-2);font-size:16.5px;line-height:1.65;font-weight:300;max-width:32ch}
   .stage-video{display:flex;align-items:center;justify-content:center;height:100vh}
-  .stage-video video{height:86vh;width:auto;max-width:100%;border-radius:18px}
+  .stage-video video{height:86vh;width:auto;max-width:100%;border-radius:18px;
+    /* feather the studio-plate edges so the clip melts into the page bg
+       (its warm-grey backdrop otherwise reads as a pasted rectangle) */
+    -webkit-mask-image:linear-gradient(to right,transparent,#000 13%,#000 87%,transparent),linear-gradient(to bottom,transparent,#000 9%,#000 91%,transparent);
+    -webkit-mask-composite:source-in;
+    mask-image:linear-gradient(to right,transparent,#000 13%,#000 87%,transparent),linear-gradient(to bottom,transparent,#000 9%,#000 91%,transparent);
+    mask-composite:intersect}
   .segdots{position:absolute;left:50%;bottom:5vh;transform:translateX(-50%);display:flex;gap:8px;z-index:2}
   .segdots i{width:7px;height:7px;border-radius:99px;background:#d2d2da;transition:background .3s,width .3s}
   .segdots i.on{background:var(--ink);width:22px}
