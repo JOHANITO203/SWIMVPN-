@@ -112,14 +112,10 @@ fun ServersScreen(app: AppController) {
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(
-                            Modifier.size(28.dp).clip(CircleShape)
-                                .background(if (active) tokens.color.homePurplePrimary else tokens.color.homeStrokeSubtle),
-                            contentAlignment = Alignment.Center,
-                        ) { if (active) Icon(Icons.Filled.Check, null, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(16.dp)) }
+                        Flag(cfg.displayName, size = 32.dp)
                         Spacer(Modifier.size(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(cfg.displayName, color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(FlagUtil.cleanName(cfg.displayName), color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                             Text(
                                 "${cfg.protocol} · ${cfg.transport} · ${cfg.securityMode} · ${cfg.address}:${cfg.port}",
                                 color = tokens.color.homeTextMuted, fontSize = 11.sp,

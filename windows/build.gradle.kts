@@ -55,6 +55,33 @@ val syncEngine by tasks.registering(Copy::class) {
 sourceSets["main"].kotlin.srcDir(engineGenRoot)
 tasks.named("compileKotlin") { dependsOn(syncEngine) }
 
+// --- Country flags (rendered from the decoded country code, like Happ) -----------------------
+// Small circular-flag set downloaded at build (flagcdn), keyed by ISO-3166-1 alpha-2. The parser
+// decodes the country from the config name's flag emoji; the UI renders the matching image.
+val flagsResRoot = layout.buildDirectory.dir("generated/flags")
+val flagCodes = listOf(
+    "ru", "de", "nl", "fi", "se", "lv", "lt", "ee", "pl", "fr", "gb", "am", "tr", "in", "us",
+    "ua", "ca", "jp", "sg", "hk", "kr", "ae", "az", "kz", "ge", "md", "by", "it", "es", "ch", "at", "no", "ro", "cz",
+)
+val fetchFlags by tasks.registering {
+    val out = File(flagsResRoot.get().asFile, "flags")
+    outputs.dir(flagsResRoot)
+    doLast {
+        out.mkdirs()
+        flagCodes.forEach { code ->
+            val f = File(out, "$code.png")
+            if (f.exists() && f.length() > 0L) return@forEach
+            runCatching {
+                ant.withGroovyBuilder {
+                    "get"("src" to "https://flagcdn.com/w160/$code.png", "dest" to f.absolutePath, "ignoreerrors" to true)
+                }
+            }
+        }
+    }
+}
+sourceSets["main"].resources.srcDir(flagsResRoot)
+tasks.named("processResources") { dependsOn(fetchFlags) }
+
 // --- Bundle the TUN stack (full-traffic mode) ------------------------------------------------
 // tun2socks (xjasonlyu) bridges a WinTUN virtual adapter to xray's local SOCKS, so ALL traffic
 // is captured (like Android's VpnService+tun2socks) — not just proxy-aware apps. wintun.dll is

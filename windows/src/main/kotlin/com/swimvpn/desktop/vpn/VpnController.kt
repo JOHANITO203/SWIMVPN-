@@ -29,6 +29,13 @@ class VpnController(private val scope: CoroutineScope) {
     /** Full-traffic TUN mode (like Android). Defaults on; falls back to proxy when not elevated. */
     var fullTunnel by mutableStateOf(true)
 
+    // Live session traffic (TUN mode) + uptime.
+    var bytesIn by mutableStateOf(0L); private set
+    var bytesOut by mutableStateOf(0L); private set
+    var downBps by mutableStateOf(0L); private set
+    var upBps by mutableStateOf(0L); private set
+    var connectedSinceMs by mutableStateOf(0L); private set
+
     /** Server failover: when the current server is exhausted, returns the NEXT config link to try
      *  (or null to give up). Wired by AppController to rotate through the imported list. */
     var onExhausted: (() -> String?)? = null
@@ -39,6 +46,7 @@ class VpnController(private val scope: CoroutineScope) {
     private var lastLink: String? = null
     private var manualStop = false
     private var sentinelJob: Job? = null
+    private var statsJob: Job? = null
     private var recoveryAttempts = 0
     private val backoffMs = longArrayOf(2_000, 5_000, 10_000)
 
@@ -87,7 +95,10 @@ class VpnController(private val scope: CoroutineScope) {
                 state = VpnState.CONNECTED
                 statusDetail = built.label
                 recoveryAttempts = 0
+                connectedSinceMs = System.currentTimeMillis()
+                bytesIn = 0; bytesOut = 0; downBps = 0; upBps = 0
                 startSentinel()
+                startStats()
             } else {
                 fail(
                     when {
@@ -112,9 +123,37 @@ class VpnController(private val scope: CoroutineScope) {
 
     /** Restore everything we touched — order-independent, best-effort. */
     private fun teardown() {
+        statsJob?.cancel()
         runCatching { tunnel.stop() }
         runCatching { SystemProxy.disable() }
         runCatching { xray.stop() }
+    }
+
+    /** Polls the WinTUN adapter byte counters (TUN mode) → session totals + live speed. */
+    private fun startStats() {
+        statsJob?.cancel()
+        if (!fullTunnel) return
+        statsJob = scope.launch {
+            var base: Pair<Long, Long>? = null
+            var prev: Pair<Long, Long>? = null
+            var prevT = System.currentTimeMillis()
+            while (state == VpnState.CONNECTED && !manualStop) {
+                val cur = withContext(Dispatchers.IO) { TrafficStats.adapterBytes("swimvpn") }
+                if (cur != null) {
+                    if (base == null) { base = cur; prev = cur; prevT = System.currentTimeMillis() }
+                    bytesIn = (cur.first - base!!.first).coerceAtLeast(0)
+                    bytesOut = (cur.second - base!!.second).coerceAtLeast(0)
+                    val now = System.currentTimeMillis()
+                    val dt = ((now - prevT) / 1000.0).coerceAtLeast(0.5)
+                    prev?.let {
+                        downBps = ((cur.first - it.first) / dt).toLong().coerceAtLeast(0)
+                        upBps = ((cur.second - it.second) / dt).toLong().coerceAtLeast(0)
+                    }
+                    prev = cur; prevT = now
+                }
+                delay(2_000)
+            }
+        }
     }
 
     // --- Liveness sentinel + auto-recovery -------------------------------------------------------

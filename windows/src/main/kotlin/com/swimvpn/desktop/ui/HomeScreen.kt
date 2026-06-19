@@ -5,14 +5,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,7 +30,9 @@ import androidx.compose.ui.unit.sp
 import com.swimvpn.desktop.state.AppController
 import com.swimvpn.desktop.state.NavTab
 import com.swimvpn.desktop.theme.SwimDesignTokens
+import com.swimvpn.desktop.vpn.TrafficStats
 import com.swimvpn.desktop.vpn.VpnState
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(app: AppController) {
@@ -71,11 +80,22 @@ fun HomeScreen(app: AppController) {
                     .clickable { app.tab = NavTab.SERVERS },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = app.selected?.let { "${it.displayName} · ${it.protocol}" }
-                        ?: "Aucun serveur — appuie pour importer",
-                    color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium,
-                )
+                val sel = app.selected
+                if (sel != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Flag(sel.displayName, size = 28.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "${FlagUtil.cleanName(sel.displayName)} · ${sel.protocol}",
+                            color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                        )
+                    }
+                } else {
+                    Text(
+                        "Aucun serveur — appuie pour importer",
+                        color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                    )
+                }
             }
 
             Spacer(Modifier.height(10.dp))
@@ -83,6 +103,27 @@ fun HomeScreen(app: AppController) {
                 text = if (vpn.fullTunnel) "Mode : tout le trafic (TUN)" else "Mode : proxy système",
                 color = tokens.color.homeTextMuted, fontSize = 12.sp,
             )
+
+            // Data consumption (live session): uptime + ↓/↑ totals & speed (TUN mode).
+            if (vpn.state == VpnState.CONNECTED) {
+                var now by remember { mutableStateOf(System.currentTimeMillis()) }
+                LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
+                val secs = ((now - vpn.connectedSinceMs).coerceAtLeast(0L) / 1000)
+                val uptime = "%02d:%02d:%02d".format(secs / 3600, (secs % 3600) / 60, secs % 60)
+                Spacer(Modifier.height(14.dp))
+                Text(uptime, color = tokens.color.homeTextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(120.dp)) {
+                        Text("↓ ${TrafficStats.human(vpn.bytesIn)}", color = tokens.color.homeSuccessGreen, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("${TrafficStats.human(vpn.downBps)}/s", color = tokens.color.homeTextMuted, fontSize = 11.sp)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(120.dp)) {
+                        Text("↑ ${TrafficStats.human(vpn.bytesOut)}", color = tokens.color.homePurplePrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("${TrafficStats.human(vpn.upBps)}/s", color = tokens.color.homeTextMuted, fontSize = 11.sp)
+                    }
+                }
+            }
         }
     }
 }
