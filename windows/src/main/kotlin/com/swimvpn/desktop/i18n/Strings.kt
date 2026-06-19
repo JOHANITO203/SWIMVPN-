@@ -55,6 +55,9 @@ data class Strings(
     val startMinimizedLabel: String, val startMinimizedDesc: String,
     val trayConnect: String, val trayDisconnect: String, val trayOpen: String, val trayQuit: String,
     val killSwitchLabel: String, val killSwitchDesc: String,
+    // Adaptive camouflage
+    val groupCamouflage: String, val aiLabel: String, val aiDesc: String,
+    val camProfileLabel: String, val camProfileDesc: String, val camActiveFmt: String, val aiTag: String,
 )
 
 private val FR = Strings(
@@ -94,6 +97,10 @@ private val FR = Strings(
     trayConnect = "Connecter", trayDisconnect = "Déconnecter", trayOpen = "Ouvrir", trayQuit = "Quitter",
     killSwitchLabel = "Kill-switch",
     killSwitchDesc = "Bloque tout le trafic si le tunnel tombe (mode TUN). Coupe Internet jusqu'à reconnexion.",
+    groupCamouflage = "CAMOUFLAGE", aiLabel = "Agent IA adaptatif",
+    aiDesc = "Choisit et ajuste le camouflage automatiquement selon la fiabilité observée par serveur.",
+    camProfileLabel = "Profil de camouflage", camProfileDesc = "Empreinte TLS imitée (manuel quand l'IA est désactivée)",
+    camActiveFmt = "Camouflage : %s", aiTag = "IA",
 )
 
 private val EN = Strings(
@@ -133,6 +140,10 @@ private val EN = Strings(
     trayConnect = "Connect", trayDisconnect = "Disconnect", trayOpen = "Open", trayQuit = "Quit",
     killSwitchLabel = "Kill switch",
     killSwitchDesc = "Block all traffic if the tunnel drops (TUN mode). Cuts internet until reconnected.",
+    groupCamouflage = "CAMOUFLAGE", aiLabel = "Adaptive AI agent",
+    aiDesc = "Automatically picks and heals the camouflage based on observed per-server reliability.",
+    camProfileLabel = "Camouflage profile", camProfileDesc = "Mimicked TLS fingerprint (manual when AI is off)",
+    camActiveFmt = "Camouflage: %s", aiTag = "AI",
 )
 
 private val RU = Strings(
@@ -172,6 +183,10 @@ private val RU = Strings(
     trayConnect = "Подключить", trayDisconnect = "Отключить", trayOpen = "Открыть", trayQuit = "Выход",
     killSwitchLabel = "Kill-switch",
     killSwitchDesc = "Блокирует весь трафик при обрыве туннеля (режим TUN). Отключает интернет до переподключения.",
+    groupCamouflage = "КАМУФЛЯЖ", aiLabel = "Адаптивный AI-агент",
+    aiDesc = "Автоматически подбирает и чинит камуфляж по наблюдаемой надёжности для каждого сервера.",
+    camProfileLabel = "Профиль камуфляжа", camProfileDesc = "Имитируемый TLS-отпечаток (вручную, когда AI выключен)",
+    camActiveFmt = "Камуфляж: %s", aiTag = "ИИ",
 )
 
 fun stringsFor(lang: Lang): Strings = when (lang) {

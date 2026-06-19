@@ -39,6 +39,19 @@ object RuntimeDoc {
         }
     }
 
+    /** Camouflage: override the uTLS fingerprint on the proxy outbound's TLS/REALITY settings.
+     *  No-op when blank (AUTO = keep the link's own fingerprint) or for non-TLS security. */
+    fun applyFingerprint(document: JsonObject, fingerprint: String?) {
+        if (fingerprint.isNullOrBlank()) return
+        document.getAsJsonArray("outbounds")?.forEach { el ->
+            val ob = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            if (ob.get("tag")?.takeIf { it.isJsonPrimitive }?.asString != "proxy") return@forEach
+            val stream = ob.getAsJsonObject("streamSettings") ?: return@forEach
+            stream.getAsJsonObject("tlsSettings")?.addProperty("fingerprint", fingerprint)
+            stream.getAsJsonObject("realitySettings")?.addProperty("fingerprint", fingerprint)
+        }
+    }
+
     /** FakeDNS + sniffing + dns-out routing (TUN mode): answer DNS locally, route by domain. */
     fun applyFakeDnsInterception(document: JsonObject) {
         if (!document.has("fakedns")) {

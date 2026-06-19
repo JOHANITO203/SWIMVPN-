@@ -92,6 +92,13 @@ fun HomeScreen(app: AppController) {
                 }
             }
 
+            // Active camouflage profile (honest: the mimicked fingerprint, + AI tag when adaptive).
+            Spacer(Modifier.height(8.dp))
+            Text(
+                s.camActiveFmt.format(app.activeProfile.label) + if (app.aiEnabled) " · ${s.aiTag}" else "",
+                color = tokens.color.homeTextMuted, fontSize = 11.sp,
+            )
+
             // Live data card (connected).
             if (vpn.state == VpnState.CONNECTED) {
                 Spacer(Modifier.height(12.dp))

@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,8 +33,10 @@ import com.swimvpn.desktop.i18n.Lang
 import com.swimvpn.desktop.i18n.LocalStrings
 import com.swimvpn.desktop.state.AppController
 import com.swimvpn.desktop.theme.SwimDesignTokens
+import com.swimvpn.desktop.vpn.CamouflageProfile
 import com.swimvpn.desktop.vpn.VpnState
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(app: AppController) {
     val tokens = SwimDesignTokens.Current
@@ -124,6 +128,36 @@ fun SettingsScreen(app: AppController) {
             )
         }
 
+        Spacer(Modifier.height(24.dp))
+
+        // --- Camouflage / adaptive AI ---
+        SectionLabel(s.groupCamouflage)
+        Spacer(Modifier.height(10.dp))
+        ToggleRow(s.aiLabel, s.aiDesc, app.aiEnabled) { app.applyAiEnabled(it) }
+        if (!app.aiEnabled) {
+            Spacer(Modifier.height(12.dp))
+            Text(s.camProfileLabel, color = tokens.color.homeTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(s.camProfileDesc, color = tokens.color.homeTextMuted, fontSize = 11.sp)
+            Spacer(Modifier.height(8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CamouflageProfile.entries.forEach { p ->
+                    val active = app.manualProfile == p
+                    Box(
+                        Modifier.clip(RoundedCornerShape(14.dp))
+                            .background(if (active) tokens.color.homePurplePrimary else tokens.color.homeSurfaceBase)
+                            .clickable { app.applyManualProfile(p) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                    ) {
+                        Text(
+                            p.label,
+                            color = if (active) Color.White else tokens.color.homeTextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(24.dp))
         SectionLabel(s.groupAbout)
         Spacer(Modifier.height(10.dp))

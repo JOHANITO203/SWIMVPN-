@@ -14,6 +14,9 @@ import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.Socket
 
+/** One auto-heal attempt: which server link to dial, with which camouflage fingerprint. */
+data class HealAttempt(val link: String, val fingerprint: String?)
+
 /**
  * Orchestrates the Windows VPN lifecycle, mirroring the Android engine:
  * start xray.exe → bring up the data path (TUN or system proxy) → prove traffic → CONNECTED,
@@ -52,6 +55,17 @@ class VpnController(private val scope: CoroutineScope) {
      *  (or null to give up). Wired by AppController to rotate through the imported list. */
     var onExhausted: (() -> String?)? = null
 
+    // --- Adaptive camouflage (gated by aiOn; OFF ⇒ behaviour identical to before) ---------------
+    /** When true, recovery delegates to [planNextAttempt] (cycle camouflage profile, then server). */
+    var aiOn: Boolean = false
+    /** uTLS fingerprint used for the current connect (null = AUTO / link default). */
+    var currentFingerprint: String? = null
+        private set
+    /** AI heal: returns the next attempt (link + fingerprint) to try, or null to give up. */
+    var planNextAttempt: (() -> HealAttempt?)? = null
+    /** Called on CONNECTED so the agent can record the working (server, profile). */
+    var onConnectedOk: (() -> Unit)? = null
+
     private val xray = XrayProcess()
     private val tunnel = WintunTunnel()
 
@@ -65,11 +79,12 @@ class VpnController(private val scope: CoroutineScope) {
     fun isBinaryAvailable(): Boolean = xray.isBinaryAvailable()
     fun isElevated(): Boolean = tunnel.isElevated()
 
-    fun connect(link: String) {
+    fun connect(link: String, fingerprint: String? = null) {
         if (state == VpnState.CONNECTING || state == VpnState.CONNECTED) return
         manualStop = false
         recoveryAttempts = 0
         lastLink = link
+        currentFingerprint = fingerprint
         scope.launch { doConnect(link) }
     }
 
@@ -90,7 +105,7 @@ class VpnController(private val scope: CoroutineScope) {
         state = VpnState.CONNECTING
         statusDetail = "Démarrage du moteur…"
         try {
-            val built = EngineConfig.build(link, fullTunnel)
+            val built = EngineConfig.build(link, fullTunnel, currentFingerprint)
             activeLabel = built.label
             withContext(Dispatchers.IO) { teardown() } // clean any prior data path before re-arming
             withContext(Dispatchers.IO) { xray.start(built.configJson) }
@@ -114,6 +129,7 @@ class VpnController(private val scope: CoroutineScope) {
                 // Kill-switch (TUN only): (re)arm with the current server allowed; held through any
                 // later drop so non-tunnel traffic stays blocked until reconnect or user disconnect.
                 if (fullTunnel && killSwitch) withContext(Dispatchers.IO) { KillSwitch.engage(tunnel.serverIp()) }
+                onConnectedOk?.invoke() // agent records the working (server, camouflage profile)
                 startSentinel()
                 startStats()
             } else {
@@ -133,9 +149,26 @@ class VpnController(private val scope: CoroutineScope) {
     private fun fail(reason: String) {
         scope.launch {
             withContext(Dispatchers.IO) { teardown() }
-            state = VpnState.ERROR
-            statusDetail = reason
+            if (aiOn && !manualStop && planNextAttempt != null) healOnce()
+            else { state = VpnState.ERROR; statusDetail = reason }
         }
+    }
+
+    /** One AI heal step: ask the agent for the next (server, camouflage) attempt and try it. The
+     *  attempt counter hard-caps the whole cascade so it can never loop forever. */
+    private suspend fun healOnce() {
+        if (manualStop) return
+        recoveryAttempts++
+        if (recoveryAttempts > 15) { state = VpnState.ERROR; statusDetail = "Échec après plusieurs tentatives"; return }
+        val next = planNextAttempt?.invoke()
+        if (next == null) { state = VpnState.ERROR; statusDetail = "Connexion perdue — options épuisées"; return }
+        state = VpnState.CONNECTING
+        statusDetail = "Optimisation (camouflage/serveur)…"
+        delay(backoffMs[(recoveryAttempts - 1).coerceIn(0, backoffMs.size - 1)])
+        if (manualStop) return
+        currentFingerprint = next.fingerprint
+        lastLink = next.link
+        doConnect(next.link)
     }
 
     /** Restore everything we touched — order-independent, best-effort. */
@@ -212,6 +245,8 @@ class VpnController(private val scope: CoroutineScope) {
 
     private suspend fun recover() {
         if (manualStop) return
+        // AI on → delegate recovery to the heal cascade (camouflage profiles, then server failover).
+        if (aiOn && planNextAttempt != null) { healOnce(); return }
         recoveryAttempts++
         // After exhausting same-server reconnects, fail over to the next server (if any).
         if (recoveryAttempts > backoffMs.size) {

@@ -17,6 +17,8 @@ data class PersistedState(
     val autostart: Boolean = false, // launch at Windows sign-in (HKCU Run)
     val startMinimized: Boolean = false, // start hidden in the system tray
     val killSwitch: Boolean = false, // block non-tunnel traffic on tunnel drop (TUN mode)
+    val aiEnabled: Boolean = false, // adaptive camouflage agent on/off
+    val camProfile: String? = null, // manual camouflage profile id (when AI off); null = auto
 )
 
 object ConfigStore {

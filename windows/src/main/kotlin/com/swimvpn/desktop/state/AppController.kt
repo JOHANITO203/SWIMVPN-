@@ -10,6 +10,9 @@ import com.swimvpn.desktop.i18n.Strings
 import com.swimvpn.desktop.i18n.stringsFor
 import com.swimvpn.desktop.system.Autostart
 import com.swimvpn.desktop.system.KillSwitch
+import com.swimvpn.desktop.adaptive.AdaptiveAgent
+import com.swimvpn.desktop.vpn.CamouflageProfile
+import com.swimvpn.desktop.vpn.HealAttempt
 import com.swimvpn.desktop.vpn.LatencyProbe
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -68,6 +71,43 @@ class AppController(private val scope: CoroutineScope) {
         killSwitch = value
         vpn.applyKillSwitch(value) // engage now if connected via TUN, else lift
         persist()
+    }
+
+    // --- Adaptive camouflage (honest: learns reliability per server, not "stealth") --------------
+    val agent = AdaptiveAgent()
+    var aiEnabled by mutableStateOf(false)
+        private set
+    var manualProfile by mutableStateOf(CamouflageProfile.AUTO)
+        private set
+    /** Camouflage profile in effect for the current connection (display only). */
+    var activeProfile by mutableStateOf(CamouflageProfile.AUTO)
+        private set
+    /** Heal cursor: the profile of the in-flight attempt; advanced by [planNextAttempt]. */
+    private var healProfile = CamouflageProfile.AUTO
+
+    fun applyAiEnabled(value: Boolean) { aiEnabled = value; vpn.aiOn = value; persist() }
+    fun applyManualProfile(p: CamouflageProfile) { manualProfile = p; persist() }
+
+    /** AI heal plan: cycle the camouflage cascade on the current server, then rotate to the next. */
+    private fun planNextAttempt(): HealAttempt? {
+        if (configs.isEmpty()) return null
+        agent.nextInCascade(healProfile)?.let { next ->
+            healProfile = next; activeProfile = next
+            val server = selected ?: return null
+            return HealAttempt(server.rawConfig, next.fingerprint)
+        }
+        // cascade exhausted on this server → rotate to the next server, restart the cascade at AUTO
+        val cur = configs.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
+        val nextServer = configs[(cur + 1).mod(configs.size)]
+        selectedId = nextServer.id
+        persist()
+        healProfile = CamouflageProfile.AUTO; activeProfile = healProfile
+        return HealAttempt(nextServer.rawConfig, healProfile.fingerprint)
+    }
+
+    private fun onConnectedRecord() {
+        agent.recordWorking(selectedId, healProfile)
+        activeProfile = healProfile
     }
 
     fun applyStartMinimized(value: Boolean) { startMinimized = value; persist() }
@@ -136,6 +176,11 @@ class AppController(private val scope: CoroutineScope) {
         // Backstop: clear any kill-switch firewall state left by a previous crash/force-quit.
         KillSwitch.cleanupStale()
         vpn.killSwitch = killSwitch
+        aiEnabled = s.aiEnabled
+        manualProfile = CamouflageProfile.byId(s.camProfile)
+        vpn.aiOn = aiEnabled
+        vpn.planNextAttempt = { planNextAttempt() }
+        vpn.onConnectedOk = { onConnectedRecord() }
         vpn.fullTunnel = s.fullTunnel
         s.configs.forEach { addParsed(it) }
         selectedId = configs.getOrNull(s.selectedIndex)?.id ?: configs.firstOrNull()?.id
@@ -291,7 +336,15 @@ class AppController(private val scope: CoroutineScope) {
     fun toggleConnect() {
         when (vpn.state) {
             VpnState.CONNECTED, VpnState.CONNECTING -> vpn.disconnect()
-            else -> selected?.let { vpn.connect(it.rawConfig) }
+            else -> {
+                val server = selected ?: return
+                // AI on → start from the server's known-good profile; off → the manual choice.
+                val profile = if (aiEnabled) agent.startProfile(server.id) else manualProfile
+                healProfile = profile
+                activeProfile = profile
+                vpn.aiOn = aiEnabled
+                vpn.connect(server.rawConfig, profile.fingerprint)
+            }
         }
     }
 
@@ -309,6 +362,8 @@ class AppController(private val scope: CoroutineScope) {
             autostart = autostart,
             startMinimized = startMinimized,
             killSwitch = killSwitch,
+            aiEnabled = aiEnabled,
+            camProfile = manualProfile.id,
         )
     )
 }

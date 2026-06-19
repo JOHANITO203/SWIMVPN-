@@ -27,7 +27,7 @@ object LocalPorts {
 object EngineConfig {
     data class Built(val configJson: String, val host: String, val port: Int, val label: String)
 
-    fun build(link: String, fullTunnel: Boolean = true): Built {
+    fun build(link: String, fullTunnel: Boolean = true, fingerprint: String? = null): Built {
         val entry = VpnConfigLinkExtractor.extractEntries(link).firstOrNull() ?: link.trim()
         val result = ConfigParserEngine.parseConfig(entry, SourceType.MANUAL_ENTRY)
         val profile = result.profile
@@ -51,6 +51,8 @@ object EngineConfig {
         // Runtime post-processing (parity with Android's TunnelRuntimeAdapter).
         // Always: dial the server by pre-resolved IPv4 (keep SNI) — fixes REALITY on censored DNS.
         RuntimeDoc.resolveOutboundServerAddresses(doc)
+        // Camouflage: override the uTLS fingerprint when a profile is selected (AUTO ⇒ null ⇒ no-op).
+        RuntimeDoc.applyFingerprint(doc, fingerprint)
         // TUN mode: answer DNS locally (FakeDNS) + block literal IPv6 so it fast-fails to IPv4.
         if (fullTunnel) {
             RuntimeDoc.applyFakeDnsInterception(doc)
