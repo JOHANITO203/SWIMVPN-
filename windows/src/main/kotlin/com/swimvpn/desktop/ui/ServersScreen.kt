@@ -2,6 +2,7 @@ package com.swimvpn.desktop.ui
 
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -113,12 +114,14 @@ fun ServersScreen(app: AppController) {
         }
 
         // Import action
+        val importSrc = remember { MutableInteractionSource() }
         Box(
             modifier = Modifier
                 .fillMaxWidth().height(52.dp)
+                .interactive(importSrc, pressScale = 0.98f, hoverScale = 1.012f)
                 .clip(RoundedCornerShape(26.dp))
                 .background(tokens.color.homePurplePrimary)
-                .clickable { showImport = true },
+                .clickable(interactionSource = importSrc, indication = null) { showImport = true },
             contentAlignment = Alignment.Center,
         ) {
             Text(s.importConfig, color = androidx.compose.ui.graphics.Color.White,
@@ -171,12 +174,24 @@ fun ServersScreen(app: AppController) {
                             it.address.contains(query, ignoreCase = true)
                     }.forEach { cfg ->
                     val active = cfg.id == app.selectedId
+                    val rowSrc = remember { MutableInteractionSource() }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .interactive(rowSrc, pressScale = 0.985f, hoverScale = 1.008f)
                             .clip(RoundedCornerShape(20.dp))
-                            .background(if (active) tokens.color.homeSurfaceHighlight else tokens.color.homeSurfaceBase)
-                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { app.select(cfg.id) }
+                            .background(
+                                androidx.compose.ui.graphics.Brush.verticalGradient(
+                                    0f to (if (active) tokens.color.homeSurfaceHighlight else tokens.color.homeSurfaceElevated),
+                                    1f to tokens.color.homeSurfaceBase,
+                                )
+                            )
+                            .border(
+                                1.dp,
+                                if (active) tokens.color.homeStrokeActive else tokens.color.homeStrokeSubtle,
+                                RoundedCornerShape(20.dp),
+                            )
+                            .clickable(interactionSource = rowSrc, indication = null) { app.select(cfg.id) }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {

@@ -100,11 +100,13 @@ private fun RailItem(icon: ImageVector, label: String, active: Boolean, onClick:
         if (active) tokens.color.homePurplePrimary else androidx.compose.ui.graphics.Color.Transparent,
         label = "railbg",
     )
+    val src = remember { MutableInteractionSource() }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .interactive(src, pressScale = 0.92f, hoverScale = 1.06f)
+            .clickable(interactionSource = src, indication = null, onClick = onClick)
             .padding(vertical = 6.dp, horizontal = 4.dp),
     ) {
         Box(

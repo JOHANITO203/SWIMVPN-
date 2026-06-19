@@ -1,5 +1,7 @@
 package com.swimvpn.desktop.ui
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -31,14 +33,20 @@ fun AppShell(app: AppController) {
             onSettings = { app.showSettings = true },
         )
         Box(Modifier.weight(1f).fillMaxHeight()) {
-            if (app.showSettings) {
-                SettingsScreen(app)
-            } else {
-                when (app.tab) {
-                    NavTab.HOME -> HomeScreen(app)
-                    NavTab.SERVERS -> ServersScreen(app)
-                    NavTab.SUBSCRIPTION -> SubscriptionScreen()
-                    NavTab.ACCOUNT -> AccountScreen(app)
+            // Crossfade so switching destinations feels intentional, not a hard cut.
+            Crossfade(
+                targetState = app.showSettings to app.tab,
+                animationSpec = tween(220, easing = SwimEaseOut),
+                label = "screen",
+            ) { (settings, tab) ->
+                when {
+                    settings -> SettingsScreen(app)
+                    else -> when (tab) {
+                        NavTab.HOME -> HomeScreen(app)
+                        NavTab.SERVERS -> ServersScreen(app)
+                        NavTab.SUBSCRIPTION -> SubscriptionScreen()
+                        NavTab.ACCOUNT -> AccountScreen(app)
+                    }
                 }
             }
         }

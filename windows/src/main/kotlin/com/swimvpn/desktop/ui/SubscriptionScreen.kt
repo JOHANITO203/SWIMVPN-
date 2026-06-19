@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,11 +95,13 @@ fun SubscriptionScreen() {
                             Spacer(Modifier.height(4.dp))
                         }
                         Spacer(Modifier.height(12.dp))
+                        val subSrc = remember { MutableInteractionSource() }
                         Box(
                             Modifier.fillMaxWidth().height(46.dp)
+                                .interactive(subSrc, pressScale = 0.98f, hoverScale = 1.012f)
                                 .clip(RoundedCornerShape(23.dp))
                                 .background(if (p.best) tokens.color.homePurplePrimary else tokens.color.homeSurfaceElevated)
-                                .clickable { openWeb("https://app.swimvpn.pro/#offres") },
+                                .clickable(interactionSource = subSrc, indication = null) { openWeb("https://app.swimvpn.pro/#offres") },
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(s.planSubscribe, color = if (p.best) Color.White else tokens.color.homeTextPrimary,

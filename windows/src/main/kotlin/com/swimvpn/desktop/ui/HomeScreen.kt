@@ -72,8 +72,9 @@ fun HomeScreen(app: AppController) {
 
             // Active server card → tap to pick a server.
             SwimCard(
-                modifier = Modifier.fillMaxWidth().clickable { app.tab = NavTab.SERVERS },
+                modifier = Modifier.fillMaxWidth(),
                 padding = 16,
+                onClick = { app.tab = NavTab.SERVERS },
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Flag(app.selected?.displayName ?: "", size = 34.dp)

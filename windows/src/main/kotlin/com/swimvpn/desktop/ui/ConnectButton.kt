@@ -37,6 +37,7 @@ fun ConnectButton(state: VpnState, onClick: () -> Unit) {
     val tokens = SwimDesignTokens.Current
     val active = state == VpnState.CONNECTED
     val connecting = state == VpnState.CONNECTING
+    val src = remember { MutableInteractionSource() }
 
     val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.82f,
@@ -56,6 +57,7 @@ fun ConnectButton(state: VpnState, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(206.dp)
+            .interactive(src, pressScale = 0.96f, hoverScale = 1.015f)
             .clip(CircleShape)
             .drawBehind {
                 val c = Offset(size.width / 2f, size.height / 2f)
@@ -98,7 +100,7 @@ fun ConnectButton(state: VpnState, onClick: () -> Unit) {
                 )
             }
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = src,
                 indication = null,
                 onClick = onClick,
             ),

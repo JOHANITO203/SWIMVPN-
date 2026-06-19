@@ -1,7 +1,9 @@
 package com.swimvpn.desktop.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,9 +23,11 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -67,9 +71,18 @@ fun AccountScreen(app: AppController) {
 
 @Composable
 private fun AccountPill(label: String, icon: ImageVector, tokens: com.swimvpn.desktop.theme.SwimVisualTokens, onClick: () -> Unit) {
+    val src = remember { MutableInteractionSource() }
     Row(
-        Modifier.fillMaxWidth().height(58.dp).clip(RoundedCornerShape(20.dp))
-            .background(tokens.color.homeSurfaceBase).clickable { onClick() }
+        Modifier.fillMaxWidth().height(58.dp)
+            .interactive(src, pressScale = 0.99f, hoverScale = 1.008f)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.verticalGradient(
+                    0f to tokens.color.homeSurfaceElevated, 1f to tokens.color.homeSurfaceBase,
+                )
+            )
+            .border(1.dp, tokens.color.homeStrokeSubtle, RoundedCornerShape(20.dp))
+            .clickable(interactionSource = src, indication = null) { onClick() }
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
