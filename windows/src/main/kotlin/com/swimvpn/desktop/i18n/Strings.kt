@@ -59,6 +59,9 @@ data class Strings(
     val groupCamouflage: String, val aiLabel: String, val aiDesc: String,
     val camProfileLabel: String, val camProfileDesc: String, val camActiveFmt: String, val aiTag: String,
     val fragLabel: String, val fragDesc: String,
+    // Updates
+    val aboutVersionFmt: String, val checkUpdates: String, val checking: String,
+    val upToDate: String, val updateAvailFmt: String, val updateBtn: String,
 )
 
 private val FR = Strings(
@@ -104,6 +107,8 @@ private val FR = Strings(
     camActiveFmt = "Camouflage : %s", aiTag = "IA",
     fragLabel = "Fragmentation TLS",
     fragDesc = "Découpe le ClientHello pour casser le filtrage par SNI (anti-DPI). Idéal sur TLS simple.",
+    aboutVersionFmt = "SWIMVPN Windows · v%s", checkUpdates = "Rechercher des mises à jour",
+    checking = "Vérification…", upToDate = "À jour ✓", updateAvailFmt = "Nouvelle version : %s", updateBtn = "Mettre à jour",
 )
 
 private val EN = Strings(
@@ -149,6 +154,8 @@ private val EN = Strings(
     camActiveFmt = "Camouflage: %s", aiTag = "AI",
     fragLabel = "TLS fragmentation",
     fragDesc = "Splits the ClientHello to defeat SNI-based DPI (anti-censorship). Best on plain TLS.",
+    aboutVersionFmt = "SWIMVPN Windows · v%s", checkUpdates = "Check for updates",
+    checking = "Checking…", upToDate = "Up to date ✓", updateAvailFmt = "New version: %s", updateBtn = "Update",
 )
 
 private val RU = Strings(
@@ -194,6 +201,8 @@ private val RU = Strings(
     camActiveFmt = "Камуфляж: %s", aiTag = "ИИ",
     fragLabel = "Фрагментация TLS",
     fragDesc = "Разбивает ClientHello, чтобы обойти DPI по SNI (антицензура). Лучше всего на обычном TLS.",
+    aboutVersionFmt = "SWIMVPN Windows · v%s", checkUpdates = "Проверить обновления",
+    checking = "Проверка…", upToDate = "Актуально ✓", updateAvailFmt = "Новая версия: %s", updateBtn = "Обновить",
 )
 
 fun stringsFor(lang: Lang): Strings = when (lang) {

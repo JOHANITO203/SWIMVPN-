@@ -1,6 +1,7 @@
 package com.swimvpn.desktop.state
 
 import com.google.gson.Gson
+import com.sun.jna.platform.win32.Crypt32Util
 import java.io.File
 
 /** Locally-persisted desktop state (imported configs + selection + settings), %LOCALAPPDATA%. */
@@ -29,10 +30,26 @@ object ConfigStore {
     ).apply { parentFile.mkdirs() }
     private val gson = Gson()
 
-    fun load(): PersistedState =
-        runCatching { gson.fromJson(file.readText(), PersistedState::class.java) }.getOrNull() ?: PersistedState()
+    /** Loads state, decrypting with DPAPI. Transparently migrates an old plaintext state.json. */
+    fun load(): PersistedState {
+        if (!file.exists()) return PersistedState()
+        val bytes = runCatching { file.readBytes() }.getOrNull() ?: return PersistedState()
+        val json = runCatching {
+            val asText = bytes.toString(Charsets.UTF_8)
+            // Old builds wrote plaintext JSON (starts with '{'); new builds write DPAPI ciphertext.
+            if (asText.trimStart().startsWith("{")) asText
+            else Crypt32Util.cryptUnprotectData(bytes).toString(Charsets.UTF_8)
+        }.getOrNull() ?: return PersistedState()
+        return runCatching { gson.fromJson(json, PersistedState::class.java) }.getOrNull() ?: PersistedState()
+    }
 
+    /** Saves state encrypted with DPAPI (per-user). Falls back to plaintext if DPAPI is unavailable
+     *  (non-Windows / dev run) so state is never lost. */
     fun save(state: PersistedState) {
-        runCatching { file.writeText(gson.toJson(state)) }
+        runCatching {
+            val json = gson.toJson(state)
+            val enc = runCatching { Crypt32Util.cryptProtectData(json.toByteArray(Charsets.UTF_8)) }.getOrNull()
+            if (enc != null) file.writeBytes(enc) else file.writeText(json)
+        }
     }
 }

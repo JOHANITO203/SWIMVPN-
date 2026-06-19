@@ -33,7 +33,19 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.8.1")
     // Gson — the SAME JSON lib the shared Android engine uses to build Xray configs.
     implementation("com.google.code.gson:gson:2.11.0")
+    // JNA + platform Win32 (Crypt32Util) — DPAPI at-rest encryption of the persisted state.
+    implementation("net.java.dev.jna:jna-platform:5.14.0")
 }
+
+// Expose the build version to the app (auto-update comparison + Settings display).
+val versionResRoot = layout.buildDirectory.dir("generated/version")
+val writeVersion by tasks.registering {
+    val out = File(versionResRoot.get().asFile, "version.txt")
+    outputs.file(out)
+    doLast { out.parentFile.mkdirs(); out.writeText(appVersion) }
+}
+sourceSets["main"].resources.srcDir(versionResRoot)
+tasks.named("processResources") { dependsOn(writeVersion) }
 
 // --- Shared engine (GUARANTEED parity with Android) ------------------------------------------
 // The Windows app compiles the SAME parsing + Xray-config-building source files as the Android

@@ -10,6 +10,7 @@ import com.swimvpn.desktop.i18n.Strings
 import com.swimvpn.desktop.i18n.stringsFor
 import com.swimvpn.desktop.system.Autostart
 import com.swimvpn.desktop.system.KillSwitch
+import com.swimvpn.desktop.system.Updater
 import com.swimvpn.desktop.adaptive.AdaptiveAgent
 import com.swimvpn.desktop.vpn.CamouflageProfile
 import com.swimvpn.desktop.vpn.HealAttempt
@@ -92,6 +93,25 @@ class AppController(private val scope: CoroutineScope) {
     var tlsFragment by mutableStateOf(false)
         private set
     fun applyTlsFragment(value: Boolean) { tlsFragment = value; vpn.tlsFragment = value; persist() }
+
+    // --- Self-update ----------------------------------------------------------------------------
+    var updateInfo by mutableStateOf<Updater.Info?>(null)
+        private set
+    var updateChecking by mutableStateOf(false)
+        private set
+
+    fun checkForUpdates() {
+        if (updateChecking) return
+        updateChecking = true
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { Updater.check() }
+            withContext(Dispatchers.Swing) { updateInfo = r; updateChecking = false }
+        }
+    }
+
+    fun runUpdate() {
+        updateInfo?.url?.let { url -> scope.launch(Dispatchers.IO) { Updater.downloadAndLaunch(url) } }
+    }
 
     /** AI heal plan: cycle the camouflage cascade on the current server, then rotate to the next. */
     private fun planNextAttempt(): HealAttempt? {

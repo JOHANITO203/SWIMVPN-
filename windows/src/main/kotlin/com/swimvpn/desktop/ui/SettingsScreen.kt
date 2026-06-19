@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.swimvpn.desktop.i18n.Lang
 import com.swimvpn.desktop.i18n.LocalStrings
 import com.swimvpn.desktop.state.AppController
+import com.swimvpn.desktop.system.BuildInfo
 import com.swimvpn.desktop.theme.SwimDesignTokens
 import com.swimvpn.desktop.vpn.CamouflageProfile
 import com.swimvpn.desktop.vpn.VpnState
@@ -163,8 +165,26 @@ fun SettingsScreen(app: AppController) {
         Spacer(Modifier.height(24.dp))
         SectionLabel(s.groupAbout)
         Spacer(Modifier.height(10.dp))
-        Text("SWIMVPN Windows · ${s.accountSubtitle}", color = tokens.color.homeTextSecondary, fontSize = 13.sp)
+        Text(s.aboutVersionFmt.format(BuildInfo.version), color = tokens.color.homeTextSecondary, fontSize = 13.sp)
         Text(s.aboutEngine, color = tokens.color.homeTextMuted, fontSize = 11.sp)
+        Spacer(Modifier.height(6.dp))
+        TextButton(onClick = { app.checkForUpdates() }, enabled = !app.updateChecking) {
+            Text(if (app.updateChecking) s.checking else s.checkUpdates, color = tokens.color.homePurplePrimary, fontSize = 13.sp)
+        }
+        app.updateInfo?.let { info ->
+            when {
+                info.newer && info.url != null -> {
+                    Text(s.updateAvailFmt.format(info.latest ?: ""), color = tokens.color.homeSuccessGreen, fontSize = 12.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        Modifier.clip(RoundedCornerShape(16.dp)).background(tokens.color.homePurplePrimary)
+                            .clickable { app.runUpdate() }.padding(horizontal = 18.dp, vertical = 10.dp),
+                    ) { Text(s.updateBtn, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                }
+                info.error == null -> Text(s.upToDate, color = tokens.color.homeSuccessGreen, fontSize = 12.sp)
+                else -> {} // offline / unreachable manifest → stay silent
+            }
+        }
     }
 }
 
