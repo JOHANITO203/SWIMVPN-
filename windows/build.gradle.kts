@@ -8,8 +8,17 @@ plugins {
     id("org.jetbrains.compose") version "1.7.1"
 }
 
+// Auto-increment the version from the git commit count so each installer is HIGHER than the last
+// → Windows does a real major upgrade (replaces the existing install) instead of a no-op
+// "already installed 1.0.0". upgradeUuid stays stable so it's recognized as the same product.
+val buildNumber = runCatching {
+    val proc = ProcessBuilder("git", "rev-list", "--count", "HEAD").redirectErrorStream(true).start()
+    proc.inputStream.bufferedReader().readText().trim().also { proc.waitFor() }
+}.getOrNull()?.toIntOrNull() ?: 1
+val appVersion = "1.0.$buildNumber"
+
 group = "com.swimvpn.desktop"
-version = "1.0.0"
+version = appVersion
 
 repositories {
     google()
@@ -179,7 +188,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Exe, TargetFormat.Msi)
             packageName = "SWIMVPN"
-            packageVersion = "1.0.0"
+            packageVersion = appVersion
             description = "SWIMVPN — Windows (unstable)"
             vendor = "SWIMVPN"
             windows {
