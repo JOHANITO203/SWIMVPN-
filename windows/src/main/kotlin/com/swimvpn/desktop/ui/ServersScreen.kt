@@ -2,6 +2,7 @@ package com.swimvpn.desktop.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -127,7 +128,7 @@ fun ServersScreen(app: AppController) {
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(20.dp))
                             .background(if (active) tokens.color.homeSurfaceHighlight else tokens.color.homeSurfaceBase)
-                            .clickable { app.select(cfg.id) }
+                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { app.select(cfg.id) }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -156,7 +157,8 @@ fun ServersScreen(app: AppController) {
                         Icon(
                             Icons.Filled.Delete, "Supprimer",
                             tint = tokens.color.homeTextMuted,
-                            modifier = Modifier.size(20.dp).clickable { pendingRemoval = cfg.id },
+                            modifier = Modifier.size(20.dp)
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { pendingRemoval = cfg.id },
                         )
                     }
                 }
