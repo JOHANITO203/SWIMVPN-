@@ -1,20 +1,26 @@
 package com.swimvpn.desktop.ui
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -110,18 +116,25 @@ fun ServersScreen(app: AppController) {
         }
         Spacer(Modifier.height(8.dp))
 
-        if (app.configs.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Aucune config. Colle un lien VLESS/VMess/Trojan/Shadowsocks\nou un lien d'abonnement.",
-                    color = tokens.color.homeTextMuted, fontSize = 13.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-            }
-        } else {
-            Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                app.configs.toList().forEach { cfg ->
+        val listScroll = rememberScrollState()
+        val scrollScope = rememberCoroutineScope()
+        Box(
+            Modifier.weight(1f).fillMaxWidth()
+                .focusable()
+                .onPreviewKeyEvent { handleScrollKeys(it, listScroll, scrollScope) },
+        ) {
+            if (app.configs.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Aucune config. Colle un lien VLESS/VMess/Trojan/Shadowsocks\nou un lien d'abonnement.",
+                        color = tokens.color.homeTextMuted, fontSize = 13.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+            } else {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(listScroll).padding(end = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    app.configs.toList().forEach { cfg ->
                     val active = cfg.id == app.selectedId
                     Row(
                         modifier = Modifier
@@ -162,6 +175,12 @@ fun ServersScreen(app: AppController) {
                         )
                     }
                 }
+            }
+                VerticalScrollbar(
+                    adapter = rememberScrollbarAdapter(listScroll),
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                    style = swimScrollbarStyle(),
+                )
             }
         }
     }
