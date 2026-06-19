@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -110,7 +111,7 @@ fun SettingsScreen(app: AppController) {
                 checked = app.vpn.fullTunnel,
                 onCheckedChange = { if (!locked) app.setFullTunnel(it) },
                 enabled = !locked,
-                colors = SwitchDefaults.colors(checkedThumbColor = tokens.color.homePurplePrimary),
+                colors = swimSwitchColors(),
             )
         }
         Spacer(Modifier.height(10.dp))
@@ -210,9 +211,25 @@ private fun ToggleRow(label: String, desc: String, checked: Boolean, onChange: (
         }
         Switch(
             checked = checked, onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedThumbColor = tokens.color.homePurplePrimary),
+            colors = swimSwitchColors(),
         )
     }
+}
+
+/** Switch in the hardware grammar: dark recessed track + an always-visible thumb (grey → white) that
+ *  lights to purple when on — so the activated state still reads as a switch (consistent with the
+ *  active purple pills), instead of a flat purple blob where the thumb vanishes. */
+@Composable
+private fun swimSwitchColors(): SwitchColors {
+    val t = SwimDesignTokens.Current
+    return SwitchDefaults.colors(
+        checkedThumbColor = Color.White,
+        checkedTrackColor = t.color.homePurplePrimary,
+        checkedBorderColor = t.color.homePurplePrimary,
+        uncheckedThumbColor = t.color.homeTextSecondary,
+        uncheckedTrackColor = t.color.homeBackgroundDeep,
+        uncheckedBorderColor = t.color.homeStrokeSubtle,
+    )
 }
 
 /** remember without recomposition churn for a one-shot value. */
