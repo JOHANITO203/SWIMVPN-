@@ -2,6 +2,7 @@ package com.swimvpn.desktop
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -31,8 +32,11 @@ fun main() {
     }
 
     application {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val app = AppController(scope)
+        // remember: create the scope + controller ONCE. Without it, every recomposition rebuilt a
+        // whole new AppController (reload state.json, re-parse configs, re-init the tunnel) — an
+        // infinite recompose loop that pegged the UI thread and made the app unstable on any action.
+        val scope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+        val app = remember { AppController(scope) }
         val windowState = rememberWindowState(width = 420.dp, height = 860.dp)
 
         Window(
