@@ -20,6 +20,7 @@ import androidx.compose.ui.window.rememberWindowState
 import com.swimvpn.desktop.state.AppController
 import com.swimvpn.desktop.theme.SwimVpnTheme
 import com.swimvpn.desktop.ui.AppShell
+import com.swimvpn.desktop.vpn.EngineCleanup
 import com.swimvpn.desktop.vpn.VpnState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,9 @@ fun main() {
         }
         e.printStackTrace()
     }
+    // Best-effort teardown when the JVM exits (normal close / Quit): kill our engine + drop our
+    // split routes so nothing is orphaned. (A hard kill skips this — the launch-time purge covers that.)
+    Runtime.getRuntime().addShutdownHook(Thread { runCatching { EngineCleanup.killStray(includeXray = true) } })
 
     application {
         // remember: create the scope + controller ONCE. Without it, every recomposition rebuilt a

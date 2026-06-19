@@ -55,6 +55,11 @@ class WintunTunnel {
         serverIp = resolveIp(serverHost) ?: throw IllegalStateException("Résolution DNS impossible: $serverHost")
         realGateway = defaultGateway() ?: throw IllegalStateException("Passerelle par défaut introuvable")
 
+        // Clean any orphaned tun2socks (ours only) + stale split routes so the new adapter always gets
+        // the canonical name "swimvpn" (a lingering one forces "swimvpn 1" → routing misses → no traffic).
+        EngineCleanup.killStray(includeXray = false)
+        Thread.sleep(400) // let a released WinTUN adapter disappear before re-creating it
+
         // 1. Launch tun2socks — creates the WinTUN adapter "swimvpn" and bridges it to local SOCKS.
         proc = ProcessBuilder(
             t2s.absolutePath,
@@ -87,8 +92,9 @@ class WintunTunnel {
     /** Removes only what we added; the original default route was never deleted. Best-effort. */
     fun stop() {
         runCatching { serverIp?.let { route("delete", it) } }
-        runCatching { route("delete", "0.0.0.0", "mask", "128.0.0.0") }
-        runCatching { route("delete", "128.0.0.0", "mask", "128.0.0.0") }
+        // Delete only OUR split-default routes (via our TUN gateway) — never another tunnel's (Happ).
+        runCatching { route("delete", "0.0.0.0", "mask", "128.0.0.0", tunGw) }
+        runCatching { route("delete", "128.0.0.0", "mask", "128.0.0.0", tunGw) }
         proc?.let { p ->
             p.destroy()
             if (!p.waitFor(3, TimeUnit.SECONDS)) p.destroyForcibly()

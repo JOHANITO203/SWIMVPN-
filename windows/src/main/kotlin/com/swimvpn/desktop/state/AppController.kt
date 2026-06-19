@@ -14,6 +14,7 @@ import com.swimvpn.desktop.system.KillSwitch
 import com.swimvpn.desktop.system.Updater
 import com.swimvpn.desktop.adaptive.AdaptiveAgent
 import com.swimvpn.desktop.vpn.CamouflageProfile
+import com.swimvpn.desktop.vpn.EngineCleanup
 import com.swimvpn.desktop.vpn.HealAttempt
 import com.swimvpn.desktop.vpn.LatencyProbe
 import kotlinx.coroutines.Job
@@ -214,6 +215,9 @@ class AppController(private val scope: CoroutineScope) {
         killSwitch = s.killSwitch
         // Backstop: clear any kill-switch firewall state left by a previous crash/force-quit.
         KillSwitch.cleanupStale()
+        // Backstop: kill orphaned SWIMVPN engine procs (xray/tun2socks) + stale routes from a prior
+        // hard-kill, so a fresh connect gets a clean "swimvpn" adapter (no "swimvpn 1" collision).
+        scope.launch(Dispatchers.IO) { EngineCleanup.killStray(includeXray = true) }
         vpn.killSwitch = killSwitch
         aiEnabled = s.aiEnabled
         manualProfile = CamouflageProfile.byId(s.camProfile)
