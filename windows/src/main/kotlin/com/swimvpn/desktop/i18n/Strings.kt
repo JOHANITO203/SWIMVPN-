@@ -54,6 +54,7 @@ data class Strings(
     val groupSystem: String, val autostartLabel: String, val autostartDesc: String,
     val startMinimizedLabel: String, val startMinimizedDesc: String,
     val trayConnect: String, val trayDisconnect: String, val trayOpen: String, val trayQuit: String,
+    val killSwitchLabel: String, val killSwitchDesc: String,
 )
 
 private val FR = Strings(
@@ -91,6 +92,8 @@ private val FR = Strings(
     autostartDesc = "Lance SWIMVPN à l'ouverture de session", startMinimizedLabel = "Démarrer minimisé",
     startMinimizedDesc = "Démarre dans la barre système, fenêtre masquée",
     trayConnect = "Connecter", trayDisconnect = "Déconnecter", trayOpen = "Ouvrir", trayQuit = "Quitter",
+    killSwitchLabel = "Kill-switch",
+    killSwitchDesc = "Bloque tout le trafic si le tunnel tombe (mode TUN). Coupe Internet jusqu'à reconnexion.",
 )
 
 private val EN = Strings(
@@ -128,6 +131,8 @@ private val EN = Strings(
     autostartDesc = "Launch SWIMVPN at sign-in", startMinimizedLabel = "Start minimized",
     startMinimizedDesc = "Start in the system tray, window hidden",
     trayConnect = "Connect", trayDisconnect = "Disconnect", trayOpen = "Open", trayQuit = "Quit",
+    killSwitchLabel = "Kill switch",
+    killSwitchDesc = "Block all traffic if the tunnel drops (TUN mode). Cuts internet until reconnected.",
 )
 
 private val RU = Strings(
@@ -165,6 +170,8 @@ private val RU = Strings(
     autostartDesc = "Запуск SWIMVPN при входе в систему", startMinimizedLabel = "Запуск свёрнутым",
     startMinimizedDesc = "Запуск в системном трее, окно скрыто",
     trayConnect = "Подключить", trayDisconnect = "Отключить", trayOpen = "Открыть", trayQuit = "Выход",
+    killSwitchLabel = "Kill-switch",
+    killSwitchDesc = "Блокирует весь трафик при обрыве туннеля (режим TUN). Отключает интернет до переподключения.",
 )
 
 fun stringsFor(lang: Lang): Strings = when (lang) {

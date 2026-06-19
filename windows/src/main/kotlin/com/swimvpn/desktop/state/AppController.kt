@@ -9,6 +9,7 @@ import com.swimvpn.desktop.i18n.Lang
 import com.swimvpn.desktop.i18n.Strings
 import com.swimvpn.desktop.i18n.stringsFor
 import com.swimvpn.desktop.system.Autostart
+import com.swimvpn.desktop.system.KillSwitch
 import com.swimvpn.desktop.vpn.LatencyProbe
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -60,6 +61,14 @@ class AppController(private val scope: CoroutineScope) {
         private set
     var startMinimized by mutableStateOf(false)
         private set
+    var killSwitch by mutableStateOf(false)
+        private set
+
+    fun applyKillSwitch(value: Boolean) {
+        killSwitch = value
+        vpn.applyKillSwitch(value) // engage now if connected via TUN, else lift
+        persist()
+    }
 
     fun applyStartMinimized(value: Boolean) { startMinimized = value; persist() }
 
@@ -123,6 +132,10 @@ class AppController(private val scope: CoroutineScope) {
         subUrl = s.subUrl
         autostart = s.autostart
         startMinimized = s.startMinimized
+        killSwitch = s.killSwitch
+        // Backstop: clear any kill-switch firewall state left by a previous crash/force-quit.
+        KillSwitch.cleanupStale()
+        vpn.killSwitch = killSwitch
         vpn.fullTunnel = s.fullTunnel
         s.configs.forEach { addParsed(it) }
         selectedId = configs.getOrNull(s.selectedIndex)?.id ?: configs.firstOrNull()?.id
@@ -295,6 +308,7 @@ class AppController(private val scope: CoroutineScope) {
             subUrl = subUrl,
             autostart = autostart,
             startMinimized = startMinimized,
+            killSwitch = killSwitch,
         )
     )
 }

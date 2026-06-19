@@ -81,6 +81,9 @@ class WintunTunnel {
 
     fun isAlive(): Boolean = proc?.isAlive == true
 
+    /** The resolved VPN server IP for the active tunnel (kill-switch allow rule). */
+    fun serverIp(): String? = serverIp
+
     /** Removes only what we added; the original default route was never deleted. Best-effort. */
     fun stop() {
         runCatching { serverIp?.let { route("delete", it) } }

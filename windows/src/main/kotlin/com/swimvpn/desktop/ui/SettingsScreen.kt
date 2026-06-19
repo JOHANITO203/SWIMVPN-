@@ -108,6 +108,8 @@ fun SettingsScreen(app: AppController) {
             )
         }
         Spacer(Modifier.height(10.dp))
+        ToggleRow(s.killSwitchLabel, s.killSwitchDesc, app.killSwitch) { app.applyKillSwitch(it) }
+        Spacer(Modifier.height(10.dp))
 
         // Admin status
         Row(

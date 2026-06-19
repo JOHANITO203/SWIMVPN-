@@ -3,6 +3,7 @@ package com.swimvpn.desktop.vpn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.swimvpn.desktop.system.KillSwitch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,6 +29,17 @@ class VpnController(private val scope: CoroutineScope) {
         private set
     /** Full-traffic TUN mode (like Android). Defaults on; falls back to proxy when not elevated. */
     var fullTunnel by mutableStateOf(true)
+    /** Kill-switch (TUN mode): block all non-tunnel traffic so a tunnel drop can't leak. Off default. */
+    var killSwitch by mutableStateOf(false)
+
+    /** Toggle the kill-switch at runtime: engage now if we're already connected via TUN, else lift it. */
+    fun applyKillSwitch(enabled: Boolean) {
+        killSwitch = enabled
+        scope.launch(Dispatchers.IO) {
+            if (enabled && state == VpnState.CONNECTED && fullTunnel) KillSwitch.engage(tunnel.serverIp())
+            else if (!enabled) KillSwitch.disengage()
+        }
+    }
 
     // Live session traffic (TUN mode) + uptime.
     var bytesIn by mutableStateOf(0L); private set
@@ -66,6 +78,8 @@ class VpnController(private val scope: CoroutineScope) {
         sentinelJob?.cancel()
         scope.launch {
             withContext(Dispatchers.IO) { teardown() }
+            // User-initiated stop → always lift the kill-switch (restore normal internet).
+            withContext(Dispatchers.IO) { KillSwitch.disengage() }
             state = VpnState.DISCONNECTED
             statusDetail = ""
         }
@@ -97,6 +111,9 @@ class VpnController(private val scope: CoroutineScope) {
                 recoveryAttempts = 0
                 connectedSinceMs = System.currentTimeMillis()
                 bytesIn = 0; bytesOut = 0; downBps = 0; upBps = 0
+                // Kill-switch (TUN only): (re)arm with the current server allowed; held through any
+                // later drop so non-tunnel traffic stays blocked until reconnect or user disconnect.
+                if (fullTunnel && killSwitch) withContext(Dispatchers.IO) { KillSwitch.engage(tunnel.serverIp()) }
                 startSentinel()
                 startStats()
             } else {

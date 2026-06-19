@@ -16,6 +16,7 @@ data class PersistedState(
     val subUrl: String? = null, // last subscription URL (for refresh)
     val autostart: Boolean = false, // launch at Windows sign-in (HKCU Run)
     val startMinimized: Boolean = false, // start hidden in the system tray
+    val killSwitch: Boolean = false, // block non-tunnel traffic on tunnel drop (TUN mode)
 )
 
 object ConfigStore {
