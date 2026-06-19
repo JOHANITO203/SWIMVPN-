@@ -1,6 +1,5 @@
 package com.swimvpn.desktop.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,8 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -39,11 +36,11 @@ fun HomeScreen(app: AppController) {
     val tokens = SwimDesignTokens.Current
     val vpn = app.vpn
 
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().padding(40.dp), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 36.dp),
+            modifier = Modifier.widthIn(max = 460.dp).fillMaxWidth(),
         ) {
             Text(
                 text = when (vpn.state) {
@@ -60,70 +57,64 @@ fun HomeScreen(app: AppController) {
                 fontSize = 14.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 3.sp,
             )
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(36.dp))
             ConnectButton(state = vpn.state) {
                 if (app.selected == null) app.tab = NavTab.SERVERS else app.toggleConnect()
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(20.dp))
 
             if (vpn.statusDetail.isNotBlank()) {
                 Text(vpn.statusDetail, color = tokens.color.homeTextMuted, fontSize = 13.sp, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(16.dp))
             }
 
-            // Active server pill → tap goes to Servers.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth().height(64.dp)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(tokens.color.homeSurfaceBase)
-                    .clickable { app.tab = NavTab.SERVERS },
-                contentAlignment = Alignment.Center,
+            // Active server card → tap to pick a server.
+            SwimCard(
+                modifier = Modifier.fillMaxWidth().clickable { app.tab = NavTab.SERVERS },
+                padding = 16,
             ) {
-                val sel = app.selected
-                if (sel != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Flag(sel.displayName, size = 28.dp)
-                        Spacer(Modifier.width(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Flag(app.selected?.displayName ?: "", size = 34.dp)
+                    Spacer(Modifier.height(0.dp))
+                    Column(Modifier.padding(start = 12.dp).weight(1f)) {
                         Text(
-                            "${FlagUtil.cleanName(sel.displayName)} · ${sel.protocol}",
+                            app.selected?.let { FlagUtil.cleanName(it.displayName) } ?: "Aucun serveur",
                             color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium,
                         )
+                        Text(
+                            app.selected?.let { "${it.protocol} · ${it.address}" } ?: "Appuie pour importer",
+                            color = tokens.color.homeTextMuted, fontSize = 11.sp,
+                        )
                     }
-                } else {
-                    Text(
-                        "Aucun serveur — appuie pour importer",
-                        color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium,
-                    )
+                    Text(if (vpn.fullTunnel) "TUN" else "PROXY", color = tokens.color.homePurplePrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = if (vpn.fullTunnel) "Mode : tout le trafic (TUN)" else "Mode : proxy système",
-                color = tokens.color.homeTextMuted, fontSize = 12.sp,
-            )
-
-            // Data consumption (live session): uptime + ↓/↑ totals & speed (TUN mode).
+            // Live data card (connected).
             if (vpn.state == VpnState.CONNECTED) {
+                Spacer(Modifier.height(12.dp))
                 var now by remember { mutableStateOf(System.currentTimeMillis()) }
                 LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
                 val secs = ((now - vpn.connectedSinceMs).coerceAtLeast(0L) / 1000)
                 val uptime = "%02d:%02d:%02d".format(secs / 3600, (secs % 3600) / 60, secs % 60)
-                Spacer(Modifier.height(14.dp))
-                Text(uptime, color = tokens.color.homeTextSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(120.dp)) {
-                        Text("↓ ${TrafficStats.human(vpn.bytesIn)}", color = tokens.color.homeSuccessGreen, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("${TrafficStats.human(vpn.downBps)}/s", color = tokens.color.homeTextMuted, fontSize = 11.sp)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(120.dp)) {
-                        Text("↑ ${TrafficStats.human(vpn.bytesOut)}", color = tokens.color.homePurplePrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("${TrafficStats.human(vpn.upBps)}/s", color = tokens.color.homeTextMuted, fontSize = 11.sp)
+                SwimCard(modifier = Modifier.fillMaxWidth(), padding = 16) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        DataStat("Durée", uptime, tokens.color.homeTextPrimary)
+                        DataStat("↓ Reçu", "${TrafficStats.human(vpn.bytesIn)}\n${TrafficStats.human(vpn.downBps)}/s", tokens.color.homeSuccessGreen)
+                        DataStat("↑ Envoyé", "${TrafficStats.human(vpn.bytesOut)}\n${TrafficStats.human(vpn.upBps)}/s", tokens.color.homePurplePrimary)
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DataStat(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color) {
+    val tokens = SwimDesignTokens.Current
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, color = tokens.color.homeTextMuted, fontSize = 11.sp)
+        Spacer(Modifier.height(4.dp))
+        Text(value, color = valueColor, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }
