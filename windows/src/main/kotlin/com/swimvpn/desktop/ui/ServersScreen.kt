@@ -44,7 +44,8 @@ import com.swimvpn.desktop.theme.SwimDesignTokens
 fun ServersScreen(app: AppController) {
     val tokens = SwimDesignTokens.Current
     var showImport by remember { mutableStateOf(false) }
-    LaunchedEffect(app.configs.size) { if (app.configs.isNotEmpty()) app.refreshLatencies() }
+    // No auto-ping: probing every server on each list change flooded the active tunnel and
+    // destabilized things. Latency is on-demand (like Happ's "Test ping"), so delete stays local.
 
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp)) {
         Text("Serveurs", color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -91,7 +92,13 @@ fun ServersScreen(app: AppController) {
             Text("＋ Importer une configuration", color = androidx.compose.ui.graphics.Color.White,
                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
+        if (app.configs.isNotEmpty()) {
+            TextButton(onClick = { app.refreshLatencies() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                Text("Tester le ping", color = tokens.color.homePurplePrimary, fontSize = 13.sp)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
 
         if (app.configs.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
