@@ -9,9 +9,12 @@ import java.util.concurrent.TimeUnit
 object TrafficStats {
     /** (receivedBytes, sentBytes) for the adapter, or null if unavailable (e.g. proxy mode). */
     fun adapterBytes(adapter: String): Pair<Long, Long>? = runCatching {
+        // Wildcard '$adapter*' tolerates a numbered duplicate (e.g. "swimvpn 1") if a prior
+        // adapter wasn't cleaned; pick the busiest match (the live tunnel).
         val p = ProcessBuilder(
             "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-            "\$s=Get-NetAdapterStatistics -Name '$adapter' -ErrorAction SilentlyContinue; " +
+            "\$s=Get-NetAdapterStatistics -Name '$adapter*' -ErrorAction SilentlyContinue | " +
+                "Sort-Object ReceivedBytes -Descending | Select-Object -First 1; " +
                 "if(\$s){ \"\$(\$s.ReceivedBytes) \$(\$s.SentBytes)\" }",
         ).redirectErrorStream(true).start()
         val out = p.inputStream.bufferedReader().readText().trim()
