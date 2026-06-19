@@ -8,6 +8,10 @@ data class PersistedState(
     val configs: List<String> = emptyList(), // raw share links (vless:// etc.)
     val selectedIndex: Int = -1,
     val fullTunnel: Boolean = true,
+    val subTitle: String? = null,
+    val subUsed: Long? = null,
+    val subTotal: Long? = null,
+    val subExpire: String? = null,
 )
 
 object ConfigStore {

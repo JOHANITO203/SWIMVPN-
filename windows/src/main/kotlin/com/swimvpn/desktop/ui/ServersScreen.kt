@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,7 +49,34 @@ fun ServersScreen(app: AppController) {
         Text("Serveurs", color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Text("Tes configurations importées", color = tokens.color.homeTextSecondary, fontSize = 13.sp)
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(14.dp))
+
+        // Subscription metadata (parsed from the response headers, like Android).
+        app.subscription?.let { sub ->
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+                    .background(tokens.color.homeSurfaceBase).padding(16.dp),
+            ) {
+                Text(sub.title ?: "Abonnement", color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                val total = sub.totalBytes
+                if (total != null && total > 0) {
+                    val used = sub.usedBytes ?: 0L
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { (used.toFloat() / total).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = tokens.color.homePurplePrimary,
+                        trackColor = tokens.color.homeStrokeSubtle,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text("${gb(used)} / ${gb(total)} Go utilisés", color = tokens.color.homeTextSecondary, fontSize = 12.sp)
+                }
+                sub.expiresAt?.let {
+                    Text("Expire le ${fmtDate(it)}", color = tokens.color.homeTextMuted, fontSize = 11.sp)
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
 
         // Import action
         Box(
@@ -143,3 +171,9 @@ fun ServersScreen(app: AppController) {
         )
     }
 }
+
+private fun gb(bytes: Long): String = String.format("%.1f", bytes / 1_000_000_000.0)
+
+private fun fmtDate(iso: String): String = runCatching {
+    java.time.Instant.parse(iso).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
+}.getOrDefault(iso)

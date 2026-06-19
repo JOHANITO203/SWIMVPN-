@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import com.swimvpn.app.config.ConfigParserEngine
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
+import com.swimvpn.app.config.subscriptionparser.SubscriptionMetadataParser
 import com.swimvpn.app.config.subscriptionparser.SubscriptionPayloadDecoder
 import com.swimvpn.desktop.vpn.VpnController
 import com.swimvpn.desktop.vpn.VpnState
@@ -35,11 +36,18 @@ class AppController(private val scope: CoroutineScope) {
     val selected: SwimVpnProfile?
         get() = configs.firstOrNull { it.id == selectedId } ?: configs.firstOrNull()
 
+    /** Subscription metadata parsed from the response headers (quota / expiry / title). */
+    var subscription by mutableStateOf<SubscriptionInfo?>(null)
+        private set
+
     init {
         val s = ConfigStore.load()
         vpn.fullTunnel = s.fullTunnel
         s.configs.forEach { addParsed(it) }
         selectedId = configs.getOrNull(s.selectedIndex)?.id ?: configs.firstOrNull()?.id
+        if (s.subTitle != null || s.subTotal != null || s.subExpire != null) {
+            subscription = SubscriptionInfo(s.subTitle, s.subUsed, s.subTotal, s.subExpire)
+        }
 
         // Server failover: when a server is exhausted, rotate to the next imported config.
         vpn.onExhausted = {
@@ -65,6 +73,15 @@ class AppController(private val scope: CoroutineScope) {
         private set
     var importResult by mutableStateOf<ImportResult?>(null)
 
+    /** Subscription metadata parsed from the response headers (quota / expiry / title). */
+    data class SubscriptionInfo(
+        val title: String?,
+        val usedBytes: Long?,
+        val totalBytes: Long?,
+        val expiresAt: String?, // ISO-8601
+    )
+    private data class FetchResult(val body: String, val info: SubscriptionInfo?)
+
     /** Import from a pasted link/blob OR a subscription URL (http(s):// is fetched first). Async;
      *  exposes importBusy + importResult as state. Never silent (logs to import.log). */
     fun importConfig(input: String) {
@@ -76,7 +93,9 @@ class AppController(private val scope: CoroutineScope) {
         scope.launch(Dispatchers.Swing) {
             val payload = runCatching {
                 if (input.startsWith("http://", true) || input.startsWith("https://", true)) {
-                    withContext(Dispatchers.IO) { fetchSubscription(input) }
+                    val fetched = withContext(Dispatchers.IO) { fetchSubscription(input) }
+                    subscription = fetched.info
+                    fetched.body
                 } else input
             }.getOrElse { e ->
                 runCatching { java.io.File(appDir, "import.log").appendText("FETCH FAIL $input: ${e.message}\n") }
@@ -89,13 +108,30 @@ class AppController(private val scope: CoroutineScope) {
         }
     }
 
-    private fun fetchSubscription(url: String): String {
+    private fun fetchSubscription(url: String): FetchResult {
         val conn = java.net.URI(url).toURL().openConnection() as java.net.HttpURLConnection
         conn.connectTimeout = 12_000
         conn.readTimeout = 12_000
         conn.instanceFollowRedirects = true
         conn.setRequestProperty("User-Agent", "SWIMVPN-Windows/1.0")
-        return conn.inputStream.bufferedReader().use { it.readText() }
+        val body = conn.inputStream.bufferedReader().use { it.readText() }
+        // Same metadata parsing as Android (Subscription-Userinfo: upload/download/total/expire).
+        val meta = SubscriptionMetadataParser.parseHttpHeaders(
+            conn.getHeaderField("Subscription-Userinfo"),
+            conn.getHeaderField("Profile-Update-Interval"),
+            url,
+        )
+        val title = conn.getHeaderField("Profile-Title")?.let { decodeTitle(it) }
+        val info = if (meta.hasValues || !title.isNullOrBlank()) {
+            SubscriptionInfo(title, meta.trafficUsedBytes, meta.trafficTotalBytes, meta.expiresAt)
+        } else null
+        return FetchResult(body, info)
+    }
+
+    private fun decodeTitle(raw: String): String? = when {
+        raw.startsWith("base64:") ->
+            runCatching { String(java.util.Base64.getDecoder().decode(raw.removePrefix("base64:")), Charsets.UTF_8) }.getOrNull()
+        else -> raw.ifBlank { null }
     }
 
     /** Parses a pasted/fetched payload (links, base64 blob, or subscription body). Never silent. */
@@ -168,6 +204,10 @@ class AppController(private val scope: CoroutineScope) {
             configs = configs.map { it.rawConfig },
             selectedIndex = configs.indexOfFirst { it.id == selectedId },
             fullTunnel = vpn.fullTunnel,
+            subTitle = subscription?.title,
+            subUsed = subscription?.usedBytes,
+            subTotal = subscription?.totalBytes,
+            subExpire = subscription?.expiresAt,
         )
     )
 }
