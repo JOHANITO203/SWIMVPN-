@@ -2,7 +2,10 @@ package com.swimvpn.desktop
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import com.swimvpn.desktop.i18n.LocalStrings
+import com.swimvpn.desktop.i18n.stringsFor
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -49,8 +52,11 @@ fun main() {
             icon = painterResource("icons/app.png"),
         ) {
             SwimVpnTheme(dark = true) {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    AppShell(app)
+                // Re-provide strings from the active language; switching language recomposes here.
+                CompositionLocalProvider(LocalStrings provides stringsFor(app.lang)) {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        AppShell(app)
+                    }
                 }
             }
         }

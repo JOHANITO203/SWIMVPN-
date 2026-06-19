@@ -30,17 +30,19 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.swimvpn.desktop.i18n.LocalStrings
+import com.swimvpn.desktop.i18n.Strings
 import com.swimvpn.desktop.theme.SwimDesignTokens
 
 private data class PlanUi(
-    val name: String, val price: String, val period: String,
-    val features: List<String>, val best: Boolean,
+    val name: String, val price: String, val days: Int,
+    val features: List<(Strings) -> String>, val best: Boolean,
 )
 
 private val plans = listOf(
-    PlanUi("Basic", "$3.49", "7 jours", listOf("50 Go inclus", "1 appareil", "Agent IA"), false),
-    PlanUi("Premium", "$7.99", "30 jours", listOf("150 Go inclus", "2 appareils", "Agent IA temps réel"), true),
-    PlanUi("Platinum", "$21.99", "90 jours", listOf("500 Go inclus", "3 appareils", "Agent IA temps réel"), false),
+    PlanUi("Basic", "$3.49", 7, listOf({ it.feat50gb }, { it.feat1dev }, { it.aiAgent }), false),
+    PlanUi("Premium", "$7.99", 30, listOf({ it.feat150gb }, { it.feat2dev }, { it.aiAgentRt }), true),
+    PlanUi("Platinum", "$21.99", 90, listOf({ it.feat500gb }, { it.feat3dev }, { it.aiAgentRt }), false),
 )
 
 private fun openWeb(url: String) = runCatching {
@@ -50,10 +52,11 @@ private fun openWeb(url: String) = runCatching {
 @Composable
 fun SubscriptionScreen() {
     val tokens = SwimDesignTokens.Current
+    val s = LocalStrings.current
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp)) {
-        Text("Abonnement", color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(s.subTitle, color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
-        Text("Paiement via SwimPay (RUB · USD · XOF) ou crypto", color = tokens.color.homeTextSecondary, fontSize = 13.sp)
+        Text(s.subPaymentLine, color = tokens.color.homeTextSecondary, fontSize = 13.sp)
         Spacer(Modifier.height(18.dp))
 
         val scroll = rememberScrollState()
@@ -77,16 +80,16 @@ fun SubscriptionScreen() {
                     ) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text(p.name, color = tokens.color.homeTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            if (p.best) Text("Recommandé", color = tokens.color.homePurplePrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            if (p.best) Text(s.planRecommended, color = tokens.color.homePurplePrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                         Spacer(Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(p.price, color = tokens.color.homeTextPrimary, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                            Text("  / ${p.period}", color = tokens.color.homeTextMuted, fontSize = 13.sp)
+                            Text("  / ${s.periodDaysFmt.format(p.days)}", color = tokens.color.homeTextMuted, fontSize = 13.sp)
                         }
                         Spacer(Modifier.height(10.dp))
-                        p.features.forEach {
-                            Text("✓  $it", color = tokens.color.homeTextSecondary, fontSize = 13.sp)
+                        p.features.forEach { feat ->
+                            Text("✓  ${feat(s)}", color = tokens.color.homeTextSecondary, fontSize = 13.sp)
                             Spacer(Modifier.height(4.dp))
                         }
                         Spacer(Modifier.height(12.dp))
@@ -97,14 +100,14 @@ fun SubscriptionScreen() {
                                 .clickable { openWeb("https://app.swimvpn.pro/#offres") },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("S'abonner", color = if (p.best) Color.White else tokens.color.homeTextPrimary,
+                            Text(s.planSubscribe, color = if (p.best) Color.White else tokens.color.homeTextPrimary,
                                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Le paiement s'ouvre sur app.swimvpn.pro. Après paiement, importe la config reçue dans « Serveurs ».",
+                    s.subFootnote,
                     color = tokens.color.homeTextMuted, fontSize = 11.sp,
                 )
             }

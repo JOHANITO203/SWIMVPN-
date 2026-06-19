@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.swimvpn.desktop.i18n.LocalStrings
 import com.swimvpn.desktop.state.AppController
 import com.swimvpn.desktop.state.NavTab
 import com.swimvpn.desktop.theme.SwimDesignTokens
@@ -34,6 +35,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun HomeScreen(app: AppController) {
     val tokens = SwimDesignTokens.Current
+    val s = LocalStrings.current
     val vpn = app.vpn
 
     Box(Modifier.fillMaxSize().padding(40.dp), contentAlignment = Alignment.Center) {
@@ -44,10 +46,10 @@ fun HomeScreen(app: AppController) {
         ) {
             Text(
                 text = when (vpn.state) {
-                    VpnState.CONNECTED -> "PROTÉGÉ"
-                    VpnState.CONNECTING -> "CONNEXION…"
-                    VpnState.ERROR -> "ERREUR"
-                    VpnState.DISCONNECTED -> "NON PROTÉGÉ"
+                    VpnState.CONNECTED -> s.statusProtected
+                    VpnState.CONNECTING -> s.statusConnecting
+                    VpnState.ERROR -> s.statusError
+                    VpnState.DISCONNECTED -> s.statusUnprotected
                 },
                 color = when (vpn.state) {
                     VpnState.CONNECTED -> tokens.color.homeSuccessGreen
@@ -78,11 +80,11 @@ fun HomeScreen(app: AppController) {
                     Spacer(Modifier.height(0.dp))
                     Column(Modifier.padding(start = 12.dp).weight(1f)) {
                         Text(
-                            app.selected?.let { FlagUtil.cleanName(it.displayName) } ?: "Aucun serveur",
+                            app.selected?.let { FlagUtil.cleanName(it.displayName) } ?: s.noServer,
                             color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium,
                         )
                         Text(
-                            app.selected?.let { "${it.protocol} · ${it.address}" } ?: "Appuie pour importer",
+                            app.selected?.let { "${it.protocol} · ${it.address}" } ?: s.tapToImport,
                             color = tokens.color.homeTextMuted, fontSize = 11.sp,
                         )
                     }
@@ -99,9 +101,9 @@ fun HomeScreen(app: AppController) {
                 val uptime = "%02d:%02d:%02d".format(secs / 3600, (secs % 3600) / 60, secs % 60)
                 SwimCard(modifier = Modifier.fillMaxWidth(), padding = 16) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        DataStat("Durée", uptime, tokens.color.homeTextPrimary)
-                        DataStat("↓ Reçu", "${TrafficStats.human(vpn.bytesIn)}\n${TrafficStats.human(vpn.downBps)}/s", tokens.color.homeSuccessGreen)
-                        DataStat("↑ Envoyé", "${TrafficStats.human(vpn.bytesOut)}\n${TrafficStats.human(vpn.upBps)}/s", tokens.color.homePurplePrimary)
+                        DataStat(s.dataDuration, uptime, tokens.color.homeTextPrimary)
+                        DataStat(s.dataDown, "${TrafficStats.human(vpn.bytesIn)}\n${TrafficStats.human(vpn.downBps)}/s", tokens.color.homeSuccessGreen)
+                        DataStat(s.dataUp, "${TrafficStats.human(vpn.bytesOut)}\n${TrafficStats.human(vpn.upBps)}/s", tokens.color.homePurplePrimary)
                     }
                 }
             }

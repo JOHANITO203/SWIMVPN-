@@ -5,6 +5,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.swimvpn.desktop.i18n.Lang
+import com.swimvpn.desktop.i18n.Strings
+import com.swimvpn.desktop.i18n.stringsFor
 import com.swimvpn.desktop.vpn.LatencyProbe
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -33,6 +36,19 @@ class AppController(private val scope: CoroutineScope) {
 
     var tab by mutableStateOf(NavTab.HOME)
     var showSettings by mutableStateOf(false)
+
+    /** Active UI language. Changing it re-provides LocalStrings → the whole UI updates in place. */
+    var lang by mutableStateOf(Lang.FR)
+        private set
+    /** Current strings, kept in sync with [lang] for non-composable use (import messages). */
+    var strings: Strings by mutableStateOf(stringsFor(Lang.FR))
+        private set
+
+    fun selectLang(value: Lang) {
+        lang = value
+        strings = stringsFor(value)
+        persist()
+    }
 
     val configs = mutableStateListOf<SwimVpnProfile>()
     var selectedId by mutableStateOf<String?>(null)
@@ -63,6 +79,8 @@ class AppController(private val scope: CoroutineScope) {
 
     init {
         val s = ConfigStore.load()
+        lang = Lang.fromCode(s.lang) // null on first run → follows OS language
+        strings = stringsFor(lang)
         vpn.fullTunnel = s.fullTunnel
         s.configs.forEach { addParsed(it) }
         selectedId = configs.getOrNull(s.selectedIndex)?.id ?: configs.firstOrNull()?.id
@@ -120,7 +138,7 @@ class AppController(private val scope: CoroutineScope) {
                 } else input
             }.getOrElse { e ->
                 runCatching { java.io.File(appDir, "import.log").appendText("FETCH FAIL $input: ${e.message}\n") }
-                importResult = ImportResult(0, 1, "Échec téléchargement abonnement : ${e.message}")
+                importResult = ImportResult(0, 1, strings.fetchFailFmt.format(e.message ?: ""))
                 importBusy = false
                 return@launch
             }
@@ -189,9 +207,9 @@ class AppController(private val scope: CoroutineScope) {
         if (selectedId == null) selectedId = configs.firstOrNull()?.id
         persist()
         val message = when {
-            added > 0 && failed == 0 -> "$added configuration(s) importée(s) ✓"
-            added > 0 -> "$added importée(s), $failed échec(s)"
-            else -> "Échec : ${errors.firstOrNull() ?: "format non reconnu"}"
+            added > 0 && failed == 0 -> strings.importOkFmt.format(added)
+            added > 0 -> strings.importPartialFmt.format(added, failed)
+            else -> strings.importFailFmt.format(errors.firstOrNull() ?: strings.formatUnrecognized)
         }
         return ImportResult(added, failed, message)
     }
@@ -230,6 +248,7 @@ class AppController(private val scope: CoroutineScope) {
             subUsed = subscription?.usedBytes,
             subTotal = subscription?.totalBytes,
             subExpire = subscription?.expiresAt,
+            lang = lang.code,
         )
     )
 }

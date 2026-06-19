@@ -28,14 +28,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.swimvpn.desktop.i18n.LocalStrings
 import com.swimvpn.desktop.state.AppController
 import com.swimvpn.desktop.theme.SwimDesignTokens
 
 @Composable
 fun AccountScreen(app: AppController) {
     val tokens = SwimDesignTokens.Current
+    val s = LocalStrings.current
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp)) {
-        Text("Compte", color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(s.accountTitle, color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(18.dp))
 
         // Identity card
@@ -50,14 +52,14 @@ fun AccountScreen(app: AppController) {
             Spacer(Modifier.size(14.dp))
             Column {
                 Text("SWIMVPN Windows", color = tokens.color.homeTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Text("Édition desktop (instable) · v1.0.0", color = tokens.color.homeTextMuted, fontSize = 12.sp)
+                Text(s.accountSubtitle, color = tokens.color.homeTextMuted, fontSize = 12.sp)
             }
         }
         Spacer(Modifier.height(16.dp))
 
-        AccountPill("Réglages techniques", Icons.Filled.Settings, tokens) { app.showSettings = true }
+        AccountPill(s.settingsTitle, Icons.Filled.Settings, tokens) { app.showSettings = true }
         Spacer(Modifier.height(10.dp))
-        AccountPill("Support", Icons.AutoMirrored.Filled.HelpOutline, tokens) {
+        AccountPill(s.support, Icons.AutoMirrored.Filled.HelpOutline, tokens) {
             runCatching { java.awt.Desktop.getDesktop().browse(java.net.URI("https://app.swimvpn.pro")) }
         }
     }

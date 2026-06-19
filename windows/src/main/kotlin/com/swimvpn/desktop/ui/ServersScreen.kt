@@ -44,12 +44,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.swimvpn.desktop.i18n.LocalStrings
 import com.swimvpn.desktop.state.AppController
 import com.swimvpn.desktop.theme.SwimDesignTokens
 
 @Composable
 fun ServersScreen(app: AppController) {
     val tokens = SwimDesignTokens.Current
+    val s = LocalStrings.current
     var showImport by remember { mutableStateOf(false) }
     // No auto-ping: probing every server on each list change flooded the active tunnel and
     // destabilized things. Latency is on-demand (like Happ's "Test ping"), so delete stays local.
@@ -64,9 +66,9 @@ fun ServersScreen(app: AppController) {
     }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp)) {
-        Text("Serveurs", color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(s.serversTitle, color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
-        Text("Tes configurations importées", color = tokens.color.homeTextSecondary, fontSize = 13.sp)
+        Text(s.serversSubtitle, color = tokens.color.homeTextSecondary, fontSize = 13.sp)
         Spacer(Modifier.height(14.dp))
 
         // Subscription metadata (parsed from the response headers, like Android).
@@ -75,7 +77,7 @@ fun ServersScreen(app: AppController) {
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
                     .background(tokens.color.homeSurfaceBase).padding(16.dp),
             ) {
-                Text(sub.title ?: "Abonnement", color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(sub.title ?: s.subDefaultTitle, color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 val total = sub.totalBytes
                 if (total != null && total > 0) {
                     val used = sub.usedBytes ?: 0L
@@ -87,10 +89,10 @@ fun ServersScreen(app: AppController) {
                         trackColor = tokens.color.homeStrokeSubtle,
                     )
                     Spacer(Modifier.height(6.dp))
-                    Text("${gb(used)} / ${gb(total)} Go utilisés", color = tokens.color.homeTextSecondary, fontSize = 12.sp)
+                    Text(s.gbUsedFmt.format(gb(used), gb(total)), color = tokens.color.homeTextSecondary, fontSize = 12.sp)
                 }
                 sub.expiresAt?.let {
-                    Text("Expire le ${fmtDate(it)}", color = tokens.color.homeTextMuted, fontSize = 11.sp)
+                    Text(s.expiresFmt.format(fmtDate(it)), color = tokens.color.homeTextMuted, fontSize = 11.sp)
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -105,13 +107,13 @@ fun ServersScreen(app: AppController) {
                 .clickable { showImport = true },
             contentAlignment = Alignment.Center,
         ) {
-            Text("＋ Importer une configuration", color = androidx.compose.ui.graphics.Color.White,
+            Text(s.importConfig, color = androidx.compose.ui.graphics.Color.White,
                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(8.dp))
         if (app.configs.isNotEmpty()) {
             TextButton(onClick = { app.refreshLatencies() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text("Tester le ping", color = tokens.color.homePurplePrimary, fontSize = 13.sp)
+                Text(s.testPing, color = tokens.color.homePurplePrimary, fontSize = 13.sp)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -125,7 +127,7 @@ fun ServersScreen(app: AppController) {
         ) {
             if (app.configs.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Aucune config. Colle un lien VLESS/VMess/Trojan/Shadowsocks\nou un lien d'abonnement.",
+                    Text(s.emptyServers,
                         color = tokens.color.homeTextMuted, fontSize = 13.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
@@ -194,17 +196,17 @@ fun ServersScreen(app: AppController) {
         }
         AlertDialog(
             onDismissRequest = { if (!app.importBusy) showImport = false },
-            title = { Text("Importer une configuration") },
+            title = { Text(s.dialogImportTitle) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = draft, onValueChange = { draft = it; error = null },
-                        label = { Text("vless:// · vmess:// · trojan:// · ss:// · abonnement (https://…)") },
+                        label = { Text(s.dialogFieldLabel) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     if (app.importBusy) {
                         Spacer(Modifier.height(8.dp))
-                        Text("Téléchargement de l'abonnement…", color = tokens.color.homeTextMuted, fontSize = 12.sp)
+                        Text(s.dialogDownloading, color = tokens.color.homeTextMuted, fontSize = 12.sp)
                     }
                     error?.let {
                         Spacer(Modifier.height(8.dp))
@@ -215,9 +217,9 @@ fun ServersScreen(app: AppController) {
             confirmButton = {
                 TextButton(enabled = !app.importBusy, onClick = {
                     if (draft.isNotBlank()) { error = null; app.importConfig(draft.trim()) }
-                }) { Text(if (app.importBusy) "…" else "Importer") }
+                }) { Text(if (app.importBusy) "…" else s.btnImport) }
             },
-            dismissButton = { TextButton(onClick = { showImport = false }) { Text("Annuler") } },
+            dismissButton = { TextButton(onClick = { showImport = false }) { Text(s.btnCancel) } },
         )
     }
 }

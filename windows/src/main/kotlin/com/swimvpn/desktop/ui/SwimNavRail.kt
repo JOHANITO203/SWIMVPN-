@@ -34,16 +34,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.swimvpn.desktop.i18n.LocalStrings
+import com.swimvpn.desktop.i18n.Strings
 import com.swimvpn.desktop.state.NavTab
 import com.swimvpn.desktop.theme.SwimDesignTokens
 
-private data class RailDest(val tab: NavTab, val icon: ImageVector, val label: String)
+private data class RailDest(val tab: NavTab, val icon: ImageVector, val label: (Strings) -> String)
 
 private val dests = listOf(
-    RailDest(NavTab.HOME, Icons.Filled.Home, "Accueil"),
-    RailDest(NavTab.SERVERS, Icons.Filled.Dns, "Serveurs"),
-    RailDest(NavTab.SUBSCRIPTION, Icons.Filled.CreditCard, "Abonnement"),
-    RailDest(NavTab.ACCOUNT, Icons.Filled.Person, "Compte"),
+    RailDest(NavTab.HOME, Icons.Filled.Home) { it.navHome },
+    RailDest(NavTab.SERVERS, Icons.Filled.Dns) { it.navServers },
+    RailDest(NavTab.SUBSCRIPTION, Icons.Filled.CreditCard) { it.navSubscription },
+    RailDest(NavTab.ACCOUNT, Icons.Filled.Person) { it.navAccount },
 )
 
 /**
@@ -59,6 +61,7 @@ fun SwimNavRail(
     onSettings: () -> Unit,
 ) {
     val tokens = SwimDesignTokens.Current
+    val s = LocalStrings.current
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -81,12 +84,12 @@ fun SwimNavRail(
         Spacer(Modifier.height(24.dp))
 
         dests.forEach { d ->
-            RailItem(d.icon, d.label, active = d.tab == active && !settingsActive) { onSelect(d.tab) }
+            RailItem(d.icon, d.label(s), active = d.tab == active && !settingsActive) { onSelect(d.tab) }
             Spacer(Modifier.height(6.dp))
         }
 
         Spacer(Modifier.weight(1f))
-        RailItem(Icons.Filled.Settings, "Réglages", active = settingsActive) { onSettings() }
+        RailItem(Icons.Filled.Settings, s.navSettings, active = settingsActive) { onSettings() }
     }
 }
 

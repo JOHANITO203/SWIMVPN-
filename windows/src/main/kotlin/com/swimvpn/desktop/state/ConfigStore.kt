@@ -12,6 +12,7 @@ data class PersistedState(
     val subUsed: Long? = null,
     val subTotal: Long? = null,
     val subExpire: String? = null,
+    val lang: String? = null, // UI language code (fr/en/ru); null = follow OS on first run
 )
 
 object ConfigStore {
