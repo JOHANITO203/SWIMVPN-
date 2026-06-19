@@ -27,7 +27,7 @@ object LocalPorts {
 object EngineConfig {
     data class Built(val configJson: String, val host: String, val port: Int, val label: String)
 
-    fun build(link: String, fullTunnel: Boolean = true, fingerprint: String? = null, fragment: Boolean = false): Built {
+    fun build(link: String, fullTunnel: Boolean = true, fingerprint: String? = null, fragment: Boolean = false, splitLocal: Boolean = false): Built {
         val entry = VpnConfigLinkExtractor.extractEntries(link).firstOrNull() ?: link.trim()
         val result = ConfigParserEngine.parseConfig(entry, SourceType.MANUAL_ENTRY)
         val profile = result.profile
@@ -59,6 +59,7 @@ object EngineConfig {
         if (fullTunnel) {
             RuntimeDoc.applyFakeDnsInterception(doc)
             RuntimeDoc.appendIpv6BlockRule(doc)
+            RuntimeDoc.applyDirectRouting(doc, splitLocal)
         }
         return Built(Gson().toJson(doc), profile.address, profile.port, profile.displayName)
     }

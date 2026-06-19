@@ -119,6 +119,25 @@ object RuntimeDoc {
         }
     }
 
+    /** Split routing: send LAN/private + local-country (RU) traffic DIRECT (not through the tunnel),
+     *  so local sites stay fast and only foreign/blocked traffic is tunneled. Uses the bundled
+     *  geoip/geosite .dat (xray runs with its bin dir as CWD, so they resolve). No-op when disabled. */
+    fun applyDirectRouting(document: JsonObject, splitLocal: Boolean) {
+        if (!splitLocal) return
+        val routing = document.getAsJsonObject("routing") ?: JsonObject().also { document.add("routing", it) }
+        val rules = routing.getAsJsonArray("rules") ?: JsonArray().also { routing.add("rules", it) }
+        rules.add(JsonObject().apply {
+            addProperty("type", "field")
+            add("ip", JsonArray().apply { add("geoip:private"); add("geoip:ru") })
+            addProperty("outboundTag", "direct")
+        })
+        rules.add(JsonObject().apply {
+            addProperty("type", "field")
+            add("domain", JsonArray().apply { add("geosite:category-ru"); add("geosite:private") })
+            addProperty("outboundTag", "direct")
+        })
+    }
+
     /** Block literal IPv6 → fast-fail → Happy Eyeballs retries over IPv4 through the tunnel. */
     fun appendIpv6BlockRule(document: JsonObject) {
         val routing = document.getAsJsonObject("routing") ?: JsonObject().also { document.add("routing", it) }

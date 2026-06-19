@@ -62,6 +62,8 @@ data class Strings(
     // Updates
     val aboutVersionFmt: String, val checkUpdates: String, val checking: String,
     val upToDate: String, val updateAvailFmt: String, val updateBtn: String,
+    val relaunchAdmin: String,
+    val splitLabel: String, val splitDesc: String,
 )
 
 private val FR = Strings(
@@ -109,6 +111,9 @@ private val FR = Strings(
     fragDesc = "Découpe le ClientHello pour casser le filtrage par SNI (anti-DPI). Idéal sur TLS simple.",
     aboutVersionFmt = "SWIMVPN Windows · v%s", checkUpdates = "Rechercher des mises à jour",
     checking = "Vérification…", upToDate = "À jour ✓", updateAvailFmt = "Nouvelle version : %s", updateBtn = "Mettre à jour",
+    relaunchAdmin = "Relancer en admin",
+    splitLabel = "Routage split (local direct)",
+    splitDesc = "LAN + sites russes en direct ; seul le trafic étranger/bloqué passe par le tunnel (TUN).",
 )
 
 private val EN = Strings(
@@ -156,6 +161,9 @@ private val EN = Strings(
     fragDesc = "Splits the ClientHello to defeat SNI-based DPI (anti-censorship). Best on plain TLS.",
     aboutVersionFmt = "SWIMVPN Windows · v%s", checkUpdates = "Check for updates",
     checking = "Checking…", upToDate = "Up to date ✓", updateAvailFmt = "New version: %s", updateBtn = "Update",
+    relaunchAdmin = "Relaunch as admin",
+    splitLabel = "Split routing (local direct)",
+    splitDesc = "LAN + Russian sites go direct; only foreign/blocked traffic goes through the tunnel (TUN).",
 )
 
 private val RU = Strings(
@@ -203,6 +211,9 @@ private val RU = Strings(
     fragDesc = "Разбивает ClientHello, чтобы обойти DPI по SNI (антицензура). Лучше всего на обычном TLS.",
     aboutVersionFmt = "SWIMVPN Windows · v%s", checkUpdates = "Проверить обновления",
     checking = "Проверка…", upToDate = "Актуально ✓", updateAvailFmt = "Новая версия: %s", updateBtn = "Обновить",
+    relaunchAdmin = "Перезапустить от админа",
+    splitLabel = "Сплит-маршрутизация (локально напрямую)",
+    splitDesc = "LAN + российские сайты — напрямую; через туннель идёт только зарубежный/заблокированный трафик (TUN).",
 )
 
 fun stringsFor(lang: Lang): Strings = when (lang) {

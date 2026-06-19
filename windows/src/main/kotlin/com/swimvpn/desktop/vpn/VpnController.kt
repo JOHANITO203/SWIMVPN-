@@ -37,6 +37,8 @@ class VpnController(private val scope: CoroutineScope) {
     var killSwitch by mutableStateOf(false)
     /** Anti-DPI: fragment the TLS ClientHello (defeats SNI-based DPI). Off by default. */
     var tlsFragment: Boolean = false
+    /** Split routing: LAN + local-country (RU) traffic goes direct, not through the tunnel. Off default. */
+    var splitLocal: Boolean = false
 
     /** Toggle the kill-switch at runtime: engage now if we're already connected via TUN, else lift it. */
     fun applyKillSwitch(enabled: Boolean) {
@@ -108,7 +110,7 @@ class VpnController(private val scope: CoroutineScope) {
         state = VpnState.CONNECTING
         statusDetail = "Démarrage du moteur…"
         try {
-            val built = EngineConfig.build(link, fullTunnel, currentFingerprint, tlsFragment)
+            val built = EngineConfig.build(link, fullTunnel, currentFingerprint, tlsFragment, splitLocal)
             activeLabel = built.label
             withContext(Dispatchers.IO) { teardown() } // clean any prior data path before re-arming
             withContext(Dispatchers.IO) { xray.start(built.configJson) }

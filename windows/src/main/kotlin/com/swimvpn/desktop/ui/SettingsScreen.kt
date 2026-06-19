@@ -116,6 +116,8 @@ fun SettingsScreen(app: AppController) {
         Spacer(Modifier.height(10.dp))
         ToggleRow(s.killSwitchLabel, s.killSwitchDesc, app.killSwitch) { app.applyKillSwitch(it) }
         Spacer(Modifier.height(10.dp))
+        ToggleRow(s.splitLabel, s.splitDesc, app.splitLocal) { app.applySplitLocal(it) }
+        Spacer(Modifier.height(10.dp))
 
         // Admin status
         Row(
@@ -124,10 +126,15 @@ fun SettingsScreen(app: AppController) {
             horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(s.adminLabel, color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-            Text(
-                if (elevated) s.adminOn else s.adminOff,
-                color = if (elevated) tokens.color.homeSuccessGreen else tokens.color.homeWarning, fontSize = 12.sp,
-            )
+            if (elevated) {
+                Text(s.adminOn, color = tokens.color.homeSuccessGreen, fontSize = 12.sp)
+            } else {
+                Text(
+                    s.relaunchAdmin,
+                    color = tokens.color.homePurplePrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { app.relaunchAsAdmin() },
+                )
+            }
         }
 
         Spacer(Modifier.height(24.dp))

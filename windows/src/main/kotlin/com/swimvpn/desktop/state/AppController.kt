@@ -9,6 +9,7 @@ import com.swimvpn.desktop.i18n.Lang
 import com.swimvpn.desktop.i18n.Strings
 import com.swimvpn.desktop.i18n.stringsFor
 import com.swimvpn.desktop.system.Autostart
+import com.swimvpn.desktop.system.Elevation
 import com.swimvpn.desktop.system.KillSwitch
 import com.swimvpn.desktop.system.Updater
 import com.swimvpn.desktop.adaptive.AdaptiveAgent
@@ -94,6 +95,11 @@ class AppController(private val scope: CoroutineScope) {
         private set
     fun applyTlsFragment(value: Boolean) { tlsFragment = value; vpn.tlsFragment = value; persist() }
 
+    /** Split routing: LAN + RU traffic direct (velocity + only foreign/blocked tunneled). Next connect. */
+    var splitLocal by mutableStateOf(false)
+        private set
+    fun applySplitLocal(value: Boolean) { splitLocal = value; vpn.splitLocal = value; persist() }
+
     // --- Self-update ----------------------------------------------------------------------------
     var updateInfo by mutableStateOf<Updater.Info?>(null)
         private set
@@ -111,6 +117,14 @@ class AppController(private val scope: CoroutineScope) {
 
     fun runUpdate() {
         updateInfo?.url?.let { url -> scope.launch(Dispatchers.IO) { Updater.downloadAndLaunch(url) } }
+    }
+
+    /** Relaunch elevated (so TUN works) then quit this non-elevated instance. */
+    fun relaunchAsAdmin() {
+        if (Elevation.relaunchAsAdmin()) {
+            vpn.disconnect()
+            scope.launch { kotlinx.coroutines.delay(400); kotlin.system.exitProcess(0) }
+        }
     }
 
     /** AI heal plan: cycle the camouflage cascade on the current server, then rotate to the next. */
@@ -205,6 +219,8 @@ class AppController(private val scope: CoroutineScope) {
         manualProfile = CamouflageProfile.byId(s.camProfile)
         tlsFragment = s.tlsFragment
         vpn.tlsFragment = tlsFragment
+        splitLocal = s.splitLocal
+        vpn.splitLocal = splitLocal
         vpn.aiOn = aiEnabled
         vpn.planNextAttempt = { planNextAttempt() }
         vpn.onConnectedOk = { onConnectedRecord() }
@@ -392,6 +408,7 @@ class AppController(private val scope: CoroutineScope) {
             aiEnabled = aiEnabled,
             camProfile = manualProfile.id,
             tlsFragment = tlsFragment,
+            splitLocal = splitLocal,
         )
     )
 }

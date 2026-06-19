@@ -21,6 +21,7 @@ data class PersistedState(
     val aiEnabled: Boolean = false, // adaptive camouflage agent on/off
     val camProfile: String? = null, // manual camouflage profile id (when AI off); null = auto
     val tlsFragment: Boolean = false, // anti-DPI TLS ClientHello fragmentation
+    val splitLocal: Boolean = false, // route LAN + RU traffic direct (split routing)
 )
 
 object ConfigStore {
