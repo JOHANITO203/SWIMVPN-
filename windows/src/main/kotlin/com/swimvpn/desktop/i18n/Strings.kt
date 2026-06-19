@@ -49,6 +49,11 @@ data class Strings(
     val tunLabel: String, val tunOnDesc: String, val tunOffDesc: String,
     val adminLabel: String, val adminOn: String, val adminOff: String,
     val groupAbout: String, val aboutEngine: String, val langLabel: String,
+    // Servers UX + system integration
+    val searchHint: String, val refreshSub: String, val autoSelect: String,
+    val groupSystem: String, val autostartLabel: String, val autostartDesc: String,
+    val startMinimizedLabel: String, val startMinimizedDesc: String,
+    val trayConnect: String, val trayDisconnect: String, val trayOpen: String, val trayQuit: String,
 )
 
 private val FR = Strings(
@@ -81,6 +86,11 @@ private val FR = Strings(
     adminOn = "Actif ✓", adminOff = "Non — relancer en admin pour le TUN", groupAbout = "À PROPOS",
     aboutEngine = "Moteur Xray partagé avec Android · même prise en charge des liens/configs",
     langLabel = "Langue",
+    searchHint = "Rechercher un serveur…", refreshSub = "Actualiser l'abonnement", autoSelect = "Auto · meilleur ping",
+    groupSystem = "SYSTÈME", autostartLabel = "Démarrer avec Windows",
+    autostartDesc = "Lance SWIMVPN à l'ouverture de session", startMinimizedLabel = "Démarrer minimisé",
+    startMinimizedDesc = "Démarre dans la barre système, fenêtre masquée",
+    trayConnect = "Connecter", trayDisconnect = "Déconnecter", trayOpen = "Ouvrir", trayQuit = "Quitter",
 )
 
 private val EN = Strings(
@@ -113,6 +123,11 @@ private val EN = Strings(
     adminOn = "Active ✓", adminOff = "No — relaunch as admin for TUN", groupAbout = "ABOUT",
     aboutEngine = "Xray engine shared with Android · same link/config support",
     langLabel = "Language",
+    searchHint = "Search a server…", refreshSub = "Refresh subscription", autoSelect = "Auto · best ping",
+    groupSystem = "SYSTEM", autostartLabel = "Start with Windows",
+    autostartDesc = "Launch SWIMVPN at sign-in", startMinimizedLabel = "Start minimized",
+    startMinimizedDesc = "Start in the system tray, window hidden",
+    trayConnect = "Connect", trayDisconnect = "Disconnect", trayOpen = "Open", trayQuit = "Quit",
 )
 
 private val RU = Strings(
@@ -145,6 +160,11 @@ private val RU = Strings(
     adminOn = "Активно ✓", adminOff = "Нет — перезапусти от админа для TUN", groupAbout = "О ПРИЛОЖЕНИИ",
     aboutEngine = "Движок Xray общий с Android · та же поддержка ссылок/конфигов",
     langLabel = "Язык",
+    searchHint = "Поиск сервера…", refreshSub = "Обновить подписку", autoSelect = "Авто · лучший пинг",
+    groupSystem = "СИСТЕМА", autostartLabel = "Запускать с Windows",
+    autostartDesc = "Запуск SWIMVPN при входе в систему", startMinimizedLabel = "Запуск свёрнутым",
+    startMinimizedDesc = "Запуск в системном трее, окно скрыто",
+    trayConnect = "Подключить", trayDisconnect = "Отключить", trayOpen = "Открыть", trayQuit = "Выход",
 )
 
 fun stringsFor(lang: Lang): Strings = when (lang) {

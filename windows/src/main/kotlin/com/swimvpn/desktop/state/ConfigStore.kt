@@ -13,6 +13,9 @@ data class PersistedState(
     val subTotal: Long? = null,
     val subExpire: String? = null,
     val lang: String? = null, // UI language code (fr/en/ru); null = follow OS on first run
+    val subUrl: String? = null, // last subscription URL (for refresh)
+    val autostart: Boolean = false, // launch at Windows sign-in (HKCU Run)
+    val startMinimized: Boolean = false, // start hidden in the system tray
 )
 
 object ConfigStore {

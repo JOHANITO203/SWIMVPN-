@@ -75,6 +75,14 @@ fun SettingsScreen(app: AppController) {
         }
         Spacer(Modifier.height(24.dp))
 
+        // --- System (desktop integration) ---
+        SectionLabel(s.groupSystem)
+        Spacer(Modifier.height(10.dp))
+        ToggleRow(s.autostartLabel, s.autostartDesc, app.autostart) { app.applyAutostart(it) }
+        Spacer(Modifier.height(10.dp))
+        ToggleRow(s.startMinimizedLabel, s.startMinimizedDesc, app.startMinimized) { app.applyStartMinimized(it) }
+        Spacer(Modifier.height(24.dp))
+
         // --- Connection ---
         SectionLabel(s.groupConnection)
         Spacer(Modifier.height(10.dp))
@@ -119,6 +127,26 @@ fun SettingsScreen(app: AppController) {
         Spacer(Modifier.height(10.dp))
         Text("SWIMVPN Windows · ${s.accountSubtitle}", color = tokens.color.homeTextSecondary, fontSize = 13.sp)
         Text(s.aboutEngine, color = tokens.color.homeTextMuted, fontSize = 11.sp)
+    }
+}
+
+/** A labelled on/off setting row (matte surface), used for the desktop-integration toggles. */
+@Composable
+private fun ToggleRow(label: String, desc: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val tokens = SwimDesignTokens.Current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(tokens.color.homeSurfaceBase)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text(desc, color = tokens.color.homeTextMuted, fontSize = 11.sp)
+        }
+        Switch(
+            checked = checked, onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(checkedThumbColor = tokens.color.homePurplePrimary),
+        )
     }
 }
 

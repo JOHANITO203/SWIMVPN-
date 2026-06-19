@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import com.swimvpn.desktop.i18n.Lang
 import com.swimvpn.desktop.i18n.Strings
 import com.swimvpn.desktop.i18n.stringsFor
+import com.swimvpn.desktop.system.Autostart
 import com.swimvpn.desktop.vpn.LatencyProbe
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -50,6 +51,44 @@ class AppController(private val scope: CoroutineScope) {
         persist()
     }
 
+    /** Last subscription URL — enables one-tap refresh of quota + servers. */
+    var subUrl by mutableStateOf<String?>(null)
+        private set
+
+    /** Desktop integration prefs (persisted). */
+    var autostart by mutableStateOf(false)
+        private set
+    var startMinimized by mutableStateOf(false)
+        private set
+
+    fun applyStartMinimized(value: Boolean) { startMinimized = value; persist() }
+
+    fun applyAutostart(value: Boolean) {
+        autostart = value
+        Autostart.set(value) // HKCU Run key → launch at sign-in (no-op if launcher path unknown)
+        persist()
+    }
+
+    /** Re-download the stored subscription URL and merge any new servers + fresh metadata. */
+    fun refreshSubscription() {
+        val url = subUrl ?: return
+        importConfig(url)
+    }
+
+    /** Auto-pick the lowest-latency server: ping all, then select the best reachable one. */
+    fun autoSelectBest() {
+        latencyJob?.cancel()
+        latencyJob = scope.launch {
+            val snapshot = configs.toList()
+            val results = snapshot.map { cfg ->
+                async(Dispatchers.IO) { cfg.id to LatencyProbe.ping(cfg.address, cfg.port) }
+            }.awaitAll()
+            results.forEach { (id, ms) -> latency[id] = ms }
+            val best = results.filter { it.second != null }.minByOrNull { it.second!! }
+            if (best != null) { selectedId = best.first; persist() }
+        }
+    }
+
     val configs = mutableStateListOf<SwimVpnProfile>()
     var selectedId by mutableStateOf<String?>(null)
         private set
@@ -81,6 +120,9 @@ class AppController(private val scope: CoroutineScope) {
         val s = ConfigStore.load()
         lang = Lang.fromCode(s.lang) // null on first run → follows OS language
         strings = stringsFor(lang)
+        subUrl = s.subUrl
+        autostart = s.autostart
+        startMinimized = s.startMinimized
         vpn.fullTunnel = s.fullTunnel
         s.configs.forEach { addParsed(it) }
         selectedId = configs.getOrNull(s.selectedIndex)?.id ?: configs.firstOrNull()?.id
@@ -134,6 +176,7 @@ class AppController(private val scope: CoroutineScope) {
                 if (input.startsWith("http://", true) || input.startsWith("https://", true)) {
                     val fetched = withContext(Dispatchers.IO) { fetchSubscription(input) }
                     subscription = fetched.info
+                    subUrl = input // remember the source for one-tap refresh
                     fetched.body
                 } else input
             }.getOrElse { e ->
@@ -249,6 +292,9 @@ class AppController(private val scope: CoroutineScope) {
             subTotal = subscription?.totalBytes,
             subExpire = subscription?.expiresAt,
             lang = lang.code,
+            subUrl = subUrl,
+            autostart = autostart,
+            startMinimized = startMinimized,
         )
     )
 }

@@ -24,8 +24,11 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -53,6 +56,7 @@ fun ServersScreen(app: AppController) {
     val tokens = SwimDesignTokens.Current
     val s = LocalStrings.current
     var showImport by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
     // No auto-ping: probing every server on each list change flooded the active tunnel and
     // destabilized things. Latency is on-demand (like Happ's "Test ping"), so delete stays local.
     // Deletion via a pending flag + LaunchedEffect: the click only sets the id; the actual list
@@ -77,7 +81,17 @@ fun ServersScreen(app: AppController) {
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
                     .background(tokens.color.homeSurfaceBase).padding(16.dp),
             ) {
-                Text(sub.title ?: s.subDefaultTitle, color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(sub.title ?: s.subDefaultTitle, color = tokens.color.homeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    if (app.subUrl != null) {
+                        Icon(
+                            Icons.Filled.Refresh, s.refreshSub, tint = tokens.color.homePurplePrimary,
+                            modifier = Modifier.size(20.dp).clickable(
+                                interactionSource = remember { MutableInteractionSource() }, indication = null,
+                            ) { app.refreshSubscription() },
+                        )
+                    }
+                }
                 val total = sub.totalBytes
                 if (total != null && total > 0) {
                     val used = sub.usedBytes ?: 0L
@@ -110,10 +124,25 @@ fun ServersScreen(app: AppController) {
             Text(s.importConfig, color = androidx.compose.ui.graphics.Color.White,
                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
         if (app.configs.isNotEmpty()) {
-            TextButton(onClick = { app.refreshLatencies() }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Text(s.testPing, color = tokens.color.homePurplePrimary, fontSize = 13.sp)
+            OutlinedTextField(
+                value = query, onValueChange = { query = it },
+                placeholder = { Text(s.searchHint, color = tokens.color.homeTextMuted, fontSize = 13.sp) },
+                leadingIcon = { Icon(Icons.Filled.Search, null, tint = tokens.color.homeTextMuted, modifier = Modifier.size(18.dp)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { app.autoSelectBest() }) {
+                    Icon(Icons.Filled.Bolt, null, tint = tokens.color.homePurplePrimary, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(4.dp))
+                    Text(s.autoSelect, color = tokens.color.homePurplePrimary, fontSize = 13.sp)
+                }
+                TextButton(onClick = { app.refreshLatencies() }) {
+                    Text(s.testPing, color = tokens.color.homeTextSecondary, fontSize = 13.sp)
+                }
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -136,7 +165,11 @@ fun ServersScreen(app: AppController) {
                     Modifier.fillMaxSize().verticalScroll(listScroll).padding(end = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    app.configs.toList().forEach { cfg ->
+                    app.configs.toList().filter {
+                        query.isBlank() ||
+                            FlagUtil.cleanName(it.displayName).contains(query, ignoreCase = true) ||
+                            it.address.contains(query, ignoreCase = true)
+                    }.forEach { cfg ->
                     val active = cfg.id == app.selectedId
                     Row(
                         modifier = Modifier
