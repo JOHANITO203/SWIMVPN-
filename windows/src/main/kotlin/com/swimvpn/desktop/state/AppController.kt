@@ -88,6 +88,11 @@ class AppController(private val scope: CoroutineScope) {
     fun applyAiEnabled(value: Boolean) { aiEnabled = value; vpn.aiOn = value; persist() }
     fun applyManualProfile(p: CamouflageProfile) { manualProfile = p; persist() }
 
+    /** Anti-DPI TLS fragmentation (applies on next connect). */
+    var tlsFragment by mutableStateOf(false)
+        private set
+    fun applyTlsFragment(value: Boolean) { tlsFragment = value; vpn.tlsFragment = value; persist() }
+
     /** AI heal plan: cycle the camouflage cascade on the current server, then rotate to the next. */
     private fun planNextAttempt(): HealAttempt? {
         if (configs.isEmpty()) return null
@@ -178,6 +183,8 @@ class AppController(private val scope: CoroutineScope) {
         vpn.killSwitch = killSwitch
         aiEnabled = s.aiEnabled
         manualProfile = CamouflageProfile.byId(s.camProfile)
+        tlsFragment = s.tlsFragment
+        vpn.tlsFragment = tlsFragment
         vpn.aiOn = aiEnabled
         vpn.planNextAttempt = { planNextAttempt() }
         vpn.onConnectedOk = { onConnectedRecord() }
@@ -364,6 +371,7 @@ class AppController(private val scope: CoroutineScope) {
             killSwitch = killSwitch,
             aiEnabled = aiEnabled,
             camProfile = manualProfile.id,
+            tlsFragment = tlsFragment,
         )
     )
 }

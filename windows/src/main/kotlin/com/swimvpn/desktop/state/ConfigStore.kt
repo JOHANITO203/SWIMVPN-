@@ -19,6 +19,7 @@ data class PersistedState(
     val killSwitch: Boolean = false, // block non-tunnel traffic on tunnel drop (TUN mode)
     val aiEnabled: Boolean = false, // adaptive camouflage agent on/off
     val camProfile: String? = null, // manual camouflage profile id (when AI off); null = auto
+    val tlsFragment: Boolean = false, // anti-DPI TLS ClientHello fragmentation
 )
 
 object ConfigStore {

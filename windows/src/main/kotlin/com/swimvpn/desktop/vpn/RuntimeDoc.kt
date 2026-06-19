@@ -52,6 +52,34 @@ object RuntimeDoc {
         }
     }
 
+    /** Anti-DPI TLS fragmentation: route the proxy outbound through a `freedom` dialer that splits
+     *  the TLS ClientHello across packets, so SNI-based DPI can't match it in one shot. Client-only,
+     *  no server change. No-op when disabled. Helps most on plain-TLS links (REALITY already hides). */
+    fun applyFragmentation(document: JsonObject, enabled: Boolean) {
+        if (!enabled) return
+        val outbounds = document.getAsJsonArray("outbounds") ?: return
+        if (outbounds.none { it.isJsonObject && it.asJsonObject.get("tag")?.asString == "fragment" }) {
+            outbounds.add(JsonObject().apply {
+                addProperty("tag", "fragment")
+                addProperty("protocol", "freedom")
+                add("settings", JsonObject().apply {
+                    add("fragment", JsonObject().apply {
+                        addProperty("packets", "tlshello") // split the TLS hello specifically
+                        addProperty("length", "100-200")
+                        addProperty("interval", "10-20")
+                    })
+                })
+            })
+        }
+        outbounds.forEach { el ->
+            val ob = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
+            if (ob.get("tag")?.takeIf { it.isJsonPrimitive }?.asString != "proxy") return@forEach
+            val stream = ob.getAsJsonObject("streamSettings") ?: JsonObject().also { ob.add("streamSettings", it) }
+            val sockopt = stream.getAsJsonObject("sockopt") ?: JsonObject().also { stream.add("sockopt", it) }
+            sockopt.addProperty("dialerProxy", "fragment")
+        }
+    }
+
     /** FakeDNS + sniffing + dns-out routing (TUN mode): answer DNS locally, route by domain. */
     fun applyFakeDnsInterception(document: JsonObject) {
         if (!document.has("fakedns")) {

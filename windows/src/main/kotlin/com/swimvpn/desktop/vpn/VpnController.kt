@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.swimvpn.desktop.system.KillSwitch
+import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,6 +35,8 @@ class VpnController(private val scope: CoroutineScope) {
     var fullTunnel by mutableStateOf(true)
     /** Kill-switch (TUN mode): block all non-tunnel traffic so a tunnel drop can't leak. Off default. */
     var killSwitch by mutableStateOf(false)
+    /** Anti-DPI: fragment the TLS ClientHello (defeats SNI-based DPI). Off by default. */
+    var tlsFragment: Boolean = false
 
     /** Toggle the kill-switch at runtime: engage now if we're already connected via TUN, else lift it. */
     fun applyKillSwitch(enabled: Boolean) {
@@ -105,7 +108,7 @@ class VpnController(private val scope: CoroutineScope) {
         state = VpnState.CONNECTING
         statusDetail = "Démarrage du moteur…"
         try {
-            val built = EngineConfig.build(link, fullTunnel, currentFingerprint)
+            val built = EngineConfig.build(link, fullTunnel, currentFingerprint, tlsFragment)
             activeLabel = built.label
             withContext(Dispatchers.IO) { teardown() } // clean any prior data path before re-arming
             withContext(Dispatchers.IO) { xray.start(built.configJson) }
@@ -164,7 +167,7 @@ class VpnController(private val scope: CoroutineScope) {
         if (next == null) { state = VpnState.ERROR; statusDetail = "Connexion perdue — options épuisées"; return }
         state = VpnState.CONNECTING
         statusDetail = "Optimisation (camouflage/serveur)…"
-        delay(backoffMs[(recoveryAttempts - 1).coerceIn(0, backoffMs.size - 1)])
+        delay(backoffMs[(recoveryAttempts - 1).coerceIn(0, backoffMs.size - 1)] + Random.nextLong(0, 1200))
         if (manualStop) return
         currentFingerprint = next.fingerprint
         lastLink = next.link
@@ -264,7 +267,7 @@ class VpnController(private val scope: CoroutineScope) {
         state = VpnState.CONNECTING
         statusDetail = "Reconnexion… ($recoveryAttempts)"
         withContext(Dispatchers.IO) { teardown() }
-        delay(backoffMs[(recoveryAttempts - 1).coerceIn(0, backoffMs.size - 1)])
+        delay(backoffMs[(recoveryAttempts - 1).coerceIn(0, backoffMs.size - 1)] + Random.nextLong(0, 1200))
         if (manualStop) return
         lastLink?.let { doConnect(it) }
     }

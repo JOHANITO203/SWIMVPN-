@@ -58,6 +58,7 @@ data class Strings(
     // Adaptive camouflage
     val groupCamouflage: String, val aiLabel: String, val aiDesc: String,
     val camProfileLabel: String, val camProfileDesc: String, val camActiveFmt: String, val aiTag: String,
+    val fragLabel: String, val fragDesc: String,
 )
 
 private val FR = Strings(
@@ -101,6 +102,8 @@ private val FR = Strings(
     aiDesc = "Choisit et ajuste le camouflage automatiquement selon la fiabilité observée par serveur.",
     camProfileLabel = "Profil de camouflage", camProfileDesc = "Empreinte TLS imitée (manuel quand l'IA est désactivée)",
     camActiveFmt = "Camouflage : %s", aiTag = "IA",
+    fragLabel = "Fragmentation TLS",
+    fragDesc = "Découpe le ClientHello pour casser le filtrage par SNI (anti-DPI). Idéal sur TLS simple.",
 )
 
 private val EN = Strings(
@@ -144,6 +147,8 @@ private val EN = Strings(
     aiDesc = "Automatically picks and heals the camouflage based on observed per-server reliability.",
     camProfileLabel = "Camouflage profile", camProfileDesc = "Mimicked TLS fingerprint (manual when AI is off)",
     camActiveFmt = "Camouflage: %s", aiTag = "AI",
+    fragLabel = "TLS fragmentation",
+    fragDesc = "Splits the ClientHello to defeat SNI-based DPI (anti-censorship). Best on plain TLS.",
 )
 
 private val RU = Strings(
@@ -187,6 +192,8 @@ private val RU = Strings(
     aiDesc = "Автоматически подбирает и чинит камуфляж по наблюдаемой надёжности для каждого сервера.",
     camProfileLabel = "Профиль камуфляжа", camProfileDesc = "Имитируемый TLS-отпечаток (вручную, когда AI выключен)",
     camActiveFmt = "Камуфляж: %s", aiTag = "ИИ",
+    fragLabel = "Фрагментация TLS",
+    fragDesc = "Разбивает ClientHello, чтобы обойти DPI по SNI (антицензура). Лучше всего на обычном TLS.",
 )
 
 fun stringsFor(lang: Lang): Strings = when (lang) {

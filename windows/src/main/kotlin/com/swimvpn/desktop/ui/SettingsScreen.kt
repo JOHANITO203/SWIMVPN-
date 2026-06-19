@@ -134,6 +134,8 @@ fun SettingsScreen(app: AppController) {
         SectionLabel(s.groupCamouflage)
         Spacer(Modifier.height(10.dp))
         ToggleRow(s.aiLabel, s.aiDesc, app.aiEnabled) { app.applyAiEnabled(it) }
+        Spacer(Modifier.height(10.dp))
+        ToggleRow(s.fragLabel, s.fragDesc, app.tlsFragment) { app.applyTlsFragment(it) }
         if (!app.aiEnabled) {
             Spacer(Modifier.height(12.dp))
             Text(s.camProfileLabel, color = tokens.color.homeTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
