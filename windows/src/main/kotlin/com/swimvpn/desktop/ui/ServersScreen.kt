@@ -44,6 +44,7 @@ import com.swimvpn.desktop.theme.SwimDesignTokens
 fun ServersScreen(app: AppController) {
     val tokens = SwimDesignTokens.Current
     var showImport by remember { mutableStateOf(false) }
+    LaunchedEffect(app.configs.size) { if (app.configs.isNotEmpty()) app.refreshLatencies() }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp)) {
         Text("Serveurs", color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -124,6 +125,25 @@ fun ServersScreen(app: AppController) {
                                 color = tokens.color.homeTextMuted, fontSize = 11.sp,
                             )
                         }
+                        // Latency (measured TCP connect time to the server).
+                        val hasPing = app.latency.containsKey(cfg.id)
+                        val ping = app.latency[cfg.id]
+                        Text(
+                            text = when {
+                                !hasPing -> "…"
+                                ping == null -> "✕"
+                                else -> "$ping ms"
+                            },
+                            color = when {
+                                !hasPing -> tokens.color.homeTextMuted
+                                ping == null -> tokens.color.homeDanger
+                                ping < 150 -> tokens.color.homeSuccessGreen
+                                ping < 400 -> tokens.color.homeWarning
+                                else -> tokens.color.homeTextSecondary
+                            },
+                            fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        )
+                        Spacer(Modifier.size(12.dp))
                         Icon(
                             Icons.Filled.Delete, "Supprimer",
                             tint = tokens.color.homeTextMuted,

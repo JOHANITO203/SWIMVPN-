@@ -2,8 +2,13 @@ package com.swimvpn.desktop.state
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.swimvpn.desktop.vpn.LatencyProbe
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import com.swimvpn.app.config.ConfigParserEngine
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.SwimVpnProfile
@@ -39,6 +44,22 @@ class AppController(private val scope: CoroutineScope) {
     /** Subscription metadata parsed from the response headers (quota / expiry / title). */
     var subscription by mutableStateOf<SubscriptionInfo?>(null)
         private set
+
+    /** Per-config server latency in ms (null = unreachable, absent = not measured yet). */
+    val latency = mutableStateMapOf<String, Int?>()
+    private var latencyJob: Job? = null
+
+    /** Measures TCP latency to every imported server in parallel. */
+    fun refreshLatencies() {
+        latencyJob?.cancel()
+        latencyJob = scope.launch {
+            val snapshot = configs.toList()
+            val results = snapshot.map { cfg ->
+                async(Dispatchers.IO) { cfg.id to LatencyProbe.ping(cfg.address, cfg.port) }
+            }.awaitAll()
+            results.forEach { (id, ms) -> latency[id] = ms }
+        }
+    }
 
     init {
         val s = ConfigStore.load()

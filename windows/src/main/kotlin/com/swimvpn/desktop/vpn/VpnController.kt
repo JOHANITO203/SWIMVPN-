@@ -121,29 +121,37 @@ class VpnController(private val scope: CoroutineScope) {
     private fun startSentinel() {
         sentinelJob?.cancel()
         sentinelJob = scope.launch {
-            var fails = 0
+            var softFails = 0
             while (state == VpnState.CONNECTED && !manualStop) {
-                delay(10_000)
+                delay(12_000)
                 if (state != VpnState.CONNECTED || manualStop) break
-                val healthy = withContext(Dispatchers.IO) { tunnelHealthy() }
-                if (healthy) {
-                    fails = 0
+                // A dead engine/adapter = real failure → recover immediately.
+                if (!xray.isAlive() || (fullTunnel && !tunnel.isAlive())) { recover(); break }
+                // Otherwise only a SUSTAINED loss of external reachability triggers recovery — a
+                // single probe blip never tears down a working tunnel (that was the false-disconnect).
+                val reachable = withContext(Dispatchers.IO) { probeExternal() }
+                if (reachable) {
+                    softFails = 0
                 } else {
-                    fails++
-                    if (fails >= 2) { recover(); break }
+                    softFails++
+                    if (softFails >= 4) { recover(); break } // ~48s of no reachability
                 }
             }
         }
     }
 
-    private suspend fun tunnelHealthy(): Boolean {
-        if (!xray.isAlive() || (fullTunnel && !tunnel.isAlive())) return false
-        // Real reachability through the tunnel (Cloudflare 1.1.1.1:443) — proves carried traffic.
-        return runCatching {
-            Socket(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", LocalPorts.SOCKS))).use {
-                it.connect(InetSocketAddress("1.1.1.1", 443), 4_000)
-            }
-        }.isSuccess
+    /** Real reachability through the tunnel (Cloudflare 1.1.1.1:443) — generous timeout + one retry. */
+    private suspend fun probeExternal(): Boolean {
+        repeat(2) { attempt ->
+            val ok = runCatching {
+                Socket(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", LocalPorts.SOCKS))).use {
+                    it.connect(InetSocketAddress("1.1.1.1", 443), 6_000)
+                }
+            }.isSuccess
+            if (ok) return true
+            if (attempt == 0) delay(1_000)
+        }
+        return false
     }
 
     private suspend fun recover() {
