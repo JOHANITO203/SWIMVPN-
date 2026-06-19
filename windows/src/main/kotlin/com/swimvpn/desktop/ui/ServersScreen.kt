@@ -2,6 +2,8 @@ package com.swimvpn.desktop.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,8 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,6 +46,15 @@ fun ServersScreen(app: AppController) {
     var showImport by remember { mutableStateOf(false) }
     // No auto-ping: probing every server on each list change flooded the active tunnel and
     // destabilized things. Latency is on-demand (like Happ's "Test ping"), so delete stays local.
+    // Deletion via a pending flag + LaunchedEffect: the click only sets the id; the actual list
+    // mutation runs on the composition coroutine AFTER the event, so the clicked row is never
+    // disposed mid-click (the freeze/crash on delete).
+    var pendingRemoval by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingRemoval) {
+        val id = pendingRemoval ?: return@LaunchedEffect
+        app.remove(id)
+        pendingRemoval = null
+    }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp)) {
         Text("Serveurs", color = tokens.color.homeTextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
@@ -107,8 +116,11 @@ fun ServersScreen(app: AppController) {
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(app.configs, key = { it.id }) { cfg ->
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                app.configs.toList().forEach { cfg ->
                     val active = cfg.id == app.selectedId
                     Row(
                         modifier = Modifier
@@ -128,20 +140,14 @@ fun ServersScreen(app: AppController) {
                                 color = tokens.color.homeTextMuted, fontSize = 11.sp,
                             )
                         }
-                        // Latency (measured TCP connect time to the server).
                         val hasPing = app.latency.containsKey(cfg.id)
                         val ping = app.latency[cfg.id]
                         Text(
-                            text = when {
-                                !hasPing -> "…"
-                                ping == null -> "✕"
-                                else -> "$ping ms"
-                            },
+                            text = when { !hasPing -> ""; ping == null -> "✕"; else -> "$ping ms" },
                             color = when {
-                                !hasPing -> tokens.color.homeTextMuted
                                 ping == null -> tokens.color.homeDanger
-                                ping < 150 -> tokens.color.homeSuccessGreen
-                                ping < 400 -> tokens.color.homeWarning
+                                hasPing && ping < 150 -> tokens.color.homeSuccessGreen
+                                hasPing && ping < 400 -> tokens.color.homeWarning
                                 else -> tokens.color.homeTextSecondary
                             },
                             fontSize = 12.sp, fontWeight = FontWeight.Medium,
@@ -150,7 +156,7 @@ fun ServersScreen(app: AppController) {
                         Icon(
                             Icons.Filled.Delete, "Supprimer",
                             tint = tokens.color.homeTextMuted,
-                            modifier = Modifier.size(20.dp).clickable { app.remove(cfg.id) },
+                            modifier = Modifier.size(20.dp).clickable { pendingRemoval = cfg.id },
                         )
                     }
                 }

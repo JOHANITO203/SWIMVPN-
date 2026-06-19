@@ -206,14 +206,10 @@ class AppController(private val scope: CoroutineScope) {
     fun select(id: String) { selectedId = id; persist() }
 
     fun remove(id: String) {
-        // Defer to the next UI cycle: deleting a list item from inside its OWN row click would
-        // dispose the composable mid-event (ripple/pointer on a removed node) and crash. Posting
-        // to Swing lets the click event finish first, then the list mutates safely.
-        scope.launch(Dispatchers.Swing) {
-            configs.removeAll { it.id == id }
-            if (selectedId == id) selectedId = configs.firstOrNull()?.id
-            persist()
-        }
+        configs.removeAll { it.id == id }
+        if (selectedId == id) selectedId = configs.firstOrNull()?.id
+        latency.remove(id)
+        persist()
     }
 
     fun setFullTunnel(value: Boolean) { vpn.fullTunnel = value; persist() }
