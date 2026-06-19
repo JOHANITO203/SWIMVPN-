@@ -2,6 +2,7 @@ package com.swimvpn.desktop.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,10 +67,13 @@ fun SettingsScreen(app: AppController) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Lang.entries.forEach { l ->
                 val active = app.lang == l
+                val langSrc = remember { MutableInteractionSource() }
                 Box(
-                    Modifier.weight(1f).height(46.dp).clip(RoundedCornerShape(16.dp))
+                    Modifier.weight(1f).height(46.dp)
+                        .interactive(langSrc, pressScale = 0.96f, hoverScale = 1.03f)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(if (active) tokens.color.homePurplePrimary else tokens.color.homeSurfaceBase)
-                        .clickable { app.selectLang(l) },
+                        .clickable(interactionSource = langSrc, indication = null) { app.selectLang(l) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -88,6 +93,8 @@ fun SettingsScreen(app: AppController) {
         ToggleRow(s.autostartLabel, s.autostartDesc, app.autostart) { app.applyAutostart(it) }
         Spacer(Modifier.height(10.dp))
         ToggleRow(s.startMinimizedLabel, s.startMinimizedDesc, app.startMinimized) { app.applyStartMinimized(it) }
+        Spacer(Modifier.height(10.dp))
+        ToggleRow(s.autoConnectLabel, s.autoConnectDesc, app.autoConnect) { app.applyAutoConnect(it) }
         Spacer(Modifier.height(24.dp))
 
         // --- Connection ---
@@ -154,10 +161,13 @@ fun SettingsScreen(app: AppController) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 CamouflageProfile.entries.forEach { p ->
                     val active = app.manualProfile == p
+                    val pSrc = remember { MutableInteractionSource() }
                     Box(
-                        Modifier.clip(RoundedCornerShape(14.dp))
+                        Modifier
+                            .interactive(pSrc, pressScale = 0.95f, hoverScale = 1.04f)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(if (active) tokens.color.homePurplePrimary else tokens.color.homeSurfaceBase)
-                            .clickable { app.applyManualProfile(p) }
+                            .clickable(interactionSource = pSrc, indication = null) { app.applyManualProfile(p) }
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                     ) {
                         Text(

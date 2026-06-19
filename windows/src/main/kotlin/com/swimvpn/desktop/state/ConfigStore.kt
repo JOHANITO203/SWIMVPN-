@@ -17,6 +17,7 @@ data class PersistedState(
     val subUrl: String? = null, // last subscription URL (for refresh)
     val autostart: Boolean = false, // launch at Windows sign-in (HKCU Run)
     val startMinimized: Boolean = false, // start hidden in the system tray
+    val autoConnect: Boolean = false, // connect automatically at app start
     val killSwitch: Boolean = false, // block non-tunnel traffic on tunnel drop (TUN mode)
     val aiEnabled: Boolean = false, // adaptive camouflage agent on/off
     val camProfile: String? = null, // manual camouflage profile id (when AI off); null = auto

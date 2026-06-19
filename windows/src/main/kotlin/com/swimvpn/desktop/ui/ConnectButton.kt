@@ -2,11 +2,13 @@ package com.swimvpn.desktop.ui
 
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -38,6 +40,12 @@ fun ConnectButton(state: VpnState, onClick: () -> Unit) {
     val active = state == VpnState.CONNECTED
     val connecting = state == VpnState.CONNECTING
     val src = remember { MutableInteractionSource() }
+    val hovered by src.collectIsHoveredAsState()
+    // Idle hover halo: a faint purple bloom hints the button is pressable, premium feel.
+    val hoverGlow by animateFloatAsState(
+        if (hovered && !active && !connecting) 1f else 0f,
+        tween(220, easing = SwimEaseOut), label = "hoverGlow",
+    )
 
     val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = 0.82f,
@@ -62,6 +70,17 @@ fun ConnectButton(state: VpnState, onClick: () -> Unit) {
             .drawBehind {
                 val c = Offset(size.width / 2f, size.height / 2f)
                 val r = size.minDimension / 2f
+                // Idle hover halo
+                if (hoverGlow > 0f) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            0f to tokens.material.purpleCoreMid.copy(alpha = 0.20f * hoverGlow),
+                            1f to Color.Transparent,
+                            center = c, radius = r,
+                        ),
+                        radius = r, center = c,
+                    )
+                }
                 // Outer glow (only when lit)
                 if (active || connecting) {
                     drawCircle(

@@ -172,7 +172,8 @@ fun ServersScreen(app: AppController) {
                         query.isBlank() ||
                             FlagUtil.cleanName(it.displayName).contains(query, ignoreCase = true) ||
                             it.address.contains(query, ignoreCase = true)
-                    }.forEach { cfg ->
+                    }.forEachIndexed { i, cfg ->
+                    StaggerIn(i * 45) {
                     val active = cfg.id == app.selectedId
                     val rowSrc = remember { MutableInteractionSource() }
                     Row(
@@ -223,6 +224,7 @@ fun ServersScreen(app: AppController) {
                             modifier = Modifier.size(20.dp)
                                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { pendingRemoval = cfg.id },
                         )
+                    }
                     }
                 }
             }

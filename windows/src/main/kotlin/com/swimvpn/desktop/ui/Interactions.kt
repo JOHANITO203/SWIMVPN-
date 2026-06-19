@@ -1,13 +1,18 @@
 package com.swimvpn.desktop.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 
@@ -30,4 +35,18 @@ fun Modifier.interactive(
     val target = if (pressed) pressScale else if (hovered) hoverScale else 1f
     val scale by animateFloatAsState(target, tween(140, easing = SwimEaseOut), label = "interactiveScale")
     return graphicsLayer { scaleX = scale; scaleY = scale }
+}
+
+/**
+ * One-shot staggered entrance: the content fades + slides up on first composition, after [delayMs].
+ * Pass index*~45ms so list items cascade in instead of all appearing at once.
+ */
+@Composable
+fun StaggerIn(delayMs: Int, content: @Composable () -> Unit) {
+    val visible = remember { MutableTransitionState(false).apply { targetState = true } }
+    AnimatedVisibility(
+        visibleState = visible,
+        enter = fadeIn(tween(280, delayMs, SwimEaseOut)) +
+            slideInVertically(tween(280, delayMs, SwimEaseOut)) { it / 5 },
+    ) { content() }
 }

@@ -67,6 +67,10 @@ class AppController(private val scope: CoroutineScope) {
         private set
     var startMinimized by mutableStateOf(false)
         private set
+    /** Connect automatically when the app starts (e.g. at login, with autostart). */
+    var autoConnect by mutableStateOf(false)
+        private set
+    fun applyAutoConnect(value: Boolean) { autoConnect = value; persist() }
     var killSwitch by mutableStateOf(false)
         private set
 
@@ -212,12 +216,18 @@ class AppController(private val scope: CoroutineScope) {
         subUrl = s.subUrl
         autostart = s.autostart
         startMinimized = s.startMinimized
+        autoConnect = s.autoConnect
         killSwitch = s.killSwitch
         // Backstop: clear any kill-switch firewall state left by a previous crash/force-quit.
         KillSwitch.cleanupStale()
         // Backstop: kill orphaned SWIMVPN engine procs (xray/tun2socks) + stale routes from a prior
         // hard-kill, so a fresh connect gets a clean "swimvpn" adapter (no "swimvpn 1" collision).
-        scope.launch(Dispatchers.IO) { EngineCleanup.killStray(includeXray = true) }
+        // Then, if auto-connect is on, connect once the purge is done (configs/selection are set by
+        // the synchronous init below long before this ~1s purge finishes).
+        scope.launch(Dispatchers.IO) {
+            EngineCleanup.killStray(includeXray = true)
+            if (autoConnect) withContext(Dispatchers.Swing) { connectSelected() }
+        }
         vpn.killSwitch = killSwitch
         aiEnabled = s.aiEnabled
         manualProfile = CamouflageProfile.byId(s.camProfile)
@@ -383,16 +393,18 @@ class AppController(private val scope: CoroutineScope) {
     fun toggleConnect() {
         when (vpn.state) {
             VpnState.CONNECTED, VpnState.CONNECTING -> vpn.disconnect()
-            else -> {
-                val server = selected ?: return
-                // AI on → start from the server's known-good profile; off → the manual choice.
-                val profile = if (aiEnabled) agent.startProfile(server.id) else manualProfile
-                healProfile = profile
-                activeProfile = profile
-                vpn.aiOn = aiEnabled
-                vpn.connect(server.rawConfig, profile.fingerprint)
-            }
+            else -> connectSelected()
         }
+    }
+
+    /** Connect the selected server with the active camouflage profile (AI start-profile or manual). */
+    private fun connectSelected() {
+        val server = selected ?: return
+        val profile = if (aiEnabled) agent.startProfile(server.id) else manualProfile
+        healProfile = profile
+        activeProfile = profile
+        vpn.aiOn = aiEnabled
+        vpn.connect(server.rawConfig, profile.fingerprint)
     }
 
     private fun persist() = ConfigStore.save(
@@ -408,6 +420,7 @@ class AppController(private val scope: CoroutineScope) {
             subUrl = subUrl,
             autostart = autostart,
             startMinimized = startMinimized,
+            autoConnect = autoConnect,
             killSwitch = killSwitch,
             aiEnabled = aiEnabled,
             camProfile = manualProfile.id,
