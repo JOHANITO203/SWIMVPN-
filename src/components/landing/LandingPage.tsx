@@ -385,10 +385,10 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
             </button>
           </nav>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <a href={LANDING_WINDOWS_URL} aria-label="Windows" title="Télécharger pour Windows (.exe)" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.7)' }}>
+            <a href={LANDING_WINDOWS_URL} aria-label="Windows" title="Télécharger pour Windows (.exe)" style={{ display: 'inline-flex', color: 'var(--ink-2)' }}>
               <WindowsGlyph size={16} />
             </a>
-            <a href={LANDING_DOWNLOAD_URL} download="SwimVPN.apk" aria-label="Android" title="Télécharger l’APK Android" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.7)' }}>
+            <a href={LANDING_DOWNLOAD_URL} download="SwimVPN.apk" aria-label="Android" title="Télécharger l’APK Android" style={{ display: 'inline-flex', color: 'var(--ink-2)' }}>
               <AndroidGlyph size={16} />
             </a>
             <GlassBtn href="#download" label={c.nav.download} variant="sm" />
