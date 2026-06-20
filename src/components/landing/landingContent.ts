@@ -17,6 +17,13 @@ export const LANDING_OG_IMAGE_URL = `${LANDING_BASE_URL}${LANDING_OG_IMAGE_PATH}
 
 export const LANDING_DOWNLOAD_URL = `${LANDING_BASE_URL}/downloads/swimvpn.apk`;
 
+// Windows installer is hosted on GitHub Releases (the .exe is ~140 MB → no git bloat). The asset is
+// named SWIMVPN.exe on every release, so this "latest" URL always points to the newest installer.
+// The in-app auto-updater (windows app) reads /windows/latest.json (served by this landing) for the
+// version, and downloads from this same URL.
+export const LANDING_WINDOWS_URL =
+  'https://github.com/JOHANITO203/SWIMVPN-/releases/latest/download/SWIMVPN.exe';
+
 // Path-based locale routing (better for SEO than a ?lang query param): default locale at "/",
 // others at "/<locale>" (e.g. "/fr"). The prerender writes one static HTML per path, and nginx's
 // `try_files $uri $uri/ /index.html` serves "/fr/" from "dist/fr/index.html".
