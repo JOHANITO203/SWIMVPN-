@@ -11,6 +11,7 @@ import com.swimvpn.desktop.i18n.stringsFor
 import com.swimvpn.desktop.system.Autostart
 import com.swimvpn.desktop.system.Elevation
 import com.swimvpn.desktop.system.KillSwitch
+import com.swimvpn.desktop.system.SingleInstance
 import com.swimvpn.desktop.system.Updater
 import com.swimvpn.desktop.adaptive.AdaptiveAgent
 import com.swimvpn.desktop.vpn.CamouflageProfile
@@ -127,6 +128,7 @@ class AppController(private val scope: CoroutineScope) {
     /** Relaunch elevated (so TUN works) then quit this non-elevated instance. */
     fun relaunchAsAdmin() {
         if (Elevation.relaunchAsAdmin()) {
+            SingleInstance.release() // free the single-instance port so the elevated instance can bind
             vpn.disconnect()
             scope.launch { kotlinx.coroutines.delay(400); kotlin.system.exitProcess(0) }
         }

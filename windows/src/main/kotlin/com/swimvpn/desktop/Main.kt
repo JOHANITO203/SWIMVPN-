@@ -3,6 +3,7 @@ package com.swimvpn.desktop
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,6 +20,7 @@ import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
 import com.swimvpn.desktop.state.AppController
 import com.swimvpn.desktop.theme.SwimVpnTheme
+import com.swimvpn.desktop.system.SingleInstance
 import com.swimvpn.desktop.ui.AppShell
 import com.swimvpn.desktop.vpn.EngineCleanup
 import com.swimvpn.desktop.vpn.VpnState
@@ -26,6 +28,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import java.io.File
+import kotlin.system.exitProcess
 
 fun main() {
     // Crash net: any uncaught exception (incl. a Compose recomposition crash) is written to
@@ -40,6 +43,9 @@ fun main() {
         }
         e.printStackTrace()
     }
+    // Single instance: if SWIMVPN is already running, tell it to surface its window and exit — never
+    // open a second copy in the taskbar.
+    if (!SingleInstance.acquire()) exitProcess(0)
     // Best-effort teardown when the JVM exits (normal close / Quit): kill our engine + drop our
     // split routes so nothing is orphaned. (A hard kill skips this — the launch-time purge covers that.)
     Runtime.getRuntime().addShutdownHook(Thread { runCatching { EngineCleanup.killStray(includeXray = true) } })
@@ -79,6 +85,17 @@ fun main() {
             title = "SWIMVPN",
             icon = painterResource("icons/app.png"),
         ) {
+            // A second launch signals us here → un-hide, un-minimize and bring the window to front.
+            LaunchedEffect(Unit) {
+                SingleInstance.onActivate = {
+                    windowVisible = true
+                    windowState.isMinimized = false
+                    javax.swing.SwingUtilities.invokeLater {
+                        window.toFront()
+                        window.requestFocus()
+                    }
+                }
+            }
             SwimVpnTheme(dark = true) {
                 // Re-provide strings from the active language; switching language recomposes here.
                 CompositionLocalProvider(LocalStrings provides stringsFor(app.lang)) {
