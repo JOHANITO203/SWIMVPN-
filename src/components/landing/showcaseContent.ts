@@ -138,7 +138,7 @@ export const SHOWCASE_COPY: Record<LandingLocale, ShowcaseCopy> = {
       ctaAccess: "Obtenir l'accès",
       apkLink: "Télécharger l'APK gratuitement",
     },
-    footer: { support: 'Support', apk: 'APK', copyright: '© 2026 · app.swimvpn.pro · Android' },
+    footer: { support: 'Support', apk: 'APK', copyright: '© 2026 · app.swimvpn.pro · Windows · Android' },
   },
 
   ru: {
@@ -235,6 +235,6 @@ export const SHOWCASE_COPY: Record<LandingLocale, ShowcaseCopy> = {
       ctaAccess: 'Получить доступ',
       apkLink: 'Скачать APK бесплатно',
     },
-    footer: { support: 'Поддержка', apk: 'APK', copyright: '© 2026 · app.swimvpn.pro · Android' },
+    footer: { support: 'Поддержка', apk: 'APK', copyright: '© 2026 · app.swimvpn.pro · Windows · Android' },
   },
 };

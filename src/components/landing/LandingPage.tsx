@@ -3,6 +3,7 @@ import {
   LANDING_COPY,
   LANDING_DEFAULT_LOCALE,
   LANDING_DOWNLOAD_URL,
+  LANDING_WINDOWS_URL,
   LANDING_LOCALES,
   LANDING_LOCALE_LABELS,
   LANDING_OG_IMAGE_URL,
@@ -89,6 +90,18 @@ const GlassBtn = ({
     <div className="gbtn-edge" />
     <span className="gbtn-text">{label}</span>
   </a>
+);
+
+// Platform glyphs (inline SVG, no extra deps) for the Windows + Android download elements.
+const WindowsGlyph = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <path d="M3 5.62 10.5 4.6v6.65H3V5.62ZM11.5 4.46 21 3.18v8.07h-9.5V4.46ZM3 12.75h7.5v6.63L3 18.36v-5.61ZM11.5 12.75H21v8.07l-9.5-1.28v-6.79Z" />
+  </svg>
+);
+const AndroidGlyph = ({ size = 15 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <path d="M17.6 9.48l1.84-3.18a.4.4 0 1 0-.69-.4l-1.86 3.23a11.5 11.5 0 0 0-9.78 0L5.25 5.9a.4.4 0 1 0-.69.4L6.4 9.48A10.8 10.8 0 0 0 1 18.4h22a10.8 10.8 0 0 0-5.4-8.92ZM7 15.2a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2Zm10 0a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2Z" />
+  </svg>
 );
 
 // Cascade text — words/chars with per-char staggered lift (CSS :hover handles the motion).
@@ -371,7 +384,15 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
               {LANDING_LOCALE_LABELS[locale === 'fr' ? 'ru' : 'fr']}
             </button>
           </nav>
-          <GlassBtn href="#download" label={c.nav.download} variant="sm" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <a href={LANDING_WINDOWS_URL} aria-label="Windows" title="Télécharger pour Windows (.exe)" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.7)' }}>
+              <WindowsGlyph size={16} />
+            </a>
+            <a href={LANDING_DOWNLOAD_URL} download="SwimVPN.apk" aria-label="Android" title="Télécharger l’APK Android" style={{ display: 'inline-flex', color: 'rgba(255,255,255,.7)' }}>
+              <AndroidGlyph size={16} />
+            </a>
+            <GlassBtn href="#download" label={c.nav.download} variant="sm" />
+          </div>
         </div>
       </header>
 
@@ -501,14 +522,16 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
               <input className="bq-glass-input" type="email" placeholder={c.finalCta.emailPlaceholder} id="finalEmail" autoComplete="email" inputMode="email" />
               <button className="bq-hero-btn" type="submit">{c.finalCta.ctaAccess}</button>
             </form>
-            <a className="bq-apk-link" href={LANDING_DOWNLOAD_URL} download="SwimVPN.apk" style={{ display: 'inline-flex' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              {c.finalCta.apkLink}
-            </a>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              <a className="bq-apk-link" href={LANDING_WINDOWS_URL} style={{ display: 'inline-flex' }}>
+                <WindowsGlyph size={13} />
+                {c.nav.download} · Windows
+              </a>
+              <a className="bq-apk-link" href={LANDING_DOWNLOAD_URL} download="SwimVPN.apk" style={{ display: 'inline-flex' }}>
+                <AndroidGlyph size={13} />
+                {c.nav.download} · Android
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -521,6 +544,7 @@ const LandingPage = ({ initialLocale }: { initialLocale?: LandingLocale } = {}) 
         </div>
         <nav style={{ display: 'flex', alignItems: 'center', gap: 22, fontSize: 13.5 }}>
           <a href="mailto:support@swimvpn.pro" style={{ color: 'rgba(255,255,255,.5)' }}>{c.footer.support}</a>
+          <a href={LANDING_WINDOWS_URL} style={{ color: 'rgba(255,255,255,.5)' }}>Windows</a>
           <a href={LANDING_DOWNLOAD_URL} download="SwimVPN.apk" style={{ color: 'rgba(255,255,255,.5)' }}>{c.footer.apk}</a>
           <a href="#privacy" style={{ color: 'rgba(255,255,255,.5)' }}>{copy.footer.privacy}</a>
           <a href="#terms" style={{ color: 'rgba(255,255,255,.5)' }}>{copy.footer.terms}</a>
