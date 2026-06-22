@@ -36,6 +36,7 @@ export type CineStrings = {
     emailPlaceholder: string;
     cta: string;
     sent: string;
+    optinPending: string;
     plateformesLabel: string;
     paymentNote: string;
   };
@@ -97,6 +98,7 @@ const FR: CineStrings = {
     emailPlaceholder: 'votre@email.com',
     cta: "Obtenir l'accès",
     sent: 'Merci ✓',
+    optinPending: 'Vérifie ta boîte mail ✓',
     plateformesLabel: 'Plateformes',
     paymentNote: 'Paiement via SwimPay (RUB · USD · XOF) ou crypto. Zéro log.',
   },
@@ -158,6 +160,7 @@ const EN: CineStrings = {
     emailPlaceholder: 'your@email.com',
     cta: 'Get access',
     sent: 'Thanks ✓',
+    optinPending: 'Check your inbox ✓',
     plateformesLabel: 'Platforms',
     paymentNote: 'Payment via SwimPay (RUB · USD · XOF) or crypto. Zero logs.',
   },
@@ -219,6 +222,7 @@ const RU: CineStrings = {
     emailPlaceholder: 'ваш@email.com',
     cta: 'Получить доступ',
     sent: 'Спасибо ✓',
+    optinPending: 'Проверьте почту ✓',
     plateformesLabel: 'Платформы',
     paymentNote: 'Оплата через SwimPay (RUB · USD · XOF) или крипто. Ноль логов.',
   },

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CINE_DOWNLOAD_URL } from './tokens';
 import { useCine } from './i18n';
+import { subscribeEmail } from './api';
 
 // Icône Windows (4 carreaux) — sombre sur carte claire.
 function WindowsIcon({ className }: { className?: string }) {
@@ -32,8 +33,9 @@ const PLATFORMS = [
 ];
 
 export default function CineSignup() {
-  const { t } = useCine();
+  const { t, locale } = useCine();
   const [sent, setSent] = useState(false);
+  const [email, setEmail] = useState('');
   const details: Record<string, string> = { Windows: t.download.winDetail, Android: t.download.andDetail };
 
   return (
@@ -94,22 +96,28 @@ export default function CineSignup() {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (!email.trim()) return;
                     setSent(true);
+                    void subscribeEmail(email.trim(), locale, 'cine-signup');
                   }}
                   className="mt-3 flex flex-col gap-2"
                 >
                   <input
                     type="email"
                     required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={sent}
                     placeholder={t.download.emailPlaceholder}
                     aria-label="Email"
                     className="w-full rounded-full border border-black/15 bg-[#f1eee8] px-4 py-2.5 text-sm text-[#1a160f] outline-none placeholder:text-[#1a160f]/40 focus:border-black/40"
                   />
                   <button
                     type="submit"
+                    disabled={sent}
                     className="cine-press rounded-full bg-[#15110c] px-4 py-2.5 text-sm font-medium text-white"
                   >
-                    {sent ? t.download.sent : t.download.cta}
+                    {sent ? t.download.optinPending : t.download.cta}
                   </button>
                 </form>
               </div>

@@ -395,3 +395,24 @@ model AccountingEntry {
   @@index([order_ref])
   @@index([inventory_item_id])
 }
+
+enum SubscriberStatus {
+  PENDING
+  CONFIRMED
+  UNSUBSCRIBED
+}
+
+// Marketing opt-in list (double opt-in). Additive; unrelated to customers/orders.
+model Subscriber {
+  id            String           @id @default(uuid())
+  email         String           @unique
+  status        SubscriberStatus @default(PENDING)
+  confirm_token String?          @unique
+  locale        String?          @default("en")
+  source        String?          // "cine-hero" | "cine-signup"
+  created_at    DateTime         @default(now())
+  confirmed_at  DateTime?
+
+  @@index([status])
+  @@index([created_at])
+}

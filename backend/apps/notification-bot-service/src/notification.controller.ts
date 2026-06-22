@@ -26,4 +26,14 @@ export class NotificationController {
   getDeliveryStatus(@Payload() payload: OrderRefDto) {
     return this.notificationService.getDeliveryStatus(payload.orderRef);
   }
+
+  @MessagePattern({ cmd: 'subscribe_email' })
+  subscribeEmail(@Payload() payload: { email: string; locale?: string; source?: string }) {
+    return this.notificationService.subscribeEmail(payload);
+  }
+
+  @MessagePattern({ cmd: 'confirm_subscription' })
+  confirmSubscription(@Payload() payload: { token: string }) {
+    return this.notificationService.confirmSubscription(payload.token);
+  }
 }

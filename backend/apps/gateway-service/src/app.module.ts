@@ -6,6 +6,7 @@ import { AdminController } from './controllers/admin.controller';
 import { AccessController } from './controllers/access.controller';
 import { PaymentsController, SwimPayWebhookAliasController } from './controllers/payments.controller';
 import { StatusController } from './controllers/status.controller';
+import { NewsletterController } from './controllers/newsletter.controller';
 
 @Module({
   imports: [
@@ -35,6 +36,11 @@ import { StatusController } from './controllers/status.controller';
         transport: Transport.TCP,
         options: { host: process.env.VPN_CONFIG_SERVICE_HOST || '127.0.0.1', port: 3004 },
       },
+      {
+        name: 'NOTIFICATION_SERVICE',
+        transport: Transport.TCP,
+        options: { host: process.env.NOTIFICATION_SERVICE_HOST || '127.0.0.1', port: 3006 },
+      },
     ]),
   ],
   controllers: [
@@ -45,6 +51,7 @@ import { StatusController } from './controllers/status.controller';
     PaymentsController,
     SwimPayWebhookAliasController,
     StatusController,
+    NewsletterController,
   ],
   providers: [],
 })
