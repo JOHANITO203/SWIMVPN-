@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 
 // Décor « tiny-planet » en SÉQUENCE D'IMAGES 1080p (technique Apple), dessinée au <canvas>.
-// Lecture CONTINUE : slow-mo en idle, et chaque bouton de nav agit comme un ACCÉLÉRATEUR
-// (×2 pendant ~1,8 s depuis la position courante) → on ne sait jamais sur quelle scène on tombe.
-// Ping-pong (1↔N) pour éviter tout saut de boucle. Servie même-origine depuis /assets/seq.
+// Lecture CONTINUE en vitesse NORMALE (boucle vers l'avant) ; chaque bouton de nav agit
+// comme un ACCÉLÉRATEUR (×2 pendant ~1,8 s depuis la position courante) → on ne sait jamais
+// sur quelle scène on tombe. Servie même-origine depuis /assets/seq.
 const FRAME_COUNT = 60;
 const frameUrl = (i: number) => `/assets/seq/f${String(i).padStart(3, '0')}.webp`;
 
-const BASE_FPS = 2.6; // dérive slow-mo idle
+const BASE_FPS = 10; // playback normal (idle)
 const BOOST_MULT = 2; // accélérateur ×2
 const BOOST_MS = 1800; // durée du boost après un bouton
 
@@ -15,7 +15,6 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgs = useRef<HTMLImageElement[]>([]);
   const frame = useRef(1);
-  const dir = useRef(1);
   const boostUntil = useRef(0);
   const raf = useRef(0);
   const lastT = useRef(0);
@@ -96,14 +95,9 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
       const dt = lastT.current ? Math.min(t - lastT.current, 50) : 16;
       lastT.current = t;
       const fps = t < boostUntil.current ? BASE_FPS * BOOST_MULT : BASE_FPS;
-      frame.current += dir.current * fps * (dt / 1000);
-      if (frame.current >= FRAME_COUNT) {
-        frame.current = FRAME_COUNT;
-        dir.current = -1;
-      } else if (frame.current <= 1) {
-        frame.current = 1;
-        dir.current = 1;
-      }
+      frame.current += fps * (dt / 1000);
+      // boucle vers l'avant (playback normal)
+      while (frame.current > FRAME_COUNT) frame.current -= FRAME_COUNT - 1;
       draw(frame.current);
       raf.current = requestAnimationFrame(loop);
     };
