@@ -11,9 +11,11 @@ export const CINE_ACCENT: CinePalette = {
   glow: 'rgba(255,255,255,0.45)',
 };
 
-// Vidéo « journey » (tiny-planet 4K, plan continu 24,8 s) — HÉBERGÉE hors-repo sur GitHub
-// Releases (gratuit, permanent, CDN avec range-requests pour le scrub). PAS dans le bundle.
-export const CINE_JOURNEY = 'https://github.com/JOHANITO203/SWIMVPN-/releases/download/cine-media/drone-journey.mp4';
+// Vidéo « journey » (tiny-planet, plan continu 24,8 s, 1080p). SERVIE EN MÊME-ORIGINE depuis
+// public/assets → Content-Type `video/mp4` INLINE + range (ce que les <video> mobiles exigent).
+// NB: GitHub Releases la servait en `application/octet-stream` + attachment → refusée par les
+// <video> mobiles (iOS surtout) ; desktop sniffait et jouait quand même. Same-origin règle ça.
+export const CINE_JOURNEY = '/assets/drone-journey.mp4';
 // Timestamps (s) des 4 ancres = 4 positions de rotation, réparties sur les 24,8 s.
 export const CINE_ANCHORS = [2.0, 9.0, 16.0, 23.0];
 
