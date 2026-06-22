@@ -1,53 +1,81 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CINE_JOURNEY } from './tokens';
 
-// Décor « tiny-planet » = la VIDÉO COMPLÈTE (toutes les scènes), lue NATIVEMENT en boucle
-// → playback fluide, zéro seek. Chaque bouton de nav agit comme un ACCÉLÉRATEUR : la lecture
-// passe en ×2 pendant ~1,8 s depuis sa position courante, puis revient à la vitesse normale.
-// Hébergée hors-repo (GitHub Releases, streaming + range). Fixée au viewport, sous le contenu.
-const BOOST_RATE = 2;
-const BOOST_MS = 1800;
+// Décor « tiny-planet » = la VIDÉO COMPLÈTE (toutes les scènes), lue NATIVEMENT en boucle.
+// Poster affiché instantanément (pas de noir au chargement), la vidéo apparaît en fondu quand
+// prête. Chaque bouton de nav = ACCÉLÉRATEUR : la lecture rampe jusqu'à ×4 pendant ~1,8 s
+// (montée/descente douces) puis revient à la vitesse normale. En reduced-motion : poster fixe,
+// aucune lecture. Vidéo hébergée hors-repo (GitHub Releases, streaming + range).
+const POSTER = '/assets/cine-poster.webp';
+const BOOST_RATE = 4; // accélérateur ×4
+const BOOST_MS = 1800; // durée du coup d'accélérateur
+
+const PARALLAX =
+  'translate3d(calc(var(--cine-px, 0) * 10px), calc(var(--cine-py, 0) * 8px), 0) scale(1.08)';
+const SCRIM =
+  'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.06) 42%, rgba(0,0,0,0.06) 70%, rgba(0,0,0,0.28) 100%)';
 
 export default function CineStage({ activeIndex }: { activeIndex: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const timer = useRef<number>(0);
+  const rampRaf = useRef(0);
+  const [ready, setReady] = useState(false);
+  const [reduced, setReduced] = useState(false);
 
-  // Bouton de nav (changement de section) → coup d'accélérateur ×2 pendant 1,8 s.
   useEffect(() => {
+    const m = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(m.matches);
+    const onChange = () => setReduced(m.matches);
+    m.addEventListener?.('change', onChange);
+    return () => m.removeEventListener?.('change', onChange);
+  }, []);
+
+  // Bouton de nav → coup d'accélérateur ×4 avec easing (montée rapide, plateau, descente douce).
+  useEffect(() => {
+    if (reduced) return;
     const v = videoRef.current;
     if (!v) return;
-    v.playbackRate = BOOST_RATE;
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      const vv = videoRef.current;
-      if (vv) vv.playbackRate = 1;
-    }, BOOST_MS);
-    return () => window.clearTimeout(timer.current);
-  }, [activeIndex]);
+    let start = 0;
+    cancelAnimationFrame(rampRaf.current);
+    const ramp = (t: number) => {
+      if (!start) start = t;
+      const e = (t - start) / BOOST_MS; // 0..1 sur la fenêtre
+      if (e >= 1) {
+        v.playbackRate = 1;
+        return;
+      }
+      const up = Math.min(e / 0.12, 1); // montée 0→1 sur les 12 % premiers
+      const down = e > 0.55 ? (e - 0.55) / 0.45 : 0; // descente sur les 45 % finaux
+      const eased = up * (1 - down); // 0..1
+      v.playbackRate = 1 + (BOOST_RATE - 1) * eased;
+      rampRaf.current = requestAnimationFrame(ramp);
+    };
+    rampRaf.current = requestAnimationFrame(ramp);
+    return () => cancelAnimationFrame(rampRaf.current);
+  }, [activeIndex, reduced]);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
-      <video
-        ref={videoRef}
-        src={CINE_JOURNEY}
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{
-          transform: 'translate3d(calc(var(--cine-px, 0) * 10px), calc(var(--cine-py, 0) * 8px), 0) scale(1.08)',
-          willChange: 'transform',
-        }}
-      />
+      {/* poster : visible instantanément, sous la vidéo (et seul rendu en reduced-motion) */}
       <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.06) 42%, rgba(0,0,0,0.06) 70%, rgba(0,0,0,0.28) 100%)',
-        }}
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${POSTER})`, transform: PARALLAX, willChange: 'transform' }}
       />
+      {!reduced && (
+        <video
+          ref={videoRef}
+          src={CINE_JOURNEY}
+          poster={POSTER}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          onCanPlay={() => setReady(true)}
+          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
+          style={{ opacity: ready ? 1 : 0, transform: PARALLAX, willChange: 'transform, opacity' }}
+        />
+      )}
+      <div className="absolute inset-0" style={{ background: SCRIM }} />
     </div>
   );
 }

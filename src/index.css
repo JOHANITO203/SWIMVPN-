@@ -87,6 +87,19 @@ html { color-scheme: only light; }
   .cine-press:hover, .cine-press:active, .cine-cta:hover, .cine-cta:active { transform: none !important; }
 }
 
+/* A11y — anneau de focus CLAVIER visible sur n'importe quel fond (anneau sombre interne +
+   anneau clair externe → lisible aussi bien sur le noir des sections que sur le blanc de
+   l'écran S'abonner). Souris/tactile non affectés (:focus-visible only). */
+.cine-root a:focus-visible,
+.cine-root button:focus-visible,
+.cine-root input:focus-visible,
+.cine-root select:focus-visible,
+.cine-root [tabindex]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #0a0a0f, 0 0 0 4px rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+}
+
 /* Scroll-reveal — déclenché à l'entrée dans le viewport (.in-view ajouté par IntersectionObserver). */
 .cine-reveal {
   opacity: 0;

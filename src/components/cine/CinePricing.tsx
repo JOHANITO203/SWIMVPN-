@@ -52,6 +52,7 @@ export default function CinePricing() {
                   key={pl.tag}
                   type="button"
                   onClick={() => setFeatured(i)}
+                  aria-pressed={featured === i}
                   className={`cine-press shrink-0 rounded-full px-4 py-2.5 text-left text-sm font-medium ${
                     featured === i ? 'bg-white text-black' : 'text-white/70 hover:bg-white/10 hover:text-white'
                   }`}

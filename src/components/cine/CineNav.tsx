@@ -64,6 +64,7 @@ export default function CineNav({ active }: { active: string }) {
               <a
                 key={n.href}
                 href={n.href}
+                aria-current={active === n.href ? 'page' : undefined}
                 className={`cine-press rounded-full px-4 py-2 text-sm ${
                   active === n.href ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
@@ -76,6 +77,7 @@ export default function CineNav({ active }: { active: string }) {
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-label="Menu"
+            aria-expanded={open}
             className="cine-press p-2 text-white md:hidden"
           >
             {open ? <X size={20} /> : <Menu size={20} />}
@@ -124,6 +126,7 @@ export default function CineNav({ active }: { active: string }) {
                 key={n.href}
                 href={n.href}
                 onClick={() => setOpen(false)}
+                aria-current={active === n.href ? 'page' : undefined}
                 className={`cine-press rounded-full px-4 py-2.5 ${
                   active === n.href ? 'bg-white/15 text-white' : 'text-white/80'
                 }`}
