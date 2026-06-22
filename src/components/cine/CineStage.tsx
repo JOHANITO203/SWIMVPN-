@@ -29,6 +29,34 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
     return () => m.removeEventListener?.('change', onChange);
   }, []);
 
+  // Lecture fiable sur MOBILE : l'autoplay muet est souvent insuffisant (Low Power Mode iOS,
+  // data-saver Android, preload bridé) → on appelle play() explicitement (sur mount + quand la
+  // vidéo est prête), et on relance au 1er geste utilisateur si l'autoplay a été bloqué.
+  useEffect(() => {
+    if (reduced) return;
+    const v = videoRef.current;
+    if (!v) return;
+    const tryPlay = () => {
+      const p = v.play();
+      if (p && typeof p.then === 'function') p.then(() => setReady(true)).catch(() => {});
+    };
+    tryPlay();
+    v.addEventListener('loadeddata', tryPlay);
+    v.addEventListener('canplay', tryPlay);
+    const onGesture = () => tryPlay();
+    const opts: AddEventListenerOptions = { passive: true, once: true };
+    window.addEventListener('touchstart', onGesture, opts);
+    window.addEventListener('pointerdown', onGesture, opts);
+    window.addEventListener('scroll', onGesture, opts);
+    return () => {
+      v.removeEventListener('loadeddata', tryPlay);
+      v.removeEventListener('canplay', tryPlay);
+      window.removeEventListener('touchstart', onGesture);
+      window.removeEventListener('pointerdown', onGesture);
+      window.removeEventListener('scroll', onGesture);
+    };
+  }, [reduced]);
+
   // Bouton de nav → coup d'accélérateur ×4 avec easing (montée rapide, plateau, descente douce).
   useEffect(() => {
     if (reduced) return;
