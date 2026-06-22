@@ -16,7 +16,7 @@ const SCRIM =
   'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.06) 42%, rgba(0,0,0,0.06) 70%, rgba(0,0,0,0.28) 100%)';
 
 export default function CineStage({ activeIndex }: { activeIndex: number }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const rampRaf = useRef(0);
   const [ready, setReady] = useState(false);
   const [reduced, setReduced] = useState(false);
@@ -29,37 +29,40 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
     return () => m.removeEventListener?.('change', onChange);
   }, []);
 
-  // Lecture fiable sur MOBILE : l'autoplay muet est souvent insuffisant (Low Power Mode iOS,
-  // data-saver Android, preload bridé) → on appelle play() explicitement (sur mount + quand la
-  // vidéo est prête), et on relance au 1er geste utilisateur si l'autoplay a été bloqué.
+  // Démarrage increvable sur MOBILE : on retente play() sur mount + dès que la vidéo a des données
+  // (loadeddata/canplay) + à CHAQUE geste (pas `once`), jusqu'à ce que `playing` se déclenche. Gère
+  // le Low Power Mode iOS / data-saver qui bloque l'autoplay par politique (→ démarre au 1er contact).
+  // On ne révèle la vidéo (setReady) que quand elle JOUE vraiment → le poster couvre l'attente.
   useEffect(() => {
     if (reduced) return;
     const v = videoRef.current;
     if (!v) return;
-    // CAUSE RACINE mobile : React ne reflète pas toujours `muted` sur la PROPRIÉTÉ DOM →
-    // le navigateur mobile considère la vidéo non-muette → refuse l'autoplay. On force la prop.
     v.muted = true;
     v.defaultMuted = true;
-    v.setAttribute('muted', '');
+    let started = false;
     const tryPlay = () => {
+      if (started) return;
       const p = v.play();
-      if (p && typeof p.then === 'function') p.then(() => setReady(true)).catch(() => {});
+      if (p && typeof p.then === 'function') p.catch(() => {});
     };
-    tryPlay();
-    v.addEventListener('loadeddata', tryPlay);
-    v.addEventListener('canplay', tryPlay);
-    const onGesture = () => tryPlay();
-    const opts: AddEventListenerOptions = { passive: true, once: true };
-    window.addEventListener('touchstart', onGesture, opts);
-    window.addEventListener('pointerdown', onGesture, opts);
-    window.addEventListener('scroll', onGesture, opts);
-    return () => {
+    const onPlaying = () => {
+      started = true;
+      setReady(true);
+      detach();
+    };
+    const gestures = ['touchstart', 'pointerdown', 'click', 'scroll'];
+    const detach = () => {
+      v.removeEventListener('playing', onPlaying);
       v.removeEventListener('loadeddata', tryPlay);
       v.removeEventListener('canplay', tryPlay);
-      window.removeEventListener('touchstart', onGesture);
-      window.removeEventListener('pointerdown', onGesture);
-      window.removeEventListener('scroll', onGesture);
+      gestures.forEach((g) => window.removeEventListener(g, tryPlay));
     };
+    v.addEventListener('playing', onPlaying);
+    v.addEventListener('loadeddata', tryPlay);
+    v.addEventListener('canplay', tryPlay);
+    gestures.forEach((g) => window.addEventListener(g, tryPlay, { passive: true }));
+    tryPlay();
+    return detach;
   }, [reduced]);
 
   // Bouton de nav → coup d'accélérateur ×4 avec easing (montée rapide, plateau, descente douce).
@@ -95,7 +98,15 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
       />
       {!reduced && (
         <video
-          ref={videoRef}
+          ref={(el) => {
+            videoRef.current = el;
+            // muted posé DÈS le montage (avant la décision d'autoplay du navigateur) — React ne
+            // reflète pas toujours l'attribut `muted` sur la propriété DOM, d'où l'autoplay refusé.
+            if (el) {
+              el.muted = true;
+              el.defaultMuted = true;
+            }
+          }}
           src={CINE_JOURNEY}
           poster={POSTER}
           autoPlay
@@ -103,7 +114,6 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
           muted
           playsInline
           preload="auto"
-          onCanPlay={() => setReady(true)}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
           style={{ opacity: ready ? 1 : 0, transform: PARALLAX, willChange: 'transform, opacity' }}
         />
