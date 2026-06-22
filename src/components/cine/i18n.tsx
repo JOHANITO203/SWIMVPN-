@@ -234,8 +234,10 @@ export function useCine() {
   return useContext(CineLocaleContext);
 }
 
-export function CineLocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<CineLocale>('fr');
+export function CineLocaleProvider({ children, initial }: { children: React.ReactNode; initial?: CineLocale }) {
+  // SSR/prerender : `initial` (locale de l'URL : ru à /, fr à /fr) → corps prerendu cohérent
+  // avec les meta. Runtime : la pref localStorage prime (switcher), sinon défaut FR.
+  const [locale, setLocaleState] = useState<CineLocale>(initial && CINE_LOCALES.includes(initial) ? initial : 'fr');
 
   useEffect(() => {
     const saved = (typeof localStorage !== 'undefined' && localStorage.getItem('cine-locale')) as CineLocale | null;

@@ -1,19 +1,21 @@
 import { useEffect, useRef } from 'react';
 import { CineLocaleProvider, useCine } from './i18n';
+import type { LandingLocale } from '../landing/landingContent';
 import CineNav from './CineNav';
 import CineHero from './CineHero';
 import CineTech from './CineTech';
 import CinePricing from './CinePricing';
 import CineSignup from './CineSignup';
 import CineStage from './CineStage';
+import CineSeo from './CineSeo';
 import CineFooter from './CineFooter';
 
 // Ordre des sections = ordre de l'orbite (frame i ↔ section i).
 const ORDER = ['#cine', '#cine-tech', '#cine-tarifs', '#cine-signup'];
 
-export default function CineApp({ hash }: { hash: string }) {
+export default function CineApp({ hash, initialLocale }: { hash: string; initialLocale?: LandingLocale }) {
   return (
-    <CineLocaleProvider>
+    <CineLocaleProvider initial={initialLocale}>
       <CineShell hash={hash} />
     </CineLocaleProvider>
   );
@@ -97,8 +99,10 @@ function CineShell({ hash }: { hash: string }) {
   return (
     <div ref={rootRef} lang={locale} className="cine-root relative min-h-dvh bg-black text-white" style={{ letterSpacing: '-0.02em' }}>
       <CineNav active={ORDER[idx]} />
-      {/* décor vidéo « journey » partagé sur TOUTES les sections, scrubé par la nav */}
+      {/* décor « journey » (séquence d'images) partagé, scrubé par la nav */}
       <CineStage activeIndex={idx} />
+      {/* contenu SEO riche (sr-only, prerendu, dans la langue de l'URL) */}
+      <CineSeo />
       {screen}
       <CineFooter />
     </div>

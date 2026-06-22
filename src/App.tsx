@@ -36,7 +36,7 @@ export default function App({ initialLocale }: { initialLocale?: LandingLocale }
       break;
     default:
       // Racine + #cine* → le design « Reveal » est la landing.
-      content = <CineApp hash={hash} />;
+      content = <CineApp hash={hash} initialLocale={initialLocale} />;
   }
 
   // Design system (showcase.css) owns the page background. Suspense covers the
