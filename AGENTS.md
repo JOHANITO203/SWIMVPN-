@@ -675,3 +675,36 @@ Optimize for:
 - no security bypass
 - safe deployability
 - minimal targeted changes
+
+---
+
+## Autonomous Loop Mode
+
+When running the unsupervised work loop (no human beside you), operate as a self-directed engineer working a queue. The user comes back to **verified progress + a clear status**, never to a broken prod.
+
+### Each cycle
+1. **READ state** — `BACKLOG.md` (priorities), `WORKLOG.md` (recent), `git status` + current branch, relevant memory.
+2. **PICK** the highest-priority `auto` item that is not blocked. Skip `GATE`, `PARK`, and blocked items.
+3. **WORK on a dedicated branch** — run the full mandatory workflow (AUDIT → PLAN → IMPLEMENT → REVIEW → CORRECTION → RE-REVIEW → VERIFY) for that one task. Keep it the smallest useful change.
+4. **VERIFY** — run the strongest available checks for the touched area (build / `tsc` / tests / lint / prerender). They **must pass**.
+5. **SHIP only on green** — merge to `main` + let it deploy. If verification is red, uncertain, or the task needs something you can't provide → **do NOT ship**: keep it on the branch, mark the backlog item `blocked: <reason>`, move on.
+6. **LOG** — append a `WORKLOG.md` entry (task, files, verification run + result, ship status). Update `BACKLOG.md` (done / blocked / newly discovered items in the discoveries journal).
+7. **CONTINUE** — schedule the next cycle until a stop condition.
+
+### Hard boundaries (never, even under full autonomy)
+- **Never ship a red or unverified build.** Green checks are the gate; full autonomy means you don't *ask* before shipping verified work — not that you ship broken work.
+- **Never run irreversible/destructive ops unsupervised** (delete data/files/migrations/tables/env vars, prod DB migrations, history rewrites) → prepare + LOG for human review, don't execute.
+- **Never touch payment logic, security/entitlement, or secrets autonomously** → prepare + LOG (`GATE`).
+- **Never attempt device-only validation** (Android install/QA, release-APK device checks) → `PARK`.
+- **Never delete a branch with unmerged work** without recording it.
+- Preserve production behavior; obey every rule above and in the global `CLAUDE.md`.
+- **Don't disturb the user** — no pings/notifications. Communicate only by writing to `WORKLOG.md`.
+
+### Stop conditions
+- No `auto` backlog item left unblocked.
+- Two consecutive cycles produce no shippable progress.
+- Token/cost budget reached.
+- A blocker genuinely needs the user (record it at the top of `WORKLOG.md`).
+
+### On return
+The user reads the **latest `WORKLOG.md` STATUS block** (write one at the top each session) to see: shipped this run · parked/blocked + why · what needs their input. That block is how they "find their work ready".
