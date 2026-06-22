@@ -8,6 +8,7 @@ import { LandingLocale } from './components/landing/landingContent';
 const OfferPage = lazy(() => import('./components/landing/OfferPage'));
 const PrivacyPolicy = lazy(() => import('./components/legal/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./components/legal/TermsOfService'));
+const CineApp = lazy(() => import('./components/cine/CineApp'));
 
 export default function App({ initialLocale }: { initialLocale?: LandingLocale } = {}) {
   const [hash, setHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
@@ -19,18 +20,23 @@ export default function App({ initialLocale }: { initialLocale?: LandingLocale }
   }, []);
 
   let content;
-  switch (hash) {
-    case '#privacy':
-      content = <PrivacyPolicy />;
-      break;
-    case '#terms':
-      content = <TermsOfService />;
-      break;
-    case '#offres':
-      content = <OfferPage />;
-      break;
-    default:
-      content = <LandingPage initialLocale={initialLocale} />;
+  if (hash.startsWith('#cine')) {
+    // Build « Éditorial sombre cinématique » (preview, non lié à la landing prod).
+    content = <CineApp hash={hash} />;
+  } else {
+    switch (hash) {
+      case '#privacy':
+        content = <PrivacyPolicy />;
+        break;
+      case '#terms':
+        content = <TermsOfService />;
+        break;
+      case '#offres':
+        content = <OfferPage />;
+        break;
+      default:
+        content = <LandingPage initialLocale={initialLocale} />;
+    }
   }
 
   // Design system (showcase.css) owns the page background. Suspense covers the
