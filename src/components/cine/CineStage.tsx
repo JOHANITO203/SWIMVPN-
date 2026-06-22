@@ -1,37 +1,43 @@
 import { useEffect, useRef } from 'react';
 
-// Décor « tiny-planet » en SÉQUENCE D'IMAGES 1080p (technique Apple) : on dessine l'image
-// au <canvas> par index → scrub fluide image par image, zéro seek vidéo, zéro aller-retour
-// réseau. Servies même-origine depuis /assets/seq.
+// Décor « tiny-planet » en SÉQUENCE D'IMAGES 1080p (technique Apple), dessinée au <canvas>.
+// Lecture CONTINUE : slow-mo en idle, et chaque bouton de nav agit comme un ACCÉLÉRATEUR
+// (×2 pendant ~1,8 s depuis la position courante) → on ne sait jamais sur quelle scène on tombe.
+// Ping-pong (1↔N) pour éviter tout saut de boucle. Servie même-origine depuis /assets/seq.
 const FRAME_COUNT = 60;
-const ANCHOR_FRAMES = [5, 22, 39, 56]; // Aperçu / Technologie / Tarifs / S'abonner
 const frameUrl = (i: number) => `/assets/seq/f${String(i).padStart(3, '0')}.webp`;
+
+const BASE_FPS = 2.6; // dérive slow-mo idle
+const BOOST_MULT = 2; // accélérateur ×2
+const BOOST_MS = 1800; // durée du boost après un bouton
 
 export default function CineStage({ activeIndex }: { activeIndex: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgs = useRef<HTMLImageElement[]>([]);
-  const displayed = useRef<number>(ANCHOR_FRAMES[0]);
+  const frame = useRef(1);
+  const dir = useRef(1);
+  const boostUntil = useRef(0);
   const raf = useRef(0);
+  const lastT = useRef(0);
 
-  // Préchargement (ancres d'abord → nav instantanée, puis les intermédiaires).
+  // Préchargement des 60 frames.
   useEffect(() => {
     const arr: HTMLImageElement[] = new Array(FRAME_COUNT + 1);
-    const order = Array.from(new Set([...ANCHOR_FRAMES, ...Array.from({ length: FRAME_COUNT }, (_, i) => i + 1)]));
-    order.forEach((n) => {
+    for (let n = 1; n <= FRAME_COUNT; n++) {
       const im = new Image();
       im.decoding = 'async';
       im.src = frameUrl(n);
       arr[n] = im;
-    });
+    }
     imgs.current = arr;
   }, []);
 
-  const draw = (frame: number) => {
+  const draw = (f: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const idx = Math.max(1, Math.min(FRAME_COUNT, Math.round(frame)));
+    const idx = Math.max(1, Math.min(FRAME_COUNT, Math.round(f)));
     const img = imgs.current[idx];
     if (!img || !img.complete || !img.naturalWidth) return;
     const cw = canvas.width;
@@ -61,43 +67,49 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
     const size = () => {
       canvas.width = Math.round(window.innerWidth * dpr);
       canvas.height = Math.round(window.innerHeight * dpr);
-      draw(displayed.current);
+      draw(frame.current);
     };
     size();
     window.addEventListener('resize', size);
     return () => window.removeEventListener('resize', size);
   }, []);
 
-  // Redraw tant que les frames chargent (la 1ʳᵉ ancre peut arriver après le montage).
+  // Chaque bouton de nav (changement de section) = coup d'accélérateur.
   useEffect(() => {
-    let r = 0;
-    let n = 0;
-    const poll = () => {
-      draw(displayed.current);
-      if (++n < 180) r = requestAnimationFrame(poll); // ~3 s
-    };
-    r = requestAnimationFrame(poll);
-    return () => cancelAnimationFrame(r);
-  }, []);
-
-  // Scrub lissé vers l'ancre de la section active.
-  useEffect(() => {
-    const target = ANCHOR_FRAMES[Math.max(0, Math.min(activeIndex, ANCHOR_FRAMES.length - 1))];
-    cancelAnimationFrame(raf.current);
-    const tick = () => {
-      const diff = target - displayed.current;
-      if (Math.abs(diff) < 0.2) {
-        displayed.current = target;
-        draw(target);
-        return;
-      }
-      displayed.current += diff * 0.1;
-      draw(displayed.current);
-      raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
+    boostUntil.current = (typeof performance !== 'undefined' ? performance.now() : 0) + BOOST_MS;
   }, [activeIndex]);
+
+  // Boucle de lecture continue (slow-mo + boost), ping-pong.
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // pas d'animation : on dessine une image fixe dès qu'elle est prête
+      let n = 0;
+      let r = 0;
+      const once = () => {
+        draw(frame.current);
+        if (++n < 120) r = requestAnimationFrame(once);
+      };
+      r = requestAnimationFrame(once);
+      return () => cancelAnimationFrame(r);
+    }
+    const loop = (t: number) => {
+      const dt = lastT.current ? Math.min(t - lastT.current, 50) : 16;
+      lastT.current = t;
+      const fps = t < boostUntil.current ? BASE_FPS * BOOST_MULT : BASE_FPS;
+      frame.current += dir.current * fps * (dt / 1000);
+      if (frame.current >= FRAME_COUNT) {
+        frame.current = FRAME_COUNT;
+        dir.current = -1;
+      } else if (frame.current <= 1) {
+        frame.current = 1;
+        dir.current = 1;
+      }
+      draw(frame.current);
+      raf.current = requestAnimationFrame(loop);
+    };
+    raf.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf.current);
+  }, []);
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
