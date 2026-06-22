@@ -53,6 +53,10 @@ export default function CineNav({ active }: { active: string }) {
       style={{
         transform: hidden && !open ? 'translateY(-140%)' : 'translateY(0)',
         transition: 'transform .4s cubic-bezier(.16,1,.3,1)',
+        // bord-à-bord : la pill reste sous l'encoche / barre de statut (et hors notch en paysage)
+        paddingTop: 'max(env(safe-area-inset-top), 1rem)',
+        paddingLeft: 'max(env(safe-area-inset-left), 1rem)',
+        paddingRight: 'max(env(safe-area-inset-right), 1rem)',
       }}
     >
       {/* pill centrale : liens gauche · brand centre · bouton droite */}

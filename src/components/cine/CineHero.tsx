@@ -27,7 +27,13 @@ export default function CineHero() {
         aria-hidden
       />
 
-      <div className="absolute inset-0 z-50 flex flex-col px-4 py-4 sm:px-10 sm:py-8 lg:px-12">
+      <div
+        className="absolute inset-0 z-50 flex flex-col px-4 py-4 sm:px-10 sm:py-8 lg:px-12"
+        style={{
+          // bord-à-bord : contenu au-dessus du home indicator (barre gestuelle)
+          paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)',
+        }}
+      >
         {/* spacer → contenu en bas */}
         <div className="flex-1" />
 

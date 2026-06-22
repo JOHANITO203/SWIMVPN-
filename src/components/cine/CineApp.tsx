@@ -61,6 +61,17 @@ function CineShell({ hash }: { hash: string }) {
     };
   }, []);
 
+  // Bord-à-bord immersif : la barre du navigateur (theme-color) passe en sombre sur le cine,
+  // restaurée à la sortie (les pages claires gardent leur teinte).
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const prev = meta?.getAttribute('content') ?? null;
+    meta?.setAttribute('content', '#0a0a0f');
+    return () => {
+      if (meta && prev !== null) meta.setAttribute('content', prev);
+    };
+  }, []);
+
   // Scroll-reveal : observe les .cine-reveal de l'écran courant, ajoute .in-view à l'entrée
   // dans le viewport. Re-scanné à chaque changement de section (nouveau contenu monté).
   useEffect(() => {
