@@ -39,9 +39,22 @@ function CineShell({ hash }: { hash: string }) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const el = rootRef.current;
     if (!el) return;
+    let raf = 0;
+
+    // Mobile / tactile (pas de souris) → drift ambiant lent (oscillation sinus organique)
+    // pour que le décor ne soit pas figé comme sur desktop.
+    if (window.matchMedia('(pointer: coarse)').matches) {
+      const drift = (t: number) => {
+        el.style.setProperty('--cine-px', (Math.sin(t * 0.00018) * 0.5).toFixed(4));
+        el.style.setProperty('--cine-py', (Math.cos(t * 0.00012) * 0.4).toFixed(4));
+        raf = requestAnimationFrame(drift);
+      };
+      raf = requestAnimationFrame(drift);
+      return () => cancelAnimationFrame(raf);
+    }
+
     const target = { x: 0, y: 0 };
     const cur = { x: 0, y: 0 };
-    let raf = 0;
     const onMove = (e: MouseEvent) => {
       target.x = (e.clientX / window.innerWidth - 0.5) * 2;
       target.y = (e.clientY / window.innerHeight - 0.5) * 2;

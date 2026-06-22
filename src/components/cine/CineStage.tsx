@@ -36,6 +36,11 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
     if (reduced) return;
     const v = videoRef.current;
     if (!v) return;
+    // CAUSE RACINE mobile : React ne reflète pas toujours `muted` sur la PROPRIÉTÉ DOM →
+    // le navigateur mobile considère la vidéo non-muette → refuse l'autoplay. On force la prop.
+    v.muted = true;
+    v.defaultMuted = true;
+    v.setAttribute('muted', '');
     const tryPlay = () => {
       const p = v.play();
       if (p && typeof p.then === 'function') p.then(() => setReady(true)).catch(() => {});
