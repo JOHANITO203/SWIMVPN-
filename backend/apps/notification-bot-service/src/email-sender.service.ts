@@ -57,4 +57,24 @@ export class EmailSenderService {
   async sendTextEmail(to: string, subject: string, body: string): Promise<void> {
     return this.sendDeliveryEmail(to, subject, body);
   }
+
+  async sendOptInConfirmation(to: string, confirmUrl: string, locale?: string): Promise<void> {
+    const lang = (locale || 'en').slice(0, 2).toLowerCase();
+    const copy =
+      lang === 'fr'
+        ? {
+            subject: 'Confirme ton inscription à SWIMVPN',
+            body: `Merci de ton intérêt pour SWIMVPN.\n\nConfirme ton adresse en cliquant ici :\n${confirmUrl}\n\nSi tu n'es pas à l'origine de cette demande, ignore simplement ce message.`,
+          }
+        : lang === 'ru'
+          ? {
+              subject: 'Подтвердите подписку на SWIMVPN',
+              body: `Спасибо за интерес к SWIMVPN.\n\nПодтвердите адрес, нажав здесь:\n${confirmUrl}\n\nЕсли это были не вы — просто игнорируйте это письмо.`,
+            }
+          : {
+              subject: 'Confirm your SWIMVPN subscription',
+              body: `Thanks for your interest in SWIMVPN.\n\nConfirm your address by clicking here:\n${confirmUrl}\n\nIf you didn't request this, just ignore this email.`,
+            };
+    return this.sendDeliveryEmail(to, copy.subject, copy.body);
+  }
 }

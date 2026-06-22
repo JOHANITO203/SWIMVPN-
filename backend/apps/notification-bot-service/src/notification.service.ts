@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom } from 'rxjs';
@@ -248,5 +249,66 @@ export class NotificationService {
         delivery_mode: 'EMAIL',
       },
     });
+  }
+
+  // --- Marketing opt-in (double opt-in) ---
+
+  async subscribeEmail(input: { email: string; locale?: string; source?: string }) {
+    const email = (input.email || '').trim().toLowerCase();
+    if (!email) {
+      return { status: 'invalid' as const };
+    }
+
+    const existing = await this.prisma.subscriber.findUnique({ where: { email } });
+    if (existing && existing.status === 'CONFIRMED') {
+      return { status: 'already_confirmed' as const };
+    }
+
+    const token = randomUUID();
+    const subscriber = await this.prisma.subscriber.upsert({
+      where: { email },
+      update: {
+        confirm_token: token,
+        status: 'PENDING',
+        locale: input.locale ?? undefined,
+        source: input.source ?? undefined,
+      },
+      create: {
+        email,
+        confirm_token: token,
+        status: 'PENDING',
+        locale: input.locale ?? 'en',
+        source: input.source ?? null,
+      },
+    });
+
+    const base = process.env.PUBLIC_API_BASE_URL || 'https://api.swimvpn.pro/api/v1';
+    const confirmUrl = `${base}/newsletter/confirm?token=${token}`;
+    try {
+      await this.emailSender.sendOptInConfirmation(email, confirmUrl, input.locale);
+    } catch {
+      // Mailer not configured / transient — keep the PENDING subscriber, report softly.
+      return { status: 'pending' as const, emailSent: false, id: subscriber.id };
+    }
+
+    return { status: 'pending' as const, emailSent: true, id: subscriber.id };
+  }
+
+  async confirmSubscription(token: string) {
+    if (!token) {
+      return { status: 'invalid' as const };
+    }
+    const subscriber = await this.prisma.subscriber.findUnique({ where: { confirm_token: token } });
+    if (!subscriber) {
+      return { status: 'invalid' as const };
+    }
+    if (subscriber.status === 'CONFIRMED') {
+      return { status: 'already_confirmed' as const };
+    }
+    await this.prisma.subscriber.update({
+      where: { id: subscriber.id },
+      data: { status: 'CONFIRMED', confirmed_at: new Date(), confirm_token: null },
+    });
+    return { status: 'confirmed' as const };
   }
 }

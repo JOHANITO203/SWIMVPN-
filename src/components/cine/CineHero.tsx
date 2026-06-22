@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCine } from './i18n';
+import { subscribeEmail } from './api';
 
 // Profondeurs distinctes (parallaxe) : titre = plan proche, pills = plan encore plus proche.
 const planeTitle: React.CSSProperties = {
@@ -10,8 +11,9 @@ const planePills: React.CSSProperties = {
 };
 
 export default function CineHero() {
-  const { t } = useCine();
+  const { t, locale } = useCine();
   const [sent, setSent] = useState(false);
+  const [email, setEmail] = useState('');
   const PILLS = t.hero.pills;
 
   return (
@@ -60,7 +62,9 @@ export default function CineHero() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                if (!email.trim()) return;
                 setSent(true);
+                void subscribeEmail(email.trim(), locale, 'cine-hero');
               }}
               className="cine-fade-up relative mt-6 flex max-w-[440px] items-center rounded-full border border-white/10 bg-black/30 backdrop-blur-md"
               style={{ animationDelay: '0.75s' }}
@@ -68,16 +72,20 @@ export default function CineHero() {
               <input
                 type="email"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={sent}
                 placeholder={t.download.emailPlaceholder}
                 aria-label="Adresse e-mail"
                 className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-white/50 outline-none sm:px-6 sm:py-4"
               />
               <button
                 type="submit"
+                disabled={sent}
                 className="cine-press absolute right-1.5 rounded-full bg-white px-3 py-2 text-xs font-medium sm:px-6 sm:py-3 sm:text-sm"
                 style={{ color: '#0b0b12' }}
               >
-                {sent ? t.download.sent : t.download.cta}
+                {sent ? t.download.optinPending : t.download.cta}
               </button>
             </form>
 
