@@ -1,14 +1,14 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import LandingPage from './components/landing/LandingPage';
+import CineApp from './components/cine/CineApp';
 import { LandingLocale } from './components/landing/landingContent';
 
-// Landing is the default + prerendered route → stays statically imported.
-// The other routes are client-only (hash-triggered) → code-split so their JS
-// is not shipped in the initial landing bundle.
+// CineApp (design « Reveal ») est désormais LA landing par défaut → importé statiquement
+// pour être prerendu (SSR). Les autres routes (hash) sont code-splittées, dont l'ancienne
+// landing showcase déplacée à #showcase.
+const LandingPage = lazy(() => import('./components/landing/LandingPage'));
 const OfferPage = lazy(() => import('./components/landing/OfferPage'));
 const PrivacyPolicy = lazy(() => import('./components/legal/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./components/legal/TermsOfService'));
-const CineApp = lazy(() => import('./components/cine/CineApp'));
 
 export default function App({ initialLocale }: { initialLocale?: LandingLocale } = {}) {
   const [hash, setHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
@@ -20,23 +20,23 @@ export default function App({ initialLocale }: { initialLocale?: LandingLocale }
   }, []);
 
   let content;
-  if (hash.startsWith('#cine')) {
-    // Build « Éditorial sombre cinématique » (preview, non lié à la landing prod).
-    content = <CineApp hash={hash} />;
-  } else {
-    switch (hash) {
-      case '#privacy':
-        content = <PrivacyPolicy />;
-        break;
-      case '#terms':
-        content = <TermsOfService />;
-        break;
-      case '#offres':
-        content = <OfferPage />;
-        break;
-      default:
-        content = <LandingPage initialLocale={initialLocale} />;
-    }
+  switch (hash) {
+    case '#privacy':
+      content = <PrivacyPolicy />;
+      break;
+    case '#terms':
+      content = <TermsOfService />;
+      break;
+    case '#offres':
+      content = <OfferPage />;
+      break;
+    case '#showcase':
+      // Ancienne landing showcase, préservée ici.
+      content = <LandingPage initialLocale={initialLocale} />;
+      break;
+    default:
+      // Racine + #cine* → le design « Reveal » est la landing.
+      content = <CineApp hash={hash} />;
   }
 
   // Design system (showcase.css) owns the page background. Suspense covers the
