@@ -40,7 +40,7 @@ export type CineStrings = {
     plateformesLabel: string;
     paymentNote: string;
   };
-  footer: { copyright: string };
+  footer: { copyright: string; terms: string; privacy: string; refund: string; contact: string };
 };
 
 const FR: CineStrings = {
@@ -102,7 +102,7 @@ const FR: CineStrings = {
     plateformesLabel: 'Plateformes',
     paymentNote: 'Paiement via SwimPay (RUB · USD · XOF) ou crypto. Zéro log.',
   },
-  footer: { copyright: '© 2026 · app.swimvpn.pro · Windows · Android' },
+  footer: { copyright: '© 2026 · app.swimvpn.pro · Windows · Android', terms: 'Conditions', privacy: 'Confidentialité', refund: 'Remboursement', contact: 'Contact' },
 };
 
 const EN: CineStrings = {
@@ -164,7 +164,7 @@ const EN: CineStrings = {
     plateformesLabel: 'Platforms',
     paymentNote: 'Payment via SwimPay (RUB · USD · XOF) or crypto. Zero logs.',
   },
-  footer: { copyright: '© 2026 · app.swimvpn.pro · Windows · Android' },
+  footer: { copyright: '© 2026 · app.swimvpn.pro · Windows · Android', terms: 'Terms', privacy: 'Privacy', refund: 'Refund', contact: 'Contact' },
 };
 
 const RU: CineStrings = {
@@ -226,7 +226,7 @@ const RU: CineStrings = {
     plateformesLabel: 'Платформы',
     paymentNote: 'Оплата через SwimPay (RUB · USD · XOF) или крипто. Ноль логов.',
   },
-  footer: { copyright: '© 2026 · app.swimvpn.pro · Windows · Android' },
+  footer: { copyright: '© 2026 · app.swimvpn.pro · Windows · Android', terms: 'Условия', privacy: 'Конфиденциальность', refund: 'Возврат', contact: 'Контакты' },
 };
 
 export const CINE_STRINGS: Record<CineLocale, CineStrings> = { fr: FR, en: EN, ru: RU };

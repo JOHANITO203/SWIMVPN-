@@ -1,5 +1,6 @@
 import React from 'react';
 import { LegalLayout } from './LegalLayout';
+import { OPERATOR } from './operator';
 
 export default function TermsOfService() {
   return (
@@ -46,7 +47,25 @@ export default function TermsOfService() {
       </section>
 
       <section className="mb-10">
-        <h2 className="text-2xl text-[#14130F] mb-4">5. Amendments</h2>
+        <h2 className="text-2xl text-[#14130F] mb-4">5. Payments &amp; Refunds</h2>
+        <p className="text-[#3F3C36] leading-relaxed">
+          Premium access is sold as a digital service delivered immediately after payment. Refunds and
+          subscription cancellations are governed by our <a href="#refund">Refund &amp; Cancellation Policy</a>,
+          which provides a 48-hour refund if the service does not work for you.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-2xl text-[#14130F] mb-4">6. Operator &amp; Governing Law</h2>
+        <p className="text-[#3F3C36] leading-relaxed">
+          SWIMVPN is operated by {OPERATOR.name}, {OPERATOR.type}, established in {OPERATOR.country}. These Terms
+          are governed by the laws of {OPERATOR.country}. For any question, contact{' '}
+          <a href={`mailto:${OPERATOR.supportEmail}`}>{OPERATOR.supportEmail}</a>.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-2xl text-[#14130F] mb-4">7. Amendments</h2>
         <p className="text-[#3F3C36] leading-relaxed">
           We reserve the right to update these terms at any time. Changes will be reflected on this page. Continued use of SwimVPN+ following modifications indicates your acceptance of the updated terms.
         </p>

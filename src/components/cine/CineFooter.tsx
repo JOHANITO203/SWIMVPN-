@@ -13,6 +13,12 @@ export default function CineFooter() {
           <a href="#cine-signup" className="cine-press hover:text-white">{t.download.telechargement}</a>
         </div>
       </div>
+      <div className="mx-auto mt-6 flex max-w-6xl flex-wrap gap-x-5 gap-y-2 border-t border-white/5 pt-6 text-[13px] text-white/40">
+        <a href="#terms" className="cine-press hover:text-white">{t.footer.terms}</a>
+        <a href="#privacy" className="cine-press hover:text-white">{t.footer.privacy}</a>
+        <a href="#refund" className="cine-press hover:text-white">{t.footer.refund}</a>
+        <a href="#contact" className="cine-press hover:text-white">{t.footer.contact}</a>
+      </div>
     </footer>
   );
 }

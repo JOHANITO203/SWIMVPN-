@@ -1,5 +1,6 @@
 import React from 'react';
 import { LegalLayout } from './LegalLayout';
+import { OPERATOR } from './operator';
 
 export default function PrivacyPolicy() {
   return (
@@ -51,9 +52,11 @@ export default function PrivacyPolicy() {
       </section>
 
       <section className="mb-10">
-        <h2 className="text-2xl text-[#14130F] mb-4">5. Contact</h2>
+        <h2 className="text-2xl text-[#14130F] mb-4">5. Operator &amp; Contact</h2>
         <p className="text-[#3F3C36] leading-relaxed">
-          For any privacy-related inquiries or data deletion requests regarding your account metadata, contact our security team at <a href="mailto:privacy@swimvpn.com">privacy@swimvpn.com</a>.
+          SWIMVPN is operated by {OPERATOR.name}, {OPERATOR.type}, established in {OPERATOR.country}. For any
+          privacy-related inquiry or data deletion request regarding your account metadata, contact{' '}
+          <a href={`mailto:${OPERATOR.privacyEmail}`}>{OPERATOR.privacyEmail}</a>.
         </p>
       </section>
     </LegalLayout>

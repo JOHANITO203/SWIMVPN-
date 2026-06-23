@@ -9,6 +9,8 @@ const LandingPage = lazy(() => import('./components/landing/LandingPage'));
 const OfferPage = lazy(() => import('./components/landing/OfferPage'));
 const PrivacyPolicy = lazy(() => import('./components/legal/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./components/legal/TermsOfService'));
+const RefundPolicy = lazy(() => import('./components/legal/RefundPolicy'));
+const Contact = lazy(() => import('./components/legal/Contact'));
 
 export default function App({ initialLocale }: { initialLocale?: LandingLocale } = {}) {
   const [hash, setHash] = useState(() => (typeof window !== 'undefined' ? window.location.hash : ''));
@@ -26,6 +28,12 @@ export default function App({ initialLocale }: { initialLocale?: LandingLocale }
       break;
     case '#terms':
       content = <TermsOfService />;
+      break;
+    case '#refund':
+      content = <RefundPolicy />;
+      break;
+    case '#contact':
+      content = <Contact />;
       break;
     case '#offres':
       content = <OfferPage />;
