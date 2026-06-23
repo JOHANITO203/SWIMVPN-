@@ -1,7 +1,8 @@
 # Comparatif paiements — SWIMVPN (options légitimes d'encaissement)
 
 > **Date** : 2026-06-23 · **Statut** : doc de décision (P0 backlog).
-> **Honnêteté** : structure et faits stables = solides ; **les chiffres exacts de frais et les politiques "VPN accepté ?" évoluent vite** → tout ce qui est marqué `≈` ou `[à vérifier]` doit être confirmé sur le site du provider avant décision. Aucune optimisation d'évitement KYC/AML (interdit, voir BACKLOG WON'T DO).
+> **Honnêteté** : structure et faits stables = solides ; **les chiffres exacts de frais et les politiques "VPN accepté ?" évoluent vite**. Aucune optimisation d'évitement KYC/AML (interdit, voir BACKLOG WON'T DO).
+> **✅ Mise à jour 2026-06-23** : vérifications live effectuées (sources web) — voir **§9** (corrections majeures : Paddle VPN-restreint, 2Checkout = lead, Cryptomus à éviter, Coinbase Commerce hors-jeu, QIWI mort, blocage entité XOF, éco Telegram Stars).
 
 ## 0. Contexte SWIMVPN (ce qui contraint le choix)
 - **VPN = catégorie marchande "high-risk"** (MCC anonymisation/digital goods) → beaucoup de PSP grand public **interdisent ou restreignent**.
@@ -23,10 +24,10 @@ Le MoR est le **vendeur légal** : il gère TVA/sales-tax mondiale, chargebacks,
 
 | Provider | Modèle | VPN/anonymisation ? | Devises / settlement | API | Frais ≈ |
 |---|---|---|---|---|---|
-| **Paddle** | MoR | Focus SaaS/software ; **VPN à confirmer** (prudents sur anonymisation) `[vérifier]` | mondial, payout USD/EUR virement | REST + webhooks + subs | ≈ 5 % + 0,50 $ `[vérifier]` |
+| **Paddle** | MoR | ⚠️ **VPN = "Restricted Category" explicite** (AUP item 19 → très dur) — *vérifié §9* | mondial, payout USD/EUR virement | REST + webhooks + subs | ≈ 5 % + 0,50 $ |
 | **FastSpring** | MoR | Digital goods, historiquement souple `[vérifier VPN]` | mondial, payout multi-devise | REST + webhooks + subs | ≈ 5–8 % `[vérifier]` |
 | **Lemon Squeezy** | MoR | **Racheté par Stripe** → risque de durcissement policy VPN `[vérifier]` | mondial, payout via Wise/Stripe | REST + webhooks + subs | ≈ 5 % + 0,50 $ |
-| **2Checkout / Verifone** | MoR/PSP | Historiquement **high-risk-friendly** | très large, multi-devise | REST + webhooks + subs | ≈ 6 %+ `[vérifier]` |
+| **2Checkout / Verifone** | MoR/PSP | ✅ **VPN PAS dans la liste interdite** (AUP lue) — *vérifié §9* | très large, multi-devise | REST + webhooks + subs | **3,5 %+0,35 $** (2Sell) / **4,5 %+0,45 $** (2Subscribe) |
 | **PayPro Global** | MoR | **High-risk / digital goods friendly** | large | REST + webhooks + subs | ≈ 5–9 % `[vérifier]` |
 
 - **Onboarding** : entité business généralement requise + KYB (docs société). Délai jours→semaines.
@@ -41,9 +42,9 @@ Axe de tri : **custodial vs non-custodial**, **settlement fiat vs crypto-only**,
 | **BTCPay Server** | **Non-custodial, self-hosted** | non (tu encaisses en crypto direct) | BTC + Lightning (+ altcoins via plugins) | REST + webhooks (Greenfield API) | **0 % processeur** (juste réseau) | **aucun** (c'est ton serveur) |
 | **NOWPayments** | Custodial | **oui** (auto-convert + payout) | 100+ dont USDT TRC20/ERC20 | REST + webhooks + subs | ≈ 0,5–1 % + réseau | email→KYB selon volume `[vérifier]` |
 | **CoinGate** | Custodial | **oui** (payout EUR/crypto) | BTC/LN + nombreux | REST + webhooks | ≈ 1 % | KYB |
-| **Cryptomus** | Custodial | partiel | USDT multi-chaînes, populaire RU `[vérifier sanctions]` | REST + webhooks | ≈ 0,4–1 % | léger→KYB `[vérifier]` |
+| **Cryptomus** | Custodial | partiel | USDT multi-chaînes | REST + webhooks | 0,4–2 % | ⚠️ **À ÉVITER** : pénalité AML ~177 M CAD (FINTRAC oct. 2025), lié RU/Garantex — *vérifié §9* |
 | **Plisio** | Custodial | partiel | large | REST + webhooks | ≈ 0,5 % | léger |
-| **Coinbase Commerce** | semi | via Coinbase | majors + USDC | REST + webhooks | ≈ 1 % | compte Coinbase |
+| **Coinbase Commerce** | custodial | via Coinbase | majors + USDC (pas de Lightning) | REST + webhooks | ≈ 1 % | ⚠️ **fermé hors US/Singapour depuis 31/03/2026** — *vérifié §9* |
 | **OpenNode** | Custodial | oui (BTC) | **Bitcoin/Lightning** focus | REST + webhooks | ≈ 1 % | KYB |
 
 - **Recommandation crypto** : **BTCPay** (souveraineté, 0 % de frais, résistant à la censure, parfait pour notre éthique + RU) **+** un custodial (**NOWPayments** ou **CoinGate**) pour l'**auto-conversion fiat** et l'UX grand public. **Prioriser USDT TRC20** pour la base RU/CIS.
@@ -80,17 +81,40 @@ Mobile Money dominant : **Orange Money, MTN MoMo, Moov, Wave**. Agrégateurs API
 | Afrique de l'Ouest (XOF) | **CinetPay / PayDunya** *(si entité/payout local)* sinon **différer** | mobile money ; sinon le MoR encaisse déjà les cartes |
 
 ## 8. Reco concrète (multi-rail, ordre d'action)
-1. **Shortlist 2 MoR** (PayPro Global + 2Checkout/Verifone) → **postuler et obtenir par écrit l'acceptation "VPN"** avant tout dev. *(C'est le verrou n°1 : ne rien construire avant l'accord.)*
+1. **MoR de tête = 2Checkout/Verifone** (VPN non interdit + tarif confirmés, §9) → postuler ; **PayPro Global / FastSpring** en devis parallèle ; **éviter Paddle** (VPN = catégorie restreinte). **Obtenir par écrit l'acceptation "VPN" avant tout dev** *(verrou n°1)*.
 2. **Monter un BTCPay Server** (self-host, 0 % frais, API Greenfield) + brancher **NOWPayments ou CoinGate** pour l'auto-conversion fiat et l'UX. Prioriser **USDT TRC20**.
 3. **Conserver SwimPay** pour RU/CIS (ne pas chercher un PSP RU direct).
 4. **Évaluer l'économie de Telegram Stars** (part prélevée + store) avant de l'ajouter ; sinon laisser.
 5. **XOF** : tester **CinetPay**/**PayDunya** uniquement si l'entité/payout local est réaliste ; sinon s'appuyer sur le MoR pour les cartes.
 
-## 9. À vérifier en live avant décision (volatile)
-- Politique **"VPN/anonymisation accepté ?"** réelle de chaque MoR (Paddle, Lemon Squeezy post-Stripe surtout) et de chaque processeur crypto custodial.
-- **Frais exacts** (les `≈` ci-dessus) + minimums de payout + réserves roulantes éventuelles.
-- **Statut QIWI** (révocation 2024) et **exclusions RU** côté processeurs crypto custodials.
-- **Onboarding XOF** : possibilité réelle pour un marchand non-africain (CinetPay/PayDunya/Flutterwave).
-- Ce qu'**est** juridiquement "SwimPay" (agrégateur ? sous quelle juridiction ?) pour cadrer son rôle dans l'archi.
+## 9. Vérifié en live (2026-06-23, sources web)
+Corrections/confirmations qui changent la reco :
 
-> **Note de méthode** : ce comparatif est bâti sur une connaissance du domaine (catégories, modèles, contraintes 2022→2025 stables). Les éléments `[à vérifier]`/`≈` nécessitent une confirmation web/contact provider — déclenchable en un passage de recherche live une fois l'outil sous-agent autorisé (cf. § permissions).
+**MoR :**
+- **Paddle** — ⚠️ **VPN = "Restricted Category" EXPLICITE** (item 19 de l'AUP, à côté de spyware/captcha-solving) → onboarding VPN très dur, **pas un canal libre**. Tarif standard ≈ 5 %+0,50 $. [AUP Paddle](https://www.paddle.com/help/start/intro-to-paddle/what-am-i-not-allowed-to-sell-on-paddle) **(CONFIRMÉ)**
+- **2Checkout / Verifone** — ✅ **VPN/proxy/anonymiseur PAS dans la liste interdite** (AUP lue), tarif **2Sell 3,5 %+0,35 $ / 2Subscribe 4,5 %+0,45 $**, sans frais mensuel → **meilleur candidat MoR** (acceptation + tarif confirmés). [AUP](https://www.2checkout.com/legal/acceptance/) **(CONFIRMÉ)**
+- **Lemon Squeezy** — Stripe-owned ; migration vers **Stripe Managed Payments** (preview publique fév. 2026) ; 5 %+0,50 $ ; clause VPN non adressée (docs 403). **(PARTIEL)**
+- **PayPro Global** & **FastSpring** — **aucun tarif public** (devis only) ; VPN non nommé dans leurs interdits. **(PARTIEL)**
+
+**Crypto :**
+- **NOWPayments** — 0,5 % (1 % avec conversion), **non-custodial par défaut**, payout fiat 2-5 j ~1,5-2,3 %, **sert les marchands RU** (se markete comme gateway Russie). [pricing](https://nowpayments.io/pricing) **(CONFIRMÉ)**
+- **CoinGate** — ~1 %, settlement **EUR/SEPA**, KYC (entité EU MiCA), **EXCLUT la Russie** (+ USA). [supported-countries](https://coingate.com/supported-countries) **(CONFIRMÉ)**
+- **Cryptomus** — ⚠️ **drapeau rouge** : custodial, KYC depuis fév. 2025, **lié à la Russie + pénalité AML ~177 M CAD de FINTRAC (oct. 2025)** (liens vers Garantex sanctionné). [TRM Labs](https://www.trmlabs.com/resources/blog/russia-linked-payment-processor-cryptomus-likely-behind-launch-of-parallel-service-heleket) **(CONFIRMÉ — à éviter)**
+- **BTCPay** — ✅ self-host, **non-custodial, 0 % de frais** processeur (coût = VPS + réseau). **(CONFIRMÉ)**
+- **Coinbase Commerce** — ⚠️ **fermé aux marchands hors US/Singapour depuis le 31 mars 2026** → probablement **disqualifié** pour nous. 1 %, custodial, pas de Lightning. **(CONFIRMÉ)**
+- **OpenNode** — ~1 %, Lightning, semi-custodial. **(CONFIRMÉ)**
+
+**RU :** **QIWI = mort** — licence bancaire **révoquée le 21 fév. 2024** par la Banque de Russie (violations AML), en liquidation. [CBR](https://www.cbr.ru/eng/press/pr/?id=39708) **(CONFIRMÉ)**
+
+**XOF :** **CinetPay / PayDunya / Flutterwave** supportent XOF + mobile money + API/webhooks, **mais tous exigent en pratique une entité en région UEMOA + compte de settlement local** → **blocage structurel** pour un marchand non-africain (aucun chemin "sans entité locale" documenté → à confirmer marchand par marchand). **Paystack ≠ XOF** (NGN/GHS/ZAR/KES, seul la Côte d'Ivoire en UEMOA). **Bizao = apparemment en faillite.** **Hub2** = infra, pas turnkey. Flutterwave : **VPN pas dans les interdits** (confirmé). Frais ≈ 3 % (tables exactes 403). **(CONFIRMÉ pour le blocage entité ; PARTIEL pour les frais)**
+
+**Telegram Stars :** payout **0,013 $/Star** (~13 $/1000), **rétention 21 j**, retrait **via Fragment → TON** uniquement (pas de banque directe), **~30 % Apple/Google sur mobile** (~32 % all-in vers fiat ; ~6-16 % si achat desktop), **données = identité Telegram seule** (pas d'email → corrélation faible, **confirme la décision d'abandon de Tribute**). VPN non interdit mais zone de jugement. [Stars API](https://core.telegram.org/bots/payments-stars) **(CONFIRMÉ)**
+
+### Impact sur la reco
+- **MoR de tête = 2Checkout/Verifone** (VPN non interdit + tarif confirmés), pas Paddle (VPN restreint). PayPro Global/FastSpring = à demander en devis.
+- **Crypto : BTCPay + NOWPayments** (NOWPayments sert la RU, non-custodial) ; **CoinGate** seulement si cible hors-RU ; **Cryptomus à éviter** (AML) ; **Coinbase Commerce hors-jeu** si non US/SG.
+- **XOF différé** sauf si entité régionale réaliste → s'appuyer sur le MoR pour les cartes.
+- **Telegram Stars** : ~32 % de perte mobile + corrélation faible → marginal, non prioritaire.
+
+### Reste UNVERIFIED (contact direct requis)
+Tarifs exacts PayPro Global / FastSpring / CinetPay / PayDunya (non publics ou 403) · clause VPN exacte de Lemon Squeezy (403) · approbation réelle d'un VPN anti-censure par Paddle/FastSpring/PayPro en pratique (le texte ne tranche pas → dépend de la candidature) · existence d'un onboarding XOF sans entité locale.

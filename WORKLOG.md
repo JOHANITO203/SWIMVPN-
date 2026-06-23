@@ -1,11 +1,11 @@
 # === STATUS — 2026-06-23 (P0 #2 paiements + #3 marketing) ===
 
 **Les 3 directives P0 sont traitées** (stock #1 shippé+live ; paiements #2 doc ; marketing #3 doc) :
-- **P0 #2 — Comparatif paiements** : `docs/payments/2026-06-23-payment-options-comparison.md` (mergé `ea60aed`). Multi-rail (MoR / crypto API-first / Telegram / RU-CIS / XOF) + reco. ⏳ **Vérif live partielle** : 2 sous-agents de vérification ont buté sur une **limite de session** (reset ~17:10 Moscou) → les items `[à vérifier]` (frais/policies VPN exacts, statut QIWI, onboarding XOF, éco Telegram Stars) restent à confirmer en live à la prochaine fenêtre.
+- **P0 #2 — Comparatif paiements** : `docs/payments/2026-06-23-payment-options-comparison.md`. Multi-rail (MoR / crypto API-first / Telegram / RU-CIS / XOF) + reco. ✅ **Vérif live FAITE** (§9) : Paddle = VPN catégorie restreinte (pas Paddle) ; **2Checkout/Verifone = MoR de tête** (VPN non interdit, 3,5/4,5 %) ; Cryptomus à éviter (pénalité AML FINTRAC 177 M CAD) ; Coinbase Commerce fermé hors US/SG (31/03/2026) ; CoinGate exclut la RU ; NOWPayments sert la RU (non-custodial, 0,5-1 %) ; BTCPay 0 % ; QIWI mort ; **XOF = blocage entité régionale** ; Telegram Stars ~32 % perte mobile + données identité-seule.
 - **P0 #3 — Campagne marketing (compliant, live-sourcé)** : `docs/marketing/2026-06-23-campaign-plan.md` + `2026-06-23-partners-affiliate.md` (+ `optin-email-sequence.md`). Audience/canaux+règles, partenaires/affiliation (cibles + contacts publics), prog. affiliation (30 % récurrent, payout USDT), setup envoi (sous-domaine + SPF/DKIM/DMARC). **Point légal capital** : promo VPN payante vers la RU = infraction (281-ФЗ, 01/09/2025, responsabilité annonceur) → **RU = organique only**, **Afrique francophone = marché payant prioritaire**. Déclenchement d'envoi/publication = **geste user**. Zéro scraping perso.
 - **Permissions** : cause des prompts = l'outil sous-agent hors `allow` → corrigé (`defaultMode:dontAsk` global + allow élargi) ; effet dès cette session redémarrée (sous-agents tournent sans validation).
 
-**À FAIRE (court)** : (a) reprendre la **vérif live paiements** après reset de la limite ; (b) câbler l'**endpoint de désinscription** avant tout broadcast email ; (c) traduire les emails E1–E4 en **RU**.
+**À FAIRE (court)** : (a) câbler l'**endpoint de désinscription** avant tout broadcast email ; (b) traduire les emails E1–E4 en **RU**. *(vérif live paiements = faite)*
 
 ---
 
