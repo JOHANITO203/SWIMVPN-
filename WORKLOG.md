@@ -1,3 +1,13 @@
+# === STATUS — 2026-06-23 (autonomie + design stock) ===
+
+**Autonomie configurée** : bypass permission `dontAsk` (actif au redémarrage machine) + hook `SessionStart` global (`~/.claude/hooks/session-state.sh`) qui injecte l'état du repo (git log + WORKLOG/BACKLOG/TODO) à chaque session, dans **tous** les repos → anti-amnésie.
+
+**P0 #1 — Bot stock intelligent : DESIGN committé, À VALIDER avant code** → `docs/superpowers/specs/2026-06-23-stock-intelligence-design.md`. Seuils par plan (remplace le `5` codé en dur dans `checkStockAndNotify`) + vélocité de conso + prévision « ≈ X j » + suggestion réappro + alerte proactive `stock_forecast_alert`, en réutilisant le scheduler 30 min + le routing d'alertes + le journal AdminEvent existants. Lecture seule, additif ; **auto-pause ventes = GATE** (non inclus). → **Dis « OK stock » et j'implémente** (sinon je continue le reste).
+
+**SUITE (en cours, sans approbation)** : comparatif paiements légitime → contenu campagne marketing.
+
+---
+
 # === STATUS (loop autonome) — 2026-06-23 ===
 
 **SHIPPÉ + vérifié en prod : capture email double opt-in (fondation campagne marketing).**
