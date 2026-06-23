@@ -28,6 +28,15 @@ import {
   resolveInventoryHealthcheckIntervalMs,
 } from './inventory-health-scheduler.policy';
 import { ResupplyOrchestrator } from './resupply-orchestrator';
+import {
+  parseStockThresholds,
+  resolveThreshold,
+  parsePositiveIntEnv,
+  computeStockForecast,
+  DEFAULT_VELOCITY_WINDOW_DAYS,
+  DEFAULT_TARGET_DAYS_COVER,
+  DEFAULT_FORECAST_ALERT_DAYS,
+} from './stock-intelligence.policy';
 
 type ConfigEventInput = {
   configScope: 'PAID' | 'TRIAL';
@@ -47,6 +56,22 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
   private healthcheckTimer?: NodeJS.Timeout;
   private fulfillmentRetryTimer?: NodeJS.Timeout;
   private fulfillmentRetryInFlight = false;
+
+  // Proactive stock intelligence (read-only analytics; thresholds/forecast/reorder).
+  private readonly stockThresholds = parseStockThresholds(process.env.STOCK_THRESHOLDS);
+  private readonly stockVelocityWindowDays = parsePositiveIntEnv(
+    process.env.STOCK_VELOCITY_WINDOW_DAYS,
+    DEFAULT_VELOCITY_WINDOW_DAYS,
+  );
+  private readonly stockTargetDaysCover = parsePositiveIntEnv(
+    process.env.STOCK_TARGET_DAYS_COVER,
+    DEFAULT_TARGET_DAYS_COVER,
+  );
+  private readonly stockForecastAlertDays = parsePositiveIntEnv(
+    process.env.STOCK_FORECAST_ALERT_DAYS,
+    DEFAULT_FORECAST_ALERT_DAYS,
+  );
+  private readonly stockAlertedAt = new Map<string, number>(); // category → last forecast-alert ms (dedup)
 
   constructor(
     private readonly prisma: PrismaService,
@@ -1203,6 +1228,21 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       _count: { _all: true },
     });
 
+    const categories: PlanCategory[] = [PlanCategory.WEEK, PlanCategory.MONTH, PlanCategory.QUARTER];
+    const forecast = await Promise.all(
+      categories.map(async (category) => {
+        const f = await this.buildStockForecast(category);
+        return {
+          category: f.category,
+          available: f.available,
+          threshold: f.threshold,
+          dailyRate: Number(f.dailyRate.toFixed(2)),
+          daysOfStock: Number.isFinite(f.daysOfStock) ? Number(f.daysOfStock.toFixed(1)) : null,
+          reorderQty: f.reorderQty,
+        };
+      }),
+    );
+
     return {
       paid: paidStats.map((s) => ({
         category: s.category,
@@ -1213,6 +1253,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         status: s.status,
         count: s._count._all,
       })),
+      forecast,
     };
   }
 
@@ -1544,6 +1585,7 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           this.logger.error('Continuity reallocation pass failed', reallocError as Error);
         }
       }
+      await this.runStockForecastPass();
       this.logger.log(
         `Scheduled inventory healthcheck completed: checked=${result.checked} healthy=${result.healthy} degraded=${result.degraded}`,
       );
@@ -1625,24 +1667,77 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  private async checkStockAndNotify(category: PlanCategory) {
+  /** Count healthy, still-allocatable configs for a category (one free resale slot, source not exhausted). */
+  private async countAllocatable(category: PlanCategory): Promise<number> {
     const items = await this.prisma.inventoryItem.findMany({
-      where: {
-        category,
-        health_status: InventoryHealthStatus.HEALTHY,
-      },
+      where: { category, health_status: InventoryHealthStatus.HEALTHY },
     });
-    const count = items.filter((item) =>
-      canAllocateSupplierConfig({
-        healthStatus: item.health_status,
-        usedResaleSlots: item.used_resale_slots,
-        maxResaleSlots: item.max_resale_slots,
-        requiredSlots: 1,
-      }) && !this.isSourceExhausted(item.source_quota_bytes, item.source_used_bytes),
+    return items.filter(
+      (item) =>
+        canAllocateSupplierConfig({
+          healthStatus: item.health_status,
+          usedResaleSlots: item.used_resale_slots,
+          maxResaleSlots: item.max_resale_slots,
+          requiredSlots: 1,
+        }) && !this.isSourceExhausted(item.source_quota_bytes, item.source_used_bytes),
     ).length;
+  }
 
-    if (count < 5) {
+  private async checkStockAndNotify(category: PlanCategory) {
+    const count = await this.countAllocatable(category);
+    if (count < resolveThreshold(category, this.stockThresholds)) {
       this.adminClient.emit('low_stock_alert', { category, remaining: count });
+    }
+  }
+
+  /** Recent assignments (configs sold) for a category over the velocity window. */
+  private async countRecentSales(category: PlanCategory, since: Date): Promise<number> {
+    return this.prisma.orderAssignment.count({
+      where: { assigned_at: { gte: since }, inventory_item: { category } },
+    });
+  }
+
+  /** Proactive forecast for one category: available + velocity + days-of-stock + reorder. */
+  private async buildStockForecast(category: PlanCategory) {
+    const since = new Date(Date.now() - this.stockVelocityWindowDays * 86_400_000);
+    const [available, soldCount] = await Promise.all([
+      this.countAllocatable(category),
+      this.countRecentSales(category, since),
+    ]);
+    return computeStockForecast({
+      category,
+      available,
+      soldCount,
+      windowDays: this.stockVelocityWindowDays,
+      thresholds: this.stockThresholds,
+      targetDaysCover: this.stockTargetDaysCover,
+      forecastAlertDays: this.stockForecastAlertDays,
+    });
+  }
+
+  // Scheduled proactive pass: forecast each plan and alert the admin BEFORE running out.
+  // Read-only; dedup to at most one forecast alert per category per day.
+  private async runStockForecastPass() {
+    const categories: PlanCategory[] = [PlanCategory.WEEK, PlanCategory.MONTH, PlanCategory.QUARTER];
+    const dedupMs = 24 * 60 * 60 * 1000;
+    for (const category of categories) {
+      try {
+        const f = await this.buildStockForecast(category);
+        if (!f.alert) continue;
+        const last = this.stockAlertedAt.get(category) ?? 0;
+        if (Date.now() - last < dedupMs) continue;
+        this.stockAlertedAt.set(category, Date.now());
+        this.adminClient.emit('stock_forecast_alert', {
+          category: f.category,
+          available: f.available,
+          threshold: f.threshold,
+          dailyRate: Number(f.dailyRate.toFixed(2)),
+          daysOfStock: Number.isFinite(f.daysOfStock) ? Number(f.daysOfStock.toFixed(1)) : null,
+          reorderQty: f.reorderQty,
+        });
+      } catch (error) {
+        this.logger.error(`Stock forecast pass failed for ${category}`, error as Error);
+      }
     }
   }
 
