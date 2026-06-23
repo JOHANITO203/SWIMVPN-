@@ -143,6 +143,22 @@ Tarifs exacts PayPro Global / FastSpring / CinetPay / PayDunya (non publics ou 4
 - **Support / emails (docs)** : https://www.2checkout.com/merchant-support/ · `info@2checkout.com` · `compliance@2checkout.com`
 - **À préparer (KYB)** : type d'activité (**individuel/auto-entrepreneur accepté**), enregistrement société (si société), n° fiscal (TIN), **passeport/CNI** du signataire (+ associés ≥10 %). Validation = underwriting (délai non publié, ~jours à 2 sem. selon avis tiers).
 
+### ⚠️ 11. RÉALITÉ MARCHAND CÔTE D'IVOIRE (change la reco — vérifié live 2026-06-23)
+L'opérateur ([[operator.ts]] = Johane Arthur Oyaraht) est **établi en Côte d'Ivoire**. Ça change tout :
+- ❌ **2Checkout/Verifone REFUSE la CI** : elle est sur leur **liste de pays marchands restreints** (avec Sénégal, Mali, Bénin, Ghana… presque toute l'UEMOA). **Ne pas postuler.** [restricted-countries](https://docs.2checkout.com/) **(CONFIRMÉ)**
+- ❌ **Payoneer et Wise ne couvrent pas la CI** → les rails de payout des MoR cartes ne t'atteignent pas. [Payoneer pays](https://supportedcountries.com/payoneer/) · [Wise](https://wise.com/help/articles/2813542/) **(CONFIRMÉ)**
+- ⚠️ Cartes monde via MoR : **Paddle** ne bloque PAS la CI (mais Paddle restreint les VPN — §9) ; **FastSpring/PayPro Global** = CI non confirmé. Tous **conditionnés à un virement vers une banque ivoirienne** → à confirmer en direct, incertain.
+- ✅ **Le retournement positif** : comme tu es **établi en CI (UEMOA)**, le blocage « entité locale » du §6 **tombe pour TOI** → tu peux onboarder **CinetPay ou PayDunya** et encaisser **Mobile Money (Orange/MTN/Moov/Wave) + cartes en XOF**, payé sur un compte local. C'était bloqué pour un marchand étranger — **pas pour toi**.
+- ✅ **Crypto = rail mondial fiable, indépendant du pays** : BTCPay (self-host) + NOWPayments → l'argent va sur ton wallet, peu importe la CI. **(CONFIRMÉ)**
+
+**Reco RÉVISÉE pour un opérateur CI (multi-rail) :**
+1. **Afrique/XOF** → **CinetPay** ou **PayDunya** (Mobile Money + cartes XOF) — tu qualifies maintenant. *Rail local principal.*
+2. **Mondial / audience anti-censure** → **crypto** (BTCPay + NOWPayments, USDT-TRC20). *Rail global fiable.*
+3. **RU/CIS** → **SwimPay** (inchangé).
+4. **Cartes reste-du-monde (Europe/Amériques)** = le trou : 2Checkout exclu, MoR↦payout-CI incertain. À explorer en direct (FastSpring/PayPro « acceptez-vous un marchand CI + virement banque ivoirienne ? ») ; sinon la crypto couvre les clients privacy mondiaux.
+
+> Les pages légales (Terms/Privacy/Refund/Contact, opérateur CI) restent utiles : **CinetPay/PayDunya et les processeurs sérieux exigent aussi un site avec ces pages.**
+
 ### NOWPayments — comment ça marche (vérifié live)
 **Flux** : ton backend crée un paiement/facture → NOWPayments génère **une adresse crypto unique + le montant** → le client paie → NOWPayments **surveille la blockchain** → t'envoie un **webhook (IPN)** à chaque changement de statut → quand statut = **`finished`**, tu débloques l'abonnement.
 - **2 modes** : **facture hébergée** (`POST /v1/invoice` → tu rediriges vers `invoice_url`, **le plus simple**) ou **API paiement** (`POST /v1/payment`, UI maison).
