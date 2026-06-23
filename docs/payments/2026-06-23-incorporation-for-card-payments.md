@@ -43,3 +43,13 @@ Présence exacte de la CI sur la liste interdite de **Mercury** (page 403) · ac
 
 ## Verdict
 **UK Ltd = le meilleur compromis** (remote, rapide, pas cher, banque Wise/Payoneer, débloque 2Checkout qui accepte le VPN, payout Payoneer→banque CI). **US LLC** = bon pour Stripe mais banque plus dure. **Estonia** = seulement si voyage + tax-deferral. **Géorgie** = non (pas de Stripe/Paddle). **Dans tous les cas : conseiller fiscal CI avant de lancer.**
+
+---
+
+## ⭐ Conclusion pratique (vérifié live 2026-06-24) — SaaS encaissable DEPUIS la CI, sans société
+Pour des **SaaS génériques** (pas le VPN), **pas besoin de créer une entité à l'étranger pour démarrer** :
+- **Paddle (MoR) = OUI pour un vendeur ivoirien** *(conditionnel mais effectif)* : la **CI n'est PAS** sur la liste d'exclusion Paddle (le Mali oui, pas la CI) ; **individu/auto-entrepreneur accepté** (KYB sauté, juste KYC identité via Sumsub = pièce + justif d'adresse) ; **payout via Payoneer → banque CI (FCFA)**, min $100, payé le 15. Conditions : **site produit en ligne** au domain-review + passer le KYC. SaaS générique = OK (le VPN, lui, est en catégorie restreinte). [Paddle pays supportés](https://www.paddle.com/help/start/intro-to-paddle/which-countries-are-supported-by-paddle) · [vérification](https://www.paddle.com/help/start/account-verification/what-is-account-verification)
+- **Le levier décisif = le rail de payout.** ⚠️ **PayPal est SEND-ONLY en Côte d'Ivoire** (impossible de *recevoir/retirer*) → tout MoR qui ne paie la CI que par PayPal est **mort**. Seuls **Payoneer** (confirmé) et **virement** atteignent la CI. [PayPal CI send-only](https://www.france24.com/en/africa/20220916-online-payments-a-headache-for-ivory-coast-s-e-merchants)
+- **Plan B (si Paddle refuse)** : **FastSpring** (CI non exclue, payout virement) ou **PayPro Global** (payout Payoneer $2). **À ÉVITER** : Lemon Squeezy, Polar, Creem, Gumroad-PayPal — tous **Stripe/PayPal-dépendants** (Stripe ne couvre pas la CI ; PayPal send-only). Creem exclut explicitement la CI.
+
+**→ Le plan immédiat : Paddle depuis la CI + Payoneer.** L'incorporation (UK Ltd / Géorgie) devient **optionnelle**, pour de l'optimisation fiscale plus tard — et la Géorgie 1 % ne paie que si tu **t'installes** là-bas (sinon CI t'impose sur le revenu mondial).
