@@ -266,6 +266,15 @@ export class TelegramCommandService implements OnModuleInit {
       const label = this.getCategoryLabel(cat);
       lines.push(`${label}: <b>${count}</b> available`);
 
+      if (cat !== 'TRIAL') {
+        const fc = (stats as any).forecast?.find((f: any) => f.category === cat);
+        if (fc) {
+          const runway = fc.daysOfStock === null ? 'no recent sales' : `~${fc.daysOfStock}d left`;
+          const reorder = fc.reorderQty > 0 ? ` · reorder <b>${fc.reorderQty}</b>` : '';
+          lines.push(`   ↳ ${fc.dailyRate}/day · ${runway}${reorder}`);
+        }
+      }
+
       if (count > 0) {
         buttons.push([Markup.button.callback(`🗑️ Clear ${cat}`, `clear_stock:${cat}`)]);
       }

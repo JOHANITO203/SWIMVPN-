@@ -762,6 +762,28 @@ export function formatLowStockAlert(input: { category: string; remaining: number
   ].join('\n');
 }
 
+export function formatStockForecastAlert(input: {
+  category: string;
+  available: number;
+  threshold: number;
+  dailyRate: number;
+  daysOfStock: number | null;
+  reorderQty: number;
+}): string {
+  const runway =
+    input.daysOfStock === null ? 'pas de ventes récentes' : `≈ ${input.daysOfStock} j de stock`;
+  const lines = [
+    '📊 *Prévision stock*',
+    `Forfait : ${planLabel(input.category)}`,
+    `Disponible : ${input.available} (seuil ${input.threshold})`,
+    `Vélocité : ${input.dailyRate}/j · ${runway}`,
+  ];
+  if (input.reorderQty > 0) {
+    lines.push(`Réappro suggérée : *${input.reorderQty}* config(s)`);
+  }
+  return lines.join('\n');
+}
+
 export function formatStockHealth(items: StockHealthItem[], nowMs: number): string {
   const day = 24 * 60 * 60 * 1000;
   const lines = ['📦 *Santé du stock par forfait*'];

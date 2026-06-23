@@ -6,6 +6,7 @@ import {
   formatContinuityNoStockAlert,
   formatContinuityPassSummary,
   formatLowStockAlert,
+  formatStockForecastAlert,
 } from './admin-bot.formatter';
 import {
   AdminLoginDto,
@@ -28,6 +29,21 @@ export class AdminController {
   @EventPattern('low_stock_alert')
   async handleLowStock(@Payload() data: { category: string; remaining: number }) {
     await this.adminBotService.sendAdminAlert(formatLowStockAlert(data));
+  }
+
+  @EventPattern('stock_forecast_alert')
+  async handleStockForecast(
+    @Payload()
+    data: {
+      category: string;
+      available: number;
+      threshold: number;
+      dailyRate: number;
+      daysOfStock: number | null;
+      reorderQty: number;
+    },
+  ) {
+    await this.adminBotService.sendAdminAlert(formatStockForecastAlert(data));
   }
 
   @EventPattern('continuity_alert')
