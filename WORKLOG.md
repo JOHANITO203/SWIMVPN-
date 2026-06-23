@@ -1,3 +1,19 @@
+# === STATUS (loop autonome) — 2026-06-23 ===
+
+**SHIPPÉ + vérifié en prod : capture email double opt-in (fondation campagne marketing).**
+- Modèle `Subscriber` (Prisma, migration additive appliquée via prisma-rollout) ; flux `subscribe_email`/`confirm_subscription` (notification-bot, réutilise EmailSenderService Resend) ; `POST /api/v1/newsletter/subscribe` + `GET /newsletter/confirm` (gateway) ; formulaires landing CineHero/CineSignup réellement câblés (avant : cosmétiques) ; i18n optinPending fr/en/ru ; test ajouté à `test:policy`.
+- Déployé sur main (`926a4bb` + fix env `93a9d4f`) ; migration appliquée ; gateway + notification-bot reconstruits ; **E2E OK** : subscribe → 201 + persisté + email Resend envoyé → confirm → CONFIRMED.
+- **Incident résolu pendant le déploiement** : un `docker compose up -d gateway-service` (sans `--no-deps`) a stoppé d'autres services (race « removal in progress ») → stack entièrement remonté + tous healthy. (Effet de bord cosmétique : 2 conteneurs portent un préfixe de hash — `store-engine`, `vpn-config` — fonctionnels ; Dokploy les renommera au prochain deploy.)
+
+**À TON ATTENTION (décisions / suites) :**
+- **Double opt-in & scanners** : le lien de confirmation est un GET → les scanners de liens (Gmail, antivirus) le prefetchent et confirment automatiquement. La conformité reste OK (l'email est saisi volontairement via le formulaire), mais si tu veux une vraie preuve « humain », il faudrait une page de confirmation avec bouton → POST. (À décider — noté au backlog.)
+- **Resend domaine** : vérifie qu'il est « Verified » côté Resend (l'email de test est parti, `emailSent:true`, donc a priori OK).
+- Le scripts `scripts/ops/*.sh` avaient perdu le bit exécutable (checkout Windows) → `chmod +x` appliqué sur le serveur pour le rollout.
+
+**SUITE (loop, sans approbation) :** contenu de campagne (audience/canaux + prospects/partenaires + séquences) → comparatif paiements légitime → design du bot stock intelligent (committé pour revue avant code).
+
+---
+
 # 2026-05-22 - Trial supplier config device capacity
 
 - Updated the Trial Store backend so one supplier trial config can be assigned to up to five trial devices instead of being consumed after the first assignment.
