@@ -3,6 +3,11 @@ android/.gradle/
 android/.gradle-user-home/
 android/build/
 android/local.properties
+
+# Windows desktop port — local build caches (never commit)
+windows/.gradle/
+windows/build/
+windows/.kotlin/
 android/Generated/
 android/app/build/
 android/app/.cxx/
