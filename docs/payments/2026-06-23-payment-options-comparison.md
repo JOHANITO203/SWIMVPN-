@@ -118,3 +118,37 @@ Corrections/confirmations qui changent la reco :
 
 ### Reste UNVERIFIED (contact direct requis)
 Tarifs exacts PayPro Global / FastSpring / CinetPay / PayDunya (non publics ou 403) · clause VPN exacte de Lemon Squeezy (403) · approbation réelle d'un VPN anti-censure par Paddle/FastSpring/PayPro en pratique (le texte ne tranche pas → dépend de la candidature) · existence d'un onboarding XOF sans entité locale.
+
+---
+
+## 10. Action — 2Checkout/Verifone (à contacter) + NOWPayments (intégration)
+
+### 2Checkout/Verifone — vérifié live 2026-06-23
+**Moyens de paiement acceptés (côté client)** : **45+ moyens, 100 devises, 190+ pays**.
+- **Cartes (mondial)** : Visa, Visa Electron, Mastercard, Maestro, American Express, Discover, JCB.
+- **Portefeuilles** : PayPal (sauf RU), Apple Pay, Google Pay.
+- **Locaux (Europe)** : SEPA Direct Debit, iDEAL (+ autres selon pays).
+- **Abonnements récurrents** : oui (renouvellement auto, upgrades, essais, relances).
+- **Afrique de l'Ouest** : **cartes seulement** (pas de mobile money / pas de rails XOF locaux).
+- **Russie/CIS** : **inutilisable** (pas de Mir, PayPal exclu, Visa/MC ne traitent plus les cartes RU) → **SwimPay reste** pour la RU.
+
+**VPN accepté** : ✅ non listé dans les interdits + **étude de cas publique « Astrill VPN »** (ils servent déjà des VPN). Réserve : l'angle anti-censure peut attirer un examen d'underwriting → obtenir l'accord écrit avant de coder. [AUP](https://www.2checkout.com/legal/acceptance/) · [cas Astrill](https://www.2checkout.com/clients/astrill-vpn-success-story.html)
+
+**Tarifs (sans frais mensuel/setup ; surcharge cross-border +2 %)** :
+- **2Sell 3,5 %+0,35 $** (cartes+PayPal) · **2Subscribe 4,5 %+0,45 $** (+ gestion abos) · **2Monetize 6 %+0,60 $** (MoR complet : TVA/taxes mondiales gérées). → pour un VPN digital vendu mondialement, viser **2Monetize** (taxe gérée) ou **2Subscribe**.
+
+**📞 CONTACTER MAINTENANT** :
+- **Inscription self-serve (gratuit)** : https://www.2checkout.com/pricing/ → « Sign up for free » → activation dans le panel.
+- **Parler aux ventes (onboard rapide/volume)** : formulaire https://www.2checkout.com/pricing/enterprise/
+- **Support / emails (docs)** : https://www.2checkout.com/merchant-support/ · `info@2checkout.com` · `compliance@2checkout.com`
+- **À préparer (KYB)** : type d'activité (**individuel/auto-entrepreneur accepté**), enregistrement société (si société), n° fiscal (TIN), **passeport/CNI** du signataire (+ associés ≥10 %). Validation = underwriting (délai non publié, ~jours à 2 sem. selon avis tiers).
+
+### NOWPayments — comment ça marche (vérifié live)
+**Flux** : ton backend crée un paiement/facture → NOWPayments génère **une adresse crypto unique + le montant** → le client paie → NOWPayments **surveille la blockchain** → t'envoie un **webhook (IPN)** à chaque changement de statut → quand statut = **`finished`**, tu débloques l'abonnement.
+- **2 modes** : **facture hébergée** (`POST /v1/invoice` → tu rediriges vers `invoice_url`, **le plus simple**) ou **API paiement** (`POST /v1/payment`, UI maison).
+- **API REST** : base `https://api.nowpayments.io/v1/`, auth par header **`x-api-key`**, **sandbox** dispo. Endpoints clés : `/payment`, `/invoice`, `/payment/{id}`, `/currencies`, `/estimate`, `/min-amount`.
+- **✅ Webhooks (IPN) = OUI** : POST JSON vers ta callback URL, header **`x-nowpayments-sig`** à vérifier (**HMAC-SHA512**, clés JSON triées récursivement + `JSON.stringify`, avec l'**IPN secret**). Statuts : `waiting → confirming → confirmed → sending → finished` (+ `partially_paid`/`failed`/`expired`). **Débloquer uniquement sur `finished`**, handler **idempotent** (clé = `payment_id`/`order_id`).
+- **Pratique** : non-custodial par défaut ; coins 300+ dont **USDT-TRC20** (privilégier pour petits montants/frais bas), BTC, Lightning ; frais **0,5 %** (1 % avec conversion) ; **min par paire** (vérifier `/min-amount` — les plans à 3,49 $ peuvent être sous le min BTC) ; crypto-only = pas de KYC, fiat = KYC ; **sert la RU** (mais prudence sanctions sur le payout fiat → confirmer avec eux).
+- **Récurrent** : existe mais **par lien email** (pas de prélèvement auto comme une carte) → pour un renouvellement in-app, faire **un paiement ponctuel par cycle**.
+
+Sources : [API](https://nowpayments.zendesk.com/hc/en-us/articles/21345824322717-API-and-endpoint-description) · [IPN setup](https://nowpayments.zendesk.com/hc/en-us/articles/21395546303389-IPN-and-how-to-setup) · [pricing](https://nowpayments.io/pricing).
