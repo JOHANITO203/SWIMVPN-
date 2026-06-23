@@ -1,6 +1,6 @@
 # Design — Bot stock → intelligence proactive (additif)
 
-> Statut : **DESIGN, à valider avant implémentation** (flow backlog P0). Lecture seule + alertes.
+> Statut : **IMPLÉMENTÉ + vérifié + mergé main (`da0cfe9`)** — déploiement backend manuel en attente. Lecture seule + alertes.
 > Aucun changement paiement / entitlement / sécurité. Auto-pause des ventes = **GATE** (non inclus).
 
 ## Context
