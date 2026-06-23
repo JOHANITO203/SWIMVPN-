@@ -339,6 +339,7 @@ services:
       ADMIN_SERVICE_HOST: admin-control-service
       VPN_CONFIG_SERVICE_HOST: vpn-config-engine-service
       STORE_SERVICE_HOST: store-engine-service
+      NOTIFICATION_SERVICE_HOST: notification-bot-service
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       ADMIN_CHAT_ID: ${ADMIN_CHAT_ID:?ADMIN_CHAT_ID is required}
