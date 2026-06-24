@@ -3,6 +3,13 @@
 > **Date** : 2026-06-23 · **Statut** : doc de décision (P0 backlog).
 > **Honnêteté** : structure et faits stables = solides ; **les chiffres exacts de frais et les politiques "VPN accepté ?" évoluent vite**. Aucune optimisation d'évitement KYC/AML (interdit, voir BACKLOG WON'T DO).
 > **✅ Mise à jour 2026-06-23** : vérifications live effectuées (sources web) — voir **§9** (corrections majeures : Paddle VPN-restreint, 2Checkout = lead, Cryptomus à éviter, Coinbase Commerce hors-jeu, QIWI mort, blocage entité XOF, éco Telegram Stars).
+>
+> ## 🔴 BANDEAU DE COHÉRENCE (lis ça d'abord — opérateur établi en CÔTE D'IVOIRE)
+> Les §2/§8/§9/§10 recommandent **2Checkout** — **mais §11 (vérifié après) montre que 2Checkout EXCLUT les marchands ivoiriens.** Donc, pour SWIMVPN **opéré depuis la CI** :
+> - ❌ **2Checkout** = inaccessible **tant qu'il n'y a pas d'entité hors-CI** (ex. UK Ltd → là 2Checkout redevient valable + accepte le VPN). La reco « 2Checkout = lead » des sections suivantes vaut **uniquement sous entité étrangère.**
+> - ❌ **Paddle** = exclu pour le VPN (catégorie restreinte) — *Paddle reste OK pour les **SaaS génériques**, autre sujet, cf. `2026-06-23-incorporation-for-card-payments.md`*.
+> - ✅ **Rails SWIMVPN réels pour un opérateur CI sans entité étrangère** : **crypto (BTCPay + NOWPayments)** + **SwimPay (RU/CIS)** + **CinetPay / PayDunya (mobile money XOF — DÉBLOQUÉS parce que tu ES en CI**, ce qui invalide le « blocage entité XOF » du §9 pour ton cas). Cartes monde = seulement via entité étrangère.
+> → **La reco de référence à jour est la §11 + la §12 (action).** Les §8/§9/§10 restent pour l'historique du raisonnement.
 
 ## 0. Contexte SWIMVPN (ce qui contraint le choix)
 - **VPN = catégorie marchande "high-risk"** (MCC anonymisation/digital goods) → beaucoup de PSP grand public **interdisent ou restreignent**.
@@ -111,7 +118,7 @@ Corrections/confirmations qui changent la reco :
 **Telegram Stars :** payout **0,013 $/Star** (~13 $/1000), **rétention 21 j**, retrait **via Fragment → TON** uniquement (pas de banque directe), **~30 % Apple/Google sur mobile** (~32 % all-in vers fiat ; ~6-16 % si achat desktop), **données = identité Telegram seule** (pas d'email → corrélation faible, **confirme la décision d'abandon de Tribute**). VPN non interdit mais zone de jugement. [Stars API](https://core.telegram.org/bots/payments-stars) **(CONFIRMÉ)**
 
 ### Impact sur la reco
-- **MoR de tête = 2Checkout/Verifone** (VPN non interdit + tarif confirmés), pas Paddle (VPN restreint). PayPro Global/FastSpring = à demander en devis.
+- **MoR de tête = 2Checkout/Verifone** (VPN non interdit + tarif confirmés), pas Paddle (VPN restreint). PayPro Global/FastSpring = à demander en devis. **⚠️ MAIS 2Checkout EXCLUT la Côte d'Ivoire (§11) → valable seulement sous une entité hors-CI (UK Ltd). Opérateur CI = passer aux rails crypto + CinetPay/PayDunya.**
 - **Crypto : BTCPay + NOWPayments** (NOWPayments sert la RU, non-custodial) ; **CoinGate** seulement si cible hors-RU ; **Cryptomus à éviter** (AML) ; **Coinbase Commerce hors-jeu** si non US/SG.
 - **XOF différé** sauf si entité régionale réaliste → s'appuyer sur le MoR pour les cartes.
 - **Telegram Stars** : ~32 % de perte mobile + corrélation faible → marginal, non prioritaire.
@@ -122,6 +129,8 @@ Tarifs exacts PayPro Global / FastSpring / CinetPay / PayDunya (non publics ou 4
 ---
 
 ## 10. Action — 2Checkout/Verifone (à contacter) + NOWPayments (intégration)
+
+> ⚠️ **Cette section 2Checkout ne vaut que sous une entité hors-CI** (UK Ltd…). **2Checkout exclut un marchand ivoirien** (§11). Opérateur CI sans entité étrangère → ignorer le bloc 2Checkout ci-dessous et garder **NOWPayments/BTCPay + CinetPay/PayDunya**.
 
 ### 2Checkout/Verifone — vérifié live 2026-06-23
 **Moyens de paiement acceptés (côté client)** : **45+ moyens, 100 devises, 190+ pays**.
