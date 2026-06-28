@@ -41,6 +41,21 @@ object TunnelRuntimeAdapter {
         .setPrettyPrinting()
         .create()
 
+    // Pre-resolved server IPv4 cache + bounded lookup. The system DNS lookup (getAllByName) is BLOCKING
+    // and unbounded — on a slow/censored network it can hang for many seconds, and it was re-run on
+    // EVERY (re)connect on the connect critical path. The cache lets reconnects within a session reuse
+    // the resolved IP (direct win for the "find the tunnel back" case); the timeout caps a pathological
+    // hang while still leaving a working-but-slow resolver room. On timeout/failure the host is left as
+    // a domain (xray falls back to its own DNS), exactly as the prior best-effort behavior — semantics
+    // preserved, only bounded and cached.
+    private const val DNS_CACHE_TTL_MS = 5 * 60 * 1000L
+    private const val DNS_RESOLVE_TIMEOUT_MS = 4_000L
+    private data class ResolvedHost(val ip: String, val resolvedAtMs: Long)
+    private val dnsCache = java.util.concurrent.ConcurrentHashMap<String, ResolvedHost>()
+    private val dnsResolverExecutor = java.util.concurrent.Executors.newCachedThreadPool { runnable ->
+        Thread(runnable, "swim-dns-resolver").apply { isDaemon = true }
+    }
+
     data class RuntimePorts(
         val socksPort: Int = DEFAULT_SOCKS_PORT,
         val httpPort: Int = DEFAULT_HTTP_PORT,
@@ -197,13 +212,30 @@ object TunnelRuntimeAdapter {
     private fun isIpLiteral(host: String): Boolean =
         host.contains(":") || host.matches(Regex("^\\d{1,3}(\\.\\d{1,3}){3}$"))
 
-    private fun resolveIpv4(host: String): String? = try {
-        java.net.InetAddress.getAllByName(host)
-            .firstOrNull { it is java.net.Inet4Address }
-            ?.hostAddress
-    } catch (e: Exception) {
-        Log.w(TAG, "Pre-resolve failed for host (leaving domain): $host", e)
-        null
+    private fun resolveIpv4(host: String): String? {
+        val now = System.currentTimeMillis()
+        dnsCache[host]?.let { cached ->
+            if (now - cached.resolvedAtMs < DNS_CACHE_TTL_MS) return cached.ip
+        }
+        val ip = try {
+            val future = dnsResolverExecutor.submit(java.util.concurrent.Callable {
+                java.net.InetAddress.getAllByName(host)
+                    .firstOrNull { it is java.net.Inet4Address }
+                    ?.hostAddress
+            })
+            try {
+                future.get(DNS_RESOLVE_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+            } catch (timeout: java.util.concurrent.TimeoutException) {
+                future.cancel(true)
+                Log.w(TAG, "Pre-resolve timed out after ${DNS_RESOLVE_TIMEOUT_MS}ms (leaving domain): $host")
+                null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Pre-resolve failed for host (leaving domain): $host", e)
+            null
+        }
+        if (ip != null) dnsCache[host] = ResolvedHost(ip, now)
+        return ip
     }
 
     /**
