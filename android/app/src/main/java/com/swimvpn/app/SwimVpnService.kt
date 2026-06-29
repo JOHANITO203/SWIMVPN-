@@ -83,6 +83,9 @@ class SwimVpnService : VpnService() {
     private var notificationLanguage = VpnNotificationLanguage.DEFAULT_LANGUAGE
     private var reconnectAttempt = 0
     private var sessionStartedAt: Long? = null
+    // Connect-path latency instrumentation: timestamp (ms) when the current connect attempt began.
+    // Used ONLY by logPerfStage() to log elapsed-per-stage. Measurement only — no behavior depends on it.
+    private var connectStartedAtMs: Long = 0L
     private var stoppedByUser = false
     // OEM hardening: when a FULL_TUNNEL data-plane failure (establish()/tun2socks) occurs on a
     // device where the tunnel cannot run, we degrade once to LOCAL_PROXY so the user keeps working
@@ -436,6 +439,10 @@ class SwimVpnService : VpnService() {
             return
         }
 
+        // Latency instrumentation: mark t0 for this connect attempt (measurement only).
+        connectStartedAtMs = System.currentTimeMillis()
+        logPerfStage("connect_start")
+
         // A fresh connect attempt supersedes any pending one-shot
         // network-availability retry (R2): cancel it so it cannot double-fire.
         cancelPendingConnectOnUsableNetwork("connect_started")
@@ -525,6 +532,8 @@ class SwimVpnService : VpnService() {
                         )
                     }
                 } ?: throw IllegalStateException("Missing runtime config for VPN session")
+
+                logPerfStage("config_prepared")
 
                 when (requestedMode) {
                     // LOCAL_PROXY is retired (B1/B2): it never routed device traffic (no VpnService
@@ -621,6 +630,7 @@ class SwimVpnService : VpnService() {
             failurePrefix = "Xray tunnel runtime exited before tun2socks could be armed",
         )
         logRuntimeEvent("engine_started", mapOf("mode" to RuntimeMode.FULL_TUNNEL.name))
+        logPerfStage("xray_alive")
 
         val builder = Builder()
             // Neutral session name only. The per-profile displayName is derived from the config
@@ -672,6 +682,7 @@ class SwimVpnService : VpnService() {
         // FAILED state instead. -1 indicates a closed/invalid descriptor.
         val tunFd = vpnInterface?.fd?.takeIf { it >= 0 }
             ?: throw IllegalStateException("VPN interface fd is unavailable or invalid")
+        logPerfStage("tun_established")
         val tun2SocksLaunchSpec = Tun2SocksLaunchSpec(
             deviceArgument = "android-vpn",
             proxyUrl = "socks5://127.0.0.1:${runtime.ports.socksPort}",
@@ -746,6 +757,7 @@ class SwimVpnService : VpnService() {
             )
         }
 
+        logPerfStage("tun2socks_active")
         VpnManager.markStarted()
         awaitStartupHealthProof(
             mode = RuntimeMode.FULL_TUNNEL,
@@ -756,6 +768,7 @@ class SwimVpnService : VpnService() {
         )
         VpnManager.markHandshake()
         updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.FULL_TUNNEL)
+        logPerfStage("running")
         reconnectAttempt = 0
         VpnManager.markHealthyRuntimeSession(
             reconnectCount = reconnectAttempt,
@@ -1202,7 +1215,27 @@ class SwimVpnService : VpnService() {
         serverHost: String,
         serverPort: Int,
     ) {
-        delay(STARTUP_HEALTH_PROOF_DELAY_MS)
+        // PERF — early-proof on VALIDATED networks only. Instead of a flat STARTUP_HEALTH_PROOF_DELAY_MS
+        // warmup before a single probe pass, attempt the real traffic probe immediately: connect()
+        // returns the instant the REALITY outbound is ready, so a warmed server connects ~1 s sooner.
+        // On success we return (same proof — a false success is impossible). On failure we fall through
+        // to the UNCHANGED proof below. The fragile unvalidated/4G cold-start path keeps its EXACT
+        // original warmup (untouched), and the 600 ms/200 ms engine gates are intact — so this cannot
+        // regress like the reverted P1 (which removed those gates and probed before the outbound existed).
+        if (!startedOnUnvalidatedNetwork) {
+            val earlyXrayId = activeXraySessionId
+            val earlyXrayAlive = earlyXrayId != null && xrayBridge.snapshot(earlyXrayId)?.isAlive == true
+            val earlyTun2SocksAlive = activeTun2SocksContract != null && activeTun2SocksJob?.isActive == true
+            if (earlyXrayAlive && (!requireTun2Socks || earlyTun2SocksAlive) &&
+                probeTrafficThroughProxy(socksPort, serverHost, serverPort, attempts = 1, retryDelayMs = 0L)
+            ) {
+                logPerfStage("probe_ok_early")
+                return
+            }
+        } else {
+            delay(STARTUP_HEALTH_PROOF_DELAY_MS)
+        }
+        logPerfStage("probe_start")
 
         val xraySessionId = activeXraySessionId
         val xraySnapshot = xraySessionId?.let { xrayBridge.snapshot(it) }
@@ -1909,6 +1942,15 @@ class SwimVpnService : VpnService() {
         val redacted = details.mapValues { (_, value) -> redactForLog(value) }
         Log.i("SwimVpnService", "$event $redacted")
         AdaptiveEventLogger.log(event = event, details = redacted)
+    }
+
+    // Additive latency instrumentation: logs the ms elapsed since the connect attempt started for a
+    // named stage on the critical path, so on-device logcat shows exactly where connect time goes.
+    // PURE LOGGING — changes no timing, gate, or control flow.
+    private fun logPerfStage(stage: String) {
+        val base = connectStartedAtMs
+        val elapsed = if (base > 0L) System.currentTimeMillis() - base else -1L
+        logRuntimeEvent("perf_stage", mapOf("stage" to stage, "elapsedMs" to elapsed.toString()))
     }
 
     private fun logBatteryOptimizationState() {
