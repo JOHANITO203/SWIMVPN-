@@ -33,7 +33,6 @@ import com.swimvpn.app.runtime.Tun2SocksLaunchSpec
 import com.swimvpn.app.runtime.Tun2SocksNativeBridge
 import com.swimvpn.app.runtime.Tun2SocksNativeBridgeContract
 import com.swimvpn.app.runtime.Tun2SocksRuntimeFilePreparer
-import com.swimvpn.app.runtime.RunningXrayProcess
 import com.swimvpn.app.runtime.XrayProcessBridge
 import com.swimvpn.app.vpn.DisconnectCause
 import com.swimvpn.app.vpn.QuotaCutoffPolicy
@@ -153,17 +152,7 @@ class SwimVpnService : VpnService() {
         private const val MAX_SERVICE_RECONNECT_ATTEMPTS = 5
         // A dead BYO residential proxy won't self-heal via retry → give up fast + tell the user.
         private const val MAX_BYO_PROXY_RECONNECT_ATTEMPTS = 2
-        // Adaptive startup gates (poll-until-proven, NOT flat sleeps): each value is a MAX budget. A
-        // healthy engine is confirmed in a fraction of it (early-exit), while the worst case AND every
-        // downstream proof are unchanged. Replaces the former fixed delay(600)+delay(200)+delay(1000)
-        // that always ran in full on the connect path even when the engine was ready in ~150 ms.
-        private const val XRAY_READY_BUDGET_MS = 600L
-        private const val TUN2SOCKS_READY_BUDGET_MS = 200L
-        private const val STARTUP_HEALTH_PROOF_BUDGET_MS = 1_000L
-        private const val STARTUP_GATE_POLL_STEP_MS = 50L
-        // Brief window to observe an immediate native-bridge failure before trusting "active".
-        private const val TUN2SOCKS_MIN_CONFIRM_MS = 100L
-        private const val LOCAL_PORT_PROBE_TIMEOUT_MS = 100
+        private const val STARTUP_HEALTH_PROOF_DELAY_MS = 1_000L
         private const val LIVENESS_POLL_INTERVAL_MS = 500L
         private const val TRAFFIC_PROBE_TIMEOUT_MS = 1_200
         private const val TRAFFIC_PROBE_RETRY_DELAY_MS = 300L
@@ -735,9 +724,10 @@ class SwimVpnService : VpnService() {
                     }
                 }
                 activeTun2SocksJob = tunnelJob
-                // Poll-until-active instead of a flat 200 ms wait: confirm the native bridge survived a
-                // brief settle (or fail fast if it died), capped at TUN2SOCKS_READY_BUDGET_MS.
-                nativeBridgeStarted = awaitNativeBridgeActive(tunnelJob, TUN2SOCKS_READY_BUDGET_MS)
+                delay(200)
+                if (tunnelJob.isActive) {
+                    nativeBridgeStarted = true
+                }
                 Log.i(
                     "SwimVpnService",
                     "Started tun2socks native bridge for ${preparedRuntime.sharedLibraryName} fd=${nativeContract.tunFd}",
@@ -1170,46 +1160,6 @@ class SwimVpnService : VpnService() {
         super.onTaskRemoved(rootIntent)
     }
 
-    // Waits until Xray's SOCKS inbound is accepting local connections (ready) or the process exits,
-    // capped at [budgetMs]. A bare TCP connect to 127.0.0.1:socksPort succeeds as soon as Xray is
-    // listening (before any SOCKS handshake) — a real readiness signal, not a blind sleep. Returns
-    // early on process death so the caller's liveness check fails fast. localhost = no protect() needed.
-    private suspend fun awaitXrayListening(
-        running: RunningXrayProcess,
-        socksPort: Int,
-        budgetMs: Long,
-    ) {
-        var waited = 0L
-        while (waited < budgetMs) {
-            if (!running.snapshot().isAlive) return
-            if (isLocalPortOpen(socksPort)) return
-            delay(STARTUP_GATE_POLL_STEP_MS)
-            waited += STARTUP_GATE_POLL_STEP_MS
-        }
-    }
-
-    // Confirms the tun2socks native-bridge job stayed up past a brief settle window, capped at
-    // [budgetMs]. Returns false immediately if the job died (fail fast), true once it has been
-    // observed active past TUN2SOCKS_MIN_CONFIRM_MS instead of always waiting the full budget.
-    private suspend fun awaitNativeBridgeActive(job: Job, budgetMs: Long): Boolean {
-        var waited = 0L
-        while (waited < budgetMs) {
-            delay(STARTUP_GATE_POLL_STEP_MS)
-            waited += STARTUP_GATE_POLL_STEP_MS
-            if (!job.isActive) return false
-            if (waited >= TUN2SOCKS_MIN_CONFIRM_MS) return true
-        }
-        return job.isActive
-    }
-
-    // True when a local TCP connection to 127.0.0.1:[port] establishes within the probe timeout.
-    private fun isLocalPortOpen(port: Int): Boolean = runCatching {
-        java.net.Socket().use { socket ->
-            socket.connect(java.net.InetSocketAddress("127.0.0.1", port), LOCAL_PORT_PROBE_TIMEOUT_MS)
-            true
-        }
-    }.getOrDefault(false)
-
     private suspend fun startValidatedXrayRuntime(
         runtime: TunnelRuntimeAdapter.RuntimePreparationResult,
         failurePrefix: String,
@@ -1224,11 +1174,7 @@ class SwimVpnService : VpnService() {
         )
 
         VpnManager.markStarted()
-        // Poll-until-ready instead of a flat 600 ms sleep: return as soon as the SOCKS inbound accepts
-        // a local TCP connection (Xray is up and listening) or the process exits early (crash, caught by
-        // the liveness check below); otherwise wait out the same XRAY_READY_BUDGET_MS cap. A healthy
-        // engine is confirmed in ~100 ms instead of always 600 ms. No proof is weakened.
-        awaitXrayListening(running, runtime.ports.socksPort, XRAY_READY_BUDGET_MS)
+        delay(600)
 
         val snapshot = running.snapshot()
         if (!snapshot.isAlive) {
@@ -1256,18 +1202,7 @@ class SwimVpnService : VpnService() {
         serverHost: String,
         serverPort: Int,
     ) {
-        // Poll-until-live instead of a flat 1 s settle: proceed to the traffic probe as soon as the
-        // engine (Xray + tun2socks when required) is confirmed alive, capped at STARTUP_HEALTH_PROOF_BUDGET_MS.
-        // The probe below remains the real proof of traffic — only the dead pre-probe wait is removed.
-        var healthProofWaited = 0L
-        while (healthProofWaited < STARTUP_HEALTH_PROOF_BUDGET_MS) {
-            val xId = activeXraySessionId
-            val xAlive = xId != null && xrayBridge.snapshot(xId)?.isAlive == true
-            val t2sAlive = activeTun2SocksContract != null && activeTun2SocksJob?.isActive == true
-            if (xAlive && (!requireTun2Socks || t2sAlive)) break
-            delay(STARTUP_GATE_POLL_STEP_MS)
-            healthProofWaited += STARTUP_GATE_POLL_STEP_MS
-        }
+        delay(STARTUP_HEALTH_PROOF_DELAY_MS)
 
         val xraySessionId = activeXraySessionId
         val xraySnapshot = xraySessionId?.let { xrayBridge.snapshot(it) }
