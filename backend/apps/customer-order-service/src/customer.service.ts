@@ -36,6 +36,7 @@ import {
   shouldAbandonSwimPayOrder,
 } from './swimpay-reconciliation.policy';
 import { resolveSoldQuotaGb } from './entitlement-policy';
+import { shouldBlockSaleForStock } from './sale-stock-gate.policy';
 
 @Injectable()
 export class CustomerService implements OnModuleInit, OnModuleDestroy {
@@ -1527,6 +1528,26 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
 
     if (!plan || !plan.active) {
       this.fail('Plan not found or inactive');
+    }
+
+    // SALE GATE — never take payment for a plan we cannot deliver. Confirms allocatable inventory for
+    // this plan's category BEFORE creating the order (the bug was: stock was only consulted at
+    // fulfillment, AFTER payment → paid-but-undeliverable orders). Fail-CLOSED on a confirmed zero
+    // (block the sale); fail-OPEN only if the inventory service is unreachable, relying on the existing
+    // PENDING_FULFILLMENT auto-retry as the safety net rather than blocking all sales on a transient hiccup.
+    let stockAvailability: { available: number } | null = null;
+    try {
+      stockAvailability = await firstValueFrom(
+        this.inventoryClient.send({ cmd: 'check_category_availability' }, { category: plan.code }),
+      );
+    } catch (error) {
+      console.warn(
+        `[stock-gate] availability check failed for ${plan.code}; allowing checkout (auto-retry safety net)`,
+        error,
+      );
+    }
+    if (stockAvailability && shouldBlockSaleForStock(stockAvailability.available)) {
+      this.fail('Ce plan est momentanément indisponible (stock épuisé). Réessayez bientôt.');
     }
 
     const normalizedEmail = data.email?.trim().toLowerCase() || undefined;
