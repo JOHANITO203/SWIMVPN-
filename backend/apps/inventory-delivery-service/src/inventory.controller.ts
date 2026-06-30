@@ -7,6 +7,7 @@ import {
   FulfillOrderDto,
   RecordUsageDto,
 } from '@app/contracts/inventory.dto';
+import { PlanCategory } from '@prisma/client';
 
 @Controller()
 export class InventoryController {
@@ -57,6 +58,12 @@ export class InventoryController {
   @MessagePattern({ cmd: 'get_inventory_stats' })
   async getInventoryStats() {
     return this.inventoryService.getInventoryStats();
+  }
+
+  // Sale gate: how many configs are still allocatable for a paid order of this category.
+  @MessagePattern({ cmd: 'check_category_availability' })
+  async checkCategoryAvailability(@Payload() data: { category: PlanCategory }) {
+    return this.inventoryService.getCategoryAvailability(data.category);
   }
 
   @MessagePattern({ cmd: 'clear_available_configs' })

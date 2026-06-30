@@ -1667,8 +1667,8 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  /** Count healthy, still-allocatable configs for a category (one free resale slot, source not exhausted). */
-  private async countAllocatable(category: PlanCategory): Promise<number> {
+  /** Count healthy, still-allocatable configs for a category (enough free resale slots, source not exhausted). */
+  private async countAllocatable(category: PlanCategory, requiredSlots = 1): Promise<number> {
     const items = await this.prisma.inventoryItem.findMany({
       where: { category, health_status: InventoryHealthStatus.HEALTHY },
     });
@@ -1678,9 +1678,23 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           healthStatus: item.health_status,
           usedResaleSlots: item.used_resale_slots,
           maxResaleSlots: item.max_resale_slots,
-          requiredSlots: 1,
+          requiredSlots,
         }) && !this.isSourceExhausted(item.source_quota_bytes, item.source_used_bytes),
     ).length;
+  }
+
+  /**
+   * Sale-gate availability check: how many configs can still be allocated for a PAID order of this
+   * category, using the SAME allocatable logic as fulfillment + stock intelligence (healthy, enough
+   * free resale slots, source not exhausted) and the plan's REAL required slots. Called by the
+   * customer service BEFORE taking payment so we never sell a plan we cannot deliver.
+   */
+  async getCategoryAvailability(
+    category: PlanCategory,
+  ): Promise<{ category: PlanCategory; available: number; requiredSlots: number }> {
+    const requiredSlots = this.getRequiredSlots(category, false);
+    const available = await this.countAllocatable(category, requiredSlots);
+    return { category, available, requiredSlots };
   }
 
   private async checkStockAndNotify(category: PlanCategory) {
