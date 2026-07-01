@@ -107,6 +107,7 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'delete_trial', description: 'Delete a trial config' },
   { command: 'superdelete', description: 'FORCE delete item & revoke user access' },
   { command: 'healthcheck', description: 'Run inventory health check' },
+  { command: 'backfill_expiries', description: 'Backfill expiry on existing stock, then purge expired' },
   { command: 'cancel_import', description: 'Cancel guided config import' },
   { command: 'users', description: 'Show customer statistics' },
 ];

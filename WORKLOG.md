@@ -1,3 +1,9 @@
+# === STATUS — 2026-07-02 (commande Telegram /backfill_expiries) ===
+
+**Shippé sur `main`** : commande admin Telegram **`/backfill_expiries`** (admin-bot.service + entrée menu ADMIN_BOT_COMMANDS) → appelle `backfill_supplier_expiries` sur inventory-delivery et répond avec les compteurs (scannés/renseignés/expirés/purgés/sans-date). Protégée par le middleware admin existant. Lot de 100/passe (re-lançable). Permet à l'opérateur de dater + purger le stock existant en un tap depuis le bot. Vérif : `tsc` 0, specs menu vertes.
+
+---
+
 # === STATUS — 2026-07-01 (prix +25% + 3 appareils par offre) ===
 
 **Même branche `refactor/stock-one-config-one-client`** (partage `plan-policy.ts` + `supplier-capacity.policy.spec` avec le travail stock → gardé ensemble pour éviter les conflits ; les prix partiront au deploy AVEC le reste de la branche — à noter si les prix doivent partir avant la validation stock, il faudra cherry-pick).

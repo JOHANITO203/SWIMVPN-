@@ -232,6 +232,31 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
+    this.bot.command('backfill_expiries', async (ctx) => {
+      await ctx.reply('⏳ Backfill des dates d\'expiration du stock existant… (re-parse des configs, ça peut prendre un moment)');
+      try {
+        const r = await firstValueFrom(
+          this.inventoryClient.send({ cmd: 'backfill_supplier_expiries' }, {}),
+        );
+        await ctx.reply(
+          [
+            '🗓️ *Backfill expiration — terminé*',
+            `Scannés : ${r?.scanned ?? 0}`,
+            `Dates renseignées : ${r?.updated ?? 0}`,
+            `Déjà expirés : ${r?.expiredNow ?? 0}`,
+            `Purgés (invendus) : ${r?.purgedDeleted ?? 0}`,
+            `Sans date (liens bruts, à traiter à la main) : ${r?.unresolved ?? 0}`,
+            '',
+            '_Relance la commande s\'il restait des configs à traiter (lot de 100 par passe)._',
+          ].join('\n'),
+          { parse_mode: 'Markdown' },
+        );
+      } catch (error) {
+        this.logger.error('Backfill supplier expiries failed', error as Error);
+        await ctx.reply('Backfill impossible. Voir les logs du service inventory.');
+      }
+    });
+
     this.bot.command('users', async (ctx) => {
       await this.replyUsersStats(ctx);
     });
