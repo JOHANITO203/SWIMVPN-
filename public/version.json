@@ -1,0 +1,12 @@
+{
+  "latestVersionCode": 13,
+  "versionName": "1.0.12",
+  "apkUrl": "https://app.swimvpn.pro/downloads/swimvpn.apk",
+  "sha256": "1470c3c7d267877d3d2813d99756385d57ef1c8fb608bd5d98ccb73e834a72de",
+  "minSupportedCode": 1,
+  "changelog": {
+    "ru": "Подключение ~50% быстрее на посадочной.",
+    "fr": "Connexion ~50 % plus rapide.",
+    "en": "~50% faster connection."
+  }
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_available_title">Mise à jour disponible</string>
+    <string name="update_available_message">SWIMVPN %1$s est prêt à installer.</string>
+    <string name="update_action_now">Mettre à jour</string>
+    <string name="update_action_later">Plus tard</string>
+    <string name="update_required_title">Mise à jour requise</string>
+    <string name="update_required_message">Cette version n\'est plus prise en charge. Mettez à jour pour continuer.</string>
+    <string name="update_download_failed">Échec du téléchargement. Vérifiez la connexion puis réessayez.</string>
+    <string name="update_verify_failed">La vérification de la mise à jour a échoué — installation annulée.</string>
+    <string name="update_permission_needed">Autorisez l\'installation depuis SWIMVPN dans le réglage ouvert, puis réessayez.</string>
+</resources>

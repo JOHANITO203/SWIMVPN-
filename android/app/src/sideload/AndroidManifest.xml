@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fusionné UNIQUEMENT dans le flavor `sideload` : le build Play ne doit contenir ni la
+     permission d'installation ni le FileProvider de l'APK téléchargé (interdits par Google Play). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application>
+        <!-- Expose l'APK téléchargé (files/update/) à l'installeur système en content:// -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updateprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_file_paths" />
+        </provider>
+    </application>
+</manifest>

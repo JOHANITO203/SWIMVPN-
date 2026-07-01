@@ -1,3 +1,16 @@
+# === STATUS — 2026-07-02 (auto-update sideload — branche feat/auto-update, GATE DEVICE avant merge) ===
+
+**Sur branche `feat/auto-update` (worktree isolé — PAS mergée)** : implémentation complète du design `docs/superpowers/specs/2026-06-14-auto-update-design.md` (approuvé user 2026-07-02).
+
+- **Logique pure (TDD)** : `update/UpdateManifestCodec` (parse tolérant de version.json, null-sur-garbage, HTTPS-only) + `update/UpdatePolicy` (UpToDate/Optional/Mandatory, plancher `minSupportedCode` défensif si mal généré) + 15 tests unitaires verts.
+- **Flavors `distribution`** : `sideload` (défaut public, `AUTO_UPDATE_ENABLED=true`) / `play` (feature ABSENTE — vérifié sur manifests fusionnés : permission+provider présents en sideload, 0 occurrence en play). ⚠️ **Recette de build changée** : `assembleSideloadRelease`, sortie `apk/sideload/release/`.
+- **Android (src/sideload/)** : `UpdateChecker` (fetch `https://app.swimvpn.pro/version.json`, throttle 24 h stampé seulement sur fetch réussi, échec réseau = no-op silencieux), `ApkInstaller` (DownloadManager → **SHA-256 vérifié avant install** → dialog système via FileProvider ; gestion « sources inconnues »), `UpdateGate` composable (dialog optionnel avec dismiss mémorisé par versionCode + écran bloquant mandatory) branché dans MainActivity autour d'AppNavigation. Stub no-op dans src/play/. Strings ×4 (fr défaut/en/ru/fr).
+- **Landing** : `public/version.json` (code 13/v1.0.12, sha256 de l'APK servi — les installs à jour voient UpToDate, personne n'est nagué avant la prochaine release) + `scripts/generate-version-manifest.mjs` (source de vérité build.gradle + hash APK ; à lancer À CHAQUE release après dépôt de l'APK).
+- **Vérif** : testSideloadDebugUnitTest verts · compileSideloadDebugKotlin + compilePlayDebugKotlin verts · manifests fusionnés vérifiés. Build machine 8 Go : daemons stoppés + `--no-daemon -Dorg.gradle.jvmargs=-Xmx1536m -Dkotlin.compiler.execution.strategy=in-process` (OOM natif sinon).
+- **GATE DEVICE (user, avant merge)** : cycle réel sur S23+ — manifest de test avec code 14 → banner → tap → download → SHA ok → dialog système → build installé ; chemin mandatory (minSupported>courant) → écran bloquant ; réseau coupé → zéro nag. Rappel : la flotte installée actuelle (≤1.0.12) devra sideloader UNE dernière fois à la main — l'auto-update ne bénéficie qu'aux builds qui l'embarquent.
+
+---
+
 # === STATUS — 2026-07-02 (commande Telegram /backfill_expiries) ===
 
 **Shippé sur `main`** : commande admin Telegram **`/backfill_expiries`** (admin-bot.service + entrée menu ADMIN_BOT_COMMANDS) → appelle `backfill_supplier_expiries` sur inventory-delivery et répond avec les compteurs (scannés/renseignés/expirés/purgés/sans-date). Protégée par le middleware admin existant. Lot de 100/passe (re-lançable). Permet à l'opérateur de dater + purger le stock existant en un tap depuis le bot. Vérif : `tsc` 0, specs menu vertes.

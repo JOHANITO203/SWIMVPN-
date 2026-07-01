@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chemin du FileProvider de l'updater : uniquement le sous-dossier des APK téléchargés
+     (getExternalFilesDir — c'est là que DownloadManager peut écrire pour l'app). -->
+<paths>
+    <external-files-path name="update" path="update/" />
+</paths>

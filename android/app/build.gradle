@@ -183,6 +183,24 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    // Distribution split (design docs/superpowers/specs/2026-06-14-auto-update-design.md §2) :
+    // `sideload` = build public actuel (APK landing/GitHub) AVEC l'auto-update in-app ;
+    // `play` = futur build Play Store SANS la feature (Google interdit REQUEST_INSTALL_PACKAGES
+    // et le code d'auto-install ; le code installeur vit dans src/sideload/, stub dans src/play/).
+    // NB build : les tâches deviennent assembleSideloadRelease / apk/sideload/release/.
+    flavorDimensions "distribution"
+    productFlavors {
+        sideload {
+            dimension "distribution"
+            buildConfigField "boolean", "AUTO_UPDATE_ENABLED", "true"
+            buildConfigField "String", "UPDATE_MANIFEST_URL", "\"https://app.swimvpn.pro/version.json\""
+        }
+        play {
+            dimension "distribution"
+            buildConfigField "boolean", "AUTO_UPDATE_ENABLED", "false"
+            buildConfigField "String", "UPDATE_MANIFEST_URL", "\"\""
+        }
+    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
