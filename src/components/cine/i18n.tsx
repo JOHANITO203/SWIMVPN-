@@ -6,8 +6,16 @@ export const CINE_LOCALE_LABEL: Record<CineLocale, string> = { fr: 'FR', en: 'EN
 
 export type CineStrings = {
   langName: string;
-  nav: { apercu: string; technologie: string; tarifs: string };
-  hero: { l1: string; l2: string; sub: string; pills: [string, string, string] };
+  nav: { apercu: string; technologie: string; tarifs: string; faq: string };
+  hero: {
+    tagline: string;
+    lines: [string, string, string];
+    sub: string;
+    ctaPrimary: string;
+    ctaSecondary: string;
+    badge: [string, string];
+    stats: { v: string; l: string }[];
+  };
   tech: { eyebrow: string; title: string; lead: string; layers: { h: string; p: string }[]; cta: string };
   tarifs: {
     eyebrow: string;
@@ -23,6 +31,7 @@ export type CineStrings = {
     paiementLabel: string;
     lead: string;
   };
+  faq: { eyebrow: string; title: string; items: { q: string; a: string }[] };
   download: {
     telechargement: string;
     tarifs: string;
@@ -45,12 +54,19 @@ export type CineStrings = {
 
 const FR: CineStrings = {
   langName: 'Français',
-  nav: { apercu: 'Aperçu', technologie: 'Technologie', tarifs: 'Tarifs' },
+  nav: { apercu: 'Aperçu', technologie: 'Technologie', tarifs: 'Tarifs', faq: 'FAQ' },
   hero: {
-    l1: 'Ils voient tout.',
-    l2: 'Sauf vous.',
+    tagline: 'VPN furtif · REALITY',
+    lines: ['Ils voient', 'tout.', 'Sauf vous.'],
     sub: "SWIMVPN fait transiter votre trafic par un nœud externe. REALITY l'habille en HTTPS ordinaire — invisible aux sondes, invisible à votre opérateur.",
-    pills: ['Sans store', 'Sans intermédiaire', 'Zéro log'],
+    ctaPrimary: 'Télécharger',
+    ctaSecondary: 'Voir les tarifs',
+    badge: ['Windows · Android', 'Sans store'],
+    stats: [
+      { v: '0', l: 'log conservé' },
+      { v: '<60 s', l: 'tunnel actif' },
+      { v: '3', l: 'appareils par accès' },
+    ],
   },
   tech: {
     eyebrow: 'Technologie',
@@ -85,6 +101,36 @@ const FR: CineStrings = {
     paiementLabel: 'Paiement',
     lead: "Sans store, sans intermédiaire. Vous choisissez la devise au paiement. Tunnel actif en moins d'une minute.",
   },
+  faq: {
+    eyebrow: 'FAQ',
+    title: 'Questions franches, réponses franches.',
+    items: [
+      {
+        q: 'Comment SWIMVPN passe-t-il là où les VPN classiques sont bloqués ?',
+        a: "Le trafic voyage en VLESS sur le moteur Xray, et REALITY lui donne l'empreinte TLS d'un vrai site web. Pour les systèmes d'inspection profonde (DPI), votre connexion ressemble à une visite HTTPS ordinaire — il n'y a rien d'anormal à bloquer.",
+      },
+      {
+        q: 'Gardez-vous des logs ?',
+        a: "Non. Ni historique de navigation, ni journaux de connexion. Le paiement lui-même peut se faire en crypto, sans identité.",
+      },
+      {
+        q: 'Sur quoi ça tourne ?',
+        a: "Windows 10 / 11 (.exe) et Android 8+ (.apk), téléchargés directement ici — sans passer par un store, donc sans dépendre de sa disponibilité.",
+      },
+      {
+        q: 'Comment je paie ?',
+        a: "SwimPay (RUB, USD ou XOF — vous choisissez la devise au paiement) ou crypto (Bitcoin, USDT). L'accès est actif en moins d'une minute.",
+      },
+      {
+        q: "Combien d'appareils ?",
+        a: 'Chaque accès couvre 3 appareils, quel que soit le plan.',
+      },
+      {
+        q: 'Et si ça ne marche pas chez moi ?',
+        a: "L'agent IA intégré change de serveur automatiquement quand la connexion se dégrade. Si rien n'y fait, la politique de remboursement s'applique — voir la page Remboursement.",
+      },
+    ],
+  },
   download: {
     telechargement: 'Téléchargement',
     tarifs: 'Tarifs',
@@ -107,12 +153,19 @@ const FR: CineStrings = {
 
 const EN: CineStrings = {
   langName: 'English',
-  nav: { apercu: 'Overview', technologie: 'Technology', tarifs: 'Pricing' },
+  nav: { apercu: 'Overview', technologie: 'Technology', tarifs: 'Pricing', faq: 'FAQ' },
   hero: {
-    l1: 'They see it all.',
-    l2: 'Except you.',
+    tagline: 'Stealth VPN · REALITY',
+    lines: ['They see', 'it all.', 'Except you.'],
     sub: 'SWIMVPN routes your traffic through an external node. REALITY dresses it as ordinary HTTPS — invisible to probes, invisible to your carrier.',
-    pills: ['No store', 'No middleman', 'Zero logs'],
+    ctaPrimary: 'Download',
+    ctaSecondary: 'See pricing',
+    badge: ['Windows · Android', 'No store'],
+    stats: [
+      { v: '0', l: 'logs kept' },
+      { v: '<60 s', l: 'to a live tunnel' },
+      { v: '3', l: 'devices per access' },
+    ],
   },
   tech: {
     eyebrow: 'Technology',
@@ -147,6 +200,36 @@ const EN: CineStrings = {
     paiementLabel: 'Payment',
     lead: 'No store, no middleman. You pick the currency at checkout. Tunnel up in under a minute.',
   },
+  faq: {
+    eyebrow: 'FAQ',
+    title: 'Straight questions, straight answers.',
+    items: [
+      {
+        q: 'How does SWIMVPN get through where classic VPNs are blocked?',
+        a: 'Traffic travels over VLESS on the Xray engine, and REALITY gives it the TLS fingerprint of a real website. To deep packet inspection your connection looks like an ordinary HTTPS visit — there is nothing abnormal to block.',
+      },
+      {
+        q: 'Do you keep logs?',
+        a: 'No. No browsing history, no connection records. You can even pay in crypto, with no identity attached.',
+      },
+      {
+        q: 'What does it run on?',
+        a: 'Windows 10 / 11 (.exe) and Android 8+ (.apk), downloaded right here — no app store, no store dependency.',
+      },
+      {
+        q: 'How do I pay?',
+        a: 'SwimPay (RUB, USD or XOF — you pick the currency at checkout) or crypto (Bitcoin, USDT). Access is live in under a minute.',
+      },
+      {
+        q: 'How many devices?',
+        a: 'Every access covers 3 devices, on any plan.',
+      },
+      {
+        q: "What if it doesn't work for me?",
+        a: 'The built-in AI agent switches servers automatically when the link degrades. If nothing helps, the refund policy applies — see the Refund page.',
+      },
+    ],
+  },
   download: {
     telechargement: 'Download',
     tarifs: 'Pricing',
@@ -169,12 +252,19 @@ const EN: CineStrings = {
 
 const RU: CineStrings = {
   langName: 'Русский',
-  nav: { apercu: 'Обзор', technologie: 'Технология', tarifs: 'Цены' },
+  nav: { apercu: 'Обзор', technologie: 'Технология', tarifs: 'Цены', faq: 'Вопросы' },
   hero: {
-    l1: 'Они видят всё.',
-    l2: 'Кроме вас.',
+    tagline: 'Стелс-VPN · REALITY',
+    lines: ['Они видят', 'всё.', 'Кроме вас.'],
     sub: 'SWIMVPN пропускает ваш трафик через внешний узел. REALITY маскирует его под обычный HTTPS — невидим для зондов, невидим для оператора.',
-    pills: ['Без магазина', 'Без посредников', 'Ноль логов'],
+    ctaPrimary: 'Скачать',
+    ctaSecondary: 'Смотреть цены',
+    badge: ['Windows · Android', 'Без магазина'],
+    stats: [
+      { v: '0', l: 'логов' },
+      { v: '<60 с', l: 'до туннеля' },
+      { v: '3', l: 'устройства на доступ' },
+    ],
   },
   tech: {
     eyebrow: 'Технология',
@@ -208,6 +298,36 @@ const RU: CineStrings = {
     inclus: ['ИИ-агент в реальном времени', 'Шифрование REALITY', 'Авто-переключение сервера', 'Ноль логов', 'Без магазина'],
     paiementLabel: 'Оплата',
     lead: 'Без магазина, без посредников. Валюту выбираете при оплате. Туннель активен меньше чем за минуту.',
+  },
+  faq: {
+    eyebrow: 'Вопросы',
+    title: 'Прямые вопросы — прямые ответы.',
+    items: [
+      {
+        q: 'Как SWIMVPN проходит там, где обычные VPN заблокированы?',
+        a: 'Трафик идёт по VLESS на движке Xray, а REALITY даёт ему TLS-отпечаток реального сайта. Для систем глубокой инспекции (DPI) ваше соединение выглядит как обычный HTTPS-визит — блокировать нечего.',
+      },
+      {
+        q: 'Вы храните логи?',
+        a: 'Нет. Ни истории посещений, ни журналов подключений. Оплатить можно криптовалютой — вообще без личных данных.',
+      },
+      {
+        q: 'На чём работает?',
+        a: 'Windows 10 / 11 (.exe) и Android 8+ (.apk), скачиваются прямо здесь — без магазина приложений и его ограничений.',
+      },
+      {
+        q: 'Как оплатить?',
+        a: 'SwimPay (RUB, USD или XOF — валюту выбираете при оплате) или криптовалюта (Bitcoin, USDT). Доступ активен меньше чем за минуту.',
+      },
+      {
+        q: 'Сколько устройств?',
+        a: 'Каждый доступ покрывает 3 устройства на любом тарифе.',
+      },
+      {
+        q: 'А если у меня не заработает?',
+        a: 'Встроенный ИИ-агент автоматически переключает сервер, когда связь ухудшается. Если ничего не помогает — действует политика возврата, см. страницу «Возврат».',
+      },
+    ],
   },
   download: {
     telechargement: 'Скачать',

@@ -9,10 +9,8 @@ import { CINE_JOURNEY } from './tokens';
 const BOOST_RATE = 4; // accélérateur ×4
 const BOOST_MS = 1800;
 const POSTER = '/assets/cine-poster.webp';
-const PARALLAX =
-  'translate3d(calc(var(--cine-px, 0) * 10px), calc(var(--cine-py, 0) * 8px), 0) scale(1.08)';
-const SCRIM =
-  'linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.06) 42%, rgba(0,0,0,0.06) 70%, rgba(0,0,0,0.28) 100%)';
+// Scrim uniforme léger : la vidéo reste le décor dominant, le texte blanc en paliers reste lisible.
+const SCRIM = 'rgba(0,0,0,0.45)';
 
 export default function CineStage({ activeIndex }: { activeIndex: number }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -59,7 +57,6 @@ export default function CineStage({ activeIndex }: { activeIndex: number }) {
         playsInline
         preload="auto"
         className="absolute inset-0 h-full w-full object-cover"
-        style={{ transform: PARALLAX, willChange: 'transform' }}
       />
       <div className="absolute inset-0" style={{ background: SCRIM }} />
     </div>

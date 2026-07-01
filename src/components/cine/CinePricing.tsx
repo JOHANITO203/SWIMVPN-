@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
-import { cineAccentVars } from './tokens';
+import { Check, ArrowUpRight } from 'lucide-react';
 import { useCine } from './i18n';
 
 const PLAN_META = [
@@ -25,26 +24,20 @@ export default function CinePricing() {
 
   return (
     <section id="cine-tarifs" className="relative min-h-dvh overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,0.06), transparent 60%)' }}
-        aria-hidden
-      />
-
-      <div className="relative z-50 mx-auto max-w-6xl px-4 pb-24 pt-32 sm:px-10 sm:pt-40 lg:px-12">
-        <p className="cine-fade-up text-xs uppercase tracking-[0.22em] text-white/55" style={{ animationDelay: '0.1s' }}>
+      <div className="relative z-50 mx-auto max-w-6xl px-6 pb-24 pt-32 sm:px-10 sm:pt-40 lg:px-12">
+        <p className="cine-fade-up text-xs uppercase tracking-[0.3em] text-white/55" style={{ animationDelay: '0.1s' }}>
           {t.tarifs.eyebrow}
         </p>
         <h2
-          className="cine-blur-up font-askan mt-4 text-4xl leading-[1.02] text-white sm:text-6xl md:text-7xl"
+          className="cine-blur-up font-askan mt-4 text-4xl leading-[0.95] tracking-tight text-white sm:text-6xl md:text-7xl"
           style={{ animationDelay: '0.25s' }}
         >
           {t.tarifs.title}
         </h2>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-[190px_1fr_220px]">
-          {/* GAUCHE — sélecteur d'offre (panneau verre) */}
-          <aside className="cine-reveal h-fit rounded-2xl border border-white/10 bg-black/40 p-4 backdrop-blur-md">
+          {/* GAUCHE — sélecteur d'offre */}
+          <aside className="cine-reveal h-fit border border-white/15 bg-black/70 p-4">
             <p className="px-1 text-[0.7rem] uppercase tracking-[0.2em] text-white/45">{t.tarifs.offres}</p>
             <div className="mt-3 flex gap-1 overflow-x-auto lg:flex-col">
               {PLANS.map((pl, i) => (
@@ -53,7 +46,7 @@ export default function CinePricing() {
                   type="button"
                   onClick={() => setFeatured(i)}
                   aria-pressed={featured === i}
-                  className={`cine-press shrink-0 rounded-full px-4 py-2.5 text-left text-sm font-medium ${
+                  className={`cine-press shrink-0 px-4 py-2.5 text-left text-xs uppercase tracking-widest ${
                     featured === i ? 'bg-white text-black' : 'text-white/70 hover:bg-white/10 hover:text-white'
                   }`}
                 >
@@ -65,22 +58,19 @@ export default function CinePricing() {
 
           {/* CENTRE — grande carte + 2 petites */}
           <div>
-            <div
-              className="cine-reveal relative flex flex-col rounded-2xl border border-white/12 bg-black/45 p-7 backdrop-blur-md sm:p-8"
-              style={cineAccentVars}
-            >
+            <div className="cine-reveal relative flex flex-col border border-white/20 bg-black/75 p-7 sm:p-8">
               {plan.badge && (
-                <span className="absolute right-6 top-6 rounded-full border border-white/20 px-3 py-1 text-[0.62rem] uppercase tracking-wider text-white/70">
+                <span className="absolute right-6 top-6 border border-white/25 px-3 py-1 text-[0.62rem] uppercase tracking-widest text-white/70">
                   {plan.badge}
                 </span>
               )}
               <p className="text-xs uppercase tracking-[0.2em] text-white/55">{plan.tag}</p>
               <div className="mt-3 flex items-end gap-3">
-                <span className="font-askan text-6xl tabular-nums text-white sm:text-7xl">{plan.price}</span>
+                <span className="font-askan text-6xl tabular-nums tracking-tight text-white sm:text-7xl">{plan.price}</span>
                 <span className="mb-2 text-sm text-white/50">{plan.period}</span>
               </div>
 
-              <ul className="mt-6 grid gap-3 border-t border-white/10 pt-6 sm:grid-cols-3">
+              <ul className="mt-6 grid gap-3 border-t border-white/15 pt-6 sm:grid-cols-3">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-white/75">
                     <Check size={15} className="shrink-0 text-white/40" />
@@ -93,9 +83,10 @@ export default function CinePricing() {
 
               <a
                 href="#cine-signup"
-                className="cine-cta mt-7 inline-block self-start rounded-full px-8 py-3.5 text-sm font-semibold"
+                className="cine-cta cine-press group mt-7 inline-flex items-center gap-2 self-start px-8 py-4 text-xs uppercase tracking-widest"
               >
                 {t.tarifs.cta} — {plan.price}
+                <ArrowUpRight size={14} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </a>
             </div>
 
@@ -106,11 +97,11 @@ export default function CinePricing() {
                     key={pl.tag}
                     type="button"
                     onClick={() => setFeatured(i)}
-                    className="cine-press cine-reveal flex items-center justify-between rounded-2xl border border-white/10 bg-black/35 p-5 text-left backdrop-blur-md hover:bg-black/50"
+                    className="cine-press cine-reveal flex items-center justify-between border border-white/15 bg-black/60 p-5 text-left hover:border-white/40 hover:bg-black/75"
                   >
                     <span>
-                      <span className="block text-sm font-medium text-white">{pl.tag}</span>
-                      <span className="block text-xs text-white/45">{pl.period}</span>
+                      <span className="block text-xs uppercase tracking-widest text-white">{pl.tag}</span>
+                      <span className="mt-1 block text-xs text-white/45">{pl.period}</span>
                     </span>
                     <span className="font-askan text-2xl tabular-nums text-white">{pl.price}</span>
                   </button>
@@ -119,8 +110,8 @@ export default function CinePricing() {
             </div>
           </div>
 
-          {/* DROITE — listes catégories (panneau verre) */}
-          <aside className="cine-reveal flex h-fit flex-col gap-8 rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur-md">
+          {/* DROITE — listes catégories */}
+          <aside className="cine-reveal flex h-fit flex-col gap-8 border border-white/15 bg-black/70 p-6">
             <div>
               <p className="text-[0.7rem] uppercase tracking-[0.2em] text-white/45">{t.tarifs.inclusLabel}</p>
               <ul className="mt-3 flex flex-col gap-2.5">

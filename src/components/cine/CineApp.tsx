@@ -1,17 +1,18 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { CineLocaleProvider, useCine } from './i18n';
 import type { LandingLocale } from '../landing/landingContent';
 import CineNav from './CineNav';
 import CineHero from './CineHero';
 import CineTech from './CineTech';
 import CinePricing from './CinePricing';
+import CineFaq from './CineFaq';
 import CineSignup from './CineSignup';
 import CineStage from './CineStage';
 import CineSeo from './CineSeo';
 import CineFooter from './CineFooter';
 
-// Ordre des sections = ordre de l'orbite (frame i ↔ section i).
-const ORDER = ['#cine', '#cine-tech', '#cine-tarifs', '#cine-signup'];
+// Ordre des sections = ordre de navigation (hash → écran).
+const ORDER = ['#cine', '#cine-tech', '#cine-tarifs', '#cine-faq', '#cine-signup'];
 
 export default function CineApp({ hash, initialLocale }: { hash: string; initialLocale?: LandingLocale }) {
   return (
@@ -22,57 +23,15 @@ export default function CineApp({ hash, initialLocale }: { hash: string; initial
 }
 
 /**
- * Build « Éditorial sombre cinématique » — route #cine.
- * Nav de verre + footer PERSISTANTS ; l'écran change selon le sous-hash et se remonte
- * → le cluster d'entrée rejoue. Décor `CineStage` partagé (nav-travel-parallax) pour
- * les sections 1-3 ; le Hero (section 0) garde sa signature spotlight-reveal.
- * Livrés : Hero (1) · Technologie (2) · Tarifs (3) · S'abonner (4).
+ * Build « Brutaliste premium » — landing racine.
+ * Nav + footer PERSISTANTS ; l'écran change selon le sous-hash et se remonte
+ * → le cluster d'entrée rejoue. Décor `CineStage` (vidéo continue + accélérateur ×4
+ * au changement de section) partagé par tous les écrans.
+ * Livrés : Hero (1) · Technologie (2) · Tarifs (3) · FAQ (4) · Télécharger (5).
  */
 function CineShell({ hash }: { hash: string }) {
   const { locale } = useCine();
-  const idx = Math.max(0, ORDER.indexOf(hash)); // 0..3 (hash inconnu → 0 = Hero)
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  // Parallaxe souris → profondeur entre les plans : écrit --cine-px/--cine-py (-1..1, lissés)
-  // sur la racine ; le fond (vidéo) et le contenu les consomment avec des facteurs opposés.
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const el = rootRef.current;
-    if (!el) return;
-    let raf = 0;
-
-    // Mobile / tactile (pas de souris) → drift ambiant lent (oscillation sinus organique)
-    // pour que le décor ne soit pas figé comme sur desktop.
-    if (window.matchMedia('(pointer: coarse)').matches) {
-      const drift = (t: number) => {
-        el.style.setProperty('--cine-px', (Math.sin(t * 0.00018) * 0.5).toFixed(4));
-        el.style.setProperty('--cine-py', (Math.cos(t * 0.00012) * 0.4).toFixed(4));
-        raf = requestAnimationFrame(drift);
-      };
-      raf = requestAnimationFrame(drift);
-      return () => cancelAnimationFrame(raf);
-    }
-
-    const target = { x: 0, y: 0 };
-    const cur = { x: 0, y: 0 };
-    const onMove = (e: MouseEvent) => {
-      target.x = (e.clientX / window.innerWidth - 0.5) * 2;
-      target.y = (e.clientY / window.innerHeight - 0.5) * 2;
-    };
-    const loop = () => {
-      cur.x += (target.x - cur.x) * 0.06;
-      cur.y += (target.y - cur.y) * 0.06;
-      el.style.setProperty('--cine-px', cur.x.toFixed(4));
-      el.style.setProperty('--cine-py', cur.y.toFixed(4));
-      raf = requestAnimationFrame(loop);
-    };
-    window.addEventListener('mousemove', onMove);
-    raf = requestAnimationFrame(loop);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
+  const idx = Math.max(0, ORDER.indexOf(hash)); // 0..4 (hash inconnu → 0 = Hero)
 
   // Bord-à-bord immersif : la barre du navigateur (theme-color) passe en sombre sur le cine,
   // restaurée à la sortie (les pages claires gardent leur teinte).
@@ -114,6 +73,9 @@ function CineShell({ hash }: { hash: string }) {
       screen = <CinePricing key="tarifs" />;
       break;
     case 3:
+      screen = <CineFaq key="faq" />;
+      break;
+    case 4:
       screen = <CineSignup key="signup" />;
       break;
     default:
@@ -121,9 +83,9 @@ function CineShell({ hash }: { hash: string }) {
   }
 
   return (
-    <div ref={rootRef} lang={locale} className="cine-root relative min-h-dvh bg-black text-white" style={{ letterSpacing: '-0.02em' }}>
+    <div lang={locale} className="cine-root relative min-h-dvh bg-black text-white" style={{ letterSpacing: '-0.02em' }}>
       <CineNav active={ORDER[idx]} />
-      {/* décor « journey » (séquence d'images) partagé, scrubé par la nav */}
+      {/* décor vidéo continu partagé, accéléré par la nav */}
       <CineStage activeIndex={idx} />
       {/* contenu SEO riche (sr-only, prerendu, dans la langue de l'URL) */}
       <CineSeo />

@@ -1,31 +1,18 @@
-// Tokens du build « Éditorial sombre cinématique » (route #cine).
-// Canvas noir IMMUABLE ; seul l'accent varie selon la palette choisie.
-import type { CSSProperties } from 'react';
-
-export type CinePalette = { accent: string; hover: string; glow: string };
-
-// Palette « Blanc Neige » — accent #FFFFFF / hover #AEB8C2.
-export const CINE_ACCENT: CinePalette = {
-  accent: '#FFFFFF',
-  hover: '#AEB8C2',
-  glow: 'rgba(255,255,255,0.45)',
-};
+// Tokens du build « Brutaliste premium » (route #cine, landing racine).
+// Canvas noir IMMUABLE ; texte blanc en paliers (white/80·70·60·50) ; accent = blanc
+// (boutons pleins bg-white / bordés border-white — pas de variable d'accent runtime).
 
 // Vidéo « journey » (tiny-planet, plan continu 24,8 s, 1080p). SERVIE EN MÊME-ORIGINE depuis
 // public/assets → Content-Type `video/mp4` INLINE + range (ce que les <video> mobiles exigent).
 // NB: GitHub Releases la servait en `application/octet-stream` + attachment → refusée par les
 // <video> mobiles (iOS surtout) ; desktop sniffait et jouait quand même. Same-origin règle ça.
 export const CINE_JOURNEY = '/assets/drone-journey.mp4';
-// Timestamps (s) des 4 ancres = 4 positions de rotation, réparties sur les 24,8 s.
-export const CINE_ANCHORS = [2.0, 9.0, 16.0, 23.0];
 
-// CTA principal → téléchargement (release GitHub).
+// CTA téléchargement — Windows (release GitHub) + Android (APK servi par la landing,
+// même URL que le JSON-LD downloadUrl de index.html).
 export const CINE_DOWNLOAD_URL =
   'https://github.com/JOHANITO203/SWIMVPN-/releases/latest/download/SWIMVPN.exe';
+export const CINE_ANDROID_URL = '/downloads/swimvpn.apk';
 
-// Variables CSS de l'accent, consommées par .cine-cta (index.css).
-export const cineAccentVars = {
-  ['--cine-accent']: CINE_ACCENT.accent,
-  ['--cine-accent-hover']: CINE_ACCENT.hover,
-  ['--cine-accent-glow']: CINE_ACCENT.glow,
-} as CSSProperties;
+// Version affichée dans l'écran Téléchargement (aligner sur la release Android courante).
+export const CINE_APP_VERSION = 'v1.0.12';

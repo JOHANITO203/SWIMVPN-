@@ -1,4 +1,4 @@
-import { cineAccentVars } from './tokens';
+import { ArrowUpRight } from 'lucide-react';
 import { useCine } from './i18n';
 
 export default function CineTech() {
@@ -6,21 +6,14 @@ export default function CineTech() {
   const LAYERS = t.tech.layers.map((l, i) => ({ n: `0${i + 1}`, ...l }));
   return (
     <section id="cine-tech" className="relative min-h-dvh overflow-hidden">
-      {/* atmosphère statique (pas d'image plein cadre ici → pas de Ken Burns) */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: 'radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,0.06), transparent 60%)' }}
-        aria-hidden
-      />
-
-      <div className="relative z-50 mx-auto max-w-5xl px-4 pb-24 pt-32 sm:px-10 sm:pt-40 lg:px-12">
+      <div className="relative z-50 mx-auto max-w-5xl px-6 pb-24 pt-32 sm:px-10 sm:pt-40 lg:px-12">
         {/* cluster d'entrée */}
-        <p className="cine-fade-up text-xs uppercase tracking-[0.22em] text-white/55" style={{ animationDelay: '0.1s' }}>
+        <p className="cine-fade-up text-xs uppercase tracking-[0.3em] text-white/55" style={{ animationDelay: '0.1s' }}>
           {t.tech.eyebrow}
         </p>
         <h2
-          className="cine-blur-up font-askan mt-4 max-w-[16ch] text-4xl leading-[1.02] text-white sm:text-6xl md:text-7xl"
-          style={{ letterSpacing: '-0.02em', animationDelay: '0.25s' }}
+          className="cine-blur-up font-askan mt-4 max-w-[16ch] text-4xl leading-[0.95] tracking-tight text-white sm:text-6xl md:text-7xl"
+          style={{ animationDelay: '0.25s' }}
         >
           {t.tech.title}
         </h2>
@@ -28,12 +21,12 @@ export default function CineTech() {
           {t.tech.lead}
         </p>
 
-        {/* 3 couches, liste éditoriale à filets fins, entrée staggered */}
-        <div className="mt-14 border-t border-white/10">
+        {/* 3 couches — rangées à filets durs, entrée staggered */}
+        <div className="mt-14 border-t border-white/15">
           {LAYERS.map((l, i) => (
             <div
               key={l.n}
-              className="cine-reveal grid grid-cols-[auto_1fr] gap-5 border-b border-white/10 py-8 sm:gap-10"
+              className="cine-reveal grid grid-cols-[auto_1fr] gap-5 border-b border-white/15 py-8 sm:gap-10"
               style={{ transitionDelay: `${i * 0.08}s` }}
             >
               <span className="font-askan text-3xl tabular-nums text-white/30 sm:text-5xl">{l.n}</span>
@@ -45,10 +38,14 @@ export default function CineTech() {
           ))}
         </div>
 
-        {/* CTA accent (rare) */}
-        <div className="cine-fade-up mt-12" style={{ ...cineAccentVars, animationDelay: '1.05s' }}>
-          <a href="#cine-tarifs" className="cine-cta inline-block rounded-full px-7 py-3.5 text-base font-semibold">
+        {/* CTA */}
+        <div className="cine-fade-up mt-12" style={{ animationDelay: '1.05s' }}>
+          <a
+            href="#cine-tarifs"
+            className="cine-cta cine-press group inline-flex items-center gap-2 px-7 py-4 text-xs uppercase tracking-widest"
+          >
             {t.tech.cta}
+            <ArrowUpRight size={14} className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </a>
         </div>
       </div>
