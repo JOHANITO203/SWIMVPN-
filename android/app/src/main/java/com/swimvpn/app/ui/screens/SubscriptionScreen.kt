@@ -1042,8 +1042,9 @@ private fun String.toLocalizedPlanTitle(tier: SubscriptionPlanTier, resources: R
 
 private val SubscriptionPlanTier.deviceAllowance: Int
     get() = when (this) {
-        SubscriptionPlanTier.BASIC -> 1
-        SubscriptionPlanTier.PREMIUM -> 2
+        // Every offer now includes connectivity for up to 3 devices.
+        SubscriptionPlanTier.BASIC -> 3
+        SubscriptionPlanTier.PREMIUM -> 3
         SubscriptionPlanTier.PLATINUM -> 3
     }
 

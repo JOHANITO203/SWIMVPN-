@@ -1,3 +1,12 @@
+# === STATUS — 2026-07-02 (données ×2 + libellé « 3 appareils » dans l'app) ===
+
+Après un nouveau build APK : prix OK (API) mais **libellé appareils par offre inchangé** car **hardcodé dans l'app** (`SubscriptionScreen.kt` `deviceAllowance`=1/2/3), pas piloté par l'API. + demande : **doubler les données vendues**.
+- **Appareils → 3 partout dans l'app** : `SubscriptionScreen.kt` `deviceAllowance` → 3. ⚠️ **NOUVEAU build APK requis**. (Backend `devicesAllowed=3` + landing = déjà faits ; la refonte Brutaliste `8c88c5f` a même ajouté FAQ « 3 appareils ».)
+- **Données VPN ×2** : 50/150/500 → **100/300/1000 GB**. `quota_label`+`quota_gb` via migration `20260702120000_double_plan_quota` (prod, idempotent) + `seed.ts` (+ `quota_gb`). Landing `i18n.tsx` quota × 3 langues. Quota app = piloté API → à jour au deploy backend **sans** rebuild APK.
+- **NOTE GIT (repo partagé)** : la session a redémarré sur `feat/onion-stealth-tor` (main avait avancé de `8c88c5f`). Un 1er commit `a4ccb62` a atterri par erreur sur cette branche locale (non poussée, inoffensif). Travail réappliqué proprement sur `main` (sur `8c88c5f`) sans toucher au WIP onion/tor. Vérif : backend `tsc` 0 + landing build ✓.
+
+---
+
 # === STATUS — 2026-07-02 (commande Telegram /backfill_expiries) ===
 
 **Shippé sur `main`** : commande admin Telegram **`/backfill_expiries`** (admin-bot.service + entrée menu ADMIN_BOT_COMMANDS) → appelle `backfill_supplier_expiries` sur inventory-delivery et répond avec les compteurs (scannés/renseignés/expirés/purgés/sans-date). Protégée par le middleware admin existant. Lot de 100/passe (re-lançable). Permet à l'opérateur de dater + purger le stock existant en un tap depuis le bot. Vérif : `tsc` 0, specs menu vertes.
