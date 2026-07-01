@@ -17,11 +17,9 @@ export interface ContinuityCandidate {
   id: string;
   category: string;
   healthStatus: string;
-  usedResaleSlots: number;
-  maxResaleSlots: number;
+  status: string; // one config = one client: only AVAILABLE configs can take a reallocated client
   supplierExpiresAtMs: number | null;
   sourceQuotaRemainingBytes: number | null;
-  salePriorityScore: number;
 }
 
 export interface SelectionContext {
@@ -67,7 +65,7 @@ export function isAssignmentAtRisk(input: RiskInput): RiskVerdict {
 function candidateCovers(ctx: SelectionContext, c: ContinuityCandidate): boolean {
   if (c.category !== ctx.category) return false;
   if (c.healthStatus !== 'HEALTHY') return false;
-  if (c.usedResaleSlots >= c.maxResaleSlots) return false;
+  if (c.status !== 'AVAILABLE') return false; // must be a free config (one config = one client)
 
   // Date coverage: null supplier expiry = no known death => covers.
   if (ctx.soldExpiryMs !== null && c.supplierExpiresAtMs !== null && c.supplierExpiresAtMs < ctx.soldExpiryMs) {
@@ -82,7 +80,7 @@ function candidateCovers(ctx: SelectionContext, c: ContinuityCandidate): boolean
   return true;
 }
 
-/** Best covering candidate: highest salePriorityScore, tie-broken by latest expiry (most margin). */
+/** Best covering candidate: the free config with the latest supplier expiry (most margin). */
 export function selectReallocationCandidate(
   ctx: SelectionContext,
   candidates: ContinuityCandidate[],
@@ -91,9 +89,6 @@ export function selectReallocationCandidate(
   const eligible = candidates.filter((c) => candidateCovers(ctx, c));
   if (eligible.length === 0) return null;
   return eligible.reduce((best, c) => {
-    if (c.salePriorityScore !== best.salePriorityScore) {
-      return c.salePriorityScore > best.salePriorityScore ? c : best;
-    }
     const cExp = c.supplierExpiresAtMs ?? Number.POSITIVE_INFINITY;
     const bExp = best.supplierExpiresAtMs ?? Number.POSITIVE_INFINITY;
     return cExp > bExp ? c : best;

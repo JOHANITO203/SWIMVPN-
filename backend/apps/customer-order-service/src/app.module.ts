@@ -32,6 +32,14 @@ import { TributePayService } from './tribute-pay.service';
           port: 3004
         },
       },
+      {
+        name: 'ADMIN_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.ADMIN_SERVICE_HOST || '127.0.0.1',
+          port: 3003,
+        },
+      },
     ]),
   ],
   controllers: [CustomerController],

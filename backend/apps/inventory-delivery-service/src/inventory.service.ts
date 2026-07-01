@@ -4,9 +4,7 @@ import { PrismaService } from '@app/database';
 import { ImportConfigsDto, ImportTrialConfigsDto } from '@app/contracts/inventory.dto';
 import * as crypto from 'crypto';
 import {
-  getDefaultSupplierCapacityUnits,
   DEFAULT_SUPPLIER_DEVICE_LIMIT,
-  getPlanResaleSlotCount,
   SwimVpnProfile,
 } from '@app/contracts';
 import { firstValueFrom } from 'rxjs';
@@ -204,12 +202,6 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           typeof supplierResource.metadata.trafficUsedBytes === 'number'
             ? BigInt(supplierResource.metadata.trafficUsedBytes)
             : 0n;
-        const defaultSupplierCapacityUnits = getDefaultSupplierCapacityUnits(data.category);
-        const maxResaleSlots = data.maxResaleSlots ?? defaultSupplierCapacityUnits;
-        const usedResaleSlots = Math.min(
-          supplierResource.metadata.connectedDevices ?? 0,
-          maxResaleSlots,
-        );
         const item = await this.prisma.inventoryItem.create({
           data: {
             category: data.category,
@@ -218,22 +210,22 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             display_protocol: profile.protocol,
             batch_name: data.batchName,
             status: InventoryStatus.AVAILABLE,
+            // One config = one client: health only reflects supplier expiry / source exhaustion.
             health_status:
               supplierExpiresAt && supplierExpiresAt.getTime() <= Date.now()
                 ? InventoryHealthStatus.EXPIRED
-                : usedResaleSlots >= maxResaleSlots
+                : this.isSourceExhausted(sourceQuotaBytes, sourceUsedBytes)
                   ? InventoryHealthStatus.FULL
                 : InventoryHealthStatus.HEALTHY,
             source_quota_bytes: sourceQuotaBytes,
             source_used_bytes: sourceUsedBytes,
             max_customer_allocations:
               data.maxUsersPerConfig ?? InventoryService.DEFAULT_MAX_USERS_PER_CONFIG,
-            max_resale_slots: maxResaleSlots,
-            used_resale_slots: usedResaleSlots,
-            sale_priority_score: this.computeSalePriorityScore({
-              usedResaleSlots,
-              maxResaleSlots,
-            }),
+            // Resale columns are vestigial (one config = one client). Kept at 1/0 for schema
+            // non-null compatibility until a later migration drops them.
+            max_resale_slots: 1,
+            used_resale_slots: 0,
+            sale_priority_score: 0,
             supplier_expires_at: supplierExpiresAt,
             supplier_provider_name:
               data.supplierProviderName?.trim() ||
@@ -383,27 +375,26 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           },
         }));
 
+      // One config = one client: only ever pick a FREE (AVAILABLE) config, never co-sell an
+      // ASSIGNED one. Prefer the config whose supplier expiry is soonest (burn short-lived stock
+      // first, less waste), then oldest imported. SKIP LOCKED + LIMIT 1 keeps concurrent
+      // fulfillments from grabbing the same row.
       const candidateIds = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT "id"
         FROM "InventoryItem"
         WHERE "category" = ${order.plan.code}::"PlanCategory"
           AND "health_status" = 'HEALTHY'::"InventoryHealthStatus"
-          AND "status" IN ('AVAILABLE'::"InventoryStatus", 'ASSIGNED'::"InventoryStatus")
-          AND "used_resale_slots" + ${requiredSlots} <= "max_resale_slots"
+          AND "status" = 'AVAILABLE'::"InventoryStatus"
+          AND ("supplier_expires_at" IS NULL OR "supplier_expires_at" > NOW())
           AND (
             "source_quota_bytes" IS NULL
             OR "source_quota_bytes" <= 0
             OR "source_used_bytes" < "source_quota_bytes"
           )
         ORDER BY
-          CASE
-            WHEN "used_resale_slots" <= 0 OR "max_resale_slots" <= 0 THEN 0
-            ELSE FLOOR(("used_resale_slots"::numeric * 100000) / "max_resale_slots")
-          END DESC,
-          "used_resale_slots" DESC,
-          ("max_resale_slots" - "used_resale_slots") ASC,
-          "sale_priority_score" DESC,
+          "supplier_expires_at" ASC NULLS LAST,
           "imported_at" ASC
+        LIMIT 1
         FOR UPDATE SKIP LOCKED
       `);
 
@@ -453,25 +444,21 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         where: { id: candidateId },
       });
 
-      const nextUsedSlots = inventoryItem.used_resale_slots + requiredSlots;
-      const nextHealth =
-        nextUsedSlots >= inventoryItem.max_resale_slots
-          ? InventoryHealthStatus.FULL
-          : InventoryHealthStatus.HEALTHY;
-
+      // Burn the config to this single client. It leaves the AVAILABLE pool for good; its health
+      // only reflects expiry/source exhaustion now (no slot-fill concept anymore).
       await tx.inventoryItem.update({
         where: { id: inventoryItem.id },
         data: {
-          used_resale_slots: nextUsedSlots,
-          sale_priority_score: this.computeSalePriorityScore({
-            usedResaleSlots: nextUsedSlots,
-            maxResaleSlots: inventoryItem.max_resale_slots,
+          health_status: this.computeHealthStatus({
+            currentHealth: inventoryItem.health_status,
+            supplierExpiresAt: inventoryItem.supplier_expires_at,
+            sourceQuotaBytes: inventoryItem.source_quota_bytes,
+            sourceUsedBytes: inventoryItem.source_used_bytes,
           }),
-          health_status: nextHealth,
           status: InventoryStatus.ASSIGNED,
-          assigned_order_id: inventoryItem.assigned_order_id ?? order.id,
-          assigned_customer_id: inventoryItem.assigned_customer_id ?? order.customer_id,
-          assigned_at: inventoryItem.assigned_at ?? new Date(),
+          assigned_order_id: order.id,
+          assigned_customer_id: order.customer_id,
+          assigned_at: new Date(),
         },
       });
 
@@ -515,8 +502,6 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             orderRef: order.order_ref,
             inventoryItemId: inventoryItem.id,
             slotCount: requiredSlots,
-            usedResaleSlots: nextUsedSlots,
-            maxResaleSlots: inventoryItem.max_resale_slots,
             assignedAt: new Date().toISOString(),
           } as any,
         },
@@ -533,8 +518,6 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             orderRef: order.order_ref,
             planCode: order.plan.code,
             slotCount: requiredSlots,
-            usedResaleSlots: nextUsedSlots,
-            maxResaleSlots: inventoryItem.max_resale_slots,
             assignedAt: configAssignedAt,
           },
         });
@@ -723,8 +706,6 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
           health_status: this.computeHealthStatus({
             currentHealth: assignment.inventory_item.health_status,
             supplierExpiresAt: assignment.inventory_item.supplier_expires_at,
-            usedResaleSlots: assignment.inventory_item.used_resale_slots,
-            maxResaleSlots: assignment.inventory_item.max_resale_slots,
             sourceQuotaBytes: assignment.inventory_item.source_quota_bytes,
             sourceUsedBytes,
           }),
@@ -1456,16 +1437,16 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         assignment.measured_used_bytes,
       );
 
+      // One config = one client: the target must be a FREE, HEALTHY config (not already assigned),
+      // and its supplier source must still cover the moved usage.
       if (
         !canAllocateSupplierConfig({
           healthStatus: target.health_status,
-          usedResaleSlots: target.used_resale_slots,
-          maxResaleSlots: target.max_resale_slots,
-          requiredSlots: assignment.slot_count,
+          status: target.status,
         }) ||
         this.isSourceExhausted(target.source_quota_bytes, projectedTargetSourceUsedBytes)
       ) {
-        throw new Error('Target inventory item has no remaining resale capacity');
+        throw new Error('Target inventory item is not a free, healthy config');
       }
 
       const previousInventoryItemId = assignment.inventory_item_id;
@@ -1483,17 +1464,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       await tx.inventoryItem.update({
         where: { id: target.id },
         data: {
-          used_resale_slots: { increment: assignment.slot_count },
-          sale_priority_score: this.computeSalePriorityScore({
-            usedResaleSlots: target.used_resale_slots + assignment.slot_count,
-            maxResaleSlots: target.max_resale_slots,
-          }),
           source_used_bytes: projectedTargetSourceUsedBytes,
           health_status: this.computeHealthStatus({
             currentHealth: target.health_status,
             supplierExpiresAt: target.supplier_expires_at,
-            usedResaleSlots: target.used_resale_slots + assignment.slot_count,
-            maxResaleSlots: target.max_resale_slots,
             sourceQuotaBytes: target.source_quota_bytes,
             sourceUsedBytes: projectedTargetSourceUsedBytes,
           }),
@@ -1501,10 +1475,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
+      // The config the client just left is burned (never re-sold).
       if (previousInventoryItemId) {
         await this.recalculateInventoryState(tx, previousInventoryItemId);
       }
-      await this.recalculateInventoryState(tx, target.id);
 
       await tx.adminEvent.create({
         data: {
@@ -1557,8 +1531,6 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
             health_status: this.computeHealthStatus({
               currentHealth: item.health_status,
               supplierExpiresAt: item.supplier_expires_at,
-              usedResaleSlots: item.used_resale_slots,
-              maxResaleSlots: item.max_resale_slots,
               sourceQuotaBytes: item.source_quota_bytes,
               sourceUsedBytes: item.source_used_bytes,
             }),
@@ -1586,12 +1558,155 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
         }
       }
       await this.runStockForecastPass();
+      const purged = await this.purgeExpiredUnsoldConfigs();
       this.logger.log(
-        `Scheduled inventory healthcheck completed: checked=${result.checked} healthy=${result.healthy} degraded=${result.degraded}`,
+        `Scheduled inventory healthcheck completed: checked=${result.checked} healthy=${result.healthy} degraded=${result.degraded} purged=${purged.deleted}`,
       );
     } catch (error) {
       this.logger.error('Scheduled inventory healthcheck failed', error as Error);
     }
+  }
+
+  /**
+   * Auto-purge expired stock, cleanly. Only NEVER-SOLD configs (no OrderAssignment ever) that are
+   * supplier-expired / EXPIRED / DEAD are hard-deleted — no order references them, so deletion is
+   * FK-safe and cannot break order traceability. Sold-then-expired configs keep their row (EXPIRED)
+   * for auditability. The ConfigEvent/AdminEvent journal is keyed by string id and survives the
+   * row deletion, so the audit trail stays intact. Bounded batch per pass.
+   */
+  async purgeExpiredUnsoldConfigs(): Promise<{ deleted: number }> {
+    const now = new Date();
+    const stale = await this.prisma.inventoryItem.findMany({
+      where: {
+        assignments: { none: {} },
+        OR: [
+          { supplier_expires_at: { lte: now } },
+          { health_status: InventoryHealthStatus.EXPIRED },
+          { status: InventoryStatus.DEAD },
+        ],
+      },
+      select: { id: true, category: true, folder_code: true },
+      take: 200,
+    });
+
+    if (stale.length === 0) {
+      return { deleted: 0 };
+    }
+
+    const ids = stale.map((item) => item.id);
+    const result = await this.prisma.inventoryItem.deleteMany({ where: { id: { in: ids } } });
+
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'EXPIRED_CONFIGS_PURGED',
+        entity_type: 'INVENTORY',
+        entity_id: 'auto-purge',
+        payload_json: {
+          deleted: result.count,
+          folderCodes: stale.map((item) => item.folder_code).filter(Boolean),
+          purgedAt: now.toISOString(),
+        } as any,
+      },
+    });
+
+    this.logger.log(`Auto-purged ${result.count} expired unsold config(s)`);
+    return { deleted: result.count };
+  }
+
+  /**
+   * Backfill `supplier_expires_at` for stock imported BEFORE the parser learned to read expiry.
+   * Re-parses each config with a NULL expiry via the vpn-config engine (which now reads the
+   * `Subscription-Userinfo` header + broad date formats). Configs whose date is already past are
+   * expired via the existing machinery, then unsold expired configs are purged. Raw links with no
+   * recoverable date are left untouched (counted as unresolved). Bounded + idempotent (NULL-only).
+   */
+  async backfillSupplierExpiries(limit = 100): Promise<{
+    scanned: number;
+    updated: number;
+    expiredNow: number;
+    purgedDeleted: number;
+    unresolved: number;
+  }> {
+    const boundedLimit = Math.max(1, Math.min(Math.floor(limit) || 100, 500));
+    const targets = await this.prisma.inventoryItem.findMany({
+      where: {
+        supplier_expires_at: null,
+        health_status: { not: InventoryHealthStatus.DISABLED },
+      },
+      orderBy: { imported_at: 'asc' },
+      take: boundedLimit,
+      select: { id: true, raw_config: true },
+    });
+
+    let updated = 0;
+    let expiredNow = 0;
+    let unresolved = 0;
+
+    for (const item of targets) {
+      let expiresAt: Date | null = null;
+      try {
+        const parsed: { metadata?: { expiresAt?: string } } = await firstValueFrom(
+          this.vpnClient.send({ cmd: 'process_supplier_resource' }, { rawConfig: item.raw_config }),
+        );
+        if (parsed?.metadata?.expiresAt) {
+          const candidate = new Date(parsed.metadata.expiresAt);
+          if (!Number.isNaN(candidate.getTime())) {
+            expiresAt = candidate;
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`Backfill parse failed for ${item.id}: ${(error as Error).message}`);
+        unresolved += 1;
+        continue;
+      }
+
+      if (!expiresAt) {
+        unresolved += 1;
+        continue;
+      }
+
+      await this.prisma.inventoryItem.update({
+        where: { id: item.id },
+        data: { supplier_expires_at: expiresAt },
+      });
+      updated += 1;
+
+      // Already expired → run the existing expire path (marks EXPIRED + expires ACTIVE assignments).
+      if (expiresAt.getTime() <= Date.now()) {
+        await this.expireInventoryItem(item.id, 'BACKFILL_SUPPLIER_EXPIRED');
+        expiredNow += 1;
+      }
+    }
+
+    const purged = await this.purgeExpiredUnsoldConfigs();
+
+    await this.prisma.adminEvent.create({
+      data: {
+        event_type: 'SUPPLIER_EXPIRY_BACKFILL',
+        entity_type: 'INVENTORY',
+        entity_id: 'backfill',
+        payload_json: {
+          scanned: targets.length,
+          updated,
+          expiredNow,
+          purgedDeleted: purged.deleted,
+          unresolved,
+          ranAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+
+    this.logger.log(
+      `Supplier expiry backfill: scanned=${targets.length} updated=${updated} expiredNow=${expiredNow} purged=${purged.deleted} unresolved=${unresolved}`,
+    );
+
+    return {
+      scanned: targets.length,
+      updated,
+      expiredNow,
+      purgedDeleted: purged.deleted,
+      unresolved,
+    };
   }
 
   private async expireInventoryItem(inventoryItemId: string, reason: string) {
@@ -1667,39 +1782,47 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  /** Count healthy, still-allocatable configs for a category (enough free resale slots, source not exhausted). */
-  private async countAllocatable(category: PlanCategory, requiredSlots = 1): Promise<number> {
+  /**
+   * SINGLE SOURCE OF TRUTH for "how many configs can serve a NEW client of this category".
+   * One config = one client: a config is allocatable iff it is FREE (AVAILABLE) + HEALTHY + not
+   * supplier-expired + source not exhausted. Same predicate the fulfillment SELECT uses.
+   */
+  private async countAllocatable(category: PlanCategory): Promise<number> {
     const items = await this.prisma.inventoryItem.findMany({
-      where: { category, health_status: InventoryHealthStatus.HEALTHY },
+      where: {
+        category,
+        status: InventoryStatus.AVAILABLE,
+        health_status: InventoryHealthStatus.HEALTHY,
+      },
     });
+    const now = Date.now();
     return items.filter(
       (item) =>
-        canAllocateSupplierConfig({
-          healthStatus: item.health_status,
-          usedResaleSlots: item.used_resale_slots,
-          maxResaleSlots: item.max_resale_slots,
-          requiredSlots,
-        }) && !this.isSourceExhausted(item.source_quota_bytes, item.source_used_bytes),
+        canAllocateSupplierConfig({ healthStatus: item.health_status, status: item.status }) &&
+        !(item.supplier_expires_at && item.supplier_expires_at.getTime() <= now) &&
+        !this.isSourceExhausted(item.source_quota_bytes, item.source_used_bytes),
     ).length;
   }
 
   /**
-   * Sale-gate availability check: how many configs can still be allocated for a PAID order of this
-   * category, using the SAME allocatable logic as fulfillment + stock intelligence (healthy, enough
-   * free resale slots, source not exhausted) and the plan's REAL required slots. Called by the
-   * customer service BEFORE taking payment so we never sell a plan we cannot deliver.
+   * Sale-gate availability check: how many FREE configs can serve a NEW client of this category,
+   * using the SINGLE allocatable predicate (countAllocatable). Called by the customer service at
+   * checkout: 0 does NOT block the sale anymore — it flags the order as an honest backorder.
    */
   async getCategoryAvailability(
     category: PlanCategory,
   ): Promise<{ category: PlanCategory; available: number; requiredSlots: number }> {
-    const requiredSlots = this.getRequiredSlots(category, false);
-    const available = await this.countAllocatable(category, requiredSlots);
-    return { category, available, requiredSlots };
+    const available = await this.countAllocatable(category);
+    return { category, available, requiredSlots: 1 };
   }
 
+  // Post-fulfillment stock signal. Distinct events so the admin bot can shout the two states the
+  // operator asked for: a soft low-stock warning, and a hard "stock épuisé" (0 configs left).
   private async checkStockAndNotify(category: PlanCategory) {
     const count = await this.countAllocatable(category);
-    if (count < resolveThreshold(category, this.stockThresholds)) {
+    if (count <= 0) {
+      this.adminClient.emit('stock_depleted', { category });
+    } else if (count < resolveThreshold(category, this.stockThresholds)) {
       this.adminClient.emit('low_stock_alert', { category, remaining: count });
     }
   }
@@ -1755,12 +1878,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private getRequiredSlots(planCode: PlanCategory, isTrialOrder: boolean) {
-    if (isTrialOrder) {
-      return 1;
-    }
-
-    return getPlanResaleSlotCount(planCode);
+  // One config = one client. No resale/packing: every paid or trial order consumes exactly one
+  // config, which is then burned (never co-sold). slot_count stays 1 purely as a schema vestige.
+  private getRequiredSlots(_planCode: PlanCategory, _isTrialOrder: boolean) {
+    return 1;
   }
 
   private getEffectiveQuotaLabel(order: { payment_ref?: string | null; order_ref: string; plan: { quota_label: string } }) {
@@ -1865,14 +1986,14 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     return this.maxBigInt(currentSourceUsedBytes ?? 0n, aggregate._sum.measured_used_bytes ?? 0n);
   }
 
+  // One config = one client (burn-after-sale). Called after an assignment goes terminal
+  // (revoked/expired/moved): if a live client remains the config stays ASSIGNED, otherwise it is
+  // retired to DEAD — it never returns to the AVAILABLE pool. Auto-purge later deletes the row.
   private async recalculateInventoryState(tx: Prisma.TransactionClient, inventoryItemId: string) {
-    const assignmentAggregate = await tx.orderAssignment.aggregate({
+    const activeAssignmentCount = await tx.orderAssignment.count({
       where: {
         inventory_item_id: inventoryItemId,
         access_status: AssignmentAccessStatus.ACTIVE,
-      },
-      _sum: {
-        slot_count: true,
       },
     });
 
@@ -1880,7 +2001,6 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       where: { id: inventoryItemId },
     });
 
-    const usedSlots = assignmentAggregate._sum.slot_count ?? 0;
     const sourceUsedBytes = await this.computeMonotoneSourceUsedBytes(
       tx,
       inventoryItemId,
@@ -1889,8 +2009,6 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     const nextHealth = this.computeHealthStatus({
       currentHealth: inventoryItem.health_status,
       supplierExpiresAt: inventoryItem.supplier_expires_at,
-      usedResaleSlots: usedSlots,
-      maxResaleSlots: inventoryItem.max_resale_slots,
       sourceQuotaBytes: inventoryItem.source_quota_bytes,
       sourceUsedBytes,
     });
@@ -1898,14 +2016,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     await tx.inventoryItem.update({
       where: { id: inventoryItemId },
       data: {
-        used_resale_slots: usedSlots,
-        sale_priority_score: this.computeSalePriorityScore({
-          usedResaleSlots: usedSlots,
-          maxResaleSlots: inventoryItem.max_resale_slots,
-        }),
         source_used_bytes: sourceUsedBytes,
         health_status: nextHealth,
-        status: usedSlots > 0 ? InventoryStatus.ASSIGNED : InventoryStatus.AVAILABLE,
+        status:
+          activeAssignmentCount > 0 ? InventoryStatus.ASSIGNED : InventoryStatus.DEAD,
       },
     });
   }
@@ -2107,11 +2221,12 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // Health of a config in the one-config-one-client model. No slot-fill concept: a config is
+  // HEALTHY (sellable while AVAILABLE), or terminal for supplier expiry / source exhaustion, or
+  // admin-DISABLED (sticky). FULL now means "supplier source quota exhausted".
   private computeHealthStatus(input: {
     currentHealth: InventoryHealthStatus;
     supplierExpiresAt: Date | null;
-    usedResaleSlots: number;
-    maxResaleSlots: number;
     sourceQuotaBytes?: bigint | null;
     sourceUsedBytes?: bigint | null;
   }) {
@@ -2127,23 +2242,6 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       return InventoryHealthStatus.FULL;
     }
 
-    if (input.usedResaleSlots >= input.maxResaleSlots) {
-      return InventoryHealthStatus.FULL;
-    }
-
     return InventoryHealthStatus.HEALTHY;
-  }
-
-  private computeSalePriorityScore(input: {
-    usedResaleSlots: number;
-    maxResaleSlots: number;
-  }) {
-    const used = Math.max(0, Math.floor(input.usedResaleSlots));
-    const max = Math.max(0, Math.floor(input.maxResaleSlots));
-    if (used <= 0 || max <= 0) {
-      return 0;
-    }
-
-    return Math.floor((used * 100000) / max);
   }
 }

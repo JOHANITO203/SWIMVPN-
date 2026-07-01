@@ -188,7 +188,7 @@ async function main() {
           },
           metadata: {
             providerName: 'trial-provider',
-            expiresAt: '2026-06-19T23:59:59.999Z',
+            expiresAt: '2099-06-19T23:59:59.999Z',
           },
         });
       },
@@ -662,31 +662,44 @@ async function main() {
   );
 
   const healthService = createService({});
+  // One config = one client: no resale/priority scoring anymore. Health reflects supplier expiry
+  // and source exhaustion only (no slot-fill concept).
   assert(
-    healthService.computeSalePriorityScore({ usedResaleSlots: 1, maxResaleSlots: 2 }) >
-      healthService.computeSalePriorityScore({ usedResaleSlots: 0, maxResaleSlots: 2 }),
-    'sale priority should prefer already-started supplier configs over fresh configs',
+    healthService.computeHealthStatus({
+      currentHealth: InventoryHealthStatus.HEALTHY,
+      supplierExpiresAt: null,
+      sourceQuotaBytes: 10n,
+      sourceUsedBytes: 10n,
+    }) === InventoryHealthStatus.FULL,
+    'source-exhausted configs must be FULL',
   );
   assert(
-    healthService.computeSalePriorityScore({ usedResaleSlots: 1, maxResaleSlots: 2 }) >
-      healthService.computeSalePriorityScore({ usedResaleSlots: 1, maxResaleSlots: 100 }),
-    'sale priority should prefer the already-started config closest to exhaustion when used slots tie',
+    healthService.computeHealthStatus({
+      currentHealth: InventoryHealthStatus.HEALTHY,
+      supplierExpiresAt: new Date(Date.now() - 1000),
+      sourceQuotaBytes: null,
+      sourceUsedBytes: 0n,
+    }) === InventoryHealthStatus.EXPIRED,
+    'supplier-expired configs must be EXPIRED',
   );
   assert(
-    healthService.computeSalePriorityScore({ usedResaleSlots: 2, maxResaleSlots: 3 }) >
-      healthService.computeSalePriorityScore({ usedResaleSlots: 1, maxResaleSlots: 2 }),
-    'sale priority should prefer higher utilization over raw used-slot count',
+    healthService.computeHealthStatus({
+      currentHealth: InventoryHealthStatus.DISABLED,
+      supplierExpiresAt: null,
+      sourceQuotaBytes: null,
+      sourceUsedBytes: 0n,
+    }) === InventoryHealthStatus.DISABLED,
+    'DISABLED health is sticky',
   );
-  const health = healthService.computeHealthStatus({
-    currentHealth: InventoryHealthStatus.HEALTHY,
-    supplierExpiresAt: null,
-    usedResaleSlots: 1,
-    maxResaleSlots: 2,
-    sourceQuotaBytes: 10n,
-    sourceUsedBytes: 10n,
-  });
-
-  assert(health === InventoryHealthStatus.FULL, 'source-exhausted configs must be FULL');
+  assert(
+    healthService.computeHealthStatus({
+      currentHealth: InventoryHealthStatus.HEALTHY,
+      supplierExpiresAt: null,
+      sourceQuotaBytes: 100n,
+      sourceUsedBytes: 10n,
+    }) === InventoryHealthStatus.HEALTHY,
+    'a free config with headroom stays HEALTHY',
+  );
 
   for (const accessStatus of [
     AssignmentAccessStatus.REVOKED,
@@ -760,7 +773,7 @@ async function main() {
       assignmentId: 'assignment-source-quota',
       targetInventoryItemId: 'target-nearly-full',
     }),
-    'Target inventory item has no remaining resale capacity',
+    'Target inventory item is not a free, healthy config',
   );
 
   const assignmentId = 'assignment-monotone';
@@ -806,6 +819,7 @@ async function main() {
           slot_count: 0,
         },
       }),
+      count: async () => 0,
     },
     inventoryItem: {
       update: async ({ data }: any) => {
@@ -882,7 +896,7 @@ async function main() {
                   inventory_item_id: 'inventory-delivery-retry',
                   inventory_item: {
                     raw_config: 'vless://uuid@example.com:443?security=tls#Basic',
-                    supplier_expires_at: new Date('2026-06-17T22:53:00.000Z'),
+                    supplier_expires_at: new Date('2099-06-17T22:53:00.000Z'),
                     display_protocol: 'VLESS',
                   },
                 },
@@ -916,6 +930,7 @@ async function main() {
                 measured_used_bytes: 0n,
               },
             }),
+            count: async () => 0,
           },
           inventoryItem: {
             findUniqueOrThrow: async ({ where }: any) => ({
@@ -1054,6 +1069,8 @@ async function main() {
               measured_used_bytes: 0n,
             },
           }),
+          count: async ({ where }: any) =>
+            where?.inventory_item_id === 'inventory-platinum-new' ? 1 : 0,
         },
         inventoryItem: {
           findUniqueOrThrow: async ({ where }: any) => {
@@ -1117,10 +1134,10 @@ async function main() {
   const replacementResult = await replacementService.fulfillOrder('order-upgrade-new');
   assert(replacementResult.success === true, 'upgrade fulfillment should succeed');
   assert(
-    replacementCandidateQuery.includes('FLOOR(("used_resale_slots"::numeric * 100000) / "max_resale_slots")') &&
-      replacementCandidateQuery.includes('("max_resale_slots" - "used_resale_slots") ASC') &&
-      replacementCandidateQuery.includes('"sale_priority_score" DESC'),
-    'paid fulfillment should prefer already-started configs before fresh inventory',
+    replacementCandidateQuery.includes(`"status" = 'AVAILABLE'`) &&
+      replacementCandidateQuery.includes('"supplier_expires_at" ASC NULLS LAST') &&
+      !replacementCandidateQuery.includes('sale_priority_score'),
+    'paid fulfillment should pick a FREE config by soonest supplier expiry (one config = one client, no resale packing)',
   );
   const revokedReplacementAssignments = replacementUpdates.filter(
     (entry) =>
@@ -1214,6 +1231,7 @@ async function main() {
               measured_used_bytes: 0n,
             },
           }),
+          count: async () => 1,
         },
         inventoryItem: {
           findUniqueOrThrow: async ({ where }: any) => ({
@@ -1225,7 +1243,7 @@ async function main() {
             health_status: InventoryHealthStatus.HEALTHY,
             source_quota_bytes: null,
             source_used_bytes: 0n,
-            supplier_expires_at: new Date('2026-05-22T10:00:00.000Z'),
+            supplier_expires_at: new Date('2099-05-22T10:00:00.000Z'),
           }),
           update: async ({ data }: any) => {
             trialReplacementUpdates.push({ model: 'inventoryItem', data });

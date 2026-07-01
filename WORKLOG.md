@@ -1,3 +1,50 @@
+# === STATUS — 2026-07-01 (prix +25% + 3 appareils par offre) ===
+
+**Même branche `refactor/stock-one-config-one-client`** (partage `plan-policy.ts` + `supplier-capacity.policy.spec` avec le travail stock → gardé ensemble pour éviter les conflits ; les prix partiront au deploy AVEC le reste de la branche — à noter si les prix doivent partir avant la validation stock, il faudra cherry-pick).
+
+- **Prix +25%** (Basic 299₽/$3.49→**374₽/$4.36** · Premium 699₽/$7.99→**874₽/$9.99** · Platinum 1899₽/$21.99→**2374₽/$27.49**) :
+  - Le seed NE met PAS à jour la prod (create-si-absent) et il n'y a PAS d'update_plan admin → prix live changés par **migration Prisma de données** `20260701120000_bump_plan_prices_25pct` (UPDATE absolu, idempotent) qui s'applique au `migrate:deploy` du prochain push.
+  - `prisma/seed.ts` màj aussi (installs neuves).
+- **3 appareils par offre** : `getPublicPlanDeviceAllowance` → 3 pour WEEK/MONTH/QUARTER (avant 1/2/3) → champ `devicesAllowed` du profil = 3 partout ; l'Android l'affiche dynamiquement. Spec `supplier-capacity.policy` màj.
+- **Landing (affichage hardcodé)** : `CinePricing.tsx` (prix USD) + `i18n.tsx` (× 3 langues FR/EN/RU → « 3 appareils/devices/устройства »).
+- **Vérif** : backend `tsc` 0 + `test:policy` ; landing `tsc` 0 + `npm run build`. Android : nouveau build requis pour afficher les nouveaux prix (offres via API) — device via API aussi.
+
+---
+
+# === STATUS — 2026-07-01 (parser backend au niveau app — ÉTAPE 1 : expiration) ===
+
+**Même branche `refactor/stock-one-config-one-client`.** Root cause identifié du « stock jamais expiré/purgé » : `supplier_expires_at` restait NULL car le parser backend ne lisait la date que dans un format texte étroit. L'app (Android) a un parser mûr qui lit l'expiration via l'en-tête HTTP `Subscription-Userinfo: expire=<unix>`. Décision user : **porter le parser backend au niveau du parser principal de l'app** (toutes les formes).
+
+- **ÉTAPE 1 SHIPPÉE (sur branche) — métadonnées/expiration** :
+  - Nouveau `vpn-config-engine-service/src/subscription-metadata.parser.ts` = port TS fidèle de `SubscriptionMetadataParser.kt` (pur, testable) : `parseHttpHeaders` (Subscription-Userinfo + profile-update-interval), `parseSubscriptionMetadata` (dates `DD.MM.YYYY`, date nue, russe `истекает N mois AAAA`, trafic, provider). Format ISO fidèle à Java `Instant.toString()` (millis nulles omises).
+  - `fetchRemoteSubscriptionPayload` retourne désormais `{ body, subscriptionUserInfo, profileUpdateInterval }` (capture l'en-tête au fetch).
+  - `processSupplierResource` : expiry/traffic priorité header → texte collé/corps ; provider/connected/device gardés du legacy (inchangé).
+  - Tests : nouveau `subscription-metadata-parser.spec.ts` (8 groupes) ajouté à `test:policy` ; mocks des 3 specs vpn-config existantes alignés sur `{ body }`.
+  - **Vérif** : `tsc` 0 erreur ; `test:policy` 35 specs vertes.
+- **ÉTAPES 2-3 — VÉRIFIÉES DÉJÀ À PARITÉ (aucun port nécessaire)** : sonde de parité (`parser-parity.manual.ts`) = **11/12 formes de l'app déjà gérées** par le backend, décodeur plus robuste que l'app (`expandTextCarriers` = 10 passes vs 4). Clash YAML, Sing-box, Xray JSON outbounds, happ://, base64 multi-passes (même double-wrappé), multi-lignes → tout OK. **Seul écart = SOCKS5**, volontairement exclu du parser fournisseur car c'est la feature BYO « Mon proxy » (proxy de l'utilisateur), PAS un format de stock revendable (le modèle `VpnProtocol`/builder Xray ne peut pas en faire un runtime de revente). Décision : NE PAS l'ajouter (laisserait entrer des configs non-revendables dans le stock). Conclusion : le « port massif » imaginé était déjà fait ; l'ÉTAPE 1 (expiration) était le seul vrai gap.
+- **Impact** : dès qu'une config d'abonnement est importée, `supplier_expires_at` est renseigné (header `expire=` ou date texte) → la machine d'état stock (EXPIRED → purge) fonctionne enfin.
+- **Harnais de démo laissés sur la branche** (non dans `test:policy`) : `stock-e2e.manual.ts` (cycle stock complet), `parser-parity.manual.ts` (sonde de parité), `stock-backfill-e2e.manual.ts` (backfill) — supprimables si tu veux.
+- **BACKFILL de l'existant SHIPPÉ (sur branche)** : `InventoryService.backfillSupplierExpiries(limit=100)` — re-parse les `InventoryItem` avec `supplier_expires_at IS NULL` via `process_supplier_resource` (qui lit maintenant l'expiration) ; renseigne la date ; les déjà-passés sont expirés (réutilise `expireInventoryItem`) puis les invendus purgés (`purgeExpiredUnsoldConfigs`). Idempotent (NULL-only), borné (≤500). Message pattern `backfill_supplier_expiries` (controller). Raison : le fix parser ne rattrape PAS rétroactivement les lignes déjà en base (leur date était NULL) → sans backfill, l'existant expiré n'est jamais purgé. e2e stateful 11/11 (futur→gardé vendable ; passé-invendu→purgé ; brut-sans-date→intact NULL pour saisie manuelle ; passé-vendu→EXPIRED conservé pour traçabilité). NON encore câblé à une commande Telegram (à faire si voulu). Trial exclu.
+
+---
+
+# === STATUS — 2026-07-01 (durcissement stock : one-config-one-client + backorder honnête) ===
+
+**Branche `refactor/stock-one-config-one-client` (NON mergée — attend validation user).** Refonte de la surface stock backend selon la demande : élimination totale de la revente, vente honnête sans stock, purge auto des expirés, notifs Telegram, source de vérité unique.
+
+- **Bloc 1 — Revente éliminée (burn-after-sale)** : `inventory.service.ts` alloue désormais un seul config libre par client (SELECT `status='AVAILABLE'` + `health='HEALTHY'` + non-expiré + source non-épuisée, tri par expiry la plus proche puis FIFO, `LIMIT 1 FOR UPDATE SKIP LOCKED`). Plus de packing/slots/`sale_priority_score`. Une assignation terminée ⇒ config `DEAD` (jamais re-vendu). `computeHealthStatus` sans slots ; `recalculateInventoryState` status-based (DEAD/ASSIGNED) ; `canAllocateSupplierConfig` = HEALTHY+AVAILABLE. Colonnes `*_resale_slots` laissées **vestiges** (1/0) — drop dans une migration ultérieure.
+- **Bloc 1b — policies** : `supplier-capacity`, `entitlement-continuity` (candidat = AVAILABLE, sélection par expiry la + lointaine), `resupply-orchestrator` (réalloc burn : winner→ASSIGNED, source→DEAD).
+- **Bloc 2 — Gate backorder, plus de hard-block** : `customer.service.preparePendingOrder` n'interdit plus la vente à stock zéro ; commande acceptée en **backorder** honnête (flag `backorder` remonté aux 4 retours checkout + message client « livrée dès réapprovisionnement »), auto-livrée par le retry `PENDING_FULFILLMENT` existant. Client `ADMIN_SERVICE` ajouté à customer-order-service pour émettre `order_placed`.
+- **Bloc 3 — Auto-purge** : `purgeExpiredUnsoldConfigs()` dans le balayage planifié — supprime les configs expirés **jamais vendus** (FK-safe, journal conservé) ; expirés-vendus gardés en `DEAD` pour la traçabilité. Endpoint manuel `purge_expired_configs`.
+- **Bloc 4 — Notifs Telegram** : events `order_placed` (🆕 nouvelle commande / 🆕⛔ backorder) + `stock_depleted` (⛔ stock épuisé) → formatters + handlers admin. Corrigé `formatStockHealth` (comptage allouable = status AVAILABLE, plus les slots vestiges → évitait un surcompte).
+
+**Vérif** : `tsc --noEmit` = **0 erreur** (backend entier, specs incluses) ; **`npm run test:policy` = 100% vert** (specs migrées au modèle 1:1 : inventory.service, supplier-capacity, entitlement-continuity, resupply-orchestrator, continuity-formatter, swim-pay-checkout). Schéma Prisma **non touché**.
+**Réparé (env, non tracké)** : `node_modules/libphonenumber-js/build` était absent (install corrompue) → bloquait toute la suite ; restauré via `npm pack`. Le CLI `prisma` a la même corruption (build manquant) mais aucun changement de schéma de ma part.
+**Trial** : intouché (comme convenu). **Codes morts d'enum** : à traiter séparément.
+**À FAIRE** : validation device/flux réel par l'user avant merge `main` ; `order_placed` ping sur commande PENDING = potentiellement bruyant (tuning) ; drop des colonnes `*_resale_slots` + fonctions `plan-policy` vestiges dans une migration ultérieure ; câbler `purge_expired_configs`/backorder au front Android si voulu.
+
+---
+
 # === STATUS — 2026-06-23 (P0 #2 paiements + #3 marketing) ===
 
 **Les 3 directives P0 sont traitées** (stock #1 shippé+live ; paiements #2 doc ; marketing #3 doc) :

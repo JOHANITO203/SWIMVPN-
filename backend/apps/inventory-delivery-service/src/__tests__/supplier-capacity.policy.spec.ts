@@ -25,12 +25,13 @@ assert(getPublicPlanName(PlanCategory.QUARTER) === 'Platinum', 'QUARTER should m
 assert(DEFAULT_RESALE_SLOT_CAP === 2, 'Supplier configs should be resold to max 2 customer orders');
 assert(DEFAULT_SUPPLIER_USER_CAPACITY === 2, 'Supplier configs should support max 2 SWIMVPN customers internally');
 
-assert(getPublicPlanDeviceAllowance(PlanCategory.WEEK) === 1, 'Basic should publicly display 1 device');
-assert(getPublicPlanDeviceAllowance(PlanCategory.MONTH) === 2, 'Premium should publicly display 2 devices');
+// Every offer now includes connectivity for up to 3 devices.
+assert(getPublicPlanDeviceAllowance(PlanCategory.WEEK) === 3, 'Basic should publicly display 3 devices');
+assert(getPublicPlanDeviceAllowance(PlanCategory.MONTH) === 3, 'Premium should publicly display 3 devices');
 assert(getPublicPlanDeviceAllowance(PlanCategory.QUARTER) === 3, 'Platinum should publicly display 3 devices');
-assert(getPlanDeviceAllowance(PlanCategory.WEEK) === 1, 'Compatibility helper should publicly display Basic as 1 device');
-assert(getPlanDeviceAllowance(PlanCategory.MONTH) === 2, 'Compatibility helper should publicly display Premium as 2 devices');
-assert(getPlanDeviceAllowance(PlanCategory.QUARTER) === 3, 'Compatibility helper should publicly display Platinum as 3 devices');
+assert(getPlanDeviceAllowance(PlanCategory.WEEK) === 3, 'Compatibility helper should display Basic as 3 devices');
+assert(getPlanDeviceAllowance(PlanCategory.MONTH) === 3, 'Compatibility helper should display Premium as 3 devices');
+assert(getPlanDeviceAllowance(PlanCategory.QUARTER) === 3, 'Compatibility helper should display Platinum as 3 devices');
 
 assert(getSupplierCapacityUnitsPerUser(PlanCategory.WEEK) === 1, 'Basic should consume 1 supplier capacity unit');
 assert(getSupplierCapacityUnitsPerUser(PlanCategory.MONTH) === 2, 'Premium should consume 2 supplier capacity units');
@@ -45,54 +46,30 @@ assert(getPlanSlotCount(PlanCategory.WEEK) === 1, 'Plan slot compatibility helpe
 assert(getPlanSlotCount(PlanCategory.MONTH) === 2, 'Premium compatibility helper should return 2 supplier units');
 assert(getPlanSlotCount(PlanCategory.QUARTER) === 3, 'Platinum compatibility helper should return 3 supplier units');
 
+// One config = one client: allocatable iff HEALTHY and still FREE (AVAILABLE).
 assert(
-  canAllocateSupplierConfig({
-    healthStatus: 'HEALTHY',
-    usedResaleSlots: 0,
-    maxResaleSlots: 2,
-    requiredSlots: 1,
-  }),
-  'A paid order should fit into an empty supplier config',
+  canAllocateSupplierConfig({ healthStatus: 'HEALTHY', status: 'AVAILABLE' }),
+  'A healthy, free config can serve one client',
 );
 
 assert(
-  canAllocateSupplierConfig({
-    healthStatus: 'HEALTHY',
-    usedResaleSlots: 1,
-    maxResaleSlots: 2,
-    requiredSlots: 1,
-  }),
-  'A second paid order should fit into a supplier config',
+  !canAllocateSupplierConfig({ healthStatus: 'HEALTHY', status: 'ASSIGNED' }),
+  'An already-assigned config is burned and must not take a second client',
 );
 
 assert(
-  !canAllocateSupplierConfig({
-    healthStatus: 'HEALTHY',
-    usedResaleSlots: 2,
-    maxResaleSlots: 2,
-    requiredSlots: 1,
-  }),
-  'A third paid order must not fit into a supplier config',
+  !canAllocateSupplierConfig({ healthStatus: 'HEALTHY', status: 'DEAD' }),
+  'A retired (DEAD) config must not be re-sold',
 );
 
 assert(
-  !canAllocateSupplierConfig({
-    healthStatus: 'FULL',
-    usedResaleSlots: 0,
-    maxResaleSlots: 2,
-    requiredSlots: 1,
-  }),
-  'FULL supplier configs must not accept new allocations',
+  !canAllocateSupplierConfig({ healthStatus: 'FULL', status: 'AVAILABLE' }),
+  'FULL (source exhausted) configs must not accept allocations',
 );
 
 assert(
-  !canAllocateSupplierConfig({
-    healthStatus: 'EXPIRED',
-    usedResaleSlots: 0,
-    maxResaleSlots: 2,
-    requiredSlots: 1,
-  }),
-  'EXPIRED supplier configs must not accept new allocations',
+  !canAllocateSupplierConfig({ healthStatus: 'EXPIRED', status: 'AVAILABLE' }),
+  'EXPIRED configs must not accept allocations',
 );
 
 console.log('supplier capacity policy tests passed');

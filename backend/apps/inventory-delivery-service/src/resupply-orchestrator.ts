@@ -39,17 +39,16 @@ export class ResupplyOrchestrator {
       if (!verdict.atRisk) continue;
 
       const ctx: SelectionContext = { category: item.category, soldExpiryMs, soldQuotaBytes, clientConsumedBytes: clientConsumed };
+      // One config = one client: reallocate only onto a FREE (AVAILABLE) healthy config.
       const rawCandidates = await this.prisma.inventoryItem.findMany({
-        where: { category: item.category, health_status: 'HEALTHY', status: { in: ['AVAILABLE', 'ASSIGNED'] } },
+        where: { category: item.category, health_status: 'HEALTHY', status: 'AVAILABLE' },
       });
       const candidates: ContinuityCandidate[] = rawCandidates
         .filter((c: any) => c.id !== item.id)
         .map((c: any) => ({
-          id: c.id, category: c.category, healthStatus: c.health_status,
-          usedResaleSlots: c.used_resale_slots, maxResaleSlots: c.max_resale_slots,
+          id: c.id, category: c.category, healthStatus: c.health_status, status: c.status,
           supplierExpiresAtMs: c.supplier_expires_at ? c.supplier_expires_at.getTime() : null,
           sourceQuotaRemainingBytes: c.source_quota_bytes != null ? Number(c.source_quota_bytes) - Number(c.source_used_bytes ?? 0n) : null,
-          salePriorityScore: c.sale_priority_score,
         }));
       const winner = selectReallocationCandidate(ctx, candidates, nowMs);
 
@@ -65,15 +64,16 @@ export class ResupplyOrchestrator {
 
       const didRealloc = await this.prisma.$transaction(async (tx: any) => {
         const fresh = await tx.inventoryItem.findUnique({ where: { id: winner.id } });
-        if (!fresh || fresh.used_resale_slots >= fresh.max_resale_slots) {
-          return false; // winner filled up since selection (race) — skip, retry next pass
+        if (!fresh || fresh.status !== 'AVAILABLE' || fresh.health_status !== 'HEALTHY') {
+          return false; // winner was taken since selection (race) — skip, retry next pass
         }
+        // Move the client onto the fresh config (now burned to them) and retire the old one.
         await tx.orderAssignment.update({
           where: { id: a.id },
           data: { inventory_item_id: winner.id, expires_at: winner.supplierExpiresAtMs ? new Date(winner.supplierExpiresAtMs) : null, status_reason: 'REALLOCATED' },
         });
-        await tx.inventoryItem.update({ where: { id: winner.id }, data: { used_resale_slots: { increment: 1 } } });
-        await tx.inventoryItem.update({ where: { id: item.id }, data: { used_resale_slots: { decrement: 1 } } });
+        await tx.inventoryItem.update({ where: { id: winner.id }, data: { status: 'ASSIGNED', assigned_order_id: a.order_id, assigned_customer_id: a.customer_id, assigned_at: new Date(nowMs) } });
+        await tx.inventoryItem.update({ where: { id: item.id }, data: { status: 'DEAD' } });
         await tx.adminEvent.create({ data: {
           event_type: 'ASSIGNMENT_REALLOCATED', entity_type: 'ORDER', entity_id: a.order_id,
           payload_json: { assignmentId: a.id, fromItemId: item.id, toItemId: winner.id, reasons: verdict.reasons } as any,

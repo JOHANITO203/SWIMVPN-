@@ -33,9 +33,11 @@ VlessWB Subscription page
 
 async function main() {
   const service = new VpnConfigService() as any;
-  service.fetchRemoteSubscriptionPayload = async () => Buffer
-    .from('vless://22222222-2222-2222-2222-222222222222@wb-node.example:443?security=tls&type=ws&sni=wb-sni.example#VlessWB-France', 'utf8')
-    .toString('base64');
+  service.fetchRemoteSubscriptionPayload = async () => ({
+    body: Buffer
+      .from('vless://22222222-2222-2222-2222-222222222222@wb-node.example:443?security=tls&type=ws&sni=wb-sni.example#VlessWB-France', 'utf8')
+      .toString('base64'),
+  });
   const parsed = await service.processSupplierResource(rawSupplierMessage);
 
 assert(
@@ -59,7 +61,7 @@ assert(
 assert(parsed.metadata.expiresAt === '2026-05-21T00:00:00Z', 'expiry parsing failed');
 
   const unresolvedService = new VpnConfigService() as any;
-  unresolvedService.fetchRemoteSubscriptionPayload = async () => '';
+  unresolvedService.fetchRemoteSubscriptionPayload = async () => ({ body: '' });
   const unresolved = await unresolvedService.processSupplierResource('https://supplier.example/empty');
   assert(unresolved.parsedProfile.validationState === 'INVALID', 'unresolved supplier URL should not import as UNKNOWN stock');
 
@@ -86,9 +88,11 @@ trojan://secret@trojan-trial.example:443?security=tls#Trojan
   assert(embeddedRuntime.parsedProfile.address === 'vmess-trial.example', 'embedded VMess host parsing failed');
 
   const resolvedSupplier = new VpnConfigService() as any;
-  resolvedSupplier.fetchRemoteSubscriptionPayload = async () => Buffer
-    .from('vless://99999999-9999-9999-9999-999999999999@trial-node.example:443?security=reality&type=tcp&sni=trial-sni.example&pbk=key&sid=12#Trial-France', 'utf8')
-    .toString('base64');
+  resolvedSupplier.fetchRemoteSubscriptionPayload = async () => ({
+    body: Buffer
+      .from('vless://99999999-9999-9999-9999-999999999999@trial-node.example:443?security=reality&type=tcp&sni=trial-sni.example&pbk=key&sid=12#Trial-France', 'utf8')
+      .toString('base64'),
+  });
   const resolved = await resolvedSupplier.processSupplierResource('https://supplier.example/trial-token');
 
   assert(

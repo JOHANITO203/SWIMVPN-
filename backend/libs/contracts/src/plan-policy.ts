@@ -18,16 +18,9 @@ export function getPublicPlanName(code: PlanCategory): PublicPlanName {
   }
 }
 
-export function getPublicPlanDeviceAllowance(code: PlanCategory): number {
-  switch (code) {
-    case PlanCategory.MONTH:
-      return 2;
-    case PlanCategory.QUARTER:
-      return 3;
-    case PlanCategory.WEEK:
-    default:
-      return 1;
-  }
+export function getPublicPlanDeviceAllowance(_code: PlanCategory): number {
+  // Every offer now includes connectivity for up to 3 devices.
+  return 3;
 }
 
 export function getSupplierCapacityUnitsPerUser(code: PlanCategory): number {

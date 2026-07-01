@@ -36,12 +36,12 @@ async function main() {
       access_status: 'ACTIVE', measured_used_bytes: 0n, order,
       inventory_item: { id: 'old1', category: 'WEEK', supplier_expires_at: new Date(now + 1 * day), source_quota_bytes: null, source_used_bytes: 0n, used_resale_slots: 1, max_resale_slots: 2 },
     };
-    const candidate = { id: 'new1', category: 'WEEK', health_status: 'HEALTHY', used_resale_slots: 0, max_resale_slots: 2, supplier_expires_at: new Date(now + 30 * day), source_quota_bytes: null, source_used_bytes: 0n, sale_priority_score: 50 };
+    const candidate = { id: 'new1', category: 'WEEK', health_status: 'HEALTHY', status: 'AVAILABLE', supplier_expires_at: new Date(now + 30 * day), source_quota_bytes: null, source_used_bytes: 0n };
     const { prisma, adminClient, writes } = makeDeps({ assignments: [assignment], candidates: [candidate] });
     const orch = new ResupplyOrchestrator(prisma, adminClient);
     await orch.runReallocationPass();
     assert(writes.events.some((e: any) => e.data.event_type === 'ASSIGNMENT_REALLOCATED'), 'logs ASSIGNMENT_REALLOCATED');
-    assert(writes.itemUpdates.length >= 2, 'adjusts both old and new item slots');
+    assert(writes.itemUpdates.length >= 2, 'burns old config (DEAD) and assigns the fresh one (ASSIGNED)');
     assert(writes.emitted.some((m: any) => m.ev === 'continuity_pass_summary' && m.payload.reallocated === 1), 'emits per-pass summary with reallocated count');
   }
 
@@ -84,9 +84,9 @@ async function main() {
       access_status: 'ACTIVE', measured_used_bytes: 0n, order,
       inventory_item: { id: 'old4', category: 'WEEK', supplier_expires_at: new Date(now + 1 * day), source_quota_bytes: null, source_used_bytes: 0n, used_resale_slots: 1, max_resale_slots: 2 },
     };
-    // Candidate passes selection (usedResaleSlots: 0 < maxResaleSlots: 2) but winnerFresh is full
-    const candidate = { id: 'new4', category: 'WEEK', health_status: 'HEALTHY', used_resale_slots: 0, max_resale_slots: 2, supplier_expires_at: new Date(now + 30 * day), source_quota_bytes: null, source_used_bytes: 0n, sale_priority_score: 50 };
-    const winnerFresh = { id: 'new4', used_resale_slots: 2, max_resale_slots: 2 };
+    // Candidate passes selection (AVAILABLE) but by tx-time another client took it (status ASSIGNED)
+    const candidate = { id: 'new4', category: 'WEEK', health_status: 'HEALTHY', status: 'AVAILABLE', supplier_expires_at: new Date(now + 30 * day), source_quota_bytes: null, source_used_bytes: 0n };
+    const winnerFresh = { id: 'new4', status: 'ASSIGNED', health_status: 'HEALTHY' };
     const { prisma, adminClient, writes } = makeDeps({ assignments: [assignment], candidates: [candidate], winnerFresh });
     const orch = new ResupplyOrchestrator(prisma, adminClient);
     const result = await orch.runReallocationPass();

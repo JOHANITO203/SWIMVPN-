@@ -185,9 +185,9 @@ proxies:
   }
 
   const remoteResolver = new VpnConfigService() as any;
-  remoteResolver.fetchRemoteSubscriptionPayload = async () => Buffer
-    .from(`${vlessOne}\n${trojan}`, 'utf8')
-    .toString('base64');
+  remoteResolver.fetchRemoteSubscriptionPayload = async () => ({
+    body: Buffer.from(`${vlessOne}\n${trojan}`, 'utf8').toString('base64'),
+  });
   const resolvedRemoteNodes = await remoteResolver.resolveManagedRuntimeNodes('https://supplier.example/sub');
   assert(resolvedRemoteNodes.length === 2, 'resolver should parse nodes from fetched subscription payload');
   assert(

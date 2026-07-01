@@ -4,9 +4,9 @@ import { cineAccentVars } from './tokens';
 import { useCine } from './i18n';
 
 const PLAN_META = [
-  { tag: 'Basic', price: '$3.49' },
-  { tag: 'Premium', price: '$7.99', best: true },
-  { tag: 'Platinum', price: '$21.99' },
+  { tag: 'Basic', price: '$4.36' },
+  { tag: 'Premium', price: '$9.99', best: true },
+  { tag: 'Platinum', price: '$27.49' },
 ];
 const PAIEMENT = ['SwimPay · RUB', 'SwimPay · USD', 'SwimPay · XOF', 'Bitcoin', 'USDT'];
 

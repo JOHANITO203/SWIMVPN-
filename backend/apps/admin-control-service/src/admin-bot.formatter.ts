@@ -728,8 +728,7 @@ export function cockpitPaletteKeyboard() {
 export interface StockHealthItem {
   category: string;
   healthStatus: string;
-  usedResaleSlots: number;
-  maxResaleSlots: number;
+  inventoryStatus: string; // one config = one client: AVAILABLE = sellable, ASSIGNED/DEAD = burned
   supplierExpiresAtMs: number | null;
 }
 
@@ -762,6 +761,36 @@ export function formatLowStockAlert(input: { category: string; remaining: number
   ].join('\n');
 }
 
+export function formatStockDepletedAlert(input: { category: string }): string {
+  return [
+    '⛔ *Stock épuisé*',
+    `Forfait : ${planLabel(input.category)}`,
+    'Plus aucune config allouable. Les nouvelles commandes passent en *backorder* (livrées au réappro).',
+    'Action : importe du stock — `/stock_health`',
+  ].join('\n');
+}
+
+export function formatNewOrderAlert(input: {
+  orderRef: string;
+  planCode: string;
+  planName?: string;
+  amountRub?: string;
+  backorder?: boolean;
+}): string {
+  const lines = [
+    input.backorder ? '🆕⛔ *Nouvelle commande — BACKORDER*' : '🆕 *Nouvelle commande*',
+    `Réf : ${input.orderRef}`,
+    `Forfait : ${input.planName || planLabel(input.planCode)}`,
+  ];
+  if (input.amountRub) {
+    lines.push(`Montant : ${input.amountRub} RUB`);
+  }
+  if (input.backorder) {
+    lines.push('⚠️ Stock épuisé — livraison automatique dès réapprovisionnement.');
+  }
+  return lines.join('\n');
+}
+
 export function formatStockForecastAlert(input: {
   category: string;
   available: number;
@@ -790,7 +819,7 @@ export function formatStockHealth(items: StockHealthItem[], nowMs: number): stri
   for (const category of [PlanCategory.WEEK, PlanCategory.MONTH, PlanCategory.QUARTER]) {
     const group = items.filter((i) => i.category === category);
     const allocatable = group.filter(
-      (i) => i.healthStatus === 'HEALTHY' && i.usedResaleSlots < i.maxResaleSlots,
+      (i) => i.healthStatus === 'HEALTHY' && i.inventoryStatus === 'AVAILABLE',
     ).length;
     const lifes = group
       .map((i) => i.supplierExpiresAtMs)

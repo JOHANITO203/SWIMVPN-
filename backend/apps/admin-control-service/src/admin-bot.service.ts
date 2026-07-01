@@ -921,8 +921,7 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       const items: StockHealthItem[] = (Array.isArray(overview) ? overview : []).map((i: any) => ({
         category: i.category,
         healthStatus: i.healthStatus,
-        usedResaleSlots: i.usedResaleSlots,
-        maxResaleSlots: i.maxResaleSlots,
+        inventoryStatus: i.inventoryStatus,
         supplierExpiresAtMs: i.supplierExpiresAt ? new Date(i.supplierExpiresAt).getTime() : null,
       }));
       await ctx.reply(formatStockHealth(items, Date.now()), { parse_mode: 'Markdown' });

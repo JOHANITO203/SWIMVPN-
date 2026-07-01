@@ -25,15 +25,16 @@ assert(/1/.test(low), 'low-stock shows remaining');
 
 const now = 1_000_000_000_000;
 const day = 24 * 60 * 60 * 1000;
+// One config = one client: allocatable = HEALTHY + AVAILABLE (free). ASSIGNED/DEAD are burned.
 const items: StockHealthItem[] = [
-  { category: 'WEEK', healthStatus: 'HEALTHY', usedResaleSlots: 0, maxResaleSlots: 2, supplierExpiresAtMs: now + 10 * day },
-  { category: 'WEEK', healthStatus: 'HEALTHY', usedResaleSlots: 2, maxResaleSlots: 2, supplierExpiresAtMs: now + 2 * day },
-  { category: 'MONTH', healthStatus: 'DEGRADED', usedResaleSlots: 0, maxResaleSlots: 2, supplierExpiresAtMs: null },
+  { category: 'WEEK', healthStatus: 'HEALTHY', inventoryStatus: 'AVAILABLE', supplierExpiresAtMs: now + 10 * day },
+  { category: 'WEEK', healthStatus: 'HEALTHY', inventoryStatus: 'ASSIGNED', supplierExpiresAtMs: now + 2 * day },
+  { category: 'MONTH', healthStatus: 'DEGRADED', inventoryStatus: 'AVAILABLE', supplierExpiresAtMs: null },
 ];
 const health = formatStockHealth(items, now);
 assert(health.includes('Basic'), 'health view lists Basic');
 assert(health.includes('Premium'), 'health view lists Premium');
 assert(health.includes('Platinum'), 'health view lists Platinum (even if empty)');
-assert(health.includes('1 allocatable'), 'Basic has 1 allocatable (one healthy with a free slot)');
+assert(health.includes('1 allocatable'), 'Basic has 1 allocatable (one healthy free config; the assigned one is burned)');
 
 console.log('continuity-formatter.spec.ts passed');

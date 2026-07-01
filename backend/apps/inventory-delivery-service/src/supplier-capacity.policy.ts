@@ -5,19 +5,20 @@ export type SupplierAllocatableHealth =
   | 'EXPIRED'
   | 'DISABLED';
 
+export type SupplierAllocatableStatus =
+  | 'AVAILABLE'
+  | 'RESERVED'
+  | 'ASSIGNED'
+  | 'DEAD';
+
+/**
+ * One config = one client. A config can serve a new client iff it is HEALTHY and still FREE
+ * (AVAILABLE). Once ASSIGNED/DEAD it is burned and never re-offered. Supplier-expiry and
+ * source-exhaustion are checked by the caller (they need the live date/bytes).
+ */
 export function canAllocateSupplierConfig(input: {
   healthStatus: SupplierAllocatableHealth;
-  usedResaleSlots: number;
-  maxResaleSlots: number;
-  requiredSlots: number;
+  status: SupplierAllocatableStatus;
 }) {
-  if (input.healthStatus !== 'HEALTHY') {
-    return false;
-  }
-
-  if (input.requiredSlots <= 0 || input.maxResaleSlots <= 0) {
-    return false;
-  }
-
-  return input.usedResaleSlots + input.requiredSlots <= input.maxResaleSlots;
+  return input.healthStatus === 'HEALTHY' && input.status === 'AVAILABLE';
 }

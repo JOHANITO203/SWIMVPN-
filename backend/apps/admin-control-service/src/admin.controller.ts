@@ -6,6 +6,8 @@ import {
   formatContinuityNoStockAlert,
   formatContinuityPassSummary,
   formatLowStockAlert,
+  formatNewOrderAlert,
+  formatStockDepletedAlert,
   formatStockForecastAlert,
 } from './admin-bot.formatter';
 import {
@@ -29,6 +31,26 @@ export class AdminController {
   @EventPattern('low_stock_alert')
   async handleLowStock(@Payload() data: { category: string; remaining: number }) {
     await this.adminBotService.sendAdminAlert(formatLowStockAlert(data));
+  }
+
+  @EventPattern('stock_depleted')
+  async handleStockDepleted(@Payload() data: { category: string }) {
+    await this.adminBotService.sendAdminAlert(formatStockDepletedAlert(data));
+  }
+
+  @EventPattern('order_placed')
+  async handleOrderPlaced(
+    @Payload()
+    data: {
+      orderRef: string;
+      planCode: string;
+      planName?: string;
+      amountRub?: string;
+      backorder?: boolean;
+      availableStock?: number | null;
+    },
+  ) {
+    await this.adminBotService.sendAdminAlert(formatNewOrderAlert(data));
   }
 
   @EventPattern('stock_forecast_alert')

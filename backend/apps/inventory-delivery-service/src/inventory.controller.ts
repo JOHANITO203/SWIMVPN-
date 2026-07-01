@@ -66,6 +66,16 @@ export class InventoryController {
     return this.inventoryService.getCategoryAvailability(data.category);
   }
 
+  @MessagePattern({ cmd: 'purge_expired_configs' })
+  async purgeExpiredConfigs() {
+    return this.inventoryService.purgeExpiredUnsoldConfigs();
+  }
+
+  @MessagePattern({ cmd: 'backfill_supplier_expiries' })
+  async backfillSupplierExpiries(@Payload() data: { limit?: number }) {
+    return this.inventoryService.backfillSupplierExpiries(data?.limit);
+  }
+
   @MessagePattern({ cmd: 'clear_available_configs' })
   async clearAvailableConfigs(@Payload() data: { category: any }) {
     return this.inventoryService.clearAvailableConfigs(data.category);

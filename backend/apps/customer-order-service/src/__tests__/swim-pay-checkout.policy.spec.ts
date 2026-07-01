@@ -84,7 +84,11 @@ async function main() {
   };
 
   const inventoryClient = {
-    send: (_pattern: any, payload: any) => {
+    send: (pattern: any, payload: any) => {
+      // Stock gate: report availability without touching the fulfillment tracker.
+      if (pattern?.cmd === 'check_category_availability') {
+        return of({ category: payload.category, available: 5, requiredSlots: 1 });
+      }
       fulfilledOrderIds.push(payload.orderId);
       return of({ success: true, orderId: payload.orderId });
     },

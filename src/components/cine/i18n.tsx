@@ -69,8 +69,8 @@ const FR: CineStrings = {
     offres: 'Offres',
     periods: ['Accès 7 jours', 'Accès 30 jours', 'Accès 90 jours'],
     features: [
-      ['50 GB inclus', '1 appareil', 'Agent IA'],
-      ['150 GB inclus', '2 appareils', 'Agent IA temps réel'],
+      ['50 GB inclus', '3 appareils', 'Agent IA'],
+      ['150 GB inclus', '3 appareils', 'Agent IA temps réel'],
       ['500 GB inclus', '3 appareils', 'Agent IA temps réel'],
     ],
     notes: [
@@ -131,8 +131,8 @@ const EN: CineStrings = {
     offres: 'Plans',
     periods: ['7-day access', '30-day access', '90-day access'],
     features: [
-      ['50 GB included', '1 device', 'AI agent'],
-      ['150 GB included', '2 devices', 'Real-time AI agent'],
+      ['50 GB included', '3 devices', 'AI agent'],
+      ['150 GB included', '3 devices', 'Real-time AI agent'],
       ['500 GB included', '3 devices', 'Real-time AI agent'],
     ],
     notes: [
@@ -193,8 +193,8 @@ const RU: CineStrings = {
     offres: 'Тарифы',
     periods: ['Доступ 7 дней', 'Доступ 30 дней', 'Доступ 90 дней'],
     features: [
-      ['50 ГБ включено', '1 устройство', 'ИИ-агент'],
-      ['150 ГБ включено', '2 устройства', 'ИИ-агент в реальном времени'],
+      ['50 ГБ включено', '3 устройства', 'ИИ-агент'],
+      ['150 ГБ включено', '3 устройства', 'ИИ-агент в реальном времени'],
       ['500 ГБ включено', '3 устройства', 'ИИ-агент в реальном времени'],
     ],
     notes: [

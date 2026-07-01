@@ -6,6 +6,18 @@ import * as net from 'net';
 import { promises as dns } from 'dns';
 import * as http from 'http';
 import * as https from 'https';
+import {
+  parseHttpHeaders,
+  parseSubscriptionMetadata,
+  headerHasValues,
+  type SubscriptionHeaderMetadata,
+} from './subscription-metadata.parser';
+
+interface RemoteSubscriptionResponse {
+  body: string;
+  subscriptionUserInfo?: string;
+  profileUpdateInterval?: string;
+}
 
 export interface ConfigPipelineResult {
   rawConfig: string;
@@ -130,15 +142,53 @@ export class VpnConfigService {
     const ingested = this.ingest(raw || '');
     const runtimeCandidates = this.extractRuntimeConfigCandidates(ingested);
     const extractedRawConfig = runtimeCandidates[0] || this.extractPrimaryConfigCandidate(raw);
-    const resolvedRuntimeNodes = this.isRemoteSubscriptionUrl(extractedRawConfig)
-      ? await this.resolveManagedRuntimeNodes(extractedRawConfig)
-      : [];
+    const isSubscription = this.isRemoteSubscriptionUrl(extractedRawConfig);
+
+    // For a subscription URL, fetch ONCE and keep both the body (for nodes) and the response
+    // headers — the `Subscription-Userinfo` header carries the expiry/traffic the app relies on.
+    let subscriptionBody: string | null = null;
+    let headerMetadata: SubscriptionHeaderMetadata | undefined;
+    let resolvedRuntimeNodes: ManagedRuntimeNode[] = [];
+    if (isSubscription) {
+      try {
+        const fetched = await this.fetchRemoteSubscriptionPayload(extractedRawConfig);
+        subscriptionBody = fetched.body;
+        const parsedHeaders = parseHttpHeaders(
+          fetched.subscriptionUserInfo,
+          fetched.profileUpdateInterval,
+          extractedRawConfig,
+        );
+        headerMetadata = headerHasValues(parsedHeaders) ? parsedHeaders : undefined;
+        resolvedRuntimeNodes = this.parseManagedRuntimeNodes(fetched.body);
+      } catch {
+        resolvedRuntimeNodes = [];
+      }
+    }
+
     const parsedProfile = resolvedRuntimeNodes[0]
       ? this.parse(resolvedRuntimeNodes[0].rawConfig)
-      : this.isRemoteSubscriptionUrl(extractedRawConfig)
+      : isSubscription
         ? this.invalid(extractedRawConfig, 'Remote subscription did not expose runtime nodes')
         : this.parse(extractedRawConfig);
-    const metadata = this.extractSupplierMetadata(raw);
+
+    // App-parity EXPIRY/TRAFFIC extraction. Priority: Subscription-Userinfo header (fetch) → the
+    // pasted supplier text AND/OR fetched body (broad date + traffic regexes). We deliberately keep
+    // the existing extractor's provider/connected/device detection unchanged (out of scope here).
+    const metadataText = [raw, subscriptionBody].filter(Boolean).join('\n\n');
+    const enriched = parseSubscriptionMetadata(
+      metadataText,
+      isSubscription ? extractedRawConfig : undefined,
+      headerMetadata,
+    );
+    const legacy = this.extractSupplierMetadata(raw);
+    const metadata: SupplierResourceMetadata = {
+      providerName: legacy.providerName,
+      trafficUsedBytes: enriched.trafficUsedBytes ?? legacy.trafficUsedBytes,
+      trafficTotalBytes: enriched.trafficTotalBytes ?? legacy.trafficTotalBytes,
+      expiresAt: enriched.expiresAt ?? legacy.expiresAt,
+      connectedDevices: legacy.connectedDevices,
+      deviceLimit: legacy.deviceLimit,
+    };
 
     return {
       rawConfig: extractedRawConfig,
@@ -199,7 +249,7 @@ export class VpnConfigService {
 
     try {
       const payload = await this.fetchRemoteSubscriptionPayload(ingested);
-      return this.parseManagedRuntimeNodes(payload);
+      return this.parseManagedRuntimeNodes(payload.body);
     } catch {
       return [];
     }
@@ -1225,7 +1275,7 @@ export class VpnConfigService {
     rawUrl: string,
     redirects = 0,
     cookieHeader?: string,
-  ): Promise<string> {
+  ): Promise<RemoteSubscriptionResponse> {
     if (redirects > VpnConfigService.REMOTE_SUBSCRIPTION_MAX_REDIRECTS) {
       throw new Error('Too many subscription redirects');
     }
@@ -1265,6 +1315,15 @@ export class VpnConfigService {
           return;
         }
 
+        // Capture the metadata headers the way v2rayNG/Happ do — this is where a subscription's
+        // expiry (`expire=<unix>`) and traffic live. Header names are case-insensitive.
+        const headerValue = (name: string): string | undefined => {
+          const raw = response.headers[name];
+          return Array.isArray(raw) ? raw[0] : raw;
+        };
+        const subscriptionUserInfo = headerValue('subscription-userinfo');
+        const profileUpdateInterval = headerValue('profile-update-interval');
+
         const chunks: Buffer[] = [];
         let received = 0;
         response.on('data', (chunk: Buffer) => {
@@ -1275,7 +1334,13 @@ export class VpnConfigService {
           }
           chunks.push(chunk);
         });
-        response.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+        response.on('end', () =>
+          resolve({
+            body: Buffer.concat(chunks).toString('utf8'),
+            subscriptionUserInfo,
+            profileUpdateInterval,
+          }),
+        );
       });
       request.on('timeout', () => request.destroy(new Error('Subscription fetch timed out')));
       request.on('error', reject);

@@ -1,4 +1,4 @@
-import { Injectable, Inject, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Inject, Optional, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
 import { firstValueFrom } from 'rxjs';
@@ -50,6 +50,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
     private readonly cryptoPayService: CryptoPayService,
     private readonly swimPayService?: SwimPayService,
     private readonly tributePayService?: TributePayService,
+    @Optional() @Inject('ADMIN_SERVICE') private readonly adminClient?: ClientProxy,
   ) {}
 
   private reconcileTimer?: NodeJS.Timeout;
@@ -202,7 +203,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
       planId: data.planId,
     });
 
-    return checkout.order;
+    return { ...checkout.order, backorder: checkout.backorder };
   }
 
   async createCheckout(data: CreateCheckoutDto) {
@@ -248,7 +249,10 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
           amountRub: checkout.plan.price_rub.toString(),
           paymentMethod: 'CRYPTO',
           redirectUrl: invoice.bot_invoice_url || invoice.mini_app_invoice_url || invoice.web_app_invoice_url || null,
-          message: 'Crypto invoice created',
+          backorder: checkout.backorder,
+          message: checkout.backorder
+            ? 'Crypto invoice created — stock momentanément épuisé : votre config sera livrée dès réapprovisionnement.'
+            : 'Crypto invoice created',
         };
       }
 
@@ -277,7 +281,10 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
           amountRub: checkout.plan.price_rub.toString(),
           paymentMethod: 'SWIMPAY',
           redirectUrl: swimPayCheckout.checkoutUrl,
-          message: 'SwimPay checkout created',
+          backorder: checkout.backorder,
+          message: checkout.backorder
+            ? 'SwimPay checkout created — stock momentanément épuisé : votre config sera livrée dès réapprovisionnement.'
+            : 'SwimPay checkout created',
         };
       }
 
@@ -301,7 +308,10 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
           amountRub: checkout.plan.price_rub.toString(),
           paymentMethod: 'TRIBUTE',
           redirectUrl,
-          message: 'Tribute order pending — complete payment in Telegram',
+          backorder: checkout.backorder,
+          message: checkout.backorder
+            ? 'Tribute order pending — stock momentanément épuisé : votre config sera livrée dès réapprovisionnement.'
+            : 'Tribute order pending — complete payment in Telegram',
         };
       }
 
@@ -1530,25 +1540,28 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
       this.fail('Plan not found or inactive');
     }
 
-    // SALE GATE — never take payment for a plan we cannot deliver. Confirms allocatable inventory for
-    // this plan's category BEFORE creating the order (the bug was: stock was only consulted at
-    // fulfillment, AFTER payment → paid-but-undeliverable orders). Fail-CLOSED on a confirmed zero
-    // (block the sale); fail-OPEN only if the inventory service is unreachable, relying on the existing
-    // PENDING_FULFILLMENT auto-retry as the safety net rather than blocking all sales on a transient hiccup.
-    let stockAvailability: { available: number } | null = null;
+    // STOCK CHECK (one config = one client). We NO LONGER block a sale when stock is 0: the order is
+    // accepted as an honest BACKORDER and auto-fulfilled when the operator restocks (via the existing
+    // PENDING_FULFILLMENT retry). We only measure availability to (a) warn the buyer honestly and
+    // (b) notify the admin. Fail-OPEN on an inventory RPC error (unknown stock → not flagged backorder).
+    let availableStock: number | null = null;
     try {
-      stockAvailability = await firstValueFrom(
-        this.inventoryClient.send({ cmd: 'check_category_availability' }, { category: plan.code }),
+      const stockAvailability = await firstValueFrom(
+        this.inventoryClient.send<{ available: number }>(
+          { cmd: 'check_category_availability' },
+          { category: plan.code },
+        ),
       );
+      if (stockAvailability && Number.isFinite(stockAvailability.available)) {
+        availableStock = stockAvailability.available;
+      }
     } catch (error) {
       console.warn(
-        `[stock-gate] availability check failed for ${plan.code}; allowing checkout (auto-retry safety net)`,
+        `[stock] availability check failed for ${plan.code}; treating stock as unknown`,
         error,
       );
     }
-    if (stockAvailability && shouldBlockSaleForStock(stockAvailability.available)) {
-      this.fail('Ce plan est momentanément indisponible (stock épuisé). Réessayez bientôt.');
-    }
+    const backorder = availableStock !== null && shouldBlockSaleForStock(availableStock);
 
     const normalizedEmail = data.email?.trim().toLowerCase() || undefined;
     const normalizedPhone = this.normalizePhone(data.phone) || undefined;
@@ -1575,10 +1588,26 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
+    // Notify the operator of every new order (and flag out-of-stock backorders). Fire-and-forget:
+    // a missing/unreachable admin bus must never break checkout.
+    try {
+      this.adminClient?.emit('order_placed', {
+        orderRef: order.order_ref,
+        planCode: plan.code,
+        planName: plan.name,
+        amountRub: plan.price_rub.toString(),
+        backorder,
+        availableStock,
+      });
+    } catch (error) {
+      console.warn(`[notify] order_placed emit failed for ${order.order_ref}`, error);
+    }
+
     return {
       customer,
       plan,
       order,
+      backorder,
     };
   }
 
