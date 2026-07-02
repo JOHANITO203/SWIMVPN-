@@ -1,0 +1,136 @@
+name: Android release (sideload)
+
+# Déclenché par un tag Android dédié `android-vX.Y.Z` (séparé des tags Windows `v*` du même repo).
+# Fait tout le rituel de release à la place du build manuel :
+#   build APK sideload signé → Release GitHub (asset) → version.json (apkUrl tag-spécifique,
+#   SHA-256 apparié) commité sur main → Dokploy redéploie la landing.
+# La version = source de vérité build.gradle (versionCode/versionName) ; le tag doit correspondre.
+
+on:
+  push:
+    tags:
+      - 'android-v*'
+
+permissions:
+  contents: write   # créer la Release + committer version.json sur main (GITHUB_TOKEN intégré)
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (tag)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # besoin de l'historique pour committer version.json sur main
+
+      - name: Résoudre la version (tag ↔ build.gradle)
+        id: ver
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"                 # ex: android-v1.0.14
+          TAG_VERSION="${TAG#android-v}"           # ex: 1.0.14
+          GRADLE=android/app/build.gradle
+          NAME=$(grep -oE 'versionName "[^"]+"' "$GRADLE" | head -1 | sed -E 's/versionName "([^"]+)"/\1/')
+          CODE=$(grep -oE 'versionCode [0-9]+' "$GRADLE" | head -1 | sed -E 's/versionCode //')
+          echo "tag=$TAG"           >> "$GITHUB_OUTPUT"
+          echo "version=$NAME"      >> "$GITHUB_OUTPUT"
+          echo "code=$CODE"         >> "$GITHUB_OUTPUT"
+          if [ "$TAG_VERSION" != "$NAME" ]; then
+            echo "::error::Le tag ($TAG_VERSION) ne correspond pas à versionName de build.gradle ($NAME). Bumpe build.gradle puis re-tague."
+            exit 1
+          fi
+          echo "Release Android v$NAME (code $CODE), tag $TAG"
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Android SDK + NDK + CMake
+        uses: android-actions/setup-android@v3
+      - name: Installer NDK 27 + CMake 3.22.1
+        run: sdkmanager "ndk;27.0.12077973" "cmake;3.22.1"
+
+      - name: Déchiffrer la clé de signature (secrets)
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_B64:-}" ] || [ -z "${STORE_PASSWORD:-}" ] || [ -z "${KEY_ALIAS:-}" ]; then
+            echo "::error::Secrets de signature manquants (SIGNING_KEYSTORE_BASE64 / SIGNING_STORE_PASSWORD / SIGNING_KEY_ALIAS)."
+            exit 1
+          fi
+          mkdir -p "$HOME/.swimvpn-signing"
+          echo "$KEYSTORE_B64" | base64 -d > "$HOME/.swimvpn-signing/swimvpn.jks"
+          cat > "$HOME/.swimvpn-signing/keystore.properties" <<EOF
+          storeFile=$HOME/.swimvpn-signing/swimvpn.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=${KEY_PASSWORD:-$STORE_PASSWORD}
+          EOF
+
+      - name: Build APK sideload signé
+        run: |
+          set -euo pipefail
+          chmod +x android/gradlew
+          (cd android && ./gradlew :app:assembleSideloadRelease --no-daemon)
+          APK=$(find android/app/build/outputs/apk/sideload/release -name '*.apk' | head -1)
+          test -n "$APK"
+          cp "$APK" ./swimvpn.apk
+          echo "APK: $APK ($(du -h ./swimvpn.apk | cut -f1))"
+
+      - name: Vérifier la signature (cert prod)
+        run: |
+          set -euo pipefail
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs ./swimvpn.apk | grep -i "SHA-256"
+
+      - name: Release GitHub + upload APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
+          NOTES=$(git tag -l --format='%(contents)' "$TAG")
+          gh release create "$TAG" ./swimvpn.apk \
+            --title "SWIMVPN Android ${{ steps.ver.outputs.version }}" \
+            --notes "${NOTES:-Release ${{ steps.ver.outputs.version }} (code ${{ steps.ver.outputs.code }}).}"
+
+      - name: version.json → commit sur main (déclenche le déploiement landing Dokploy)
+        env:
+          ASSET_URL: ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ steps.ver.outputs.tag }}/swimvpn.apk
+        run: |
+          set -euo pipefail
+          git config user.name "swimvpn-release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          # main porte déjà le bump versionCode/versionName (le tag en part) ; on ne régénère QUE
+          # public/version.json : code lu dans build.gradle, SHA-256 de l'APK buildé, apkUrl = asset Release.
+          NOTES=$(git tag -l --format='%(contents:subject)' "${{ steps.ver.outputs.tag }}")
+          if [ -n "$NOTES" ]; then
+            node scripts/generate-version-manifest.mjs --apk-file "$GITHUB_WORKSPACE/swimvpn.apk" --apk-url "$ASSET_URL" \
+              --changelog-fr "$NOTES" --changelog-en "$NOTES" --changelog-ru "$NOTES"
+          else
+            node scripts/generate-version-manifest.mjs --apk-file "$GITHUB_WORKSPACE/swimvpn.apk" --apk-url "$ASSET_URL"
+          fi
+          git add public/version.json
+          if git diff --cached --quiet; then
+            echo "version.json inchangé — rien à committer."
+          else
+            git commit -m "release(android): version.json → ${{ steps.ver.outputs.version }} (code ${{ steps.ver.outputs.code }}) [skip ci]"
+            git push origin main
+          fi

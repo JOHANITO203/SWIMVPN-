@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { CINE_DOWNLOAD_URL, CINE_ANDROID_URL, CINE_APP_VERSION } from './tokens';
 import { useCine } from './i18n';
@@ -28,15 +28,29 @@ function AndroidIcon({ className }: { className?: string }) {
   );
 }
 
-const PLATFORMS = [
-  { os: 'Windows', href: CINE_DOWNLOAD_URL, Icon: WindowsIcon },
-  { os: 'Android', href: CINE_ANDROID_URL, Icon: AndroidIcon },
-];
-
 export default function CineSignup() {
   const { t, locale } = useCine();
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState('');
+  // Le lien Android suit /version.json (source unique màj par la CI de release) : toujours la
+  // dernière APK sans re-toucher la landing. Fallback = APK servi par la landing si le fetch échoue.
+  const [androidUrl, setAndroidUrl] = useState(CINE_ANDROID_URL);
+  useEffect(() => {
+    let alive = true;
+    fetch('/version.json', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => {
+        if (alive && m && typeof m.apkUrl === 'string' && m.apkUrl.startsWith('https://')) setAndroidUrl(m.apkUrl);
+      })
+      .catch(() => {/* offline / manifest absent → on garde le fallback */});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const PLATFORMS = [
+    { os: 'Windows', href: CINE_DOWNLOAD_URL, Icon: WindowsIcon },
+    { os: 'Android', href: androidUrl, Icon: AndroidIcon },
+  ];
   const details: Record<string, string> = { Windows: t.download.winDetail, Android: t.download.andDetail };
 
   return (
