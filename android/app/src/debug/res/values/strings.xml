@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Debug-only override so the Onion Stealth spike build is visually distinct from the prod app
+         installed alongside it (different applicationId). Only applies to debug variants. -->
+    <string name="app_name">SWIM Onion (debug)</string>
+</resources>

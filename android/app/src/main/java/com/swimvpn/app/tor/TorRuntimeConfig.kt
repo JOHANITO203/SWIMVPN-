@@ -54,5 +54,8 @@ object TorRuntimeConfig {
         // Mobile hygiene: pure client, minimise flash writes.
         appendLine("ClientOnly 1")
         appendLine("AvoidDiskWrites 1")
+        // Surface Tor's bootstrap/warning lines in logcat (tag "Tor"). notice = concise (bootstrap %
+        // + warnings). Bump to `info` temporarily when a device spike needs per-relay connection detail.
+        appendLine("Log notice syslog")
     }
 }

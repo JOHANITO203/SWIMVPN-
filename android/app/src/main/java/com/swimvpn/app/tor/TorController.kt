@@ -57,7 +57,11 @@ class TorController(private val appContext: Context) {
         registerReceiver()
         _state.value = TorBootstrap.STARTING
         val intent = Intent(appContext, TorService::class.java).setAction(TorService.ACTION_START)
-        runCatching { ContextCompat.startForegroundService(appContext, intent) }
+        // startService (NOT startForegroundService): guardianproject TorService does not call
+        // startForeground() itself, so startForegroundService() throws
+        // ForegroundServiceDidNotStartInTimeException and crashes the app. We are already inside our own
+        // foreground VpnService (same process), so Tor stays alive without being a foreground service.
+        runCatching { appContext.startService(intent) }
             .onFailure { Log.e(TAG, "Failed to start TorService", it) }
     }
 

@@ -1,3 +1,20 @@
+# 2026-07-02 - Onion Stealth device spike — chain VALIDATED end-to-end; blocker is supplier node blocking Tor egress
+
+Result: The Tor-over-REALITY data plane was run on a real device (S23+, debug build `com.swimvpn.app.debug` installed alongside prod, then uninstalled). Outcome with server de.cloudrt.ru (45.10.43.254):
+- Tor → xray SOCKS(10810) proxy handshake: SUCCESS (every attempt). App→xray→REALITY→server chain works.
+- Server reaches real Tor relays (TCP connect via proxy succeeds).
+- Tor bootstrap STALLS at 10% ("Connected to a relay"). `Log info` proved WHY: every relay TLS handshake dies with "unexpected eof while reading ... SSL state error in HANDSHAKE" — across 4+ relays on ports 6667/9000/9001 AND 443. Port 443 failing too rules out port-blocking → it is Tor-protocol-level filtering by the node's egress. Normal web browsing works on the same server.
+
+Conclusion: the implementation (config transform + TorController + service wiring) is CORRECT and validated end-to-end. The only blocker is that this resold supplier node blocks/RSTs Tor connections. Not a code bug.
+
+Bugs found & fixed during the spike (on branch, uncommitted after 57da9c6):
+- TorController used `startForegroundService()` for guardianproject TorService, which does not self-promote → `ForegroundServiceDidNotStartInTimeException` crash-loop. Fixed to `startService()` (Tor lives in our already-foreground process).
+- Added `debug { applicationIdSuffix ".debug" }` + `src/debug/res` app_name override so the spike build coexists with the signed prod app (no uninstall / no data loss). Updater FileProvider authority is `${applicationId}.updateprovider` → no conflict.
+- Debug-only "Onion" routing pill in TechnicalSettingsScreen (BuildConfig.DEBUG) + VPN consent path extended to TOR_TUNNEL in HomeScreen.
+- Tor `Log notice syslog` in torrc for on-device visibility (bumped to `info` for the diagnosis, reverted to `notice`).
+
+Product implication: "Onion Stealth" only works on Tor-friendly exit nodes. Many commodity/resold nodes block Tor. Two paths: (1) add a "Tor-OK" capability flag to node selection for this mode (probe/curate which nodes pass Tor); (2) run it on self-hosted REALITY nodes with open egress (natural fit — premium feature on our own nodes). Next device proof needs a Tor-permitting node.
+
 # 2026-07-02 - Onion Stealth (embedded Tor chained under REALITY) — config layer landed, data plane device-gated
 
 Decision: Add a differentiating "Onion Stealth" anonymity mode where an embedded Tor client's traffic is chained through the existing REALITY tunnel (Tor-over-REALITY), NOT the reverse. Target product form is per-app split (Tor only for chosen apps, the rest keep full-speed REALITY), reached in two phases because the split's foundation IS the single-flow chain.
