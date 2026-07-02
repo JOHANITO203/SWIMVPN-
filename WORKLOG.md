@@ -1,3 +1,17 @@
+# === STATUS — 2026-07-02 (landing brutaliste + auto-update + pipeline CI release — SESSION Fable) ===
+
+Trois livrables shippés en prod cette session (tout via worktrees isolés — working tree principal jamais touché, resté sur `feat/onion-stealth-tor` de la session concurrente) :
+
+1. **Landing « Brutaliste premium »** (main `8c88c5f`) — refonte du design Reveal → typo Anton géante 3 lignes, menu mobile plein écran, section FAQ (#cine-faq, aussi dans le bloc SEO sr-only), stats honnêtes, **fix : bouton Android pointait vers `/` au lieu de l'APK**, parallaxe retirée. Fix CSS notable : `showcase.css` non-layeré (`a{color:inherit}`) battait les utilities Tailwind v4 → libellés blanc-sur-blanc invisibles ; résolu via classe non-layerée `.cine-cta`.
+
+2. **Auto-update sideload** (main `7fb556f`, release v1.0.13/code 14) — design 2026-06-14 implémenté : flavors `sideload`/`play`, check quotidien de `version.json` → dialog optionnel (dismiss mémorisé) / écran bloquant → DownloadManager → **SHA-256 vérifié avant install** → dialog système. Logique pure TDD (15 tests). **Gate device concluant sur S23+** (dialog + download 38 Mo + SHA PASS → packageinstaller lancé, log-prouvé ; throttle 24 h). ⚠️ Recette de build : `assembleSideloadRelease`. La flotte ≤1.0.12 = un dernier sideload manuel, ensuite auto.
+
+3. **Pipeline CI de release** (main `6cc2355`) — GitHub Actions sur tag `android-v*` (séparé des tags Windows `v*`) : build signé (secrets keystore) → Release GitHub + asset → `version.json` (apkUrl tag-spécifique, SHA apparié) → commit main → Dokploy. **Testé live** = tag `android-v1.0.14` (code 15) → prod sert code 15, sha `f34e1f7e…` vérifié = asset. Runbook `android/RELEASING.md`. 2 correctifs pendant le test : JDK du daemon Gradle (temurin 21 + neutralisation de l'épinglage JBR en CI) et **`[skip ci]` retiré** (Dokploy l'honore → sautait le déploiement). Leçon Dokploy : **déploiements en file + série (~2 min chacun)** → un backlog de pushes rapprochés met plusieurs minutes ; ne pas conclure au blocage avant ~10-15 min.
+
+Le changement quota/appareils que l'user pensait « sur onion » était en fait déjà sur main (`ecc641b`) — rien cherry-pické d'onion. Secrets de signature GitHub posés (4). Landing en v1.0.14 sur les 3 fronts. Sessions concurrentes : toujours `git branch --show-current` avant commit + worktree isolé.
+
+---
+
 # === STATUS — 2026-07-02 (données ×2 + libellé « 3 appareils » dans l'app) ===
 
 Après un nouveau build APK : prix OK (API) mais **libellé appareils par offre inchangé** car **hardcodé dans l'app** (`SubscriptionScreen.kt` `deviceAllowance`=1/2/3), pas piloté par l'API. + demande : **doubler les données vendues**.
