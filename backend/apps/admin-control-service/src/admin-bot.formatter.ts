@@ -93,6 +93,7 @@ export const ADMIN_BOT_COMMANDS = [
   { command: 'trial_import', description: 'Show trial config import instructions' },
   { command: 'trial_wizard', description: 'Guided trial config import' },
   { command: 'pending', description: 'Show orders waiting for capacity' },
+  { command: 'clear_pending', description: 'Clear orphaned PENDING orders immediately' },
   { command: 'retry', description: 'Retry one order or all pending orders' },
   { command: 'orders', description: 'Show recent orders' },
   { command: 'orders_today', description: 'Show today order count' },

@@ -1,4 +1,4 @@
-﻿import { Injectable, OnModuleDestroy, OnModuleInit, Logger, Inject } from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientProxy } from '@nestjs/microservices';
 import { PrismaService } from '@app/database';
@@ -184,6 +184,34 @@ export class AdminBotService implements OnModuleInit, OnModuleDestroy {
       } catch (error) {
         this.logger.error('Failed to fetch pending fulfillment orders', error as Error);
         await ctx.reply('Unable to fetch pending fulfillment orders right now.');
+      }
+    });
+
+    this.bot.command('clear_pending', async (ctx) => {
+      await ctx.reply('🧹 Nettoyage des commandes PENDING / PENDING_FULFILLMENT en cours...');
+      try {
+        const resultOrders = await this.prisma.order.updateMany({
+          where: {
+            status: { in: ['PENDING', 'PENDING_FULFILLMENT'] as any },
+          },
+          data: { status: 'FAILED' as any },
+        });
+
+        const resultTrials = await this.prisma.trialGrant.updateMany({
+          where: {
+            status: 'PENDING' as any,
+          },
+          data: { status: 'FAILED' as any },
+        });
+
+        await ctx.reply([
+          '✅ *Nettoyage terminé*',
+          `Commandes marquées FAILED: ${resultOrders.count}`,
+          `Essais (TrialGrants) marqués FAILED: ${resultTrials.count}`,
+        ].join('\n'), { parse_mode: 'Markdown' });
+      } catch (error) {
+        this.logger.error('Failed to clear pending orders', error as Error);
+        await ctx.reply('❌ Erreur lors du nettoyage.');
       }
     });
 
