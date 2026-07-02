@@ -27,8 +27,10 @@ jobs:
         with:
           fetch-depth: 0   # besoin de l'historique pour committer version.json sur main
 
-      - name: Résoudre la version (tag ↔ build.gradle)
+      - name: Résoudre la version + changelog (tag ↔ build.gradle)
         id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"                 # ex: android-v1.0.14
@@ -36,14 +38,25 @@ jobs:
           GRADLE=android/app/build.gradle
           NAME=$(grep -oE 'versionName "[^"]+"' "$GRADLE" | head -1 | sed -E 's/versionName "([^"]+)"/\1/')
           CODE=$(grep -oE 'versionCode [0-9]+' "$GRADLE" | head -1 | sed -E 's/versionCode //')
-          echo "tag=$TAG"           >> "$GITHUB_OUTPUT"
-          echo "version=$NAME"      >> "$GITHUB_OUTPUT"
-          echo "code=$CODE"         >> "$GITHUB_OUTPUT"
           if [ "$TAG_VERSION" != "$NAME" ]; then
             echo "::error::Le tag ($TAG_VERSION) ne correspond pas à versionName de build.gradle ($NAME). Bumpe build.gradle puis re-tague."
             exit 1
           fi
-          echo "Release Android v$NAME (code $CODE), tag $TAG"
+          # Message du tag annoté via l'API (fiable : le clone CI peut ne pas exposer l'objet-tag à
+          # `git tag -l`, qui retombe alors sur le sujet du commit). Type "tag" → message d'annotation ;
+          # sinon (tag léger) → sujet du commit. 1re ligne = changelog.
+          OBJ_TYPE=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.type' 2>/dev/null || echo "")
+          OBJ_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null || echo "")
+          if [ "$OBJ_TYPE" = "tag" ] && [ -n "$OBJ_SHA" ]; then
+            CHANGELOG=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${OBJ_SHA}" --jq '.message' | head -1)
+          else
+            CHANGELOG=$(git log -1 --format='%s' "${OBJ_SHA:-HEAD}")
+          fi
+          echo "tag=$TAG"       >> "$GITHUB_OUTPUT"
+          echo "version=$NAME"  >> "$GITHUB_OUTPUT"
+          echo "code=$CODE"     >> "$GITHUB_OUTPUT"
+          echo "changelog=$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo "Release Android v$NAME (code $CODE), tag $TAG — changelog: $CHANGELOG"
 
       - name: JDK 21
         uses: actions/setup-java@v4
@@ -108,11 +121,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="${{ steps.ver.outputs.tag }}"
-          NOTES=$(git tag -l --format='%(contents)' "$TAG")
-          gh release create "$TAG" ./swimvpn.apk \
+          gh release create "${{ steps.ver.outputs.tag }}" ./swimvpn.apk \
             --title "SWIMVPN Android ${{ steps.ver.outputs.version }}" \
-            --notes "${NOTES:-Release ${{ steps.ver.outputs.version }} (code ${{ steps.ver.outputs.code }}).}"
+            --notes "${{ steps.ver.outputs.changelog }}"
 
       - name: version.json → commit sur main (déclenche le déploiement landing Dokploy)
         env:
@@ -125,7 +136,7 @@ jobs:
           git checkout -B main origin/main
           # main porte déjà le bump versionCode/versionName (le tag en part) ; on ne régénère QUE
           # public/version.json : code lu dans build.gradle, SHA-256 de l'APK buildé, apkUrl = asset Release.
-          NOTES=$(git tag -l --format='%(contents:subject)' "${{ steps.ver.outputs.tag }}")
+          NOTES="${{ steps.ver.outputs.changelog }}"
           if [ -n "$NOTES" ]; then
             node scripts/generate-version-manifest.mjs --apk-file "$GITHUB_WORKSPACE/swimvpn.apk" --apk-url "$ASSET_URL" \
               --changelog-fr "$NOTES" --changelog-en "$NOTES" --changelog-ru "$NOTES"
@@ -136,6 +147,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "version.json inchangé — rien à committer."
           else
-            git commit -m "release(android): version.json → ${{ steps.ver.outputs.version }} (code ${{ steps.ver.outputs.code }}) [skip ci]"
+            # PAS de [skip ci] : ce workflow ne se déclenche que sur tags (un push main ne le relance pas),
+            # et Dokploy DOIT voir ce commit pour redéployer la landing (il honore [skip ci]).
+            git commit -m "release(android): version.json -> ${{ steps.ver.outputs.version }} (code ${{ steps.ver.outputs.code }})"
             git push origin main
           fi

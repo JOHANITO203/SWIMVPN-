@@ -5,8 +5,8 @@
   "sha256": "f34e1f7eb34151de0f7631147a1e25ad948e3a667745d2b78e9dc2decc134eb8",
   "minSupportedCode": 1,
   "changelog": {
-    "ru": "ci(android): daemon Gradle sur temurin 21 en CI (neutralise l'épinglage JBR local)",
-    "fr": "ci(android): daemon Gradle sur temurin 21 en CI (neutralise l'épinglage JBR local)",
-    "en": "ci(android): daemon Gradle sur temurin 21 en CI (neutralise l'épinglage JBR local)"
+    "ru": "Обновления и улучшения стабильности.",
+    "fr": "Mises à jour et améliorations de stabilité.",
+    "en": "Updates and stability improvements."
   }
 }
