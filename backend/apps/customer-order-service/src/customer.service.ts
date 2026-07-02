@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   AssignmentAccessStatus,
   InventoryHealthStatus,
+  OrderKind,
   OrderStatus,
   Prisma,
   TrialCampaignStatus,
@@ -1582,6 +1583,7 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
         order_ref: orderRef,
         customer_id: customer.id,
         plan_id: plan.id,
+        kind: OrderKind.PURCHASE,
         amount_rub: plan.price_rub,
         status: OrderStatus.PENDING,
         telegram_user_id: data.telegramUserId,
@@ -2177,10 +2179,12 @@ export class CustomerService implements OnModuleInit, OnModuleDestroy {
       | {
           payment_ref?: string | null;
           order_ref: string;
+          kind?: OrderKind;
         }
       | undefined,
   ) {
     return !!order && (
+      order.kind === OrderKind.TRIAL ||
       order.payment_ref === 'TRIAL:3D' ||
       order.order_ref.startsWith('TRIAL-')
     );

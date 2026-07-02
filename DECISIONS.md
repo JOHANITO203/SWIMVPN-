@@ -1,3 +1,11 @@
+# 2026-07-03 - Distinguishing order types using OrderKind enum instead of ref string prefixes
+
+Decision: Added `enum OrderKind` (`PURCHASE`, `TRIAL`, `COMP`, `MANUAL`) to categorize `Order` records structurally, rather than relying on `order_ref` string prefixes (e.g. `TRIAL-`).
+
+Reason: Relying on string prefixes is fragile and prone to leak trial orders into paid catalog sweeps. Hybrid trial order records from the legacy system could bypass filters and consume active paid inventory on restock. Modeling the type of order directly in the schema allows robust, type-safe filtering on the DB layer.
+
+Impact: The database includes the `kind` field on `Order`. Fulfillments exclude `TRIAL` kind from auto-retry queue. Startup cleanup automatically purges orphan `TRIAL` order kinds.
+
 # 2026-05-22 - Public plan allowance is separate from supplier capacity
 
 Decision: Customer-facing plan device allowance and internal supplier inventory capacity must be modeled as separate concepts.

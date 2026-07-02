@@ -1,3 +1,16 @@
+# === STATUS — 2026-07-03 (Implémentation du type de commande OrderKind pour séparer Paid/Trial et résoudre la confusion de restockage) ===
+
+- **Problème résolu** : Lors du restockage d'inventaire paid (`WEEK`/Basic), le scheduler de retry automatique récupérait des commandes d'essai historique du format `TRIAL-` qui étaient stockées de manière hybride dans la table `Order` et associées au plan `WEEK`. Ces vieilles commandes d'essais consommaient le nouveau stock payant Basic de manière indue, déclenchant des notifications de vente à 0 RUB.
+- **Solution durable (Option 1)** :
+  - Ajout d'un enum `OrderKind` (`PURCHASE`, `TRIAL`, `COMP`, `MANUAL`) dans `schema.prisma` et ajout du champ `kind` avec valeur par défaut `PURCHASE` dans le modèle `Order`.
+  - Création d'une migration Prisma SQL pour ajouter ce champ et mettre à jour automatiquement toutes les commandes d'essais historiques (`order_ref` commençant par `TRIAL-`) vers `TRIAL`.
+  - Exclusion stricte des commandes de type `TRIAL` dans le script de livraison automatique (`runScheduledFulfillmentRetry` dans `inventory-delivery-service`).
+  - Ajout d'une tâche de nettoyage automatique au démarrage dans `customer-order-service` pour invalider (statut `FAILED`) toutes les commandes d'essais `TRIAL` orphelines encore actives.
+- **Vérification** :
+  - `npx prisma generate` exécuté avec succès.
+  - Le build global NestJS compile parfaitement.
+  - Tous les tests unitaires et d'intégration (`npm run test`) sont 100% verts.
+
 # === STATUS — 2026-07-02 (landing brutaliste + auto-update + pipeline CI release — SESSION Fable) ===
 
 Trois livrables shippés en prod cette session (tout via worktrees isolés — working tree principal jamais touché, resté sur `feat/onion-stealth-tor` de la session concurrente) :

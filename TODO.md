@@ -1,5 +1,8 @@
 # TODO
 
+## [2026-07-03] Order Kind Refactor
+- [x] Implement structural order categorisation using `OrderKind` enum in DB schema and scheduler.
+
 ## [2026-05-22] Android Build Warning Follow-up
 - [ ] Plan Kotlin Gradle plugin / Compose compiler migration separately before attempting to remove the external `org.gradle.api.plugins.Convention` Gradle 9 deprecation warning.
 - [ ] Install or align Android SDK command-line tools/CMake on the build machine before attempting to remove CXX5304 SDK XML warnings.

@@ -13,6 +13,7 @@ import {
   ConfigEventType,
   InventoryHealthStatus,
   InventoryStatus,
+  OrderKind,
   OrderStatus,
   PlanCategory,
   Prisma,
@@ -129,7 +130,10 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
     this.fulfillmentRetryInFlight = true;
     try {
       const stuck = await this.prisma.order.findMany({
-        where: { status: OrderStatus.PENDING_FULFILLMENT },
+        where: {
+          status: OrderStatus.PENDING_FULFILLMENT,
+          kind: { in: [OrderKind.PURCHASE, OrderKind.COMP, OrderKind.MANUAL] }, // Only fulfill paid/gifted/manual orders
+        },
         orderBy: { created_at: 'asc' },
         take: 25,
         select: { id: true, order_ref: true },
@@ -1898,8 +1902,8 @@ export class InventoryService implements OnModuleInit, OnModuleDestroy {
       : order.plan.duration_label;
   }
 
-  private isTrialOrder(order: { payment_ref?: string | null; order_ref: string }) {
-    return order.payment_ref === 'TRIAL:3D' || order.order_ref.startsWith('TRIAL-');
+  private isTrialOrder(order: { payment_ref?: string | null; order_ref: string; kind?: OrderKind }) {
+    return order.kind === OrderKind.TRIAL || order.payment_ref === 'TRIAL:3D' || order.order_ref.startsWith('TRIAL-');
   }
 
   private toBytesFromGb(valueGb: bigint) {
