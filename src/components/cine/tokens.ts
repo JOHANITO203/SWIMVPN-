@@ -15,4 +15,4 @@ export const CINE_DOWNLOAD_URL =
 export const CINE_ANDROID_URL = '/downloads/swimvpn.apk';
 
 // Version affichée dans l'écran Téléchargement (aligner sur la release Android courante).
-export const CINE_APP_VERSION = 'v1.0.12';
+export const CINE_APP_VERSION = 'v1.0.13';

@@ -1,12 +1,12 @@
 {
-  "latestVersionCode": 13,
-  "versionName": "1.0.12",
+  "latestVersionCode": 14,
+  "versionName": "1.0.13",
   "apkUrl": "https://app.swimvpn.pro/downloads/swimvpn.apk",
-  "sha256": "1470c3c7d267877d3d2813d99756385d57ef1c8fb608bd5d98ccb73e834a72de",
+  "sha256": "5c8e70237bae95b3987f2121e6e07622c85687bfa23f3868eb1dbed9b25053d4",
   "minSupportedCode": 1,
   "changelog": {
-    "ru": "Подключение ~50% быстрее на посадочной.",
-    "fr": "Connexion ~50 % plus rapide.",
-    "en": "~50% faster connection."
+    "ru": "До 3 устройств на тариф, удвоенный объём данных и автообновления.",
+    "fr": "Jusqu'à 3 appareils par offre, données doublées, et mises à jour automatiques.",
+    "en": "Up to 3 devices per plan, doubled data, and automatic updates."
   }
 }
