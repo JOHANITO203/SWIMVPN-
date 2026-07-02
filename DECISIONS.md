@@ -1314,3 +1314,11 @@ Decision: HTTP(S) supplier URLs are valid stock only when backend resolution ext
 Reason: Accepting a remote supplier URL as a generic `UNKNOWN` subscription created false-positive imports: Telegram reported success while review showed zero nodes and no countries. Some suppliers also require subscription-client headers and redirect cookies before serving base64/YAML/JSON payloads, so the resolver must behave like a subscription client without exposing raw node details.
 
 Impact: Paid and trial imports now reject remote supplier URLs that cannot be resolved into nodes. The resolver sends bounded VPN-subscription headers, preserves cookies across allowed redirects, keeps anti-SSRF/timeout/size limits, and still separates raw supplier storage from runtime node exposure.
+
+# 2026-07-02 - Product flavors sideload/play ; l'auto-update n'existe que dans le build sideload
+
+Decision: Le module Android a désormais deux product flavors sur la dimension `distribution` : `sideload` (build public actuel, avec auto-update in-app) et `play` (futur build Play Store, sans la permission REQUEST_INSTALL_PACKAGES, sans FileProvider d'APK et sans le code installeur — stub no-op).
+
+Reason: Google Play interdit l'auto-installation et sa permission ; le design auto-update (docs/superpowers/specs/2026-06-14-auto-update-design.md) impose l'absence totale de la feature du build Play, pas un simple flag runtime. Le flavor réel sert aussi le split Play prévu (launch-and-store-plan).
+
+Impact: Les tâches Gradle deviennent par-variant : `assembleSideloadRelease` (sortie `app/build/outputs/apk/sideload/release/`), `testSideloadDebugUnitTest`, etc. Toute recette de build/CI existante mentionnant `assembleRelease` doit viser le flavor sideload. `public/version.json` doit être régénéré à chaque release via `scripts/generate-version-manifest.mjs` (jamais édité à la main).

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_available_title">Доступно обновление</string>
+    <string name="update_available_message">SWIMVPN %1$s готов к установке.</string>
+    <string name="update_action_now">Обновить</string>
+    <string name="update_action_later">Позже</string>
+    <string name="update_required_title">Требуется обновление</string>
+    <string name="update_required_message">Эта версия больше не поддерживается. Обновитесь, чтобы продолжить.</string>
+    <string name="update_download_failed">Не удалось скачать. Проверьте соединение и попробуйте снова.</string>
+    <string name="update_verify_failed">Проверка обновления не прошла — установка отменена.</string>
+    <string name="update_permission_needed">Разрешите установку из SWIMVPN в открывшейся настройке и попробуйте снова.</string>
+</resources>

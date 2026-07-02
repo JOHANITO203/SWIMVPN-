@@ -64,6 +64,7 @@ import com.swimvpn.app.ui.formatBytes
 import com.swimvpn.app.ui.components.SwimDarkLuxuryBackground
 import com.swimvpn.app.ui.screens.*
 import com.swimvpn.app.ui.theme.*
+import com.swimvpn.app.update.UpdateGate
 import com.swimvpn.app.vpn.RuntimeMode
 import com.swimvpn.app.vpn.RuntimeStatus
 import com.swimvpn.app.vpn.ThemeMode
@@ -146,10 +147,14 @@ class MainActivity : AppCompatActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        AppNavigation(
-                            viewModel = viewModel,
-                            onApplyLocale = ::applyLocale,
-                        )
+                        // UpdateGate : réel en flavor sideload (check/download/install en un tap),
+                        // stub no-op en flavor play (mises à jour via le Play Store).
+                        UpdateGate(prefs = prefs) {
+                            AppNavigation(
+                                viewModel = viewModel,
+                                onApplyLocale = ::applyLocale,
+                            )
+                        }
                     }
                 }
             }

@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -47,6 +48,11 @@ class PreferencesManager(private val context: Context) {
         val LAST_RUNTIME_PROTOCOL_KEY = stringPreferencesKey("last_runtime_protocol")
         val LAST_RUNTIME_CONFIG_KEY = stringPreferencesKey("last_runtime_config")
         val LAST_RUNTIME_MODE_KEY = stringPreferencesKey("last_runtime_mode")
+
+        // Auto-update (flavor sideload) : throttle du check (≤1×/jour) + versionCode déjà refusé
+        // par l'utilisateur (on ne re-propose pas la même version optionnelle).
+        val UPDATE_LAST_CHECK_AT_KEY = longPreferencesKey("update_last_check_at")
+        val UPDATE_DISMISSED_CODE_KEY = intPreferencesKey("update_dismissed_code")
         const val DEFAULT_LANGUAGE = VpnNotificationLanguage.DEFAULT_LANGUAGE
 
         // AI Agent stays ON by default to preserve the app's pre-existing adaptive behavior.
@@ -220,6 +226,20 @@ class PreferencesManager(private val context: Context) {
             runtimeConfig = runtimeConfig,
             runtimeMode = runtimeMode,
         )
+    }
+
+    suspend fun getUpdateLastCheckAt(): Long =
+        context.dataStore.data.map { it[UPDATE_LAST_CHECK_AT_KEY] ?: 0L }.firstOrNull() ?: 0L
+
+    suspend fun setUpdateLastCheckAt(epochMs: Long) {
+        context.dataStore.edit { preferences -> preferences[UPDATE_LAST_CHECK_AT_KEY] = epochMs }
+    }
+
+    suspend fun getUpdateDismissedCode(): Int =
+        context.dataStore.data.map { it[UPDATE_DISMISSED_CODE_KEY] ?: 0 }.firstOrNull() ?: 0
+
+    suspend fun setUpdateDismissedCode(versionCode: Int) {
+        context.dataStore.edit { preferences -> preferences[UPDATE_DISMISSED_CODE_KEY] = versionCode }
     }
 
     suspend fun clearAutoConnectPayload() {
