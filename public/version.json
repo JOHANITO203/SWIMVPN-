@@ -1,12 +1,12 @@
 {
-  "latestVersionCode": 14,
-  "versionName": "1.0.13",
-  "apkUrl": "https://app.swimvpn.pro/downloads/swimvpn.apk",
-  "sha256": "5c8e70237bae95b3987f2121e6e07622c85687bfa23f3868eb1dbed9b25053d4",
+  "latestVersionCode": 15,
+  "versionName": "1.0.14",
+  "apkUrl": "https://github.com/JOHANITO203/SWIMVPN-/releases/download/android-v1.0.14/swimvpn.apk",
+  "sha256": "f34e1f7eb34151de0f7631147a1e25ad948e3a667745d2b78e9dc2decc134eb8",
   "minSupportedCode": 1,
   "changelog": {
-    "ru": "До 3 устройств на тариф, удвоенный объём данных и автообновления.",
-    "fr": "Jusqu'à 3 appareils par offre, données doublées, et mises à jour automatiques.",
-    "en": "Up to 3 devices per plan, doubled data, and automatic updates."
+    "ru": "ci(android): daemon Gradle sur temurin 21 en CI (neutralise l'épinglage JBR local)",
+    "fr": "ci(android): daemon Gradle sur temurin 21 en CI (neutralise l'épinglage JBR local)",
+    "en": "ci(android): daemon Gradle sur temurin 21 en CI (neutralise l'épinglage JBR local)"
   }
 }
