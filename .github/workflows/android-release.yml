@@ -45,11 +45,11 @@ jobs:
           fi
           echo "Release Android v$NAME (code $CODE), tag $TAG"
 
-      - name: JDK 17
+      - name: JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Node 20
         uses: actions/setup-node@v4
@@ -85,6 +85,11 @@ jobs:
       - name: Build APK sideload signé
         run: |
           set -euo pipefail
+          # L'épinglage du daemon Gradle sur le JBR JetBrains 21 (gradle-daemon-jvm.properties) est une
+          # commodité Android Studio locale, absente du runner → on le neutralise EN CI seulement (fichier
+          # non commité, le repo garde l'épinglage pour les postes de dev). Le daemon tourne alors sur le
+          # temurin 21 fourni par setup-java.
+          rm -f android/gradle/gradle-daemon-jvm.properties
           chmod +x android/gradlew
           (cd android && ./gradlew :app:assembleSideloadRelease --no-daemon)
           APK=$(find android/app/build/outputs/apk/sideload/release -name '*.apk' | head -1)
