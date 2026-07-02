@@ -3,7 +3,13 @@ package com.swimvpn.app.vpn
 enum class RuntimeMode {
     FULL_TUNNEL,
     LOCAL_PROXY,
-    SPLIT_TUNNEL;
+    SPLIT_TUNNEL,
+
+    // Onion Stealth: device traffic is chained through an embedded Tor client whose own
+    // guard connections exit through the REALITY tunnel (Tor-over-REALITY). The config layer
+    // (xray document + torrc) is implemented and unit-tested; the SwimVpnService data-plane
+    // binding (tor-android process + tun2socks/health-proof tuning) is device-gate pending.
+    TOR_TUNNEL;
 
     companion object {
         fun fromPersisted(value: String?): RuntimeMode =

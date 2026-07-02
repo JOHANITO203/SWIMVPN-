@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.swimvpn.app.BuildConfig
 import com.swimvpn.app.R
 import com.swimvpn.app.config.CamouflageProfileRepository
 import com.swimvpn.app.config.XrayRoutingBuilder
@@ -95,6 +96,8 @@ private const val LEGACY_PROXY_MODE = "PROXY"
 private const val LEGACY_TUNNEL_MODE = "TUNNEL"
 private const val FULL_TUNNEL_MODE = "FULL_TUNNEL"
 private const val LOCAL_PROXY_MODE = "LOCAL_PROXY"
+// Onion Stealth debug affordance: only offered in debug builds so the on-device Tor spike can be run.
+private const val TOR_TUNNEL_MODE = "TOR_TUNNEL"
 private const val ALWAYS_ON_VPN_APP_KEY = "always_on_vpn_app"
 private const val ALWAYS_ON_VPN_LOCKDOWN_KEY = "always_on_vpn_lockdown"
 
@@ -588,6 +591,15 @@ private fun RoutingPill(
             )
             // LOCAL_PROXY mode pill removed (B1/B2): it did not route device traffic. Only the
             // real FULL_TUNNEL is offered; legacy proxy preferences are coerced to it.
+            // Onion Stealth (debug only): lets us select TOR_TUNNEL to run the on-device Tor spike.
+            if (BuildConfig.DEBUG) {
+                RouteLight(
+                    label = "Onion",
+                    selected = selectedMode == TOR_TUNNEL_MODE,
+                    active = selectedMode == TOR_TUNNEL_MODE && (!running || activeMode == TOR_TUNNEL_MODE),
+                    onClick = { onRoutingModeChange(TOR_TUNNEL_MODE) },
+                )
+            }
         }
     }
 }
@@ -926,6 +938,9 @@ private fun normalizeRoutingMode(mode: String): String =
         // LOCAL_PROXY retired (B1/B2): legacy/proxy preferences normalize to the real full tunnel.
         LEGACY_PROXY_MODE, LOCAL_PROXY_MODE -> FULL_TUNNEL_MODE
         LEGACY_TUNNEL_MODE, FULL_TUNNEL_MODE -> FULL_TUNNEL_MODE
+        // Onion Stealth is a debug-only spike affordance. In release, coerce it to full tunnel so a
+        // stray persisted preference can never leave a user stuck on a mode the release engine refuses.
+        TOR_TUNNEL_MODE -> if (BuildConfig.DEBUG) TOR_TUNNEL_MODE else FULL_TUNNEL_MODE
         else -> FULL_TUNNEL_MODE
     }
 
@@ -940,6 +955,7 @@ private fun normalizeThemeMode(themeMode: String): String =
 private fun routingChipLabel(routingMode: String): String =
     when (normalizeRoutingMode(routingMode)) {
         LOCAL_PROXY_MODE -> stringResource(R.string.technical_routing_local_proxy)
+        TOR_TUNNEL_MODE -> "Onion Stealth · Tor (debug)"
         else -> stringResource(R.string.technical_routing_full_tunnel)
     }
 

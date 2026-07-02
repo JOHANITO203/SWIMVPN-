@@ -8,6 +8,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.swimvpn.app.SwimVpnService
+import com.swimvpn.app.tor.TorRuntimeConfig
 import com.swimvpn.app.vpn.RuntimeMode
 
 /**
@@ -149,6 +150,12 @@ object TunnelRuntimeAdapter {
             // Fast-reject literal IPv6 so a captured-but-unsupported IPv6 connection fails instantly
             // (blackhole = immediate close) instead of hanging, letting Happy Eyeballs fall back to IPv4.
             appendIpv6BlockRule(document)
+            // Onion Stealth: chain an embedded Tor client between the app and the REALITY outbound so
+            // app traffic exits via a Tor circuit while Tor itself is carried by REALITY. Additive and
+            // scoped to TOR_TUNNEL — every other mode's document is byte-identical to before.
+            if (runtimeMode == RuntimeMode.TOR_TUNNEL) {
+                applyTorChaining(document)
+            }
             document
         } catch (e: Exception) {
             Log.e(TAG, "Error generating full Xray runtime document", e)
@@ -283,6 +290,91 @@ object TunnelRuntimeAdapter {
             add("ip", JsonArray().apply { add("::/0") })
             addProperty("outboundTag", "block")
         })
+    }
+
+    /**
+     * Onion Stealth — insert the embedded-Tor hop into an otherwise-standard runtime document.
+     *
+     * Idempotent and additive. Given the already-built document (proxy = REALITY outbound, socks-in =
+     * the app-facing inbound that tun2socks feeds), this:
+     *  1. adds a dedicated SOCKS inbound "tor-egress" that Tor exits through (torrc Socks5Proxy target),
+     *  2. adds a "tor" SOCKS outbound pointing at the embedded Tor client's SOCKS port,
+     *  3. routes app traffic (socks-in) → "tor", and Tor's own guard traffic (tor-egress) → "proxy".
+     *
+     * DNS is intentionally left to the FakeDNS pipeline already applied upstream: the app's :53 queries
+     * are answered locally with synthetic IPs and the real hostname is recovered from the TLS/HTTP SNI
+     * (sniffing) and passed as a DOMAIN to the "tor" outbound, so the actual resolution happens inside
+     * Tor at the exit — never against your server. Combined with domainStrategy=AsIs (see policyForMode)
+     * this keeps destinations off your infrastructure. QUIC/UDP-443 cannot ride Tor (TCP-only); it is
+     * left to the existing sniff+fallback behaviour and must be verified not to leak on-device.
+     *
+     * The port trio is the single source of truth in [TorRuntimeConfig]; torrc must match exactly.
+     */
+    private fun applyTorChaining(document: JsonObject) {
+        val inbounds = document.getAsJsonArray("inbounds") ?: return
+        val outbounds = document.getAsJsonArray("outbounds") ?: return
+        val routing = document.getAsJsonObject("routing")
+            ?: JsonObject().also { document.add("routing", it) }
+        val rules = routing.getAsJsonArray("rules")
+            ?: JsonArray().also { routing.add("rules", it) }
+
+        // 1. Egress inbound: the localhost SOCKS port Tor routes its guard connections into. Not the
+        //    app-facing one (socks-in/10808) — that stays the tun2socks target, unchanged.
+        val hasEgressInbound = inbounds.any {
+            it.isJsonObject && it.asJsonObject.get("tag")?.asString == "tor-egress"
+        }
+        if (!hasEgressInbound) {
+            inbounds.add(JsonObject().apply {
+                addProperty("tag", "tor-egress")
+                addProperty("listen", "127.0.0.1")
+                addProperty("port", TorRuntimeConfig.EGRESS_SOCKS_PORT)
+                addProperty("protocol", "socks")
+                add("settings", JsonObject().apply {
+                    addProperty("udp", false)
+                    addProperty("auth", "noauth")
+                })
+            })
+        }
+
+        // 2. Tor outbound: app traffic enters the Tor network here.
+        val hasTorOutbound = outbounds.any {
+            it.isJsonObject && it.asJsonObject.get("tag")?.asString == "tor"
+        }
+        if (!hasTorOutbound) {
+            outbounds.add(JsonObject().apply {
+                addProperty("tag", "tor")
+                addProperty("protocol", "socks")
+                add("settings", JsonObject().apply {
+                    add("servers", JsonArray().apply {
+                        add(JsonObject().apply {
+                            addProperty("address", "127.0.0.1")
+                            addProperty("port", TorRuntimeConfig.SOCKS_PORT)
+                        })
+                    })
+                })
+            })
+        }
+
+        // 3. Routing. The :53→dns-out rule (FakeDNS) and the ::/0→block rule are already prepended and
+        //    keep priority. These inboundTag rules catch everything else: app → Tor, Tor → REALITY.
+        //    Appended (not prepended) so the DNS/IPv6 fast-paths still win.
+        // Route BOTH app-facing inbounds to Tor. tun2socks only feeds socks-in, but http-in exists in
+        // the document; if anything ever reached it, the default outbound (proxy/REALITY) would exit
+        // DIRECTLY, bypassing Tor — an anonymity leak. Sending http-in → tor closes that hole.
+        if (rules.none { it.isJsonObject && it.asJsonObject.get("outboundTag")?.asString == "tor" }) {
+            rules.add(JsonObject().apply {
+                addProperty("type", "field")
+                add("inboundTag", JsonArray().apply { add("socks-in"); add("http-in") })
+                addProperty("outboundTag", "tor")
+            })
+        }
+        if (rules.none { it.isJsonObject && it.asJsonObject.get("inboundTag")?.asJsonArray?.any { t -> t.asString == "tor-egress" } == true }) {
+            rules.add(JsonObject().apply {
+                addProperty("type", "field")
+                add("inboundTag", JsonArray().apply { add("tor-egress") })
+                addProperty("outboundTag", "proxy")
+            })
+        }
     }
 
     /**
@@ -730,6 +822,14 @@ object TunnelRuntimeAdapter {
             RuntimeMode.LOCAL_PROXY -> RuntimeNetworkPolicy(
                 dnsServers = LEGACY_PROXY_DNS_SERVERS,
                 queryStrategy = "UseIP",
+                domainStrategy = "AsIs",
+            )
+            RuntimeMode.TOR_TUNNEL -> RuntimeNetworkPolicy(
+                dnsServers = DEFAULT_IPV4_DNS_SERVERS,
+                queryStrategy = "UseIP",
+                // AsIs: never resolve destination hostnames locally. Domains are passed through to the
+                // Tor SOCKS outbound so resolution happens remotely INSIDE Tor (at the exit) — this is
+                // what prevents a DNS leak of the user's destinations to your REALITY server.
                 domainStrategy = "AsIs",
             )
             RuntimeMode.FULL_TUNNEL,

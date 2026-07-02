@@ -446,6 +446,7 @@ fun AppNavigation(
                     RuntimeMode.FULL_TUNNEL -> "FULL_TUNNEL"
                     RuntimeMode.LOCAL_PROXY -> "LOCAL_PROXY"
                     RuntimeMode.SPLIT_TUNNEL -> "SPLIT_TUNNEL"
+                    RuntimeMode.TOR_TUNNEL -> "TOR_TUNNEL"
                 },
                 autoConnect = autoConnect,
                 agentEnabled = agentEnabled,

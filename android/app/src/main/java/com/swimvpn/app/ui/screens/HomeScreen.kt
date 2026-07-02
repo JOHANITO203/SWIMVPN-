@@ -211,7 +211,9 @@ fun HomeScreen(
             return
         }
         if (vpnState == VpnState.DISCONNECTED || vpnState == VpnState.ERROR) {
-            if (selectedRuntimeMode == RuntimeMode.FULL_TUNNEL) {
+            // Both FULL_TUNNEL and Onion Stealth (TOR_TUNNEL) establish a system tun, so both need the
+            // VPN consent. Without this, selecting Onion on a fresh install would fail at establish().
+            if (selectedRuntimeMode == RuntimeMode.FULL_TUNNEL || selectedRuntimeMode == RuntimeMode.TOR_TUNNEL) {
                 val intent = android.net.VpnService.prepare(context)
                 if (intent != null) {
                     vpnPermissionLauncher.launch(intent)

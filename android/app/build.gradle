@@ -463,6 +463,20 @@ dependencies {
     // Google Code Scanner keeps scanning in Play Services instead of bundling image-processing natives.
     implementation 'com.google.android.gms:play-services-code-scanner:16.1.0'
 
+    // Onion Stealth: embedded Tor client (guardianproject TorService) + control library. The embedded
+    // Tor is chained UNDER the REALITY tunnel (Tor-over-REALITY) so the ISP never sees Tor and Tor needs
+    // no bridges. Adds ~10-15 MB/ABI of native tor. See DECISIONS.md 2026-07-02.
+    // Pinned to the latest 0.4.8.x (minCompileSdk=1). 0.4.9.x requires compileSdk 37 / newer AGP —
+    // an out-of-scope toolchain bump. Revisit when the project moves to compileSdk 37+.
+    // tor-android is a Java library but declares an open kotlin-stdlib dep that wins conflict
+    // resolution and drags the whole app onto kotlin-stdlib 2.3.0 (unreadable by the project's
+    // Kotlin 1.9 compiler). It needs no Kotlin at runtime, so exclude it and keep the app's stdlib.
+    implementation('info.guardianproject:tor-android:0.4.8.22') {
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib'
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-common'
+    }
+    implementation 'info.guardianproject:jtorctl:0.4.5.7'
+
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'

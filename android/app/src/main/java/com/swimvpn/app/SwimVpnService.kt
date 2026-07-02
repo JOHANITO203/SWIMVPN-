@@ -27,6 +27,7 @@ import com.swimvpn.app.config.RoutingOptions
 import com.swimvpn.app.config.SourceType
 import com.swimvpn.app.config.TunnelRuntimeAdapter
 import com.swimvpn.app.config.XrayRoutingBuilder
+import com.swimvpn.app.tor.TorController
 import com.swimvpn.app.data.local.PreferencesManager
 import com.swimvpn.app.runtime.Tun2SocksAssetCatalog
 import com.swimvpn.app.runtime.Tun2SocksLaunchSpec
@@ -128,6 +129,9 @@ class SwimVpnService : VpnService() {
     }
     private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob + serviceExceptionHandler)
     private val xrayBridge by lazy { XrayProcessBridge(applicationContext) }
+    // Onion Stealth (DEBUG prototype): embedded Tor client chained under REALITY. Only started on the
+    // TOR_TUNNEL data-plane path (behind BuildConfig.DEBUG); never touched by the other modes.
+    private val torController by lazy { TorController(applicationContext) }
     private val tun2SocksFilePreparer by lazy { Tun2SocksRuntimeFilePreparer(applicationContext) }
 
     private val channelId = "swim_vpn_status"
@@ -166,6 +170,14 @@ class SwimVpnService : VpnService() {
         private const val UNVALIDATED_PROBE_ATTEMPTS = 5
         private const val UNVALIDATED_PROBE_TIMEOUT_MS = 2_800
         private const val UNVALIDATED_PROBE_RETRY_DELAY_MS = 600L
+
+        // Onion Stealth (DEBUG prototype): Tor circuits are slow to bootstrap and build, so the Tor path
+        // uses a much longer bootstrap gate and a tolerant traffic probe. These NEVER apply to the
+        // direct-REALITY modes (the health-proof only uses them when torTolerantProbe = true).
+        private const val TOR_BOOTSTRAP_TIMEOUT_MS = 90_000L
+        private const val TOR_PROBE_ATTEMPTS = 6
+        private const val TOR_PROBE_TIMEOUT_MS = 15_000
+        private const val TOR_PROBE_RETRY_DELAY_MS = 2_000L
         // Passive watchdog: how long a confirmed-running session may show outbound
         // bytes with zero inbound bytes before being demoted to DEGRADED (NO_TRAFFIC).
         private const val TRAFFIC_STALL_THRESHOLD_MS = 15_000L
@@ -545,6 +557,16 @@ class SwimVpnService : VpnService() {
                     RuntimeMode.SPLIT_TUNNEL -> {
                         throw IllegalStateException("Split tunnel is not available yet")
                     }
+                    RuntimeMode.TOR_TUNNEL -> {
+                        // Onion Stealth data plane: enabled ONLY in debug builds so the on-device
+                        // leak/exit spike (docs/ONION_STEALTH_DEVICE_SPIKE.md) can run. Release builds
+                        // still refuse it until that spike passes. See DECISIONS.md 2026-07-02.
+                        if (BuildConfig.DEBUG) {
+                            startTorTunnel(runtime, host, port)
+                        } else {
+                            throw IllegalStateException("Onion Stealth (Tor) is not available yet")
+                        }
+                    }
                 }
             } catch (e: CancellationException) {
                 logRuntimeEvent("startup_cancelled", mapOf("reason" to (e.message ?: "cancelled")))
@@ -619,6 +641,10 @@ class SwimVpnService : VpnService() {
         runtime: TunnelRuntimeAdapter.RuntimePreparationResult,
         host: String,
         port: Int,
+        // Additive hooks for the Onion Stealth path. Defaults preserve the exact prior behaviour for
+        // every existing caller (FULL_TUNNEL/BYO): no hook runs and the standard probe budget is used.
+        afterXrayReady: (suspend () -> Unit)? = null,
+        torTolerantProbe: Boolean = false,
     ) {
         // Register the network callback BEFORE establishing the tunnel so that a
         // network loss during startup is observed (and not masked by the VPN
@@ -629,6 +655,9 @@ class SwimVpnService : VpnService() {
             runtime = runtime,
             failurePrefix = "Xray tunnel runtime exited before tun2socks could be armed",
         )
+        // Onion Stealth: xray is up (listening on socks-in + tor-egress), so now bring up the embedded
+        // Tor client, which bootstraps THROUGH the REALITY tunnel, before the tun/tun2socks data plane.
+        afterXrayReady?.invoke()
         logRuntimeEvent("engine_started", mapOf("mode" to RuntimeMode.FULL_TUNNEL.name))
         logPerfStage("xray_alive")
 
@@ -765,6 +794,7 @@ class SwimVpnService : VpnService() {
             socksPort = runtime.ports.socksPort,
             serverHost = host,
             serverPort = port,
+            torTolerantProbe = torTolerantProbe,
         )
         VpnManager.markHandshake()
         updateRuntimeStatus(RuntimeStatus.RUNNING, RuntimeMode.FULL_TUNNEL)
@@ -809,6 +839,44 @@ class SwimVpnService : VpnService() {
                 append(tun2SocksAvailability.reason)
             },
         )
+    }
+
+    /**
+     * Onion Stealth (DEBUG prototype) — bring up the Tor-over-REALITY data plane.
+     *
+     * Reuses the full-tunnel path via additive hooks: xray starts first (it listens on socks-in and
+     * the tor-egress inbound), then the embedded Tor client bootstraps THROUGH the REALITY tunnel, then
+     * tun2socks + a Tor-latency-tolerant health proof. On any failure the Tor process is reaped so it
+     * never leaks. NOT production-wired: gated behind BuildConfig.DEBUG and unreachable from the UI until
+     * the on-device leak/exit spike passes (docs/ONION_STEALTH_DEVICE_SPIKE.md).
+     */
+    private suspend fun startTorTunnel(
+        runtime: TunnelRuntimeAdapter.RuntimePreparationResult,
+        host: String,
+        port: Int,
+    ) {
+        try {
+            startTunnelInterface(
+                runtime = runtime,
+                host = host,
+                port = port,
+                afterXrayReady = {
+                    logPerfStage("tor_bootstrap_start")
+                    torController.start()
+                    if (!torController.awaitReady(TOR_BOOTSTRAP_TIMEOUT_MS)) {
+                        throw StartupHealthException(
+                            "Tor did not bootstrap within ${TOR_BOOTSTRAP_TIMEOUT_MS}ms",
+                            DisconnectCause.HANDSHAKE_FAILURE,
+                        )
+                    }
+                    logPerfStage("tor_ready")
+                },
+                torTolerantProbe = true,
+            )
+        } catch (e: Throwable) {
+            runCatching { torController.stop() }
+            throw e
+        }
     }
 
     private suspend fun startLocalProxy(
@@ -936,6 +1004,9 @@ class SwimVpnService : VpnService() {
             }
             activeXraySessionId = null
             xrayBridge.stopAll()
+            // Onion Stealth: reap the embedded Tor client too. No-op when it was never started (the
+            // other modes never touch it), so this is safe on every teardown path.
+            runCatching { torController.stop() }
         } catch (e: Exception) {
             Log.e("SwimVpnService", "Error stopping native runtime during teardown", e)
         } finally {
@@ -1055,6 +1126,9 @@ class SwimVpnService : VpnService() {
             RuntimeMode.FULL_TUNNEL -> context.getString(R.string.vpn_notification_mode_tunnel)
             RuntimeMode.LOCAL_PROXY -> context.getString(R.string.vpn_notification_mode_proxy)
             RuntimeMode.SPLIT_TUNNEL -> context.getString(R.string.vpn_notification_mode_split_tunnel)
+            // Reuses the full-tunnel label until the Onion Stealth data plane ships (device-gated);
+            // the TOR_TUNNEL service branch throws before a notification is rendered.
+            RuntimeMode.TOR_TUNNEL -> context.getString(R.string.vpn_notification_mode_tunnel)
         }
     }
 
@@ -1214,7 +1288,34 @@ class SwimVpnService : VpnService() {
         socksPort: Int,
         serverHost: String,
         serverPort: Int,
+        torTolerantProbe: Boolean = false,
     ) {
+        // Onion Stealth: Tor circuits are far slower than a direct REALITY dial, so the calibrated
+        // 600 ms / warmup gates below would wrongly reject a working Tor tunnel. Use a dedicated
+        // long-budget probe and skip the fast early-proof. This branch is only reachable on the
+        // TOR_TUNNEL path; the direct-REALITY behaviour below is byte-identical for all other callers.
+        if (torTolerantProbe) {
+            val torXrayId = activeXraySessionId
+            val torXrayAlive = torXrayId != null && xrayBridge.snapshot(torXrayId)?.isAlive == true
+            val torTun2SocksAlive = activeTun2SocksContract != null && activeTun2SocksJob?.isActive == true
+            val engineLive = torXrayAlive && (!requireTun2Socks || torTun2SocksAlive)
+            val trafficConfirmed = engineLive && probeTrafficThroughProxy(
+                socksPort, serverHost, serverPort,
+                attempts = TOR_PROBE_ATTEMPTS,
+                timeoutMs = TOR_PROBE_TIMEOUT_MS,
+                retryDelayMs = TOR_PROBE_RETRY_DELAY_MS,
+            )
+            if (!trafficConfirmed) {
+                val reason = "Onion Stealth tunnel established but no traffic reached the server through Tor"
+                logRuntimeEvent(
+                    "startup_health_failed",
+                    mapOf("mode" to mode.name, "reason" to reason, "cause" to DisconnectCause.NO_TRAFFIC.name),
+                )
+                throw StartupHealthException(reason, DisconnectCause.NO_TRAFFIC)
+            }
+            logPerfStage("tor_probe_ok")
+            return
+        }
         // PERF — early-proof on VALIDATED networks only. Instead of a flat STARTUP_HEALTH_PROOF_DELAY_MS
         // warmup before a single probe pass, attempt the real traffic probe immediately: connect()
         // returns the instant the REALITY outbound is ready, so a warmed server connects ~1 s sooner.

@@ -1,3 +1,29 @@
+# 2026-07-02 - Onion Stealth (embedded Tor chained under REALITY) — config layer landed, data plane device-gated
+
+Decision: Add a differentiating "Onion Stealth" anonymity mode where an embedded Tor client's traffic is chained through the existing REALITY tunnel (Tor-over-REALITY), NOT the reverse. Target product form is per-app split (Tor only for chosen apps, the rest keep full-speed REALITY), reached in two phases because the split's foundation IS the single-flow chain.
+
+Chain: app → tun → tun2socks → xray socks-in(10808) → xray "tor" outbound → embedded Tor SOCKS(9050); Tor exits via torrc `Socks5Proxy 127.0.0.1:10810` → xray "tor-egress" inbound → "proxy"(REALITY) → server → guard → exit.
+
+Why this is real (not theatre): the ISP only ever sees REALITY to our server (never "using Tor" — so it survives DPI that blocks Tor guards/bridges in RU); our server only ever sees encrypted Tor-to-guard traffic (no-log by construction, we cannot see destinations); the site sees a Tor exit. Because REALITY is the transport, Tor needs NO bridges/obfs4. Onion-over-VPN (Tor on the server) was rejected: the server would see destinations in clear → zero operator-side anonymity + Tor abuse on our infra. Arti/Rust rejected: mobile FFI embedding not mature — use guardianproject tor-android (C) + jtorctl.
+
+Scope shipped on branch `feat/onion-stealth-tor` (engine + embedded-Tor binding, unit-tested, compiles green via `:app:compileDebugKotlin` + `:app:testDebugUnitTest`):
+- `RuntimeMode.TOR_TUNNEL` + all exhaustive `when` handlers.
+- `tor/TorRuntimeConfig.kt`: port pair (SOCKS 9050 / egress 10810) + deterministic torrc generator (no bridges; control socket + DataDirectory left to TorService).
+- `tor/TorController.kt`: lifecycle wrapper over guardianproject `org.torproject.jni.TorService` — writes our torrc into `TorService.getTorrc()`, starts the service, and gates readiness on the `ACTION_STATUS` broadcast (STARTING→ON) exposed as a `StateFlow<TorBootstrap>`; `awaitReady(timeout)`. Compiled against the real TorService API.
+- gradle: `info.guardianproject:tor-android:0.4.8.22` (pinned — 0.4.9.x needs compileSdk 37/newer AGP, out of scope) + `jtorctl:0.4.5.7`. tor-android's open kotlin-stdlib dep is EXCLUDED (it dragged the app onto unreadable kotlin-stdlib 2.3.0; tor-android needs no Kotlin at runtime). +~10-15 MB/ABI native tor.
+- `TunnelRuntimeAdapter`: TOR_TUNNEL policy (domainStrategy=AsIs so hostnames resolve INSIDE Tor at the exit, never against our server) + `applyTorChaining` (adds tor-egress inbound, tor outbound, and inboundTag routing app→tor / tor-egress→proxy; http-in also routed to tor as an anti-leak guard). Additive: every other mode's document is byte-identical.
+- `SwimVpnService`: `startTorTunnel` wired behind `BuildConfig.DEBUG` (release still refuses TOR_TUNNEL). Reuses `startTunnelInterface` via ADDITIVE optional params (`afterXrayReady` hook + `torTolerantProbe`) so FULL_TUNNEL/BYO behaviour is byte-identical; order = xray up → Tor bootstrap THROUGH REALITY (`awaitReady(90s)`) → tun2socks → Tor-latency-tolerant probe (15s×6, not the 600ms REALITY gate); Tor reaped on teardown + on any startup failure. `RuntimeModePreference.fromUserSelectable("TOR_TUNNEL")` already resolves the mode.
+- Unit tests: `TorRuntimeConfigTest`, `TunnelRuntimeAdapterTorTest` (green). Compiles green incl. the service wiring.
+
+Explicitly NOT done (device-gated):
+1. DNS-over-Tor SPIKE on a real device — bloquant #1: prove 0 DNS leaks to our server, no localhost routing loop, and QUIC/UDP-443 doesn't leak outside Tor (Tor is TCP-only). Procedure: docs/ONION_STEALTH_DEVICE_SPIKE.md. This validates or invalidates the whole feature; the debug wiring above exists ONLY to run it.
+2. `assembleDebug`/APK packaging (native tor `.so` per ABI, dexing) NOT run here — only Kotlin compile + unit tests. Verify APK build on a device-capable session.
+3. Post-spike productisation: fine-grained bootstrap % (bound control connection + `getInfo("status/bootstrap-phase")`), two-foreground-service notification UX, UI toggle + i18n + entitlement, then Phase 1 per-app UID-aware split.
+4. UI toggle "Onion Stealth" + BOOTSTRAP progress state + ru/fr i18n + premium entitlement gate.
+5. Phase 1 (per-app split): Android allows ONE tun per app, so "two data planes" is impossible — needs UID-aware routing in the data plane (getConnectionOwnerUid on API≥29, /proc/net/tcp on 26-28). This is the biggest single lift, larger than embedding Tor. Rejected the cheap `addAllowedApplication`-only split: non-Tor apps would lose REALITY (direct, ISP-visible) = a security regression, not a product.
+
+Impact: no runtime behavior change yet (mode unreachable from UI, service branch throws). The censorship-critical config logic is real and tested; the process/binary/UI/device work is the next build-capable session.
+
 # 2026-05-22 - Public plan allowance is separate from supplier capacity
 
 Decision: Customer-facing plan device allowance and internal supplier inventory capacity must be modeled as separate concepts.
